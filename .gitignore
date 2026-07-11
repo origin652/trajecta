@@ -1,0 +1,18 @@
+# Existing reference repositories.  They remain outside the Trajecta MIT tree.
+/flexpart/
+/tools/
+
+# Local agent/editor state.
+/.agents/
+/.codex/
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Future Rust build outputs.
+/target/
+/trajecta/target/
+**/target/
