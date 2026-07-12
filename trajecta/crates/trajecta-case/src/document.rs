@@ -165,7 +165,7 @@ pub struct ResolvedRunProfile {
     pub case_path: PathBuf,
     /// Canonical local dataset bindings.
     pub datasets: Vec<DatasetBinding>,
-    /// Validated machine resources.
+    /// Machine resources validated during RunProfile expansion.
     pub execution: ExecutionSpec,
     /// Every source document and immutable digest used during resolution.
     #[serde(default)]

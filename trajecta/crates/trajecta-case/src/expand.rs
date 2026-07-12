@@ -9,7 +9,9 @@
 //! - Case component `ref` paths remain jailed under [`LocalRefResolver`]'s root.
 //! - RunProfile `case_path`, dataset `lockfile`, and `cache_root` are machine
 //!   paths and may live outside the Case root.
-//! - `cache_root` may not exist yet and is still recorded as an absolute path.
+//! - `case_path` / `lockfile` must exist as regular files.
+//! - Existing `cache_root` must be a directory; missing cache roots are allowed
+//!   and are lexically normalized to an absolute path without residual `..`.
 //!
 //! ## Exposed interface
 //!
@@ -23,7 +25,7 @@
 
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use serde::de::DeserializeOwned;
 
@@ -44,8 +46,8 @@ use crate::resolver::{
     read_local_file,
 };
 use crate::schema::{
-    SchemaError, parse_case_json, parse_case_yaml, parse_run_profile_json, parse_run_profile_yaml,
-    validate_resolved_case,
+    SchemaDocument, SchemaError, parse_case_json, parse_case_yaml, parse_run_profile_json,
+    parse_run_profile_yaml, validate_resolved_case,
 };
 
 /// Expansion failure.
@@ -62,7 +64,7 @@ pub enum ExpandError {
         /// Parser message.
         message: String,
     },
-    /// Expanded Case failed shared shape validation.
+    /// Expanded document failed shared shape validation.
     Shape(DiagnosticBag),
 }
 
@@ -75,7 +77,11 @@ impl std::fmt::Display for ExpandError {
                 write!(f, "component parse error at {}: {message}", path.display())
             }
             Self::Shape(bag) => {
-                write!(f, "expanded case shape invalid ({} diagnostics)", bag.len())
+                write!(
+                    f,
+                    "expanded document shape invalid ({} diagnostics)",
+                    bag.len()
+                )
             }
         }
     }
@@ -204,31 +210,35 @@ pub fn expand_run_profile_file(
     let source = resolver.read_file(profile_path)?;
     let text = bytes_to_str(&source.bytes, &source.digest.path)?;
     let document = parse_run_profile_text(text, &source.digest.path)?;
-    expand_run_profile_document(
-        &document,
-        &source.digest.path.clone(),
-        resolver,
-        source.digest,
-    )
+    expand_run_profile_document(&document, &source.digest.path.clone(), source.digest)
 }
 
 /// Normalizes RunProfile machine paths and records source digests.
 ///
 /// Machine paths (`case_path`, `lockfile`, `cache_root`) are **not** jailed to
-/// the Case component root. `case_path` and each `lockfile` must exist;
-/// `cache_root` may be absent and is still absolutized when possible.
+/// the Case component root.
+///
+/// - Document shape is validated before path materialization.
+/// - `case_path` and each `lockfile` must exist and be regular files.
+/// - Existing `cache_root` must be a directory; missing cache roots are allowed
+///   and are lexically normalized to an absolute path without residual `..`.
+/// - Permission and other non-NotFound I/O errors are never treated as absence.
 pub fn expand_run_profile_document(
     document: &RunProfileDocument,
     profile_path: &Path,
-    _resolver: &LocalRefResolver,
     profile_digest: SourceDigest,
 ) -> Result<ResolvedRunProfile, ExpandError> {
-    let case_path = require_existing_machine_path(profile_path, &document.case_path)?;
+    let shape = document.validate_shape()?;
+    if shape.has_errors() {
+        return Err(ExpandError::Shape(shape));
+    }
+
+    let case_path = require_existing_regular_file(profile_path, &document.case_path)?;
     let mut datasets = Vec::with_capacity(document.datasets.len());
     for binding in &document.datasets {
-        let lockfile = require_existing_machine_path(profile_path, &binding.lockfile)?;
+        let lockfile = require_existing_regular_file(profile_path, &binding.lockfile)?;
         let cache_root = match &binding.cache_root {
-            Some(path) => Some(optional_machine_directory(profile_path, path)?),
+            Some(path) => Some(resolve_cache_root(profile_path, path)?),
             None => None,
         };
         datasets.push(DatasetBinding {
@@ -305,33 +315,97 @@ fn machine_path(base_file: &Path, path: &Path) -> PathBuf {
     }
 }
 
-fn require_existing_machine_path(base_file: &Path, path: &Path) -> Result<PathBuf, ExpandError> {
+fn require_existing_regular_file(base_file: &Path, path: &Path) -> Result<PathBuf, ExpandError> {
     let candidate = machine_path(base_file, path);
-    fs::canonicalize(&candidate).map_err(|error| {
+    let canonical = fs::canonicalize(&candidate).map_err(|error| {
         ExpandError::Resolve(ResolveError::Io {
-            path: candidate,
+            path: candidate.clone(),
             message: error.to_string(),
         })
-    })
+    })?;
+    let metadata = fs::metadata(&canonical).map_err(|error| {
+        ExpandError::Resolve(ResolveError::Io {
+            path: canonical.clone(),
+            message: error.to_string(),
+        })
+    })?;
+    if !metadata.is_file() {
+        return Err(ExpandError::Resolve(ResolveError::Io {
+            path: canonical,
+            message: "path exists but is not a regular file".into(),
+        }));
+    }
+    Ok(canonical)
 }
 
-fn optional_machine_directory(base_file: &Path, path: &Path) -> Result<PathBuf, ExpandError> {
-    let candidate = machine_path(base_file, path);
-    if let Ok(canonical) = fs::canonicalize(&candidate) {
-        return Ok(canonical);
-    }
-    // Directory may not exist yet. Absolutize against the profile parent when possible.
-    if path.is_absolute() {
-        return Ok(path.to_path_buf());
-    }
-    let parent = base_file.parent().unwrap_or_else(|| Path::new("."));
-    match fs::canonicalize(parent) {
-        Ok(parent_canon) => Ok(parent_canon.join(path)),
+fn resolve_cache_root(base_file: &Path, path: &Path) -> Result<PathBuf, ExpandError> {
+    let candidate = absolutize_machine_path(base_file, path)?;
+    match fs::symlink_metadata(&candidate) {
+        Ok(metadata) => {
+            if metadata.file_type().is_dir() {
+                fs::canonicalize(&candidate).map_err(|error| {
+                    ExpandError::Resolve(ResolveError::Io {
+                        path: candidate,
+                        message: error.to_string(),
+                    })
+                })
+            } else {
+                Err(ExpandError::Resolve(ResolveError::Io {
+                    path: candidate,
+                    message: "cache_root exists but is not a directory".into(),
+                }))
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            // Missing cache roots are allowed; keep a fully normalized absolute path.
+            Ok(candidate)
+        }
         Err(error) => Err(ExpandError::Resolve(ResolveError::Io {
-            path: parent.to_path_buf(),
+            path: candidate,
             message: error.to_string(),
         })),
     }
+}
+
+fn absolutize_machine_path(base_file: &Path, path: &Path) -> Result<PathBuf, ExpandError> {
+    let joined = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        let parent = base_file.parent().unwrap_or_else(|| Path::new("."));
+        let parent_canon = fs::canonicalize(parent).map_err(|error| {
+            ExpandError::Resolve(ResolveError::Io {
+                path: parent.to_path_buf(),
+                message: error.to_string(),
+            })
+        })?;
+        parent_canon.join(path)
+    };
+    normalize_lexically(&joined)
+}
+
+/// Lexically resolve `.` / `..` without requiring the final path to exist.
+fn normalize_lexically(path: &Path) -> Result<PathBuf, ExpandError> {
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::Prefix(prefix) => out.push(prefix.as_os_str()),
+            Component::RootDir => out.push(component.as_os_str()),
+            Component::CurDir => {}
+            Component::ParentDir => match out.components().next_back() {
+                Some(Component::Normal(_)) => {
+                    out.pop();
+                }
+                _ => {
+                    return Err(ExpandError::Resolve(ResolveError::Io {
+                        path: path.to_path_buf(),
+                        message: "path escapes its base after normalization".into(),
+                    }));
+                }
+            },
+            Component::Normal(part) => out.push(part),
+        }
+    }
+    Ok(out)
 }
 
 fn bytes_to_str<'a>(bytes: &'a [u8], path: &Path) -> Result<&'a str, ExpandError> {
@@ -497,7 +571,83 @@ target_particle_count: 0
     }
 
     #[test]
-    fn run_profile_allows_external_lockfile_and_missing_cache_root() {
+    fn run_profile_rejects_invalid_execution_shape() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        fs::write(
+            root.join("case.yaml"),
+            "schema_version: 0\nkind: case\nmetadata: { name: x }\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("run.yaml"),
+            r#"
+schema_version: 0
+kind: run_profile
+metadata: { name: local }
+case_path: case.yaml
+datasets: []
+execution:
+  worker_threads: 0
+  memory_budget_bytes: 0
+  executor: ""
+"#,
+        )
+        .unwrap();
+        let resolver = LocalRefResolver::new(root);
+        let err = expand_run_profile_file(&root.join("run.yaml"), &resolver).unwrap_err();
+        match err {
+            ExpandError::Shape(bag) => {
+                assert!(bag.has_errors());
+                assert!(
+                    bag.iter()
+                        .any(|d| d.code() == "run_profile.worker_threads_zero")
+                );
+            }
+            other => panic!("expected shape error, got {other}"),
+        }
+    }
+
+    #[test]
+    fn run_profile_rejects_directory_case_path_and_file_cache_root() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        fs::create_dir_all(root.join("cases")).unwrap();
+        fs::write(root.join("lock.json"), b"{}").unwrap();
+        fs::write(root.join("not-a-dir.txt"), b"x").unwrap();
+        fs::write(
+            root.join("run.yaml"),
+            r#"
+schema_version: 0
+kind: run_profile
+metadata: { name: local }
+case_path: cases
+datasets:
+  - dataset: era5
+    lockfile: lock.json
+    cache_root: not-a-dir.txt
+execution:
+  worker_threads: 1
+  memory_budget_bytes: 1024
+  executor: cpu
+"#,
+        )
+        .unwrap();
+        let resolver = LocalRefResolver::new(root);
+        let err = expand_run_profile_file(&root.join("run.yaml"), &resolver).unwrap_err();
+        match err {
+            ExpandError::Resolve(ResolveError::Io { message, .. }) => {
+                assert!(
+                    message.contains("not a regular file"),
+                    "unexpected message: {message}"
+                );
+            }
+            other => panic!("expected resolve io error, got {other}"),
+        }
+    }
+
+    #[test]
+    fn run_profile_allows_external_lockfile_and_normalizes_missing_cache_root() {
         let dir = tempdir().unwrap();
         let root = dir.path().join("project");
         let data = dir.path().join("data-disk");
@@ -509,6 +659,7 @@ target_particle_count: 0
         )
         .unwrap();
         fs::write(data.join("era5.lock.json"), b"{}").unwrap();
+        let missing_cache = data.join("nested").join("..").join("cache-not-created-yet");
         fs::write(
             root.join("run.yaml"),
             format!(
@@ -530,10 +681,7 @@ execution:
                     .display()
                     .to_string()
                     .replace('\\', "/"),
-                data.join("cache-not-created-yet")
-                    .display()
-                    .to_string()
-                    .replace('\\', "/")
+                missing_cache.display().to_string().replace('\\', "/")
             ),
         )
         .unwrap();
@@ -544,6 +692,11 @@ execution:
         assert!(resolved.datasets[0].lockfile.ends_with("era5.lock.json"));
         let cache = resolved.datasets[0].cache_root.as_ref().unwrap();
         assert!(cache.ends_with("cache-not-created-yet"));
+        assert!(
+            !cache
+                .components()
+                .any(|c| matches!(c, Component::ParentDir))
+        );
         assert!(!cache.exists());
         assert_eq!(resolved.sources.len(), 2);
     }
@@ -570,6 +723,20 @@ execution:
         let resolver = LocalRefResolver::new(root);
         let err = expand_run_profile_file(&root.join("run.yaml"), &resolver).unwrap_err();
         assert!(matches!(err, ExpandError::Resolve(ResolveError::Io { .. })));
+    }
+
+    #[test]
+    fn lexical_normalization_collapses_parent_segments() {
+        let dir = tempdir().unwrap();
+        let base = dir.path().join("run.yaml");
+        fs::write(&base, b"x").unwrap();
+        let normalized = absolutize_machine_path(&base, Path::new("a/b/../c/./d")).unwrap();
+        assert!(normalized.ends_with(Path::new("a").join("c").join("d")));
+        assert!(
+            !normalized
+                .components()
+                .any(|c| matches!(c, Component::ParentDir | Component::CurDir))
+        );
     }
 
     #[test]

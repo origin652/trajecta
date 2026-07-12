@@ -111,7 +111,7 @@ impl LocalRefResolver {
 /// Used for RunProfile machine paths (case, lockfile) that may live outside the
 /// Case component root. Large meteorological payloads must still use
 /// [`sha256_file_streaming`].
-pub fn read_local_file(path: &Path) -> Result<ResolvedSource, ResolveError> {
+pub(crate) fn read_local_file(path: &Path) -> Result<ResolvedSource, ResolveError> {
     let canonical = fs::canonicalize(path).map_err(|error| ResolveError::Io {
         path: path.to_path_buf(),
         message: error.to_string(),

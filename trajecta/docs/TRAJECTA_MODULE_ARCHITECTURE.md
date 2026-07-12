@@ -136,6 +136,7 @@ trajecta-case/src/
   lib.rs
   diagnostic.rs
   document.rs
+  expand.rs
   quantity.rs
   reference.rs
   resolver.rs
@@ -225,23 +226,29 @@ outputs
 - 不允许无单位数字隐式猜测；
 - UnitRegistry 与 profile graph 使用同一维度系统。
 
-### 5.4 reference 与 resolver
+### 5.4 reference、resolver 与 expand
 
 | 类型 | 种类 | 作用 | 连接模块 | 难度 |
 |---|---|---|---|---:|
 | ComponentRef | enum | Inline 或 RefPath | Case组件 | B |
 | RefPath | struct | 受控相对路径 | resolver | C |
 | RefResolver | trait | 解析组件引用 | LocalRefResolver | B |
-| LocalRefResolver | struct | v0本地文件实现 | CLI、Case | B |
+| LocalRefResolver | struct | Case 组件根目录监狱的本地实现 | CLI、Case | B |
 | SourceDigest | struct | 路径、大小和SHA-256 | resolved case、manifest | C |
-| ResolutionGraph | struct | 检测循环引用和来源链 | resolver | B |
+| ResolutionGraph | struct | 记录单层引用边并拒绝自引用环 | expand | B |
+| expand_case_* | fn | 单层展开组件 ref，并做展开后形状校验 | CLI、core | B |
+| expand_run_profile_* | fn | 规范化机器路径并校验 RunProfile 形状 | CLI | B |
 
 规则：
 
-- v0 组件 ref 只允许本地相对路径；
-- 拒绝循环引用；
-- resolved Case 保存所有来源哈希；
-- 引用解析不得访问网络。
+- v0 Case 组件 ref 只允许本地相对路径，且必须位于 LocalRefResolver 根目录内；
+- v0 只支持**单层**组件引用：被引用文件必须是具体组件值，不再二次展开；
+- 展开后必须调用共享 `validate_resolved_case`，引用文件与内联组件同检；
+- RunProfile 的 `case_path`、`lockfile`、`cache_root` 是机器路径，可位于 Case 根外；
+- `case_path`/`lockfile` 必须存在且为普通文件；已存在的 `cache_root` 必须为目录；
+- 不存在的 `cache_root` 允许，但必须做词法规范化，不得残留 `..`；
+- 非 NotFound 的 I/O/权限错误不得当作“路径不存在”吞掉；
+- resolved Case / RunProfile 保存所有来源哈希；引用解析不得访问网络。
 
 ### 5.5 intent
 
@@ -269,16 +276,26 @@ Simulation:
 |---|---|---|---|---:|
 | DatasetLock | struct | 一个逻辑数据集的不可变文件清单 | met inventory | B |
 | LockedFile | struct | 文件角色、时次、大小、哈希 | readers | C |
-| DatasetIdentity | struct | 数据集ID、来源和归属 | manifest | C |
+| DatasetIdentity | struct | 数据集ID、来源、可选 source_url 和归属 | manifest | C |
 | ProfileIdentity | struct | 档案名和内容哈希 | ProfileCatalog | C |
+| GeneratorInfo | struct | 生成工具名与版本 | manifest、CLI | C |
 | GridSignature | struct | 网格摘要 | MetCatalog | B |
 | VerticalSignature | enum | Hybrid或Pressure摘要 | MetCatalog | B |
+
+字段合同补充：
+
+- `DatasetIdentity.source_url` 可选，记录上游 URL；
+- `DatasetLock.generator.tool` / `generator.version` 必填；
+- 文件路径必须唯一且按 `relative_path` 确定性排序；
+- 同一 `role` 可在不同 `valid_time` 重复（如 analysis/surface 多时次）；
+- 校验业务文件时使用流式 SHA-256，禁止整文件读入内存。
 
 正式运行必须验证：
 
 - lockfile自身格式；
 - 档案名称唯一；
 - 档案哈希；
+- 生成工具版本；
 - 文件大小；
 - 文件SHA-256；
 - 时次覆盖；

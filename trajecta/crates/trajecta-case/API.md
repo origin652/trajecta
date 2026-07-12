@@ -10,7 +10,7 @@
 |---|---|---|
 | diagnostic | `src/diagnostic.rs` | Typed diagnostics |
 | document | `src/document.rs` | Case / RunProfile documents |
-| expand | `src/expand.rs` | Single-level component expand + RunProfile machine paths |
+| expand | `src/expand.rs` | Single-level component expand + validated RunProfile machine paths |
 | intent | `src/intent.rs` | Operation-specific presence checks |
 | lockfile | `src/lockfile.rs` | Dataset lock identity + streaming verify |
 | model | `src/model/*` | Scientific component specs |
@@ -29,10 +29,13 @@
 6. `ComponentRef` ref-objects may contain **only** `ref`.
 7. Case component `RefPath` rejects absolute paths and `..`, and stays under `LocalRefResolver` root.
 8. RunProfile machine paths (`case_path`, `lockfile`, `cache_root`) may live outside the Case root.
-9. `cache_root` may not exist yet; it is still absolutized when possible.
-10. Lock verification streams SHA-256 with a fixed buffer and canonicalizes payload paths.
-11. SHA-256 digests are **lowercase** 64-char hex.
-12. v0 expands **one level** of Case component refs only (no nested ref re-expansion).
+9. `case_path`/`lockfile` must be existing regular files; existing `cache_root` must be a directory.
+10. Missing `cache_root` is allowed and is lexically normalized to an absolute path without residual `..`.
+11. Non-NotFound I/O errors (including permission failures) are never treated as absence.
+12. Lock verification streams SHA-256 with a fixed buffer and canonicalizes payload paths.
+13. SHA-256 digests are **lowercase** 64-char hex.
+14. v0 expands **one level** of Case component refs only (no nested ref re-expansion).
+15. RunProfile expansion validates document shape before emitting `ResolvedRunProfile`.
 
 ## Expand (M1 resolved document)
 
