@@ -9,7 +9,8 @@ use tempfile::tempdir;
 use trajecta_case::document::DocumentKind;
 use trajecta_case::expand::{expand_case_file, expand_run_profile_file};
 use trajecta_case::lockfile::{
-    DatasetIdentity, DatasetLock, GridSignature, LockedFile, ProfileIdentity, VerticalSignature,
+    DatasetIdentity, DatasetLock, GeneratorInfo, GridSignature, LockedFile, ProfileIdentity,
+    VerticalSignature,
 };
 use trajecta_case::model::meteorology::DatasetRef;
 use trajecta_case::model::time::TimeSpec;
@@ -194,11 +195,16 @@ fn sample_lock(file_name: &str, bytes: &[u8]) -> DatasetLock {
         identity: DatasetIdentity {
             id: DatasetRef("era5".into()),
             source: "ECMWF".into(),
+            source_url: None,
             attribution: None,
         },
         profile: ProfileIdentity {
             name: "era5".into(),
             sha256: sha256_hex(b"profile"),
+        },
+        generator: GeneratorInfo {
+            tool: "trajecta-data-lock".into(),
+            version: "0.0.0".into(),
         },
         files: vec![LockedFile {
             role: "analysis".into(),

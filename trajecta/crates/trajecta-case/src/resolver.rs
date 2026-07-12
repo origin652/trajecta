@@ -102,23 +102,36 @@ impl LocalRefResolver {
     /// payloads should use [`sha256_file_streaming`] instead.
     pub fn read_file(&self, path: &Path) -> Result<ResolvedSource, ResolveError> {
         let canonical = self.canonicalize_under_root(path)?;
-        let mut file = fs::File::open(&canonical).map_err(|error| ResolveError::Io {
+        read_local_file(&canonical)
+    }
+}
+
+/// Reads and digests any local configuration-sized file without a root jail.
+///
+/// Used for RunProfile machine paths (case, lockfile) that may live outside the
+/// Case component root. Large meteorological payloads must still use
+/// [`sha256_file_streaming`].
+pub fn read_local_file(path: &Path) -> Result<ResolvedSource, ResolveError> {
+    let canonical = fs::canonicalize(path).map_err(|error| ResolveError::Io {
+        path: path.to_path_buf(),
+        message: error.to_string(),
+    })?;
+    let mut file = fs::File::open(&canonical).map_err(|error| ResolveError::Io {
+        path: canonical.clone(),
+        message: error.to_string(),
+    })?;
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)
+        .map_err(|error| ResolveError::Io {
             path: canonical.clone(),
             message: error.to_string(),
         })?;
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes)
-            .map_err(|error| ResolveError::Io {
-                path: canonical.clone(),
-                message: error.to_string(),
-            })?;
-        let digest = SourceDigest {
-            path: canonical,
-            size_bytes: bytes.len() as u64,
-            sha256: sha256_hex(&bytes),
-        };
-        Ok(ResolvedSource { bytes, digest })
-    }
+    let digest = SourceDigest {
+        path: canonical,
+        size_bytes: bytes.len() as u64,
+        sha256: sha256_hex(&bytes),
+    };
+    Ok(ResolvedSource { bytes, digest })
 }
 
 impl RefResolver for LocalRefResolver {

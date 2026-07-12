@@ -10,8 +10,8 @@ use trajecta_case::document::{
 };
 use trajecta_case::intent::{CaseRequirements, IntentValidator, ValidationIntent};
 use trajecta_case::lockfile::{
-    DatasetIdentity, DatasetLock, GridSignature, LockedFile, ProfileIdentity, VerticalSignature,
-    parse_dataset_lock_json,
+    DatasetIdentity, DatasetLock, GeneratorInfo, GridSignature, LockedFile, ProfileIdentity,
+    VerticalSignature, parse_dataset_lock_json,
 };
 use trajecta_case::model::meteorology::{DatasetRef, DomainId, DomainSpec, MeteorologySpec};
 use trajecta_case::model::numerics::{BoundarySpec, IntegratorSpec, NumericsSpec};
@@ -166,11 +166,16 @@ fn run_profile_and_lock_pipeline() {
         identity: DatasetIdentity {
             id: DatasetRef("era5".into()),
             source: "ECMWF".into(),
+            source_url: Some("https://example.invalid/era5".into()),
             attribution: None,
         },
         profile: ProfileIdentity {
             name: "era5".into(),
             sha256: sha256_hex(b"profile"),
+        },
+        generator: GeneratorInfo {
+            tool: "trajecta-data-lock".into(),
+            version: "0.0.0".into(),
         },
         files: vec![LockedFile {
             role: "analysis".into(),

@@ -12,13 +12,17 @@
 //! | [`SchemaDocument`] | Shape-validation contract |
 //! | [`parse_case_yaml`] / [`parse_case_json`] | Case loaders |
 //! | [`parse_run_profile_yaml`] / [`parse_run_profile_json`] | Profile loaders |
+//! | [`validate_resolved_case`] | Shape checks for fully expanded Case |
 //! | [`SchemaError`] | Parse / kind / version failures |
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::diagnostic::{Diagnostic, DiagnosticBag, DiagnosticPath};
-use crate::document::{CaseDocument, DocumentKind, ExecutionSpec, RunProfileDocument};
+use crate::document::{
+    CaseDocument, DocumentKind, ExecutionSpec, ResolvedCase, RunProfileDocument,
+};
 use crate::model::meteorology::{DomainId, MeteorologySpec};
+use crate::model::numerics::NumericsSpec;
 use crate::model::output::OutputProductSpec;
 use crate::model::physics::PhysicsModuleSpec;
 use crate::model::population::{DomainFillAirMassSpec, ParticlePopulationSpec};
@@ -94,42 +98,11 @@ impl SchemaDocument for CaseDocument {
             );
         }
         if let Some(ComponentRef::Inline(numerics)) = &self.numerics {
-            if numerics.integrator.model.0.trim().is_empty() {
-                diagnostics.push(
-                    Diagnostic::error(
-                        "case.numerics.integrator_empty",
-                        "numerics.integrator.model must not be empty",
-                    )
-                    .at(DiagnosticPath::root()
-                        .field("numerics")
-                        .field("integrator")
-                        .field("model")),
-                );
-            }
-            if !numerics.time_step.is_positive_finite() {
-                diagnostics.push(
-                    Diagnostic::error(
-                        "case.numerics.time_step_invalid",
-                        "numerics.time_step must be a positive finite duration",
-                    )
-                    .at(DiagnosticPath::root().field("numerics").field("time_step")),
-                );
-            }
-            for (index, policy) in numerics.boundaries.policies.iter().enumerate() {
-                if policy.0.trim().is_empty() {
-                    diagnostics.push(
-                        Diagnostic::error(
-                            "case.numerics.boundary_empty",
-                            "boundary policy model id must not be empty",
-                        )
-                        .at(DiagnosticPath::root()
-                            .field("numerics")
-                            .field("boundaries")
-                            .field("policies")
-                            .index(index)),
-                    );
-                }
-            }
+            validate_numerics(
+                numerics,
+                DiagnosticPath::root().field("numerics"),
+                &mut diagnostics,
+            );
         }
         if let Some(ComponentRef::Inline(physics)) = &self.physics {
             validate_physics(
@@ -147,6 +120,64 @@ impl SchemaDocument for CaseDocument {
         }
         Ok(diagnostics)
     }
+}
+
+/// Validates a fully expanded Case after component references are resolved.
+///
+/// Unlike [`CaseDocument::validate_shape`], this inspects concrete component
+/// values whether they originally arrived inline or via a single-level `ref`.
+#[must_use]
+pub fn validate_resolved_case(case: &ResolvedCase) -> DiagnosticBag {
+    let mut diagnostics = DiagnosticBag::new();
+    if case.metadata.name.trim().is_empty() {
+        diagnostics.push(
+            Diagnostic::error(
+                "case.metadata.name_empty",
+                "metadata.name must not be empty",
+            )
+            .at(DiagnosticPath::root().field("metadata").field("name")),
+        );
+    }
+    if let Some(time) = &case.time {
+        validate_time_spec(time, DiagnosticPath::root().field("time"), &mut diagnostics);
+    }
+    if let Some(met) = &case.meteorology {
+        validate_meteorology(
+            met,
+            DiagnosticPath::root().field("meteorology"),
+            &mut diagnostics,
+        );
+    }
+    if let Some(pop) = &case.particle_population {
+        validate_population(
+            pop,
+            DiagnosticPath::root().field("particle_population"),
+            &mut diagnostics,
+        );
+    }
+    validate_substances(
+        &case.substances,
+        DiagnosticPath::root().field("substances"),
+        &mut diagnostics,
+    );
+    if let Some(numerics) = &case.numerics {
+        validate_numerics(
+            numerics,
+            DiagnosticPath::root().field("numerics"),
+            &mut diagnostics,
+        );
+    }
+    validate_physics(
+        &case.physics,
+        DiagnosticPath::root().field("physics"),
+        &mut diagnostics,
+    );
+    validate_outputs(
+        &case.outputs,
+        DiagnosticPath::root().field("outputs"),
+        &mut diagnostics,
+    );
+    diagnostics
 }
 
 impl SchemaDocument for RunProfileDocument {
@@ -384,6 +415,46 @@ fn detect_parent_cycle(
         }
     }
     None
+}
+
+fn validate_numerics(
+    numerics: &NumericsSpec,
+    path: DiagnosticPath,
+    diagnostics: &mut DiagnosticBag,
+) {
+    if numerics.integrator.model.0.trim().is_empty() {
+        diagnostics.push(
+            Diagnostic::error(
+                "case.numerics.integrator_empty",
+                "numerics.integrator.model must not be empty",
+            )
+            .at(path.clone().field("integrator").field("model")),
+        );
+    }
+    if !numerics.time_step.is_positive_finite() {
+        diagnostics.push(
+            Diagnostic::error(
+                "case.numerics.time_step_invalid",
+                "numerics.time_step must be a positive finite duration",
+            )
+            .at(path.clone().field("time_step")),
+        );
+    }
+    for (index, policy) in numerics.boundaries.policies.iter().enumerate() {
+        if policy.0.trim().is_empty() {
+            diagnostics.push(
+                Diagnostic::error(
+                    "case.numerics.boundary_empty",
+                    "boundary policy model id must not be empty",
+                )
+                .at(path
+                    .clone()
+                    .field("boundaries")
+                    .field("policies")
+                    .index(index)),
+            );
+        }
+    }
 }
 
 fn validate_population(

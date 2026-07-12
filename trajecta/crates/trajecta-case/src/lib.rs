@@ -10,7 +10,7 @@
 //! |---|---|---|
 //! | [`diagnostic`] | Typed, sortable configuration diagnostics | `Diagnostic`, `DiagnosticPath` |
 //! | [`document`] | Case / RunProfile / resolved forms | `CaseDocument`, `ResolvedCase` |
-//! | [`expand`] | Recursive local ref expansion | `expand_case_file`, `expand_run_profile_file` |
+//! | [`expand`] | Single-level component expansion + machine paths | `expand_case_file`, `expand_run_profile_file` |
 //! | [`intent`] | Operation-specific presence validation | `ValidationIntent`, `IntentValidator` |
 //! | [`lockfile`] | Immutable dataset locks | `DatasetLock`, `LockedFile` |
 //! | [`model`] | Scientific component specs | `TimeSpec`, `MeteorologySpec`, … |

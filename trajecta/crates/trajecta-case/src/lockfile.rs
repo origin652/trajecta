@@ -38,9 +38,22 @@ pub struct DatasetIdentity {
     pub id: DatasetRef,
     /// Human-readable upstream provider or product.
     pub source: String,
+    /// Optional upstream source URL (CDS, HTTP, local archive index, …).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_url: Option<String>,
     /// Optional ownership or organizational attribution.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attribution: Option<String>,
+}
+
+/// Tool that produced this lockfile.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GeneratorInfo {
+    /// Stable generator tool name (for example `trajecta-data-lock`).
+    pub tool: String,
+    /// Generator version string recorded for reproducibility.
+    pub version: String,
 }
 
 /// Exact interpretation profile used for a locked dataset.
@@ -114,6 +127,8 @@ pub struct DatasetLock {
     pub identity: DatasetIdentity,
     /// Exact profile content identity.
     pub profile: ProfileIdentity,
+    /// Tool and version that generated this lock.
+    pub generator: GeneratorInfo,
     /// Deterministically ordered source files.
     pub files: Vec<LockedFile>,
     /// Stable horizontal grid signature.
@@ -202,6 +217,24 @@ impl DatasetLock {
                     .at(DiagnosticPath::root().field("profile").field("name")),
             );
         }
+        if self.generator.tool.trim().is_empty() {
+            diagnostics.push(
+                Diagnostic::error(
+                    "lock.generator.tool_empty",
+                    "generator.tool must not be empty",
+                )
+                .at(DiagnosticPath::root().field("generator").field("tool")),
+            );
+        }
+        if self.generator.version.trim().is_empty() {
+            diagnostics.push(
+                Diagnostic::error(
+                    "lock.generator.version_empty",
+                    "generator.version must not be empty",
+                )
+                .at(DiagnosticPath::root().field("generator").field("version")),
+            );
+        }
         if !is_lowercase_sha256_hex(&self.profile.sha256) {
             diagnostics.push(
                 Diagnostic::error(
@@ -218,23 +251,12 @@ impl DatasetLock {
             );
         }
 
-        let mut roles = BTreeSet::new();
+        // Roles may repeat across times (for example analysis/surface per valid_time).
+        // Paths must remain unique.
         let mut paths = BTreeSet::new();
         let mut normalized_paths = Vec::new();
         for (index, file) in self.files.iter().enumerate() {
             validate_locked_file(file, index, &mut diagnostics);
-            if !file.role.trim().is_empty() && !roles.insert(file.role.clone()) {
-                diagnostics.push(
-                    Diagnostic::error(
-                        "lock.file.role_duplicate",
-                        format!("duplicate file role '{}'", file.role),
-                    )
-                    .at(DiagnosticPath::root()
-                        .field("files")
-                        .index(index)
-                        .field("role")),
-                );
-            }
             if is_safe_relative(&file.relative_path) {
                 let key = normalize_relative_display(&file.relative_path);
                 if !paths.insert(key.clone()) {
@@ -516,11 +538,16 @@ mod tests {
             identity: DatasetIdentity {
                 id: DatasetRef("era5".into()),
                 source: "ECMWF ERA5".into(),
+                source_url: Some("https://cds.climate.copernicus.eu".into()),
                 attribution: Some("CDS".into()),
             },
             profile: ProfileIdentity {
                 name: "era5_hybrid_grib".into(),
                 sha256: sample_hex(1),
+            },
+            generator: GeneratorInfo {
+                tool: "trajecta-data-lock".into(),
+                version: "0.0.0".into(),
             },
             files: vec![LockedFile {
                 role: "analysis".into(),
@@ -613,17 +640,45 @@ mod tests {
     }
 
     #[test]
-    fn rejects_duplicate_roles_and_unsorted_paths() {
-        let mut lock = sample_lock("b.bin", b"b");
+    fn allows_same_role_with_different_valid_times_and_rejects_unsorted_paths() {
+        let t0 = Timestamp::UNIX_EPOCH;
+        let t1 = Timestamp::new(3600, 0).unwrap();
+        let mut lock = sample_lock("a.bin", b"a");
+        lock.files[0].role = "analysis".into();
+        lock.files[0].valid_time = Some(t0);
         lock.files.push(LockedFile {
             role: "analysis".into(),
-            relative_path: PathBuf::from("a.bin"),
-            valid_time: None,
+            relative_path: PathBuf::from("b.bin"),
+            valid_time: Some(t1),
             size_bytes: 1,
             sha256: sample_hex(9),
         });
+        // Unsorted: a then b is sorted; swap to trigger ordering error.
+        lock.files.swap(0, 1);
         let bag = lock.validate_shape();
-        assert!(bag.iter().any(|d| d.code() == "lock.file.role_duplicate"));
+        assert!(
+            !bag.iter().any(|d| d.code() == "lock.file.role_duplicate"),
+            "same role with different valid_time must be legal"
+        );
         assert!(bag.iter().any(|d| d.code() == "lock.files_not_sorted"));
+
+        // Sorted by relative_path: a.bin before b.bin.
+        lock.files.swap(0, 1);
+        let bag = lock.validate_shape();
+        assert!(!bag.has_errors(), "{:?}", bag.sorted());
+    }
+
+    #[test]
+    fn rejects_duplicate_paths_even_with_different_roles() {
+        let mut lock = sample_lock("same.bin", b"x");
+        lock.files.push(LockedFile {
+            role: "surface".into(),
+            relative_path: PathBuf::from("same.bin"),
+            valid_time: Some(Timestamp::new(1, 0).unwrap()),
+            size_bytes: 1,
+            sha256: sample_hex(8),
+        });
+        let bag = lock.validate_shape();
+        assert!(bag.iter().any(|d| d.code() == "lock.file.path_duplicate"));
     }
 }
