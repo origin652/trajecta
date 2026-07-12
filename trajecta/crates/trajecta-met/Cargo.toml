@@ -1,0 +1,14 @@
+[package]
+name = "trajecta-met"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Compiler-checked meteorology runtime contracts for Trajecta"
+
+[dependencies]
+trajecta-case = { path = "../trajecta-case" }
+
+[lints]
+workspace = true

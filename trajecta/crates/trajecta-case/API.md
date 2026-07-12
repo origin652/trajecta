@@ -1,0 +1,80 @@
+# trajecta-case public API (B implementation, boundary-hardened)
+
+**Contract version:** `0` (`trajecta_case::CONTRACT_VERSION`)  
+**Schema version:** `0` (`schema::CURRENT_SCHEMA_VERSION`)  
+**YAML crate:** `serde_yml` (maintained replacement for deprecated `serde_yaml` 0.9)
+
+## Module map
+
+| Module | Path | Responsibility |
+|---|---|---|
+| diagnostic | `src/diagnostic.rs` | Typed diagnostics |
+| document | `src/document.rs` | Case / RunProfile documents |
+| expand | `src/expand.rs` | Recursive local ref expansion → resolved docs |
+| intent | `src/intent.rs` | Operation-specific presence checks |
+| lockfile | `src/lockfile.rs` | Dataset lock identity + streaming verify |
+| model | `src/model/*` | Scientific component specs |
+| quantity | `src/quantity.rs` | Units + SI quantities |
+| reference | `src/reference.rs` | Safe local component refs |
+| resolver | `src/resolver.rs` | Local file resolve + digests |
+| schema | `src/schema.rs` | Parse + shape validation |
+
+## Hard invariants
+
+1. MIT case crate depends on **no** other Trajecta crate.
+2. Diagnostics are data; no panics for config errors.
+3. Units are never implicit; bare numbers are invalid.
+4. `Timestamp` / `Unit` deserialization always go through constructors.
+5. Configuration objects use `deny_unknown_fields`.
+6. `ComponentRef` ref-objects may contain **only** `ref`.
+7. `RefPath` rejects absolute paths and `..`.
+8. `LocalRefResolver` never performs network I/O and cannot escape its root.
+9. Lock verification streams SHA-256 with a fixed buffer and canonicalizes paths.
+10. SHA-256 digests are **lowercase** 64-char hex.
+
+## Expand (M1 resolved document)
+
+| API | Role |
+|---|---|
+| `expand_case_file(path, resolver)` | Read Case, expand all component refs |
+| `expand_case_document(...)` | Expand already-parsed Case |
+| `expand_run_profile_file(...)` | Read profile, canonicalize paths |
+| `expand_run_profile_document(...)` | Expand already-parsed profile |
+
+Behavior:
+
+- recursive local component resolution (YAML/JSON by extension)
+- cycle detection via `ResolutionGraph`
+- deterministic `sources` ordered by canonical path
+- records size + SHA-256 for every source document
+
+## Quantity / Unit / Timestamp
+
+- `Unit::new` rejects empty symbol, zero/non-finite scale, non-finite offset
+- `Timestamp::new` rejects `nanosecond >= 1_000_000_000`
+- serde cannot bypass these constructors
+- `QuantityInput` object form rejects unknown fields
+
+## Schema shape (selected rules)
+
+- domain-fill: exactly one of mass/count; count > 0; mass finite positive
+- ozone_rule / model ids / output product ids non-empty
+- domain / substance / output / run-profile dataset bindings unique
+- domain parent exists, not self, no cycle
+- `horizontal_halo_cells >= 1`
+- output interval / averaging interval finite positive
+
+## Lock verify
+
+- `sha256_file_streaming` with 64 KiB buffer (no full-file `read_to_end` for payloads)
+- canonicalize lock root and each file; reject escapes (symlink/junction/`..`)
+- reject duplicate roles/paths; require deterministic path order
+
+## Commands
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace --all-targets
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+```

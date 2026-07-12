@@ -1,0 +1,15 @@
+[package]
+name = "trajecta-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Compiler-checked particle lifecycle and simulation contracts for Trajecta"
+
+[dependencies]
+trajecta-case = { path = "../trajecta-case" }
+trajecta-met = { path = "../trajecta-met" }
+
+[lints]
+workspace = true
