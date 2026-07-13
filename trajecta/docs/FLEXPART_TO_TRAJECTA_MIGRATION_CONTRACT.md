@@ -270,13 +270,21 @@ RELEASES 中的时间、经纬度范围、高度范围、垂直参考、质量�
 | `LTURBULENCE_MESO` | `mesoscale_turbulence` |
 | `CBLFLAG` | `convective_boundary_layer` |
 
-处置规则：
+处置规则（**不得**使用通用“非零即 true”；按 FLEXPART 源码开关语义冻结）：
 
-- 值为合法布尔且 `enabled=false`：写入 Case，报告记为 `mapped`，**不**阻塞任何 intent；
-- 值为合法布尔且 `enabled=true`：写入 Case，报告记为 `deferred`
+| 开关 | 开启条件 | 其他有限整数 |
+|---|---|---|
+| `LSUBGRID` / `LTURBULENCE` / `CBLFLAG` | 仅当值 `== 1` | 记为 `enabled=false`（源码 `.eq.1` 守卫） |
+| `LCONVECTION` | 仅当值 `== 1` | 仅允许 `0` 或 `1`；其他值 `unmapped` + `migration.field_value_invalid` |
+| `LTURBULENCE_MESO` | 值 `!= 0` | 与 `readoptions` 中 `.ne.0` 一致 |
+
+- `enabled=false`：写入 Case，报告记为 `mapped`，**不**阻塞任何 intent；
+- `enabled=true`：写入 Case，报告记为 `deferred`
   （`migration.physics_executor_unavailable`），并阻塞 `simulation`，因为当前没有执行器；
-- 值存在但无法解析为布尔：不写入该模块，报告记为 `unmapped`
-  （`migration.field_value_invalid`），并阻塞 `simulation`。
+- 值存在但无法按上表解析（含 NaN/非整数/非法字符串，以及 `LCONVECTION∉{0,1}`）：
+  不写入该模块，报告记为 `unmapped`（`migration.field_value_invalid`），并阻塞 `simulation`。
+
+示例：`LSUBGRID=2` **不得**映射为开启模块；应写入 `enabled=false`。
 
 `parameters` 在 M1 保持空。下列字段不属于上述模块的稳定参数合同，只进入报告：
 
