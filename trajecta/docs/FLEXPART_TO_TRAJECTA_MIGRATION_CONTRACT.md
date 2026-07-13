@@ -477,9 +477,13 @@ M1 至少定义：
 | `migration.species_id_invalid` | PSPECIES 无法形成稳定 ID |
 | `migration.species_property_deferred` | 模型专用 property 合同未冻结 |
 | `migration.physics_executor_unavailable` | Case 可声明但当前执行器不存在 |
+| `migration.field_value_invalid` | 源字段存在但无法解析为合法有限值 |
 | `migration.machine_path_report_only` | 路径移入报告，不进入 Case |
 | `migration.legacy_mirror_discarded` | raw/legacy 重复镜像被丢弃 |
 | `migration.dataset_lock_required` | 逻辑 dataset 仍需 RunProfile/lock |
+| `migration.unmapped_legacy_field` | 未识别/未合同化的 legacy 字段 |
+| `migration.output_source_missing` | 期望的输出相关源文件缺失 |
+| `migration.release_field_invalid` | RELEASE 日期/时间等字段非法 |
 
 诊断 code 不得包含具体文件名、物种编号或数组索引；具体位置放在 path/source pointer。
 
@@ -538,4 +542,3 @@ M1 至少定义：
 - 快速测试、真实案例快照、fmt、clippy 和文档门禁通过；
 - GPL/MIT 单向依赖经检查；
 - 使用文档包含完整命令示例和 partial 结果说明。
-

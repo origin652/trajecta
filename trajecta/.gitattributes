@@ -1,0 +1,11 @@
+# Keep text files LF so Windows clean checkouts match rustfmt and
+# deterministic JSON/YAML fixtures.
+* text=auto eol=lf
+
+*.rs text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
