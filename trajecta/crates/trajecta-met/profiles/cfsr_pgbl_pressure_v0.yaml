@@ -1,0 +1,101 @@
+schema_version: 0
+kind: dataset_profile
+name: cfsr-pgbl-pressure-v0
+fingerprint:
+  attributes:
+    dataset_family: cfsr_pgbl_pressure
+source_matchers:
+  - format: grib2
+    centre: 7
+    keys:
+      dataset_family: cfsr_pgbl_pressure
+frame_interval_seconds: 21600
+extension_fields:
+  - target:
+      namespace: cfsr
+      name: surface_orography_height
+    unit: m
+    shape: horizontal2_d
+fields:
+  - id: eastward_wind
+    target: eastward_wind
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "2"
+          parameter_number: "2"
+          type_of_level: isobaric
+        unit: m/s
+  - id: northward_wind
+    target: northward_wind
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "2"
+          parameter_number: "3"
+          type_of_level: isobaric
+        unit: m/s
+  - id: pressure_vertical_velocity
+    target: pressure_vertical_velocity
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "2"
+          parameter_number: "8"
+          type_of_level: isobaric
+        unit: Pa/s
+  - id: air_temperature
+    target: air_temperature
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "0"
+          parameter_number: "0"
+          type_of_level: isobaric
+        unit: K
+  - id: specific_humidity
+    target: specific_humidity
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "1"
+          parameter_number: "0"
+          type_of_level: isobaric
+        unit: "1"
+  - id: surface_pressure
+    target: surface_pressure
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "3"
+          parameter_number: "0"
+          type_of_level: surface
+        unit: Pa
+  - id: surface_orography_height
+    target:
+      namespace: cfsr
+      name: surface_orography_height
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "3"
+          parameter_number: "5"
+          type_of_level: surface
+        unit: m
+derived_fields:
+  - id: surface_geopotential
+    target: surface_geopotential
+    expression: "geopotential_from_height(surface_orography_height)"
+    unit: m2/s2
+    shape: horizontal2_d
+    stage: frame
+    quality: derived
+capabilities:
+  transport:
+    - eastward_wind
+    - northward_wind
+    - pressure_vertical_velocity
+    - air_temperature
+    - specific_humidity
+    - surface_pressure
+    - surface_geopotential

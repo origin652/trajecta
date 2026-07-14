@@ -7,8 +7,33 @@ license.workspace = true
 authors.workspace = true
 description = "Compiler-checked meteorology runtime contracts for Trajecta"
 
+[features]
+default = []
+native-eccodes = ["dep:eccodes"]
+native-netcdf = ["dep:netcdf"]
+
 [dependencies]
+eccodes = { version = "0.13", default-features = false, optional = true }
+grib-reader = { version = "0.6", default-features = false, features = ["jpeg2000"] }
+hex = "0.4"
+netcdf = { version = "0.11", default-features = false, features = ["ndarray"], optional = true }
+netcdf-reader = { version = "0.8", default-features = false, features = ["netcdf4"] }
+netcdf3 = "0.6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yml = "0.0.12"
+sha2 = "0.10"
 trajecta-case = { path = "../trajecta-case" }
+
+[build-dependencies]
+serde_json = "1"
+serde_yml = "0.0.12"
+
+[dev-dependencies]
+hex = "0.4"
+serde_json = "1"
+sha2 = "0.10"
+tempfile = "3"
 
 [lints]
 workspace = true

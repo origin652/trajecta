@@ -1,0 +1,59 @@
+schema_version: 0
+kind: dataset_profile
+name: era5-cf-hybrid-netcdf4-v0
+fingerprint:
+  attributes:
+    dataset_family: era5_cf_hybrid_netcdf4
+source_matchers:
+  - format: netcdf4
+    global_attributes:
+      dataset_family: era5_cf_hybrid_netcdf4
+  - format: netcdf3
+    global_attributes:
+      dataset_family: era5_cf_hybrid_netcdf4
+frame_interval_seconds: 10800
+fields:
+  - id: air_temperature
+    target: air_temperature
+    sources:
+      - identity: { variable: t }
+        unit: K
+  - id: eastward_wind
+    target: eastward_wind
+    sources:
+      - identity: { variable: u }
+        unit: m/s
+  - id: northward_wind
+    target: northward_wind
+    sources:
+      - identity: { variable: v }
+        unit: m/s
+  - id: hybrid_vertical_velocity
+    target: hybrid_vertical_velocity
+    sources:
+      - identity: { variable: etadot }
+        unit: "s-1"
+  - id: specific_humidity
+    target: specific_humidity
+    sources:
+      - identity: { variable: q }
+        unit: "1"
+  - id: surface_pressure
+    target: surface_pressure
+    sources:
+      - identity: { variable: sp }
+        unit: Pa
+  - id: surface_geopotential
+    target: surface_geopotential
+    sources:
+      - identity: { variable: z }
+        unit: m2/s2
+capabilities:
+  transport:
+    - eastward_wind
+    - northward_wind
+    - hybrid_vertical_velocity
+    - air_temperature
+    - specific_humidity
+    - surface_pressure
+    - surface_geopotential

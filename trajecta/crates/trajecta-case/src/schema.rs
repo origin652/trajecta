@@ -19,7 +19,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::diagnostic::{Diagnostic, DiagnosticBag, DiagnosticPath};
 use crate::document::{
-    CaseDocument, DocumentKind, ExecutionSpec, ResolvedCase, RunProfileDocument,
+    CaseDocument, DataRootId, DocumentKind, ExecutionSpec, ResolvedCase, RunProfileDocument,
 };
 use crate::model::meteorology::{DomainId, MeteorologySpec};
 use crate::model::numerics::NumericsSpec;
@@ -220,16 +220,14 @@ impl SchemaDocument for RunProfileDocument {
         );
         let mut seen_datasets = BTreeSet::new();
         for (index, binding) in self.datasets.iter().enumerate() {
+            let binding_path = DiagnosticPath::root().field("datasets").index(index);
             if binding.dataset.0.trim().is_empty() {
                 diagnostics.push(
                     Diagnostic::error(
                         "run_profile.dataset_empty",
                         "dataset identifier must not be empty",
                     )
-                    .at(DiagnosticPath::root()
-                        .field("datasets")
-                        .index(index)
-                        .field("dataset")),
+                    .at(binding_path.clone().field("dataset")),
                 );
             } else if !seen_datasets.insert(binding.dataset.0.clone()) {
                 diagnostics.push(
@@ -237,10 +235,7 @@ impl SchemaDocument for RunProfileDocument {
                         "run_profile.dataset_duplicate",
                         format!("duplicate dataset binding '{}'", binding.dataset.0),
                     )
-                    .at(DiagnosticPath::root()
-                        .field("datasets")
-                        .index(index)
-                        .field("dataset")),
+                    .at(binding_path.clone().field("dataset")),
                 );
             }
             if binding.lockfile.as_os_str().is_empty() {
@@ -249,10 +244,58 @@ impl SchemaDocument for RunProfileDocument {
                         "run_profile.lockfile_empty",
                         "dataset lockfile path must not be empty",
                     )
-                    .at(DiagnosticPath::root()
-                        .field("datasets")
-                        .index(index)
-                        .field("lockfile")),
+                    .at(binding_path.clone().field("lockfile")),
+                );
+            }
+            for (root_id, path) in &binding.data_roots {
+                if root_id.0.trim().is_empty() {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            "run_profile.data_root_id_empty",
+                            "dataset data-root identifier must not be empty",
+                        )
+                        .at(binding_path.clone().field("data_roots")),
+                    );
+                } else if root_id.0 == DataRootId::LOCKFILE {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            "run_profile.data_root_reserved",
+                            "data-root identifier 'lockfile' is reserved",
+                        )
+                        .at(binding_path.clone().field("data_roots")),
+                    );
+                }
+                if path.as_os_str().is_empty() {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            "run_profile.data_root_path_empty",
+                            "dataset data-root path must not be empty",
+                        )
+                        .at(binding_path.clone().field("data_roots")),
+                    );
+                }
+            }
+        }
+
+        let mut seen_profile_sources = BTreeSet::new();
+        for (index, source) in self.profile_sources.iter().enumerate() {
+            let path = source.path();
+            let source_path = DiagnosticPath::root().field("profile_sources").index(index);
+            if path.as_os_str().is_empty() {
+                diagnostics.push(
+                    Diagnostic::error(
+                        "run_profile.profile_source_empty",
+                        "Profile source path must not be empty",
+                    )
+                    .at(source_path.clone().field("path")),
+                );
+            } else if !seen_profile_sources.insert(path.clone()) {
+                diagnostics.push(
+                    Diagnostic::error(
+                        "run_profile.profile_source_duplicate",
+                        format!("duplicate Profile source '{}'", path.display()),
+                    )
+                    .at(source_path.field("path")),
                 );
             }
         }
@@ -926,17 +969,23 @@ meteorology:
                     dataset: DatasetRef("era5".into()),
                     lockfile: PathBuf::from("a.lock"),
                     cache_root: None,
+                    data_roots: BTreeMap::new(),
+                    reader_backend: None,
                 },
                 DatasetBinding {
                     dataset: DatasetRef("era5".into()),
                     lockfile: PathBuf::from("b.lock"),
                     cache_root: None,
+                    data_roots: BTreeMap::new(),
+                    reader_backend: None,
                 },
             ],
+            profile_sources: vec![],
             execution: ExecutionSpec {
                 worker_threads: 1,
                 memory_budget_bytes: 1,
                 executor: "cpu".into(),
+                meteorology_reader: Default::default(),
             },
         };
         let bag = doc.validate_shape().unwrap();

@@ -1,0 +1,454 @@
+{
+  "schema_version": 1,
+  "require_env": "TRAJECTA_REQUIRE_REAL_MET",
+  "cache_dir": "target/test-data",
+  "datasets": {
+    "era5_flex_extract_hybrid_grib": {
+      "profile": "era5-flex-extract-hybrid-v0",
+      "container": "grib2",
+      "description": "flex_extract 7.1 ERA5 hybrid GRIB regression set (2018-12-01, 00-21 UTC, 3-hourly)",
+      "source": "https://github.com/barche/flex_extract/tree/e0005c99ac81d12faa45a8ff799debbd592b0dc0/Testing/Regression/Compare_gribfiles/7.1/EA5",
+      "license": "CC-BY-4.0 (flex_extract regression-data README)",
+      "attribution": "flex_extract contributors; meteorology derived from ECMWF ERA5",
+      "environment_variable": "TRAJECTA_REAL_ERA5_DIR",
+      "fallback_paths": [
+        "tools/flexctl/target/test-data/ecmwf-era5/flex_extract-7.1"
+      ],
+      "files": [
+        {
+          "name": "EA18120100",
+          "url": "https://raw.githubusercontent.com/barche/flex_extract/e0005c99ac81d12faa45a8ff799debbd592b0dc0/Testing/Regression/Compare_gribfiles/7.1/EA5/EA18120100",
+          "size": 73732,
+          "sha256": "f8eb62655a7463875d0e3a0445af8cca81561aea31e286da792c23e7cdea5761"
+        },
+        {
+          "name": "EA18120103",
+          "url": "https://raw.githubusercontent.com/barche/flex_extract/e0005c99ac81d12faa45a8ff799debbd592b0dc0/Testing/Regression/Compare_gribfiles/7.1/EA5/EA18120103",
+          "size": 74380,
+          "sha256": "b0b29e2158dd91bb9b884c5b2d6277df2fa37783047f4e319654af6d0bc8e11e"
+        },
+        {
+          "name": "EA18120106",
+          "url": "https://raw.githubusercontent.com/barche/flex_extract/e0005c99ac81d12faa45a8ff799debbd592b0dc0/Testing/Regression/Compare_gribfiles/7.1/EA5/EA18120106",
+          "size": 74488,
+          "sha256": "77aa70791249088e7fc223defcd09e4438f07d35a9ae6fd6c4aaedb65f1326b9"
+        }
+      ]
+    },
+    "cfsr_pgbl_pressure_grib2": {
+      "profile": "cfsr-pgbl-pressure-v0",
+      "container": "grib2",
+      "description": "NOAA CFSR low-resolution pgbl pressure-level analyses for 2009-01-01 00/06 UTC",
+      "source": "https://www.ncei.noaa.gov/data/climate-forecast-system/access/reanalysis/6-hourly-low-resolution/2009/200901/20090101/",
+      "license": "NOAA/NCEI U.S. government data; see NCEI data-use terms",
+      "attribution": "NOAA National Centers for Environmental Information, Climate Forecast System Reanalysis",
+      "environment_variable": "TRAJECTA_REAL_CFSR_DIR",
+      "fallback_paths": [
+        "tools/flexctl/target/test-data/cfsr/20090101/raw"
+      ],
+      "files": [
+        {
+          "name": "pgbl00.gdas.2009010100.grb2",
+          "url": "https://www.ncei.noaa.gov/data/climate-forecast-system/access/reanalysis/6-hourly-low-resolution/2009/200901/20090101/pgbl00.gdas.2009010100.grb2",
+          "size": 5465079,
+          "sha256": "fd3949957d371b720617c0ebf4b984fdee27cd15a12733a03dedd883dd34d65c"
+        },
+        {
+          "name": "pgbl00.gdas.2009010106.grb2",
+          "url": "https://www.ncei.noaa.gov/data/climate-forecast-system/access/reanalysis/6-hourly-low-resolution/2009/200901/20090101/pgbl00.gdas.2009010106.grb2",
+          "size": 5436947,
+          "sha256": "00a6340960a47502b3ca043c77a02bb7e3381a0f30dc18b77203ad989d3c591b"
+        }
+      ]
+    },
+    "era5_cf_hybrid_netcdf4": {
+      "profile": "era5-cf-hybrid-netcdf4-v0",
+      "container": "netcdf4",
+      "description": "CF-NetCDF4 classic-model hybrid anchors offline-converted from frozen flex_extract ERA5 hybrid GRIB",
+      "source": "https://github.com/barche/flex_extract/tree/e0005c99ac81d12faa45a8ff799debbd592b0dc0/Testing/Regression/Compare_gribfiles/7.1/EA5",
+      "license": "CC-BY-4.0 for flex_extract regression inputs",
+      "attribution": "flex_extract ERA5 hybrid + offline grib_to_cf_netcdf + nccopy",
+      "environment_variable": "TRAJECTA_REAL_ERA5_HYBRID_NETCDF4_DIR",
+      "fallback_paths": [
+        "target/test-data/era5-cf-hybrid-netcdf4"
+      ],
+      "conversion_steps": [
+        "cargo run -p trajecta-met --example grib_to_cf_netcdf -- --input <EA181201xx GRIB> --output target/test-data/era5-cf-hybrid-netcdf3-classic/<EA>.nc --family era5_cf_hybrid_netcdf4",
+        "nccopy -k \"netCDF-4 classic model\" target/test-data/era5-cf-hybrid-netcdf3-classic/<EA>.nc target/test-data/era5-cf-hybrid-netcdf4/<EA>.nc",
+        "Registered times: EA18120100, EA18120103, EA18120106"
+      ],
+      "files": [
+        {
+          "name": "EA18120100.nc",
+          "url": "offline://target/test-data/era5-cf-hybrid-netcdf4/EA18120100.nc",
+          "size": 33955,
+          "sha256": "c0ee32c74f1d297bbe8b8a766fc1c5c46bc150681ac73090adc9da2df31ab41b",
+          "source_grib": "tools/flexctl/target/test-data/ecmwf-era5/flex_extract-7.1/EA18120100",
+          "classic_intermediate": "target/test-data/era5-cf-hybrid-netcdf3-classic/EA18120100.nc",
+          "source_grib_size": 73732,
+          "source_grib_sha256": "f8eb62655a7463875d0e3a0445af8cca81561aea31e286da792c23e7cdea5761"
+        },
+        {
+          "name": "EA18120103.nc",
+          "url": "offline://target/test-data/era5-cf-hybrid-netcdf4/EA18120103.nc",
+          "size": 33955,
+          "sha256": "9e1d8d1013d0d7c5ed03d16d5bd41d5f89f69467bf923afc6032c02f75550035",
+          "source_grib": "tools/flexctl/target/test-data/ecmwf-era5/flex_extract-7.1/EA18120103",
+          "classic_intermediate": "target/test-data/era5-cf-hybrid-netcdf3-classic/EA18120103.nc",
+          "source_grib_size": 74380,
+          "source_grib_sha256": "b0b29e2158dd91bb9b884c5b2d6277df2fa37783047f4e319654af6d0bc8e11e"
+        },
+        {
+          "name": "EA18120106.nc",
+          "url": "offline://target/test-data/era5-cf-hybrid-netcdf4/EA18120106.nc",
+          "size": 33955,
+          "sha256": "9ef32cf13c3fe5629892fe8374ed0632b47d48f736ad86f4ebe35bbd0d185200",
+          "source_grib": "tools/flexctl/target/test-data/ecmwf-era5/flex_extract-7.1/EA18120106",
+          "classic_intermediate": "target/test-data/era5-cf-hybrid-netcdf3-classic/EA18120106.nc",
+          "source_grib_size": 74488,
+          "source_grib_sha256": "77aa70791249088e7fc223defcd09e4438f07d35a9ae6fd6c4aaedb65f1326b9"
+        }
+      ]
+    },
+    "cfsr_cf_pressure_netcdf3": {
+      "profile": "cfsr-cf-pressure-netcdf-v0",
+      "container": "netcdf3",
+      "description": "Classic CF-NetCDF3 pressure-level anchors offline-converted from real NOAA CFSR pgbl GRIB2",
+      "source": "https://www.ncei.noaa.gov/data/climate-forecast-system/access/reanalysis/6-hourly-low-resolution/",
+      "license": "NOAA/NCEI U.S. government data",
+      "attribution": "NOAA CFSR via offline grib_to_cf_netcdf",
+      "environment_variable": "TRAJECTA_REAL_CFSR_PRESSURE_NETCDF_DIR",
+      "fallback_paths": [
+        "target/test-data/cfsr-cf-pressure-netcdf3"
+      ],
+      "conversion_steps": [
+        "cargo run -p trajecta-met --example grib_to_cf_netcdf -- --input tools/flexctl/target/test-data/cfsr/20090101/raw/pgbl00.gdas.2009010100.grb2 --output target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010100.nc --family cfsr_cf_pressure_netcdf",
+        "cargo run -p trajecta-met --example grib_to_cf_netcdf -- --input tools/flexctl/target/test-data/cfsr/20090101/raw/pgbl00.gdas.2009010106.grb2 --output target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010106.nc --family cfsr_cf_pressure_netcdf"
+      ],
+      "files": [
+        {
+          "name": "pgbl_2009010100.nc",
+          "url": "offline://target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010100.nc",
+          "size": 15729668,
+          "sha256": "6755a9063949d0c0b96a3e6c8ec05ad0f9bef47f965614fba91947e027f2d6d0",
+          "source_grib": "tools/flexctl/target/test-data/cfsr/20090101/raw/pgbl00.gdas.2009010100.grb2",
+          "source_grib_size": 5465079,
+          "source_grib_sha256": "fd3949957d371b720617c0ebf4b984fdee27cd15a12733a03dedd883dd34d65c"
+        },
+        {
+          "name": "pgbl_2009010106.nc",
+          "url": "offline://target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010106.nc",
+          "size": 15729668,
+          "sha256": "0a58b1ecaf84b2d899f31e90836fb78ed19c3ff77496ab2dee02a1989efe1225",
+          "source_grib": "tools/flexctl/target/test-data/cfsr/20090101/raw/pgbl00.gdas.2009010106.grb2",
+          "source_grib_size": 5436947,
+          "source_grib_sha256": "00a6340960a47502b3ca043c77a02bb7e3381a0f30dc18b77203ad989d3c591b"
+        }
+      ]
+    },
+    "era5_cds_pressure_official_netcdf4": {
+      "profile": "era5-cf-pressure-netcdf-v0",
+      "container": "netcdf4",
+      "description": "Official Copernicus CDS ERA5 pressure+surface NetCDF4 (cfgrib). Pure-Rust NetCDF4 reader currently rejects scalar ensemble metadata variables; dual-backend tests use the classic conversion below.",
+      "source": "https://cds.climate.copernicus.eu",
+      "license": "Copernicus CDS licence / ECMWF",
+      "attribution": "Generated using Copernicus Climate Change Service information [2026]",
+      "environment_variable": "TRAJECTA_REAL_ERA5_PRESSURE_OFFICIAL_DIR",
+      "fallback_paths": [
+        "target/test-data/era5-cds-pressure-official"
+      ],
+      "download_command": "python tools/fetch_era5_pressure_cds.py --out-dir target/test-data/era5-cds-pressure-official --date 2018-12-01 --times 00:00 06:00",
+      "files": [
+        {
+          "name": "era5_pressure_20181201.nc",
+          "url": "https://cds.climate.copernicus.eu/api (reanalysis-era5-pressure-levels / reanalysis-era5-single-levels)",
+          "size": 388257,
+          "sha256": "2a7d8e7d94725d8d53f7be71dc8a3e33d8f47b8c4bffb6d8737ff52d5acd1394",
+          "kind": "official_cds_netcdf4",
+          "notes": "Area-subset 52N-48N / 0E-6E; times 2018-12-01 00/06 UTC; 37 pressure levels for pressure file"
+        },
+        {
+          "name": "era5_surface_20181201.nc",
+          "url": "https://cds.climate.copernicus.eu/api (reanalysis-era5-pressure-levels / reanalysis-era5-single-levels)",
+          "size": 36010,
+          "sha256": "4d035414801cfb777dca42152626edfec93e84cb1e82f3ae9bfa321a07a2f352",
+          "kind": "official_cds_netcdf4",
+          "notes": "Area-subset 52N-48N / 0E-6E; times 2018-12-01 00/06 UTC; 37 pressure levels for pressure file"
+        }
+      ]
+    },
+    "era5_cds_pressure_classic_netcdf3": {
+      "profile": "era5-cf-pressure-netcdf-v0",
+      "container": "netcdf3",
+      "description": "Classic NetCDF3 dual-backend anchors deterministically converted from official CDS ERA5 pressure+surface files. Not a substitute for the official NetCDF4 originals above.",
+      "source": "Derived from era5_cds_pressure_official_netcdf4",
+      "license": "Copernicus CDS licence / ECMWF",
+      "attribution": "Generated using Copernicus Climate Change Service information [2026]; classic conversion by Trajecta offline tool",
+      "environment_variable": "TRAJECTA_REAL_ERA5_PRESSURE_NETCDF_DIR",
+      "fallback_paths": [
+        "target/test-data/era5-cds-pressure-classic"
+      ],
+      "conversion_steps": [
+        "python tools/fetch_era5_pressure_cds.py",
+        "python tools/convert_era5_cds_to_classic.py"
+      ],
+      "files": [
+        {
+          "name": "era5_pressure_20181201.nc",
+          "url": "offline://target/test-data/era5-cds-pressure-classic/era5_pressure_20181201.nc",
+          "size": 638308,
+          "sha256": "3f161fadade9fe27dc85b78e4ac3b873293e8da888be7d4c6bcb22247b89b82c",
+          "kind": "classic_netcdf3_converted_from_official_cds",
+          "source_official": "target/test-data/era5-cds-pressure-official/era5_pressure_20181201.nc",
+          "conversion": "tools/convert_era5_cds_to_classic.py (values unchanged; drop number/expver; stamp dataset_family)"
+        },
+        {
+          "name": "era5_surface_20181201.nc",
+          "url": "offline://target/test-data/era5-cds-pressure-classic/era5_surface_20181201.nc",
+          "size": 11316,
+          "sha256": "ce659a1a16d11ccf326d7eb25ac7422cab8932cf96f2144b9cb7d49dd151c1f1",
+          "kind": "classic_netcdf3_converted_from_official_cds",
+          "source_official": "target/test-data/era5-cds-pressure-official/era5_surface_20181201.nc",
+          "conversion": "tools/convert_era5_cds_to_classic.py (values unchanged; drop number/expver; stamp dataset_family)"
+        }
+      ]
+    },
+    "cfsr_derived_cf_multifile_netcdf3": {
+      "profile": "cfsr-derived-cf-multifile-netcdf-v0",
+      "container": "netcdf3",
+      "kind": "derived_assembly_fixture_not_official_psl",
+      "description": "Deterministic multi-file CF-NetCDF assembly fixture derived from real NOAA CFSR pgbl GRIB2 via grib_to_cf_netcdf then per-variable split. NOT an official NOAA PSL CFSR NetCDF product. Used only to exercise multi-file role assembly contracts.",
+      "lineage": [
+        "NCEI/NOAA official CFSR GRIB2 (pgbl00)",
+        "offline grib_to_cf_netcdf -> classic CF-NetCDF3 pressure files",
+        "deterministic per-variable split with dataset_family=cfsr_derived_cf_multifile_netcdf and role={var}"
+      ],
+      "source": "Derived from real CFSR GRIB2 under tools/flexctl/target/test-data/cfsr/",
+      "license": "NOAA/NCEI U.S. government data (values); fixture packaging Trajecta-local",
+      "attribution": "NOAA CFSR values; multi-file layout is a Trajecta test fixture",
+      "environment_variable": "TRAJECTA_REAL_CFSR_DERIVED_MULTIFILE_DIR",
+      "fallback_paths": [
+        "target/test-data/cfsr-derived-cf-multifile"
+      ],
+      "conversion_steps": [
+        "cargo run -p trajecta-met --example grib_to_cf_netcdf -- --input <pgbl GRIB2> --output target/test-data/cfsr-cf-pressure-netcdf3/pgbl_YYYYMMDDHH.nc --family cfsr_cf_pressure_netcdf",
+        "split each pressure NetCDF into per-variable members {var}_YYYYMMDDHH.nc under cfsr-derived-cf-multifile",
+        "stamp dataset_family=cfsr_derived_cf_multifile_netcdf and role={var}"
+      ],
+      "files": [
+        {
+          "name": "q_2009010100.nc",
+          "url": "offline://target/test-data/cfsr-derived-cf-multifile/q_2009010100.nc",
+          "size": 3114496,
+          "sha256": "8af0d919cb8c5096444e3c8484efebf462828479b2adc458cec039243e639e9e",
+          "role": "q",
+          "source_pressure_netcdf": "target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010100.nc"
+        },
+        {
+          "name": "q_2009010106.nc",
+          "url": "offline://target/test-data/cfsr-derived-cf-multifile/q_2009010106.nc",
+          "size": 3114496,
+          "sha256": "89d855364733fec996d4ff3e91ecf95aa3381c88a3fee1d397157fffacf2f0f0",
+          "role": "q",
+          "source_pressure_netcdf": "target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010106.nc"
+        },
+        {
+          "name": "sp_2009010100.nc",
+          "url": "offline://target/test-data/cfsr-derived-cf-multifile/sp_2009010100.nc",
+          "size": 86576,
+          "sha256": "3f6f964a81516697c26df80466bb6c92dd7581f97379fbf4260a041352e9f354",
+          "role": "sp",
+          "source_pressure_netcdf": "target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010100.nc"
+        },
+        {
+          "name": "sp_2009010106.nc",
+          "url": "offline://target/test-data/cfsr-derived-cf-multifile/sp_2009010106.nc",
+          "size": 86576,
+          "sha256": "d10bb59cf3b66b81dd0f328d646e9800e3c5d00ccd3f42b9230056973d92aee5",
+          "role": "sp",
+          "source_pressure_netcdf": "target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010106.nc"
+        },
+        {
+          "name": "t_2009010100.nc",
+          "url": "offline://target/test-data/cfsr-derived-cf-multifile/t_2009010100.nc",
+          "size": 3114492,
+          "sha256": "b4c3badcddbf01b17fb9871b779cc5f163fc48155ef731b20357f8d437f8228c",
+          "role": "t",
+          "source_pressure_netcdf": "target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010100.nc"
+        },
+        {
+          "name": "t_2009010106.nc",
+          "url": "offline://target/test-data/cfsr-derived-cf-multifile/t_2009010106.nc",
+          "size": 3114492,
+          "sha256": "f38f4aa8a2eac577989e7988ea4773ddc77bc3a81da35ffb0838d4285a30e9f1",
+          "role": "t",
+          "source_pressure_netcdf": "target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010106.nc"
+        },
+        {
+          "name": "u_2009010100.nc",
+          "url": "offline://target/test-data/cfsr-derived-cf-multifile/u_2009010100.nc",
+          "size": 3114492,
+          "sha256": "9d6e50246f5fa096cafaf0e338226b6257f6587d9550ae260000afbc72d53a43",
+          "role": "u",
+          "source_pressure_netcdf": "target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010100.nc"
+        },
+        {
+          "name": "u_2009010106.nc",
+          "url": "offline://target/test-data/cfsr-derived-cf-multifile/u_2009010106.nc",
+          "size": 3114492,
+          "sha256": "32d7cb2b5694c1744dcb9001e4c73da9d3f543252cdb433f88af0c4614896884",
+          "role": "u",
+          "source_pressure_netcdf": "target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010106.nc"
+        },
+        {
+          "name": "v_2009010100.nc",
+          "url": "offline://target/test-data/cfsr-derived-cf-multifile/v_2009010100.nc",
+          "size": 3114492,
+          "sha256": "809a728be6feeb534b28db617739a6297902986a17574fee5a99e74f86c8cfa2",
+          "role": "v",
+          "source_pressure_netcdf": "target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010100.nc"
+        },
+        {
+          "name": "v_2009010106.nc",
+          "url": "offline://target/test-data/cfsr-derived-cf-multifile/v_2009010106.nc",
+          "size": 3114492,
+          "sha256": "960617e5d7b1cc1506fcca09302810b0a76b3db606e8e2e0b00a3135542aad80",
+          "role": "v",
+          "source_pressure_netcdf": "target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010106.nc"
+        },
+        {
+          "name": "w_2009010100.nc",
+          "url": "offline://target/test-data/cfsr-derived-cf-multifile/w_2009010100.nc",
+          "size": 3114512,
+          "sha256": "c26283d30c9a9dfdbd31a12f38125b27be37689791dee9ed21b93f2ec4289e39",
+          "role": "w",
+          "source_pressure_netcdf": "target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010100.nc"
+        },
+        {
+          "name": "w_2009010106.nc",
+          "url": "offline://target/test-data/cfsr-derived-cf-multifile/w_2009010106.nc",
+          "size": 3114512,
+          "sha256": "34d88568bd5ec7c850934f9150002d307bb10b33586bc40bf2bfe6f101010cff",
+          "role": "w",
+          "source_pressure_netcdf": "target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010106.nc"
+        },
+        {
+          "name": "z_2009010100.nc",
+          "url": "offline://target/test-data/cfsr-derived-cf-multifile/z_2009010100.nc",
+          "size": 86580,
+          "sha256": "6a10e13faf1bef0979efd931a15fdd4ce625479868735be457b47a33356cdda1",
+          "role": "z",
+          "source_pressure_netcdf": "target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010100.nc"
+        },
+        {
+          "name": "z_2009010106.nc",
+          "url": "offline://target/test-data/cfsr-derived-cf-multifile/z_2009010106.nc",
+          "size": 86580,
+          "sha256": "13fd5b9a4e431a581c45feb0319664410a0a25c359d531d9d8127a79abe65148",
+          "role": "z",
+          "source_pressure_netcdf": "target/test-data/cfsr-cf-pressure-netcdf3/pgbl_2009010106.nc"
+        }
+      ]
+    },
+    "noaa_psl_ncep_reanalysis1_official_multifile_netcdf": {
+      "profile": "noaa-psl-ncep-reanalysis1-multifile-netcdf-v0",
+      "container": "netcdf4_classic",
+      "kind": "official_psl_original",
+      "description": "Official NOAA PSL NCEP/NCAR Reanalysis 1 multi-file NetCDF (not CFSR). Originals are not restamped.",
+      "source": "https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis/",
+      "license": "NOAA NCEP/NCAR Reanalysis; PSL redistribution",
+      "attribution": "NCEP/NCAR Reanalysis 1 data provided by the NOAA PSL, Boulder, Colorado, USA, from their website at https://psl.noaa.gov",
+      "environment_variable": "TRAJECTA_REAL_NOAA_PSL_NCEP_R1_DIR",
+      "fallback_paths": [
+        "target/test-data/noaa-psl-ncep-reanalysis1-official"
+      ],
+      "download_command": "python tools/fetch_noaa_psl_ncep_r1.py",
+      "scientific_boundary": {
+        "compatible_17_level_members": [
+          "air.2009.nc",
+          "uwnd.2009.nc",
+          "vwnd.2009.nc",
+          "hgt.2009.nc"
+        ],
+        "compatible_surface_time_member": [
+          "pres.sfc.2009.nc"
+        ],
+        "incompatible_vertical": {
+          "omega.2009.nc": 12,
+          "shum.2009.nc": 8
+        },
+        "incompatible_static_surface": [
+          "hgt.sfc.nc"
+        ],
+        "transport_claimed": false,
+        "diagnostics_claimed_for_compatible_subset": true
+      },
+      "files": [
+        {
+          "name": "air.2009.nc",
+          "url": "https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis/pressure/air.2009.nc",
+          "size": 321266063,
+          "sha256": "9ba1f9a4cb75452d690ac63cf6d7cb943cb665c670393be75e5f334b58a50980",
+          "kind": "official_psl_original"
+        },
+        {
+          "name": "uwnd.2009.nc",
+          "url": "https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis/pressure/uwnd.2009.nc",
+          "size": 566499222,
+          "sha256": "3f1dae9b6d19e1f2deafb751a5c8b6509866868a43718709437052551ecf9412",
+          "kind": "official_psl_original"
+        },
+        {
+          "name": "vwnd.2009.nc",
+          "url": "https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis/pressure/vwnd.2009.nc",
+          "size": 581291442,
+          "sha256": "6a5188130207b8112778e5d37ca98b7c194dee562c7d40f7020dae3de33880ef",
+          "kind": "official_psl_original"
+        },
+        {
+          "name": "omega.2009.nc",
+          "url": "https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis/pressure/omega.2009.nc",
+          "size": 404141831,
+          "sha256": "8ce8bccbba60e3ab2751c702f0119dd3c3cb179487778be3286daba48a29ace6",
+          "kind": "official_psl_original"
+        },
+        {
+          "name": "shum.2009.nc",
+          "url": "https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis/pressure/shum.2009.nc",
+          "size": 325691815,
+          "sha256": "4b0af73070e2f41dac343f0ef31c4654e8d3ed7c9d2ecf495bbd9f37485e8f50",
+          "kind": "official_psl_original"
+        },
+        {
+          "name": "hgt.2009.nc",
+          "url": "https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis/pressure/hgt.2009.nc",
+          "size": 260188013,
+          "sha256": "236df18af023d82794ccfff0bc3175a7c3ded4cad18a010e284b1e80743352dc",
+          "kind": "official_psl_original"
+        },
+        {
+          "name": "pres.sfc.2009.nc",
+          "url": "https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis/surface/pres.sfc.2009.nc",
+          "size": 24455304,
+          "sha256": "b870f345f4743c784642f0e70627c1c38e75d35b115610d991cfd12f4f9b9bf1",
+          "kind": "official_psl_original"
+        },
+        {
+          "name": "hgt.sfc.nc",
+          "url": "https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis/surface/hgt.sfc.nc",
+          "size": 45759,
+          "sha256": "ca400fd56fc2c2f45352a7d80aefff7b349e7093ead14d4e788eb0d122835de3",
+          "kind": "official_psl_original"
+        }
+      ],
+      "compatible_subdir": "compatible-17level-with-pres",
+      "compatible_members": [
+        "air.2009.nc",
+        "uwnd.2009.nc",
+        "vwnd.2009.nc",
+        "hgt.2009.nc",
+        "pres.sfc.2009.nc"
+      ]
+    }
+  }
+}

@@ -7,12 +7,14 @@
 
 use std::collections::BTreeMap;
 
+use serde::{Deserialize, Serialize};
 use trajecta_case::quantity::Unit;
 
 use crate::vertical::VerticalStagger;
 
 /// Built-in field identifier with stable physical meaning.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum CanonicalField {
     /// Eastward wind component in the local tangent basis.
@@ -60,7 +62,8 @@ pub enum CanonicalField {
 }
 
 /// Namespaced non-canonical field identifier.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExtensionFieldId {
     /// Owning namespace, such as an organization or plugin name.
     pub namespace: String,
@@ -78,7 +81,8 @@ pub enum FieldKey {
 }
 
 /// Array shape and horizontal/vertical support of a field.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum FieldShape {
     /// One value per logical frame.
     Scalar,
@@ -91,7 +95,8 @@ pub enum FieldShape {
 }
 
 /// Provenance quality of a field value.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum FieldQuality {
     /// Decoded directly from a locked source.
     Source,
@@ -102,7 +107,8 @@ pub enum FieldQuality {
 }
 
 /// Stable interpolation category fixed by field semantics.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum InterpolationKind {
     /// Continuous scalar interpolation.
     ScalarLinear,
@@ -115,7 +121,8 @@ pub enum InterpolationKind {
 }
 
 /// Runtime capability required by a Case or physics module.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Capability {
     /// Three-dimensional transport winds and vertical velocity.
     Transport,
@@ -159,6 +166,21 @@ impl CapabilitySet {
     #[must_use]
     pub const fn contains_all(self, required: Self) -> bool {
         self.0 & required.0 == required.0
+    }
+
+    /// Iterates enabled capabilities in stable enum order.
+    pub fn iter(self) -> impl Iterator<Item = Capability> {
+        [
+            Capability::Transport,
+            Capability::PlanetaryBoundaryLayer,
+            Capability::Convection,
+            Capability::WetDeposition,
+            Capability::DryDeposition,
+            Capability::DomainFill,
+            Capability::Diagnostics,
+        ]
+        .into_iter()
+        .filter(move |capability| self.contains(*capability))
     }
 }
 

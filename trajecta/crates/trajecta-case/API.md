@@ -79,7 +79,7 @@ Behavior:
 | `identity.id/source/source_url?/attribution?` | Logical provenance + optional URL |
 | `profile.name/sha256` | Interpretation profile identity |
 | `generator.tool/version` | Tool that produced the lock |
-| `files[]` | Path-unique; roles may repeat across `valid_time` |
+| `files[]` | `root_id + relative_path` unique; each file has sorted `roles` and `valid_times` |
 | `grid` / `vertical` | Topology signatures |
 
 ## Lock verify
@@ -87,7 +87,7 @@ Behavior:
 - `sha256_file_streaming` with 64 KiB buffer (no full-file `read_to_end` for payloads)
 - canonicalize lock root and each file; reject escapes (symlink/junction/`..`)
 - reject duplicate paths; require deterministic path order
-- same `role` with different `valid_time` is legal
+- the same role across different files or `valid_times` is legal
 
 ## Commands
 

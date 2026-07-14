@@ -6,7 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use tempfile::tempdir;
-use trajecta_case::document::DocumentKind;
+use trajecta_case::document::{DataRootId, DocumentKind};
 use trajecta_case::expand::{expand_case_file, expand_run_profile_file};
 use trajecta_case::lockfile::{
     DatasetIdentity, DatasetLock, GeneratorInfo, GridSignature, LockedFile, ProfileIdentity,
@@ -207,9 +207,10 @@ fn sample_lock(file_name: &str, bytes: &[u8]) -> DatasetLock {
             version: "0.0.0".into(),
         },
         files: vec![LockedFile {
-            role: "analysis".into(),
+            roles: vec!["analysis".into()],
+            root_id: DataRootId(DataRootId::LOCKFILE.into()),
             relative_path: PathBuf::from(file_name),
-            valid_time: None,
+            valid_times: Vec::new(),
             size_bytes: bytes.len() as u64,
             sha256: sha256_hex(bytes),
         }],

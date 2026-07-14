@@ -1,0 +1,51 @@
+schema_version: 0
+kind: dataset_profile
+name: noaa-psl-ncep-reanalysis1-multifile-netcdf-v0
+fingerprint:
+  attributes:
+    dataset_title: NCEP-NCAR Reanalysis 1
+source_matchers:
+  # Official NOAA PSL originals are NetCDF4-classic; match raw dataset_title only.
+  - format: netcdf4
+    global_attributes:
+      dataset_title: NCEP-NCAR Reanalysis 1
+frame_interval_seconds: 21600
+fields:
+  # Compatible 17-level pressure ladder: air/uwnd/vwnd/hgt.
+  - id: air_temperature
+    target: air_temperature
+    sources:
+      - identity: { variable: air }
+        unit: K
+  - id: eastward_wind
+    target: eastward_wind
+    sources:
+      - identity: { variable: uwnd }
+        unit: m/s
+  - id: northward_wind
+    target: northward_wind
+    sources:
+      - identity: { variable: vwnd }
+        unit: m/s
+  - id: geopotential_height
+    target: geopotential_height
+    sources:
+      - identity: { variable: hgt }
+        unit: m
+  # Surface pressure shares the 2009 6-hourly time axis (no vertical).
+  - id: surface_pressure
+    target: surface_pressure
+    sources:
+      - identity: { variable: pres }
+        unit: Pa
+  # Intentionally NOT mapped (scientific boundary for A):
+  # - omega.2009.nc: 12-level ladder
+  # - shum.2009.nc: 8-level ladder
+  # - hgt.sfc.nc: static single time, different epoch
+capabilities:
+  diagnostics:
+    - air_temperature
+    - eastward_wind
+    - northward_wind
+    - geopotential_height
+    - surface_pressure

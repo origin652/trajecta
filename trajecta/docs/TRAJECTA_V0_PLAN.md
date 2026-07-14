@@ -156,6 +156,10 @@ resolved JSON 始终写成 value 加 unit 对象。
 
 ### 3.5 旧 YAML 迁移
 
+实现必须遵循 [FLEXPART 到 Trajecta v0 迁移合同](FLEXPART_TO_TRAJECTA_MIGRATION_CONTRACT.md)。
+该合同冻结 `--target trajecta` 的字段映射、部分 Case 行为、机器可读迁移报告和 GPL/MIT
+单向依赖边界。
+
 flexpart-to-case 增加：
 
 ~~~text
@@ -267,7 +271,8 @@ v0 只实现 DataProvider 接口和 LocalDataProvider。网络获取由现有数
 - ECMWF ERA5 CF-NetCDF pressure levels；
 - ECMWF ERA5 hybrid CF-NetCDF4 transcoded；
 - NOAA/NCEP CFSR pgbl GRIB2；
-- NOAA PSL CFSR pressure-level CF-NetCDF。
+- NOAA PSL NCEP/NCAR Reanalysis 1 multi-file CF-NetCDF（官方多文件兼容性验证；不是 CFSR）。
+- CFSR 派生多文件 CF-NetCDF 装配夹具（由官方 CFSR GRIB2 确定性转换，不得冒充 PSL 原件）。
 
 ### 5.2 网格与域
 

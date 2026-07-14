@@ -1,0 +1,61 @@
+schema_version: 0
+kind: dataset_profile
+name: era5-flex-extract-hybrid-v0
+fingerprint:
+  attributes:
+    dataset_family: era5_flex_extract_hybrid
+source_matchers:
+  - format: grib2
+    centre: 98
+    keys:
+      dataset_family: era5_flex_extract_hybrid
+frame_interval_seconds: 10800
+fields:
+  - id: eastward_wind
+    target: eastward_wind
+    sources:
+      - identity: { param_id: "131", type_of_level: hybrid }
+        unit: m/s
+  - id: northward_wind
+    target: northward_wind
+    sources:
+      - identity: { param_id: "132", type_of_level: hybrid }
+        unit: m/s
+  - id: air_temperature
+    target: air_temperature
+    sources:
+      - identity: { param_id: "130", type_of_level: hybrid }
+        unit: K
+  - id: specific_humidity
+    target: specific_humidity
+    sources:
+      - identity: { param_id: "133", type_of_level: hybrid }
+        unit: "1"
+  - id: hybrid_vertical_velocity
+    target: hybrid_vertical_velocity
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "2"
+          parameter_number: "32"
+          type_of_level: hybrid
+        unit: s-1
+  - id: surface_pressure
+    target: surface_pressure
+    sources:
+      - identity: { param_id: "134", type_of_level: surface }
+        unit: Pa
+  - id: surface_geopotential
+    target: surface_geopotential
+    sources:
+      - identity: { param_id: "129", type_of_level: surface }
+        unit: m2/s2
+capabilities:
+  transport:
+    - eastward_wind
+    - northward_wind
+    - hybrid_vertical_velocity
+    - air_temperature
+    - specific_humidity
+    - surface_pressure
+    - surface_geopotential

@@ -1,0 +1,56 @@
+schema_version: 0
+kind: dataset_profile
+name: cfsr-cf-pressure-netcdf-v0
+fingerprint:
+  attributes:
+    dataset_family: cfsr_cf_pressure_netcdf
+source_matchers:
+  - format: netcdf3
+    global_attributes:
+      dataset_family: cfsr_cf_pressure_netcdf
+frame_interval_seconds: 21600
+fields:
+  - id: air_temperature
+    target: air_temperature
+    sources:
+      - identity: { variable: t }
+        unit: K
+  - id: eastward_wind
+    target: eastward_wind
+    sources:
+      - identity: { variable: u }
+        unit: m/s
+  - id: northward_wind
+    target: northward_wind
+    sources:
+      - identity: { variable: v }
+        unit: m/s
+  - id: pressure_vertical_velocity
+    target: pressure_vertical_velocity
+    sources:
+      - identity: { variable: w }
+        unit: Pa/s
+  - id: specific_humidity
+    target: specific_humidity
+    sources:
+      - identity: { variable: q }
+        unit: "1"
+  - id: surface_pressure
+    target: surface_pressure
+    sources:
+      - identity: { variable: sp }
+        unit: Pa
+  - id: surface_geopotential
+    target: surface_geopotential
+    sources:
+      - identity: { variable: z }
+        unit: m2/s2
+capabilities:
+  transport:
+    - eastward_wind
+    - northward_wind
+    - pressure_vertical_velocity
+    - air_temperature
+    - specific_humidity
+    - surface_pressure
+    - surface_geopotential

@@ -363,6 +363,8 @@ trajecta-met/src/
 | DatasetFingerprint | struct | 中心、产品、全局属性等精确指纹 | B |
 | SourceMatcher | enum | GRIB或NetCDF精确匹配 | B |
 | FieldMapping | struct | 源变量到目标字段 | B |
+| ExtensionFieldDescriptor | struct | namespaced扩展字段的规范单位和形状 | B |
+| DerivedField | struct | DSL表达式、目标类型、阶段和质量 | A |
 | FallbackRule | struct | 允许的回退执行计划 | A |
 | ProfileCatalog | struct | 内置和本地档案集合 | B |
 
@@ -372,7 +374,10 @@ ProfileCatalog 规则：
 - 指纹必须唯一匹配；
 - 自动识别无唯一结果时失败；
 - Case可以显式指定档案；
-- resolved Case记录最终档案哈希。
+- resolved Case记录最终档案哈希；
+- canonical字段类型由内置注册表固定；
+- 直接extension映射必须精确命中`extension_fields`描述符，不允许默认假设单位或形状；
+- `geopotential_from_height`使用冻结的`g0 = 9.80665 m/s²`。
 
 ### 6.3 profile::graph
 
@@ -455,7 +460,9 @@ decode(request) -> DecodedField
 - JPEG2000 bitsPerValue=0；
 - 参数表和本地表；
 - 扫描方向；
-- hybrid完整PV与数据层子集关系。
+- hybrid完整PV与数据层子集关系；
+- 一个物理GRIB消息可包含多个逻辑字段；跨后端稳定键必须是
+  `(physical byte offset, field_index_in_message)`，不得使用遍历序号或单独offset。
 
 ### 6.6 io::netcdf
 
@@ -463,6 +470,7 @@ decode(request) -> DecodedField
 |---|---|---:|
 | NetCdfReader | NetCDF3/4/HDF5读取 | B |
 | NetCdfVariableIndex | 变量、维度和属性索引 | B |
+| NetCdfReadWorker | 单文件reader线程与首次变量缓存 | B |
 | NetCdfAssembly | 多文件逻辑帧组装 | A |
 | CfCoordinateResolver | CF axis、coordinates、formula_terms | A |
 | NetCdfMissingMask | FillValue和missing_value | B |
@@ -479,6 +487,11 @@ NetCdfAssembly 必须精确比较：
 - 文件角色。
 
 任何不一致都失败，不自动重采样。
+
+classic NetCDF3 的一个不可变索引只打开文件一次。由于当前纯 Rust `netcdf3`
+没有公开通用 hyperslab API，专用 worker 在字段首次请求时读取完整变量并缓存，
+后续按时次和层序在内存切片。`native-netcdf` 未链接时必须明确失败，不得借用
+Rust 路径伪装成 native。
 
 ### 6.7 io::inventory
 
@@ -561,6 +574,8 @@ HybridColumnBuilder：
 
 PressureColumnBuilder：
 
+- `PressureLevels`只接受 Pa、非空、有限、正值、严格递增（模型顶到近地面）的序列；
+- 层排序时values和独立validity mask必须应用完全相同的排列；
 - 使用pressure level和height/geopotential；
 - 应用结构化地下掩膜；
 - 四角双线性；
@@ -1047,6 +1062,11 @@ CLI 不实现：
 ## 9. GPL 兼容与参考组件
 
 ### 9.1 legacy adapter
+
+`TrajectaTargetRenderer` 与 `MigrationReportBuilder` 的实现合同见
+[FLEXPART_TO_TRAJECTA_MIGRATION_CONTRACT.md](FLEXPART_TO_TRAJECTA_MIGRATION_CONTRACT.md)，交给 B
+模型的实现任务说明见
+[B_PROMPT_FLEXPART_TO_TRAJECTA.md](B_PROMPT_FLEXPART_TO_TRAJECTA.md)。
 
 | 组件 | 作用 | 难度 |
 |---|---|---:|

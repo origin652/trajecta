@@ -16,13 +16,14 @@
 //! Meteorological payloads are digested with a fixed-size streaming buffer and
 //! never loaded fully into memory.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{Diagnostic, DiagnosticBag, DiagnosticPath};
+use crate::document::DataRootId;
 use crate::model::meteorology::DatasetRef;
 use crate::model::time::Timestamp;
 use crate::resolver::{
@@ -70,13 +71,19 @@ pub struct ProfileIdentity {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LockedFile {
-    /// Stable role within a logical frame or dataset.
-    pub role: String,
-    /// Path relative to the lockfile location.
+    /// Sorted unique roles contributed to logical frames by this container.
+    pub roles: Vec<String>,
+    /// Named machine-local data root containing this file.
+    #[serde(default = "lockfile_root_id")]
+    pub root_id: DataRootId,
+    /// Path relative to the named data root.
     pub relative_path: PathBuf,
-    /// Optional physical validity time.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub valid_time: Option<Timestamp>,
+    /// Sorted unique physical validity times contained by this file.
+    ///
+    /// An empty list denotes time-invariant metadata or a container whose
+    /// logical times are intentionally not assigned at lock construction.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub valid_times: Vec<Timestamp>,
     /// Exact file length.
     pub size_bytes: u64,
     /// Lowercase SHA-256 hexadecimal digest.
@@ -84,7 +91,7 @@ pub struct LockedFile {
 }
 
 /// Stable regular-grid summary used to reject topology changes.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GridSignature {
     /// Number of longitude or x points.
@@ -98,7 +105,7 @@ pub struct GridSignature {
 }
 
 /// Stable native vertical-coordinate summary.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum VerticalSignature {
     /// Hybrid pressure coordinate with interface A/B coefficients.
@@ -251,19 +258,22 @@ impl DatasetLock {
             );
         }
 
-        // Roles may repeat across times (for example analysis/surface per valid_time).
-        // Paths must remain unique.
+        // Roles may repeat across times. Root/path pairs must remain unique.
         let mut paths = BTreeSet::new();
         let mut normalized_paths = Vec::new();
         for (index, file) in self.files.iter().enumerate() {
             validate_locked_file(file, index, &mut diagnostics);
             if is_safe_relative(&file.relative_path) {
-                let key = normalize_relative_display(&file.relative_path);
+                let key = format!(
+                    "{}:{}",
+                    file.root_id.0,
+                    normalize_relative_display(&file.relative_path)
+                );
                 if !paths.insert(key.clone()) {
                     diagnostics.push(
                         Diagnostic::error(
                             "lock.file.path_duplicate",
-                            format!("duplicate relative_path '{key}'"),
+                            format!("duplicate root_id/relative_path '{key}'"),
                         )
                         .at(DiagnosticPath::root()
                             .field("files")
@@ -280,10 +290,10 @@ impl DatasetLock {
             diagnostics.push(
                 Diagnostic::error(
                     "lock.files_not_sorted",
-                    "files must be ordered deterministically by relative_path",
+                    "files must be ordered deterministically by root_id and relative_path",
                 )
                 .at(DiagnosticPath::root().field("files"))
-                .with_hint("sort locked files by relative_path ascending"),
+                .with_hint("sort locked files by root_id then relative_path ascending"),
             );
         }
 
@@ -362,11 +372,41 @@ impl DatasetLock {
     /// Paths that escape the lock directory via `..`, symlinks, or junctions
     /// are rejected.
     pub fn verify_local_files(&self, lockfile_dir: &Path) -> Result<DiagnosticBag, LockError> {
+        self.verify_local_files_with_roots(lockfile_dir, &BTreeMap::new())
+    }
+
+    /// Verifies locked files against the lockfile root and explicit named roots.
+    ///
+    /// A symlink or junction target is accepted only when its canonical target
+    /// remains under at least one explicitly authorized root.
+    pub fn verify_local_files_with_roots(
+        &self,
+        lockfile_dir: &Path,
+        data_roots: &BTreeMap<DataRootId, PathBuf>,
+    ) -> Result<DiagnosticBag, LockError> {
         let mut diagnostics = self.validate_shape();
-        let root = fs::canonicalize(lockfile_dir).map_err(|error| LockError::Io {
+        let lockfile_root = fs::canonicalize(lockfile_dir).map_err(|error| LockError::Io {
             path: lockfile_dir.to_path_buf(),
             message: error.to_string(),
         })?;
+        let mut roots = BTreeMap::from([(DataRootId(DataRootId::LOCKFILE.into()), lockfile_root)]);
+        for (root_id, root_path) in data_roots {
+            if root_id.0 == DataRootId::LOCKFILE {
+                diagnostics.push(
+                    Diagnostic::error(
+                        "lock.root.reserved_override",
+                        "the built-in 'lockfile' root cannot be overridden",
+                    )
+                    .at(DiagnosticPath::root().field("data_roots")),
+                );
+                continue;
+            }
+            let canonical = fs::canonicalize(root_path).map_err(|error| LockError::Io {
+                path: root_path.clone(),
+                message: error.to_string(),
+            })?;
+            roots.insert(root_id.clone(), canonical);
+        }
 
         for (index, file) in self.files.iter().enumerate() {
             if !is_safe_relative(&file.relative_path) {
@@ -383,6 +423,19 @@ impl DatasetLock {
                 continue;
             }
 
+            let Some(root) = roots.get(&file.root_id) else {
+                diagnostics.push(
+                    Diagnostic::error(
+                        "lock.file.root_unknown",
+                        format!("unknown data root '{}'", file.root_id.0),
+                    )
+                    .at(DiagnosticPath::root()
+                        .field("files")
+                        .index(index)
+                        .field("root_id")),
+                );
+                continue;
+            };
             let joined = root.join(&file.relative_path);
             let canonical = match fs::canonicalize(&joined) {
                 Ok(path) => path,
@@ -401,14 +454,16 @@ impl DatasetLock {
                 }
             };
 
-            if !path_is_within(&canonical, &root) {
+            if !roots
+                .values()
+                .any(|authorized_root| path_is_within(&canonical, authorized_root))
+            {
                 diagnostics.push(
                     Diagnostic::error(
                         "lock.file.path_escapes_root",
                         format!(
-                            "canonical path {} escapes lock directory {}",
-                            canonical.display(),
-                            root.display()
+                            "canonical path {} escapes all authorized data roots",
+                            canonical.display()
                         ),
                     )
                     .at(DiagnosticPath::root()
@@ -455,10 +510,34 @@ impl DatasetLock {
 
 fn validate_locked_file(file: &LockedFile, index: usize, diagnostics: &mut DiagnosticBag) {
     let base = DiagnosticPath::root().field("files").index(index);
-    if file.role.trim().is_empty() {
+    if file.roles.is_empty() || file.roles.iter().any(|role| role.trim().is_empty()) {
         diagnostics.push(
-            Diagnostic::error("lock.file.role_empty", "file role must not be empty")
-                .at(base.clone().field("role")),
+            Diagnostic::error(
+                "lock.file.roles_invalid",
+                "roles must contain non-empty stable identifiers",
+            )
+            .at(base.clone().field("roles")),
+        );
+    }
+    let mut roles = file.roles.clone();
+    roles.sort();
+    roles.dedup();
+    if roles != file.roles {
+        diagnostics.push(
+            Diagnostic::error(
+                "lock.file.roles_not_sorted_unique",
+                "roles must be sorted and contain no duplicates",
+            )
+            .at(base.clone().field("roles")),
+        );
+    }
+    if !is_valid_root_id(&file.root_id.0) {
+        diagnostics.push(
+            Diagnostic::error(
+                "lock.file.root_id_invalid",
+                "root_id must use ASCII letters, digits, '_' or '-'",
+            )
+            .at(base.clone().field("root_id")),
         );
     }
     if file.relative_path.as_os_str().is_empty() || !is_safe_relative(&file.relative_path) {
@@ -476,9 +555,32 @@ fn validate_locked_file(file: &LockedFile, index: usize, diagnostics: &mut Diagn
                 "lock.file.sha256_invalid",
                 "file sha256 must be 64 lowercase hex characters",
             )
-            .at(base.field("sha256")),
+            .at(base.clone().field("sha256")),
         );
     }
+    let mut times = file.valid_times.clone();
+    times.sort();
+    times.dedup();
+    if times != file.valid_times {
+        diagnostics.push(
+            Diagnostic::error(
+                "lock.file.valid_times_not_sorted_unique",
+                "valid_times must be sorted and contain no duplicates",
+            )
+            .at(base.field("valid_times")),
+        );
+    }
+}
+
+fn lockfile_root_id() -> DataRootId {
+    DataRootId(DataRootId::LOCKFILE.into())
+}
+
+fn is_valid_root_id(value: &str) -> bool {
+    !value.is_empty()
+        && value
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '-'))
 }
 
 fn is_safe_relative(path: &Path) -> bool {
@@ -550,9 +652,10 @@ mod tests {
                 version: "0.0.0".into(),
             },
             files: vec![LockedFile {
-                role: "analysis".into(),
+                roles: vec!["analysis".into()],
+                root_id: lockfile_root_id(),
                 relative_path: PathBuf::from(file_name),
-                valid_time: Some(Timestamp::UNIX_EPOCH),
+                valid_times: vec![Timestamp::UNIX_EPOCH],
                 size_bytes: bytes.len() as u64,
                 sha256: sha256_hex(bytes),
             }],
@@ -644,12 +747,13 @@ mod tests {
         let t0 = Timestamp::UNIX_EPOCH;
         let t1 = Timestamp::new(3600, 0).unwrap();
         let mut lock = sample_lock("a.bin", b"a");
-        lock.files[0].role = "analysis".into();
-        lock.files[0].valid_time = Some(t0);
+        lock.files[0].roles = vec!["analysis".into()];
+        lock.files[0].valid_times = vec![t0];
         lock.files.push(LockedFile {
-            role: "analysis".into(),
+            roles: vec!["analysis".into()],
+            root_id: lockfile_root_id(),
             relative_path: PathBuf::from("b.bin"),
-            valid_time: Some(t1),
+            valid_times: vec![t1],
             size_bytes: 1,
             sha256: sample_hex(9),
         });
@@ -658,7 +762,7 @@ mod tests {
         let bag = lock.validate_shape();
         assert!(
             !bag.iter().any(|d| d.code() == "lock.file.role_duplicate"),
-            "same role with different valid_time must be legal"
+            "same role with different valid_times must be legal"
         );
         assert!(bag.iter().any(|d| d.code() == "lock.files_not_sorted"));
 
@@ -672,9 +776,10 @@ mod tests {
     fn rejects_duplicate_paths_even_with_different_roles() {
         let mut lock = sample_lock("same.bin", b"x");
         lock.files.push(LockedFile {
-            role: "surface".into(),
+            roles: vec!["surface".into()],
+            root_id: lockfile_root_id(),
             relative_path: PathBuf::from("same.bin"),
-            valid_time: Some(Timestamp::new(1, 0).unwrap()),
+            valid_times: vec![Timestamp::new(1, 0).unwrap()],
             size_bytes: 1,
             sha256: sample_hex(8),
         });

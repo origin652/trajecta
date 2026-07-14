@@ -7,7 +7,8 @@
 //! Path policy:
 //!
 //! - Case component `ref` paths remain jailed under [`LocalRefResolver`]'s root.
-//! - RunProfile `case_path`, dataset `lockfile`, and `cache_root` are machine
+//! - RunProfile `case_path`, dataset `lockfile`, `cache_root`, named data roots,
+//!   and Profile sources are machine
 //!   paths and may live outside the Case root.
 //! - `case_path` / `lockfile` must exist as regular files.
 //! - Existing `cache_root` must be a directory; missing cache roots are allowed
@@ -31,7 +32,8 @@ use serde::de::DeserializeOwned;
 
 use crate::diagnostic::DiagnosticBag;
 use crate::document::{
-    CaseDocument, DatasetBinding, ResolvedCase, ResolvedRunProfile, RunProfileDocument,
+    CaseDocument, DatasetBinding, ProfileSource, ResolvedCase, ResolvedRunProfile,
+    RunProfileDocument,
 };
 use crate::model::meteorology::MeteorologySpec;
 use crate::model::numerics::NumericsSpec;
@@ -215,13 +217,15 @@ pub fn expand_run_profile_file(
 
 /// Normalizes RunProfile machine paths and records source digests.
 ///
-/// Machine paths (`case_path`, `lockfile`, `cache_root`) are **not** jailed to
-/// the Case component root.
+/// Machine paths (`case_path`, `lockfile`, `cache_root`, data roots, and Profile
+/// sources) are **not** jailed to the Case component root.
 ///
 /// - Document shape is validated before path materialization.
 /// - `case_path` and each `lockfile` must exist and be regular files.
 /// - Existing `cache_root` must be a directory; missing cache roots are allowed
 ///   and are lexically normalized to an absolute path without residual `..`.
+/// - Named data roots and Profile directories must already exist as directories.
+/// - Profile files must already exist as regular files.
 /// - Permission and other non-NotFound I/O errors are never treated as absence.
 pub fn expand_run_profile_document(
     document: &RunProfileDocument,
@@ -241,11 +245,31 @@ pub fn expand_run_profile_document(
             Some(path) => Some(resolve_cache_root(profile_path, path)?),
             None => None,
         };
+        let mut data_roots = BTreeMap::new();
+        for (root_id, path) in &binding.data_roots {
+            let resolved = require_existing_directory(profile_path, path)?;
+            data_roots.insert(root_id.clone(), resolved);
+        }
         datasets.push(DatasetBinding {
             dataset: binding.dataset.clone(),
             lockfile,
             cache_root,
+            data_roots,
+            reader_backend: binding.reader_backend,
         });
+    }
+
+    let mut profile_sources = Vec::with_capacity(document.profile_sources.len());
+    for source in &document.profile_sources {
+        let resolved = match source {
+            ProfileSource::File { path } => ProfileSource::File {
+                path: require_existing_regular_file(profile_path, path)?,
+            },
+            ProfileSource::Directory { path } => ProfileSource::Directory {
+                path: require_existing_directory(profile_path, path)?,
+            },
+        };
+        profile_sources.push(resolved);
     }
 
     let mut sources = BTreeMap::new();
@@ -259,6 +283,7 @@ pub fn expand_run_profile_document(
         metadata: document.metadata.clone(),
         case_path,
         datasets,
+        profile_sources,
         execution: document.execution.clone(),
         sources: sources.into_values().collect(),
     })
@@ -333,6 +358,29 @@ fn require_existing_regular_file(base_file: &Path, path: &Path) -> Result<PathBu
         return Err(ExpandError::Resolve(ResolveError::Io {
             path: canonical,
             message: "path exists but is not a regular file".into(),
+        }));
+    }
+    Ok(canonical)
+}
+
+fn require_existing_directory(base_file: &Path, path: &Path) -> Result<PathBuf, ExpandError> {
+    let candidate = machine_path(base_file, path);
+    let canonical = fs::canonicalize(&candidate).map_err(|error| {
+        ExpandError::Resolve(ResolveError::Io {
+            path: candidate.clone(),
+            message: error.to_string(),
+        })
+    })?;
+    let metadata = fs::metadata(&canonical).map_err(|error| {
+        ExpandError::Resolve(ResolveError::Io {
+            path: canonical.clone(),
+            message: error.to_string(),
+        })
+    })?;
+    if !metadata.is_dir() {
+        return Err(ExpandError::Resolve(ResolveError::Io {
+            path: canonical,
+            message: "path exists but is not a directory".into(),
         }));
     }
     Ok(canonical)

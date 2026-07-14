@@ -72,6 +72,18 @@ impl ProvenanceTable {
     pub fn get(&self, id: ProvenanceId) -> Option<&ProvenanceRecord> {
         self.records.get(id.0 as usize)
     }
+
+    /// Returns the number of unique provenance records.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.records.len()
+    }
+
+    /// Returns whether the table contains no records.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.records.is_empty()
+    }
 }
 
 /// Provenance-table construction failure.

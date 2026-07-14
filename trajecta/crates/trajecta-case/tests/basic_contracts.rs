@@ -6,7 +6,8 @@ use std::path::PathBuf;
 
 use trajecta_case::CONTRACT_VERSION;
 use trajecta_case::document::{
-    CaseDocument, DocumentKind, ExecutionSpec, Metadata, ResolvedCase, RunProfileDocument,
+    CaseDocument, DataRootId, DocumentKind, ExecutionSpec, Metadata, ResolvedCase,
+    RunProfileDocument,
 };
 use trajecta_case::intent::{CaseRequirements, IntentValidator, ValidationIntent};
 use trajecta_case::lockfile::{
@@ -178,9 +179,10 @@ fn run_profile_and_lock_pipeline() {
             version: "0.0.0".into(),
         },
         files: vec![LockedFile {
-            role: "analysis".into(),
+            roles: vec!["analysis".into()],
+            root_id: DataRootId(DataRootId::LOCKFILE.into()),
             relative_path: PathBuf::from("a.grib"),
-            valid_time: None,
+            valid_times: Vec::new(),
             size_bytes: payload.len() as u64,
             sha256: sha256_hex(payload),
         }],
@@ -278,10 +280,12 @@ fn population_and_domain_specs_roundtrip() {
         },
         case_path: PathBuf::from("case.yaml"),
         datasets: vec![],
+        profile_sources: vec![],
         execution: ExecutionSpec {
             worker_threads: 1,
             memory_budget_bytes: 1024,
             executor: "cpu".into(),
+            meteorology_reader: Default::default(),
         },
     };
 }

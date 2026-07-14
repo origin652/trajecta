@@ -16,3 +16,6 @@ Thumbs.db
 /target/
 /trajecta/target/
 **/target/
+
+# Project-local native dependency environments used for differential tests.
+/trajecta/.native/

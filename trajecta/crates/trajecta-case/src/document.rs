@@ -14,11 +14,14 @@
 //! | [`RunProfileDocument`] | Machine profile |
 //! | [`ResolvedCase`] | Fully expanded Case |
 //! | [`ResolvedRunProfile`] | Path-resolved profile |
-//! | [`DatasetBinding`] | Logical dataset → lockfile |
+//! | [`DatasetBinding`] | Logical dataset → lockfile and named roots |
+//! | [`ProfileSource`] | Explicit local Profile file or directory |
+//! | [`MeteorologyReaderBackend`] | Native / Rust reader selection |
 //! | [`ExecutionSpec`] | Threads / memory / executor |
 //!
 //! Unknown fields are rejected on all configuration objects.
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -42,6 +45,53 @@ pub enum DocumentKind {
     Case,
     /// Machine-specific RunProfile document.
     RunProfile,
+}
+
+/// Stable identifier for one machine-local data root.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct DataRootId(pub String);
+
+impl DataRootId {
+    /// Built-in root resolved relative to the DatasetLock file.
+    pub const LOCKFILE: &'static str = "lockfile";
+}
+
+/// Explicit source of user-authored meteorology profiles.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ProfileSource {
+    /// Load exactly one YAML or JSON Profile document.
+    File {
+        /// Local Profile path.
+        path: PathBuf,
+    },
+    /// Load Profile documents from one directory without recursion.
+    Directory {
+        /// Local directory containing Profile documents.
+        path: PathBuf,
+    },
+}
+
+impl ProfileSource {
+    /// Returns the configured machine path.
+    #[must_use]
+    pub const fn path(&self) -> &PathBuf {
+        match self {
+            Self::File { path } | Self::Directory { path } => path,
+        }
+    }
+}
+
+/// Meteorology source-reader implementation selected by machine configuration.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MeteorologyReaderBackend {
+    /// ecCodes and netCDF-C/HDF5 based reader.
+    #[default]
+    Native,
+    /// Pure Rust GRIB and NetCDF reader.
+    Rust,
 }
 
 /// Development-stage Trajecta Case document.
@@ -89,6 +139,12 @@ pub struct DatasetBinding {
     /// Optional local cache root reserved for future providers.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_root: Option<PathBuf>,
+    /// Explicit machine roots referenced by locked files.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub data_roots: BTreeMap<DataRootId, PathBuf>,
+    /// Optional dataset-specific reader override.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reader_backend: Option<MeteorologyReaderBackend>,
 }
 
 /// Machine-local execution resources.
@@ -101,6 +157,9 @@ pub struct ExecutionSpec {
     pub memory_budget_bytes: u64,
     /// Stable execution backend identifier.
     pub executor: String,
+    /// Default meteorology reader for dataset bindings without an override.
+    #[serde(default)]
+    pub meteorology_reader: MeteorologyReaderBackend,
 }
 
 /// Development-stage machine-specific RunProfile document.
@@ -119,6 +178,9 @@ pub struct RunProfileDocument {
     /// Logical dataset bindings.
     #[serde(default)]
     pub datasets: Vec<DatasetBinding>,
+    /// Explicit local Profile files or non-recursive directories.
+    #[serde(default)]
+    pub profile_sources: Vec<ProfileSource>,
     /// Machine resource choices.
     pub execution: ExecutionSpec,
 }
@@ -165,6 +227,9 @@ pub struct ResolvedRunProfile {
     pub case_path: PathBuf,
     /// Canonical local dataset bindings.
     pub datasets: Vec<DatasetBinding>,
+    /// Canonical local Profile files and directories.
+    #[serde(default)]
+    pub profile_sources: Vec<ProfileSource>,
     /// Machine resources validated during RunProfile expansion.
     pub execution: ExecutionSpec,
     /// Every source document and immutable digest used during resolution.

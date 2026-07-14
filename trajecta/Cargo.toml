@@ -32,3 +32,6 @@ todo = "deny"
 unimplemented = "deny"
 unwrap_used = "deny"
 expect_used = "deny"
+
+[patch.crates-io]
+eccodes = { path = "vendor/eccodes" }
