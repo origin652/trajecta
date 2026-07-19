@@ -133,6 +133,7 @@ fn main() -> ExitCode {
         },
         required_capabilities: capabilities,
         force_rehash: false,
+        preferred_profile: None,
     };
     let outcome = DatasetLockBuilder::new(&profiles, &inspector, &mut hash_cache).build(&request);
     if !outcome.is_success() {

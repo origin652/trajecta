@@ -795,6 +795,13 @@ fn metadata_from_index(index: &NetCdfVariableIndex) -> SourceMetadata {
     {
         attributes.insert("dataset_family".into(), "era5_cf_hybrid_netcdf4".into());
     }
+    if index
+        .global_attributes
+        .get("dataset_family")
+        .is_some_and(|value| value == "era5_cds_hybrid137")
+    {
+        attributes.insert("dataset_family".into(), "era5_cds_hybrid137".into());
+    }
     // Official NOAA PSL NCEP R1 files are matched by exact `dataset_title` in the
     // Profile document. Do not invent a synthetic dataset_family for them here.
 
@@ -889,8 +896,13 @@ fn era5_pressure_role(index: &NetCdfVariableIndex) -> &'static str {
     let has_pressure_fields = ["t", "u", "v", "q", "w"]
         .iter()
         .any(|name| index.variables.contains_key(*name));
-    let has_surface_fields =
-        index.variables.contains_key("sp") || index.variables.contains_key("z");
+    let has_pressure_axis = index.variables.contains_key("pressure_level")
+        || index.dimensions.contains_key("pressure_level");
+    // Surface role: SP and/or 2-D surface geopotential. Pressure-level `z`
+    // (3-D geopotential on `pressure_level`) must not force the surface role.
+    let has_surface_pressure = index.variables.contains_key("sp");
+    let has_surface_only_orography = index.variables.contains_key("z") && !has_pressure_axis;
+    let has_surface_fields = has_surface_pressure || has_surface_only_orography;
     match (has_pressure_fields, has_surface_fields) {
         (true, true) => "analysis",
         (true, false) => "pressure",
@@ -932,6 +944,13 @@ pub(super) fn normalize_cf_unit_string(raw: &str) -> String {
         } else {
             "m/s".into()
         };
+    }
+    // Energy flux: keep SI watt form so GraphUnit can reduce W m-2 -> kg s-3.
+    if collapsed == "W/m2" || collapsed == "W m-2" || collapsed == "Watt/m2" {
+        return "W m-2".into();
+    }
+    if collapsed == "kg/m2/s" || collapsed == "kg m-2 s-1" {
+        return "kg m-2 s-1".into();
     }
     collapsed
 }

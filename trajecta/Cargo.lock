@@ -1045,6 +1045,9 @@ dependencies = [
 name = "trajecta-cli"
 version = "0.0.0"
 dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
  "trajecta-case",
  "trajecta-core",
  "trajecta-met",

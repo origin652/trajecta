@@ -16,7 +16,9 @@ pub mod io;
 pub mod profile;
 pub mod provenance;
 pub mod query;
+pub mod science;
 pub mod surface_layer;
+pub mod validation;
 pub mod vertical;
 
 /// Version of the compiler-checked public code contracts.

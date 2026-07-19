@@ -524,17 +524,23 @@ impl GraphBuilder {
                 ThermodynamicOp::GeopotentialFromHeight,
                 "m2/s2",
             ),
-            "omega_to_w" => self.thermodynamic(
-                function,
-                arguments,
-                ThermodynamicOp::OmegaToGeometricVelocity,
-                "m/s",
-            ),
             "surface_pressure_from_log" => self.thermodynamic(
                 function,
                 arguments,
                 ThermodynamicOp::SurfacePressureFromLog,
                 "Pa",
+            ),
+            "two_metre_specific_humidity_from_dewpoint" => self.thermodynamic(
+                function,
+                arguments,
+                ThermodynamicOp::TwoMetreSpecificHumidityFromDewpoint,
+                "1",
+            ),
+            "latent_heat_from_moisture_flux" => self.thermodynamic(
+                function,
+                arguments,
+                ThermodynamicOp::LatentHeatFromMoistureFlux,
+                "kg/s3",
             ),
             "hybrid_interface_pressure" => self.vertical(
                 function,
@@ -568,8 +574,9 @@ impl GraphBuilder {
             ThermodynamicOp::PotentialTemperature => 2,
             ThermodynamicOp::GeopotentialHeight => 1,
             ThermodynamicOp::GeopotentialFromHeight => 1,
-            ThermodynamicOp::OmegaToGeometricVelocity => 2,
             ThermodynamicOp::SurfacePressureFromLog => 1,
+            ThermodynamicOp::TwoMetreSpecificHumidityFromDewpoint => 2,
+            ThermodynamicOp::LatentHeatFromMoistureFlux => 1,
         };
         expect_function_arity(function, &arguments, expected)?;
         let (shape, stagger) = broadcast_bindings(&arguments)?;
@@ -797,34 +804,11 @@ fn registered_value_type(
 }
 
 fn canonical_value_type(field: CanonicalField) -> Result<ValueType, ExpressionError> {
-    let (unit, shape) = match field {
-        CanonicalField::EastwardWind
-        | CanonicalField::NorthwardWind
-        | CanonicalField::GeometricVerticalVelocity => ("m/s", FieldShape::Full3D),
-        CanonicalField::PressureVerticalVelocity => ("Pa/s", FieldShape::Full3D),
-        CanonicalField::HybridVerticalVelocity => ("s-1", FieldShape::Full3D),
-        CanonicalField::AirTemperature => ("K", FieldShape::Full3D),
-        CanonicalField::SpecificHumidity
-        | CanonicalField::RelativeHumidity
-        | CanonicalField::CloudLiquidWater
-        | CanonicalField::CloudIceWater
-        | CanonicalField::OzoneMassMixingRatio => ("1", FieldShape::Full3D),
-        CanonicalField::SurfacePressure => ("Pa", FieldShape::Horizontal2D),
-        CanonicalField::SurfaceGeopotential => ("m2/s2", FieldShape::Horizontal2D),
-        CanonicalField::GeopotentialHeight => ("m", FieldShape::Full3D),
-        CanonicalField::AirDensity => ("kg/m3", FieldShape::Full3D),
-        CanonicalField::PotentialVorticity => ("K m2 kg-1 s-1", FieldShape::Full3D),
-        CanonicalField::PrecipitationRate => ("kg/m2/s", FieldShape::Horizontal2D),
-        CanonicalField::BoundaryLayerHeight => ("m", FieldShape::Horizontal2D),
-        CanonicalField::FrictionVelocity | CanonicalField::ConvectiveVelocityScale => {
-            ("m/s", FieldShape::Horizontal2D)
-        }
-        CanonicalField::LandSeaMask => ("1", FieldShape::Horizontal2D),
-    };
+    let semantics = field.semantics();
     ValueType::new(
-        GraphUnit::parse(unit).map_err(ExpressionError::Unit)?,
-        shape,
-        stagger_for_shape(shape),
+        GraphUnit::parse(semantics.unit).map_err(ExpressionError::Unit)?,
+        semantics.shape,
+        semantics.vertical_stagger,
     )
     .map_err(ExpressionError::Internal)
 }
@@ -1379,6 +1363,7 @@ mod tests {
                     ..GribSourceMatcher::default()
                 },
             }],
+            candidate_path_globs: Vec::new(),
             frame_interval_seconds: None,
             extension_fields: Vec::new(),
             fields: vec![

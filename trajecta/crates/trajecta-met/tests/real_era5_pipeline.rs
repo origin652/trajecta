@@ -57,6 +57,7 @@ fn real_era5_lock_inventory_and_frame_loading_run_end_to_end() {
         },
         required_capabilities: capabilities,
         force_rehash: true,
+        preferred_profile: None,
     };
     let outcome = DatasetLockBuilder::new(&profiles, &inspector, &mut hash_cache).build(&request);
     assert!(outcome.is_success(), "{:?}", outcome.diagnostics);

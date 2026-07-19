@@ -294,6 +294,12 @@ pub struct DatasetProfileDocument {
     pub fingerprint: DatasetFingerprint,
     /// Accepted exact source-container matchers.
     pub source_matchers: Vec<SourceMatcher>,
+    /// Optional path globs for containers that belong to this Profile in mixed
+    /// roots (matched against relative path and file name). When non-empty and
+    /// the lock request prefers this Profile, inspect failures on matching paths
+    /// are hard errors; non-matching paths may be soft-skipped.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub candidate_path_globs: Vec<String>,
     /// Expected regular logical-frame spacing in whole seconds.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frame_interval_seconds: Option<u64>,
@@ -480,6 +486,13 @@ fn validate_profile_shape(document: &DatasetProfileDocument) -> Result<(), Profi
             "source_matchers must contain at least one exact matcher".into(),
         ));
     }
+    for glob in &document.candidate_path_globs {
+        if glob.trim().is_empty() {
+            return Err(ProfileError::Invalid(
+                "candidate_path_globs entries must not be empty".into(),
+            ));
+        }
+    }
     if document.frame_interval_seconds == Some(0) {
         return Err(ProfileError::Invalid(
             "frame_interval_seconds must be positive when declared".into(),
@@ -603,6 +616,53 @@ fn validate_profile_shape(document: &DatasetProfileDocument) -> Result<(), Profi
         for field in required {
             validate_field_reference(field, "capability field")?;
         }
+    }
+    validate_near_surface_capability_contract(document)?;
+    Ok(())
+}
+
+fn canonical_ref(field: CanonicalField) -> FieldReference {
+    FieldReference::Canonical(field)
+}
+
+/// NearSurfaceTransport fixed input contract (A Phase 2--4 review).
+///
+/// Requires 10 m U/V, 2 m T/q, roughness, PBL height, sensible/latent heat, and
+/// either friction velocity or the full surface-stress pair.
+fn validate_near_surface_capability_contract(
+    document: &DatasetProfileDocument,
+) -> Result<(), ProfileError> {
+    use crate::field::CanonicalField as C;
+    let Some(required) = document.capabilities.get(&Capability::NearSurfaceTransport) else {
+        return Ok(());
+    };
+    let produced: BTreeSet<_> = required.iter().cloned().collect();
+    let mandatory = [
+        C::TenMetreEastwardWind,
+        C::TenMetreNorthwardWind,
+        C::TwoMetreAirTemperature,
+        C::TwoMetreSpecificHumidity,
+        C::AerodynamicRoughnessLength,
+        C::BoundaryLayerHeight,
+        C::SensibleHeatFlux,
+        C::LatentHeatFlux,
+    ];
+    for field in mandatory {
+        if !produced.contains(&canonical_ref(field)) {
+            return Err(ProfileError::Invalid(format!(
+                "NearSurfaceTransport requires {:?}",
+                field
+            )));
+        }
+    }
+    let has_friction = produced.contains(&canonical_ref(C::FrictionVelocity));
+    let has_stress = produced.contains(&canonical_ref(C::EastwardSurfaceStress))
+        && produced.contains(&canonical_ref(C::NorthwardSurfaceStress));
+    if !has_friction && !has_stress {
+        return Err(ProfileError::Invalid(
+            "NearSurfaceTransport requires friction_velocity or both surface stress components"
+                .into(),
+        ));
     }
     Ok(())
 }

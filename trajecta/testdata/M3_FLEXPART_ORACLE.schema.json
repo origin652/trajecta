@@ -1,0 +1,462 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m3-flexpart-oracle-v1.json",
+  "title": "Trajecta M3 external FLEXPART raw oracle result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "generated_at_utc",
+    "oracle",
+    "input",
+    "records",
+    "failures"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "trajecta.m3.flexpart_oracle/v1"
+    },
+    "status": {
+      "enum": ["complete", "partial", "failed"]
+    },
+    "generated_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "oracle": {
+      "$ref": "#/$defs/oracle_identity"
+    },
+    "input": {
+      "$ref": "#/$defs/input_identity"
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/record"
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/failure"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "complete"
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "minItems": 1
+          },
+          "failures": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": ["partial", "failed"]
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "failures": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "oracle_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flexpart_repository",
+        "flexpart_commit",
+        "compiler",
+        "compiler_version",
+        "compile_flags",
+        "preprocessor_definitions",
+        "binary_sha256",
+        "default_real_bits",
+        "build_mode",
+        "loader_kind",
+        "loader_sha256",
+        "harness_version",
+        "harness_sha256",
+        "host"
+      ],
+      "properties": {
+        "flexpart_repository": {
+          "type": "string",
+          "format": "uri"
+        },
+        "flexpart_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "compiler": {
+          "type": "string",
+          "minLength": 1
+        },
+        "compiler_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "compile_flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "preprocessor_definitions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "binary_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "default_real_bits": {
+          "enum": [32, 64]
+        },
+        "build_mode": {
+          "enum": ["pressure_meter", "eta"]
+        },
+        "loader_kind": {
+          "enum": [
+            "flexpart_native_reader",
+            "oracle_adapter_eccodes",
+            "oracle_adapter_netcdf"
+          ]
+        },
+        "loader_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "harness_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "harness_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "host": {
+          "$ref": "#/$defs/host"
+        }
+      }
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "architecture"],
+      "properties": {
+        "os": {
+          "type": "string",
+          "minLength": 1
+        },
+        "architecture": {
+          "type": "string",
+          "minLength": 1
+        },
+        "libc": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "input_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset_family",
+        "dataset_manifest_sha256",
+        "profile_sha256",
+        "query_sha256",
+        "files"
+      ],
+      "properties": {
+        "dataset_family": {
+          "enum": ["era5_hybrid", "era5_pressure", "cfsr_pressure"]
+        },
+        "dataset_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "profile_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "query_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/input_file"
+          }
+        }
+      }
+    },
+    "input_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "name", "size", "sha256"],
+      "properties": {
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "point_id",
+        "sample_scope",
+        "time_unix_seconds",
+        "time_nanosecond",
+        "longitude_degrees",
+        "latitude_degrees",
+        "vertical_selector",
+        "status",
+        "fields"
+      ],
+      "properties": {
+        "point_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sample_scope": {
+          "enum": [
+            "native_anchor",
+            "interpolated_common",
+            "surface_layer",
+            "modern_difference"
+          ]
+        },
+        "time_unix_seconds": {
+          "type": "integer"
+        },
+        "time_nanosecond": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999999999
+        },
+        "longitude_degrees": {
+          "type": "number"
+        },
+        "latitude_degrees": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "vertical_selector": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/physical_vertical"
+            },
+            {
+              "$ref": "#/$defs/native_vertical"
+            }
+          ]
+        },
+        "status": {
+          "enum": ["ok", "not_available", "oracle_failure"]
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/sample"
+          }
+        },
+        "diagnostic": {
+          "$ref": "#/$defs/diagnostic"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "ok"
+              }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "fields": {
+                "minProperties": 1
+              }
+            },
+            "not": {
+              "required": ["diagnostic"]
+            }
+          },
+          "else": {
+            "required": ["diagnostic"]
+          }
+        }
+      ]
+    },
+    "physical_vertical": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "coordinate", "value"],
+      "properties": {
+        "kind": {
+          "const": "physical"
+        },
+        "coordinate": {
+          "enum": ["asl", "agl", "pressure_pa"]
+        },
+        "value": {
+          "type": "number"
+        }
+      }
+    },
+    "native_vertical": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "level_index_from_top",
+        "resolved_coordinate",
+        "resolved_value"
+      ],
+      "properties": {
+        "kind": {
+          "const": "native_full_level"
+        },
+        "level_index_from_top": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "resolved_coordinate": {
+          "enum": ["asl", "pressure_pa"]
+        },
+        "resolved_value": {
+          "type": "number"
+        }
+      }
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["valid", "unit", "precision", "semantic_class"],
+      "properties": {
+        "valid": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "precision": {
+          "enum": ["binary32", "binary64", "integer", "unknown"]
+        },
+        "semantic_class": {
+          "enum": [
+            "common_semantics",
+            "flexpart_native",
+            "modern_difference_reference"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "valid": {
+                "const": true
+              }
+            },
+            "required": ["valid"]
+          },
+          "then": {
+            "required": ["value"]
+          },
+          "else": {
+            "not": {
+              "required": ["value"]
+            }
+          }
+        }
+      ]
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._/-]*$"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._/-]*$"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "point_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

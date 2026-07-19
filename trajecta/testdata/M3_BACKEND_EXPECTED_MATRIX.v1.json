@@ -1,0 +1,173 @@
+{
+  "schema_hint": "trajecta.m3.backend_expected_matrix/v1",
+  "registry_version": "m3-a-tolerance/v1.0.1",
+  "cds_area_nswe": [
+    53,
+    0,
+    45,
+    10
+  ],
+  "families": {
+    "era5_pressure": {
+      "format": "netcdf",
+      "variant": "rust-netcdf-vs-native-netcdf",
+      "report_id": "backend/era5-pressure/windows-fullfield/v1",
+      "files": [
+        {
+          "relative_path": "target/test-data/era5-cds-pressure-official/ready/era5_pressure_20181201.nc",
+          "size": 3661525,
+          "sha256": "4a5c78063f6d4997773c29cb37d77f32118fea7535372b1f86859c0b02d28033",
+          "role": "pressure",
+          "fields": [
+            "pressure:t",
+            "pressure:u",
+            "pressure:v",
+            "pressure:q",
+            "pressure:w",
+            "pressure:z"
+          ],
+          "valid_times_unix": [
+            1543622400,
+            1543644000,
+            1543665600
+          ]
+        },
+        {
+          "relative_path": "target/test-data/era5-cds-pressure-official/ready/era5_surface_20181201.nc",
+          "size": 264467,
+          "sha256": "474b93cb8aee26b9ce7169ddc7e315a31c5c67eb22cdc0e6c3e9272d02c13f4f",
+          "role": "surface",
+          "fields": [
+            "surface:sp",
+            "surface:z",
+            "surface:u10",
+            "surface:v10",
+            "surface:t2m",
+            "surface:d2m",
+            "surface:ishf",
+            "surface:ie",
+            "surface:blh",
+            "surface:fsr",
+            "surface:zust"
+          ],
+          "valid_times_unix": [
+            1543622400,
+            1543644000,
+            1543665600
+          ]
+        }
+      ]
+    },
+    "era5_hybrid": {
+      "format": "netcdf",
+      "variant": "rust-netcdf-vs-native-netcdf",
+      "report_id": "backend/era5-hybrid/windows-fullfield/v1",
+      "files": [
+        {
+          "relative_path": "target/test-data/era5-cds-hybrid137-official/ready/era5_hybrid137_prepared_20181201.nc",
+          "size": 11246971,
+          "sha256": "aad9b3e3119de5aec951282b894193d9c7d49106be2b77b8e2d15292467bcb88",
+          "role": "hybrid",
+          "fields": [
+            "hybrid:t",
+            "hybrid:u",
+            "hybrid:v",
+            "hybrid:q",
+            "hybrid:w",
+            "hybrid:sp",
+            "hybrid:lnsp"
+          ],
+          "valid_times_unix": [
+            1543622400,
+            1543633200,
+            1543644000
+          ]
+        },
+        {
+          "relative_path": "target/test-data/era5-cds-hybrid137-official/ready/era5_surface_20181201.nc",
+          "size": 242084,
+          "sha256": "b046d63839ff5ee12176fbb72997855d49b119add646a366da1d016c048e1aec",
+          "role": "surface",
+          "fields": [
+            "surface:z",
+            "surface:u10",
+            "surface:v10",
+            "surface:t2m",
+            "surface:d2m",
+            "surface:ishf",
+            "surface:ie",
+            "surface:blh",
+            "surface:fsr",
+            "surface:zust"
+          ],
+          "valid_times_unix": [
+            1543622400,
+            1543633200,
+            1543644000
+          ]
+        }
+      ]
+    },
+    "cfsr_pressure": {
+      "format": "grib",
+      "variant": "rust-grib-vs-native-eccodes",
+      "report_id": "backend/cfsr-pressure/windows-fullfield/v1",
+      "files": [
+        {
+          "relative_path": "target/test-data/cfsr-ncei-pgbl-official/pgbl00.gdas.2009010100.grb2",
+          "size": 5465079,
+          "sha256": "fd3949957d371b720617c0ebf4b984fdee27cd15a12733a03dedd883dd34d65c",
+          "role": "pgbl",
+          "fields": [
+            "grib:0.2.2:isobaric",
+            "grib:0.2.3:isobaric",
+            "grib:0.0.0:isobaric",
+            "grib:0.1.0:isobaric",
+            "grib:0.2.8:isobaric",
+            "grib:0.3.0:surface",
+            "grib:0.3.5:surface"
+          ],
+          "valid_times_unix": [
+            1230768000
+          ]
+        },
+        {
+          "relative_path": "target/test-data/cfsr-ncei-pgbl-official/pgbl00.gdas.2009010106.grb2",
+          "size": 5436947,
+          "sha256": "00a6340960a47502b3ca043c77a02bb7e3381a0f30dc18b77203ad989d3c591b",
+          "role": "pgbl",
+          "fields": [
+            "grib:0.2.2:isobaric",
+            "grib:0.2.3:isobaric",
+            "grib:0.0.0:isobaric",
+            "grib:0.1.0:isobaric",
+            "grib:0.2.8:isobaric",
+            "grib:0.3.0:surface",
+            "grib:0.3.5:surface"
+          ],
+          "valid_times_unix": [
+            1230789600
+          ]
+        },
+        {
+          "relative_path": "target/test-data/cfsr-ncei-pgbl-official/pgbl00.gdas.2009010112.grb2",
+          "size": 5452202,
+          "sha256": "f3cf06669e267fa69ed8d389d9180f0cfe395918a34baa2ab6bdcdf59373c5c5",
+          "role": "pgbl",
+          "fields": [
+            "grib:0.2.2:isobaric",
+            "grib:0.2.3:isobaric",
+            "grib:0.0.0:isobaric",
+            "grib:0.1.0:isobaric",
+            "grib:0.2.8:isobaric",
+            "grib:0.3.0:surface",
+            "grib:0.3.5:surface"
+          ],
+          "valid_times_unix": [
+            1230811200
+          ]
+        }
+      ]
+    }
+  }
+}

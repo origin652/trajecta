@@ -9,6 +9,7 @@
 #![forbid(unsafe_code)]
 
 use std::ffi::OsString;
+use std::io::{self, Write};
 
 pub mod cli;
 pub mod command;
@@ -22,7 +23,22 @@ pub const CONTRACT_VERSION: u32 = 0;
 #[must_use]
 pub fn main_entry(arguments: impl IntoIterator<Item = OsString>) -> i32 {
     match cli::Cli::parse_from(arguments) {
-        Ok(_cli) => 2,
-        Err(_error) => 2,
+        Ok(cli) => match cli.command {
+            command::Command::Met(met) => match command::met::execute(&met) {
+                Ok(code) => code,
+                Err(error) => {
+                    let _ = writeln!(io::stderr(), "trajecta: {error}");
+                    error.exit_code()
+                }
+            },
+            command::Command::Case(_) | command::Command::Data(_) | command::Command::Run(_) => {
+                let _ = writeln!(io::stderr(), "trajecta: command not implemented");
+                2
+            }
+        },
+        Err(error) => {
+            let _ = writeln!(io::stderr(), "{error}");
+            error.exit_code()
+        }
     }
 }

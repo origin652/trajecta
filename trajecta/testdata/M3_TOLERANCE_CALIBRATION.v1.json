@@ -1,0 +1,257 @@
+{
+  "schema_version": "trajecta.m3.tolerance_calibration/v1",
+  "calibration_id": "m3-a-windows-native-expanded-box-2026-07-18",
+  "algorithm_id": "trajecta/met_query/m3/v0",
+  "status": "partial",
+  "host": {
+    "os": "windows",
+    "architecture": "x86_64"
+  },
+  "implementations": {
+    "rust_grib": "grib-reader 0.6.0",
+    "native_grib": "ecCodes 2.47.0",
+    "rust_netcdf": "netcdf-reader 0.8.0 / hdf5-reader 0.8.0",
+    "native_netcdf": "netCDF-C 4.9.3 via netcdf crate 0.11.1"
+  },
+  "measurement_tools": [
+    {
+      "path": "crates/trajecta-met/examples/measure_native_field_diff.rs",
+      "sha256": "e24edd881b555f790eabac6f8b491406b2526acbf03c7354c5308f8245a92fb0"
+    },
+    {
+      "path": "tools/measure_rust_native_diff.py",
+      "sha256": "2f334c8f0819815014626b09b6c39ecb1029b71f035ef89d92b95cc35d5d2af6"
+    },
+    {
+      "path": "tools/measure_cfsr_worst_q_packing.py",
+      "sha256": "8880d604354a9372db970f5cbf5900e38f8579ce2aad759830c961116c1badc1"
+    },
+    {
+      "path": "crates/trajecta-met/examples/adjudicate_backend_fields.rs",
+      "sha256": "fc7aa611a72e6ed6a99ffa651000b279536fb624d0602c9ebaf5a90f550415b6"
+    },
+    {
+      "path": "tools/run_m3_backend_comparison.py",
+      "sha256": "f6b7b9d5a18e3ef7a3663e37a8d34955717de8850e7e51e7fbd1f66bc60f2602"
+    }
+  ],
+  "frozen_inputs": [
+    {
+      "dataset_family": "era5_pressure",
+      "path": "target/test-data/era5-cds-pressure-official/ready/era5_pressure_20181201.nc",
+      "size": 3661525,
+      "sha256": "4a5c78063f6d4997773c29cb37d77f32118fea7535372b1f86859c0b02d28033"
+    },
+    {
+      "dataset_family": "era5_pressure",
+      "path": "target/test-data/era5-cds-pressure-official/ready/era5_surface_20181201.nc",
+      "size": 264467,
+      "sha256": "474b93cb8aee26b9ce7169ddc7e315a31c5c67eb22cdc0e6c3e9272d02c13f4f"
+    },
+    {
+      "dataset_family": "era5_hybrid",
+      "path": "target/test-data/era5-cds-hybrid137-official/ready/era5_hybrid137_prepared_20181201.nc",
+      "size": 11246971,
+      "sha256": "aad9b3e3119de5aec951282b894193d9c7d49106be2b77b8e2d15292467bcb88"
+    },
+    {
+      "dataset_family": "era5_hybrid",
+      "path": "target/test-data/era5-cds-hybrid137-official/ready/era5_surface_20181201.nc",
+      "size": 242084,
+      "sha256": "b046d63839ff5ee12176fbb72997855d49b119add646a366da1d016c048e1aec"
+    },
+    {
+      "dataset_family": "cfsr_pressure",
+      "path": "target/test-data/cfsr-ncei-pgbl-official/pgbl00.gdas.2009010100.grb2",
+      "size": 5465079,
+      "sha256": "fd3949957d371b720617c0ebf4b984fdee27cd15a12733a03dedd883dd34d65c"
+    },
+    {
+      "dataset_family": "cfsr_pressure",
+      "path": "target/test-data/cfsr-ncei-pgbl-official/pgbl00.gdas.2009010106.grb2",
+      "size": 5436947,
+      "sha256": "00a6340960a47502b3ca043c77a02bb7e3381a0f30dc18b77203ad989d3c591b"
+    },
+    {
+      "dataset_family": "cfsr_pressure",
+      "path": "target/test-data/cfsr-ncei-pgbl-official/pgbl00.gdas.2009010112.grb2",
+      "size": 5452202,
+      "sha256": "f3cf06669e267fa69ed8d389d9180f0cfe395918a34baa2ab6bdcdf59373c5c5"
+    }
+  ],
+  "measurements": [
+    {
+      "id": "calibration:era5-pressure-netcdf-windows-expanded-2026-07-18",
+      "dataset_family": "era5_pressure",
+      "comparison_variant": "rust-netcdf-vs-native-netcdf",
+      "cds_area_nswe": [
+        53,
+        0,
+        45,
+        10
+      ],
+      "files": 2,
+      "valid_times": 3,
+      "field_time_measurements": 51,
+      "compared_values": 945747,
+      "exact_mismatch_count": 0,
+      "non_finite_count": 0,
+      "maximum_absolute_difference": 0.0,
+      "maximum_relative_difference": 0.0,
+      "backend_report": {
+        "path": "target/m3-comparison/reports/era5_pressure_backend_report.json",
+        "sha256": "4097a6000bb5588a85f38f1424df175291bcb90de935b06f6c60aace2b1d232b",
+        "status": "passed"
+      }
+    },
+    {
+      "id": "calibration:era5-hybrid-netcdf-windows-expanded-2026-07-18",
+      "dataset_family": "era5_hybrid",
+      "comparison_variant": "rust-netcdf-vs-native-netcdf",
+      "cds_area_nswe": [
+        53,
+        0,
+        45,
+        10
+      ],
+      "files": 2,
+      "valid_times": 3,
+      "field_time_measurements": 51,
+      "compared_values": 2829123,
+      "exact_mismatch_count": 0,
+      "non_finite_count": 0,
+      "maximum_absolute_difference": 0.0,
+      "maximum_relative_difference": 0.0,
+      "notes": [
+        "The hybrid matrix includes lnsp at all three valid times.",
+        "Expanded CDS box NSWE [53,0,45,10]."
+      ],
+      "backend_report": {
+        "path": "target/m3-comparison/reports/era5_hybrid_backend_report.json",
+        "sha256": "ab2972ff5985bd5be60ee74637c0a68f4e0835f09d7d95eb5143e4f4ca66baf1",
+        "status": "passed"
+      }
+    },
+    {
+      "id": "calibration:cfsr-grib-three-times-windows-2026-07-18",
+      "dataset_family": "cfsr_pressure",
+      "comparison_variant": "rust-grib-vs-native-eccodes",
+      "files": 3,
+      "valid_times": 3,
+      "field_time_measurements": 21,
+      "non_finite_count": 0,
+      "fields": [
+        {
+          "source_identity": "grib:0.0.0:isobaric",
+          "compared_values": 1166832,
+          "exact_mismatch_count": 0,
+          "maximum_absolute_difference": 0.0,
+          "maximum_relative_difference": 0.0,
+          "maximum_ulps": 0
+        },
+        {
+          "source_identity": "grib:0.1.0:isobaric",
+          "compared_values": 1166832,
+          "exact_mismatch_count": 711235,
+          "maximum_absolute_difference": 3.469446951953614e-18,
+          "maximum_relative_difference": 4.767611599729265e-16,
+          "maximum_ulps": 3
+        },
+        {
+          "source_identity": "grib:0.2.2:isobaric",
+          "compared_values": 1166832,
+          "exact_mismatch_count": 0,
+          "maximum_absolute_difference": 0.0,
+          "maximum_relative_difference": 0.0,
+          "maximum_ulps": 0
+        },
+        {
+          "source_identity": "grib:0.2.3:isobaric",
+          "compared_values": 1166832,
+          "exact_mismatch_count": 0,
+          "maximum_absolute_difference": 0.0,
+          "maximum_relative_difference": 0.0,
+          "maximum_ulps": 0
+        },
+        {
+          "source_identity": "grib:0.2.8:isobaric",
+          "compared_values": 1166832,
+          "exact_mismatch_count": 189062,
+          "maximum_absolute_difference": 3.469446951953614e-18,
+          "maximum_relative_difference": 4.1136435285198165e-16,
+          "maximum_ulps": 2
+        },
+        {
+          "source_identity": "grib:0.3.0:surface",
+          "compared_values": 31536,
+          "exact_mismatch_count": 0,
+          "maximum_absolute_difference": 0.0,
+          "maximum_relative_difference": 0.0,
+          "maximum_ulps": 0
+        },
+        {
+          "source_identity": "grib:0.3.5:surface",
+          "compared_values": 31536,
+          "exact_mismatch_count": 0,
+          "maximum_absolute_difference": 0.0,
+          "maximum_relative_difference": 0.0,
+          "maximum_ulps": 0
+        }
+      ],
+      "notes": [
+        "q (grib:0.1.0:isobaric) measured maximum_ulps=3 near 5 hPa; worst ordered-ULP abs ~3.101927297073854e-25.",
+        "omega (grib:0.2.8:isobaric) measured maximum_ulps=2; must not share a 3 ULP widen with q.",
+        "ecCodes 2.47.0; packing evidence is one-way from raw ULP calibration via tools/measure_cfsr_worst_q_packing.py."
+      ],
+      "backend_report": {
+        "path": "target/m3-comparison/reports/cfsr_pressure_backend_report.json",
+        "sha256": "556d07de6a3ddec23faed78bec990077300bede994fe0db2a207868303c7d1cc",
+        "status": "failed"
+      },
+      "worst_q_packing_artifact": {
+        "path": "target/m3-comparison/cfsr_worst_q_packing.json",
+        "sha256": "e1ff20e378ce35563e957d03c79a74d01f6e7e4311233748ed4f915a5c2f2a85",
+        "source_raw_calibration": {
+          "path": "target/m3-comparison/cfsr_ulp_raw_calibration.json",
+          "sha256": "2583243f564d4e5b8f8a584fb684a5020ec1a4e74d8f1ad91c7b4914ac0bf8fe"
+        }
+      },
+      "raw_ulp_calibration": {
+        "path": "target/m3-comparison/cfsr_ulp_raw_calibration.json",
+        "sha256": "2583243f564d4e5b8f8a584fb684a5020ec1a4e74d8f1ad91c7b4914ac0bf8fe"
+      }
+    }
+  ],
+  "oracle_precision_basis": {
+    "flexpart_repository": "https://gitlab.phaidra.org/flexpart/flexpart",
+    "flexpart_commit": "dace3affa2ba71677f12f3858b04aaf59f8ee51e",
+    "default_real_bits": 32,
+    "description": "FLEXPART v11.1 development tree stores meteorological arrays and interpolation outputs in default REAL, while Trajecta performs coordinates, weights, derivations, and outputs in binary64. Oracle hard gates are pre-registered from a bounded binary32 arithmetic budget before observing FLEXPART oracle values.",
+    "source_files": [
+      {
+        "path": "src/windfields_mod.f90",
+        "sha256": "d3c732a74884c6218ba09a36d6d99beef6340b4c99423313c868a2689fece81a"
+      },
+      {
+        "path": "src/interpol_mod.f90",
+        "sha256": "08727268302a79a20eee51826f4c7090966e0c585b215565a3ad0366b6934b41"
+      },
+      {
+        "path": "src/par_mod.f90",
+        "sha256": "422a6d58f0367039c45d960c02909904b2bb80bef2a0190915ec1be0e3b5cdf2"
+      }
+    ]
+  },
+  "limitations": [
+    "No Linux cross-platform measurement is included.",
+    "No real FLEXPART oracle numeric sample is included; oracle hard gates are pre-registered rather than fitted.",
+    "Format-equivalence thresholds remain unregistered until canonical query-output measurements are produced.",
+    "Registry hard-gate ULP for CFSR q remains 2 until A publishes v1.0.1; this calibration records measured max 3 ULP on q only."
+  ],
+  "cds_area_nswe": [
+    53,
+    0,
+    45,
+    10
+  ]
+}

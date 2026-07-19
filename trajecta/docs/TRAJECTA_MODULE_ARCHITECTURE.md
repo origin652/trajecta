@@ -1228,6 +1228,9 @@ flowchart TD
 
 ### 阶段 3：气象数值核心
 
+M3 的冻结科学合同、验收矩阵和逐等级交付边界分别见
+`TRAJECTA_M3_MET_QUERY_PLAN.md` 与 `TRAJECTA_M3_MODEL_ASSIGNMENT.md`。
+
 必须由 A 模型完成：
 
 - GridBackend与球面风；

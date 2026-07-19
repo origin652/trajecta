@@ -1,0 +1,177 @@
+schema_version: 0
+kind: dataset_profile
+name: era5-cds-hybrid137-v0
+fingerprint:
+  attributes:
+    dataset_family: era5_cds_hybrid137
+source_matchers:
+  - format: netcdf4
+    global_attributes:
+      dataset_family: era5_cds_hybrid137
+  - format: netcdf3
+    global_attributes:
+      dataset_family: era5_cds_hybrid137
+# 00/03/06 UTC anchors
+frame_interval_seconds: 10800
+extension_fields:
+  - target:
+      namespace: era5
+      name: log_surface_pressure
+    unit: "1"
+    shape: horizontal2_d
+  - target:
+      namespace: era5
+      name: downward_sensible_heat_flux
+    unit: kg/s3
+    shape: horizontal2_d
+  - target:
+      namespace: era5
+      name: downward_moisture_flux
+    unit: kg m-2 s-1
+    shape: horizontal2_d
+  - target:
+      namespace: era5
+      name: two_metre_dewpoint_temperature
+    unit: K
+    shape: horizontal2_d
+fields:
+  - id: air_temperature
+    target: air_temperature
+    sources:
+      - identity: { role: hybrid, variable: t, layout: full3_d }
+        unit: K
+  - id: eastward_wind
+    target: eastward_wind
+    sources:
+      - identity: { role: hybrid, variable: u, layout: full3_d }
+        unit: m/s
+  - id: northward_wind
+    target: northward_wind
+    sources:
+      - identity: { role: hybrid, variable: v, layout: full3_d }
+        unit: m/s
+  # CDS delivers omega (Pa/s) on model levels; accepted hybrid main-anchor path.
+  - id: pressure_vertical_velocity
+    target: pressure_vertical_velocity
+    sources:
+      - identity: { role: hybrid, variable: w, layout: full3_d }
+        unit: Pa/s
+  - id: specific_humidity
+    target: specific_humidity
+    sources:
+      - identity: { role: hybrid, variable: q, layout: full3_d }
+        unit: "1"
+  # Canonical surface pressure is Derived from lnsp (A-approved). Convenience sp
+  # may exist for CF formula_terms but is not a Source here.
+  - id: log_surface_pressure
+    target:
+      namespace: era5
+      name: log_surface_pressure
+    sources:
+      - identity: { role: hybrid, variable: lnsp, layout: horizontal2_d }
+        unit: "1"
+  - id: surface_geopotential
+    target: surface_geopotential
+    sources:
+      - identity: { role: surface, variable: z, layout: horizontal2_d }
+        unit: m2/s2
+  - id: ten_metre_eastward_wind
+    target: ten_metre_eastward_wind
+    sources:
+      - identity: { role: surface, variable: u10, layout: horizontal2_d }
+        unit: m/s
+  - id: ten_metre_northward_wind
+    target: ten_metre_northward_wind
+    sources:
+      - identity: { role: surface, variable: v10, layout: horizontal2_d }
+        unit: m/s
+  - id: two_metre_air_temperature
+    target: two_metre_air_temperature
+    sources:
+      - identity: { role: surface, variable: t2m, layout: horizontal2_d }
+        unit: K
+  - id: two_metre_dewpoint_temperature
+    target:
+      namespace: era5
+      name: two_metre_dewpoint_temperature
+    sources:
+      - identity: { role: surface, variable: d2m, layout: horizontal2_d }
+        unit: K
+  - id: aerodynamic_roughness_length
+    target: aerodynamic_roughness_length
+    sources:
+      - identity: { role: surface, variable: fsr, layout: horizontal2_d }
+        unit: m
+  - id: boundary_layer_height
+    target: boundary_layer_height
+    sources:
+      - identity: { role: surface, variable: blh, layout: horizontal2_d }
+        unit: m
+  - id: friction_velocity
+    target: friction_velocity
+    sources:
+      - identity: { role: surface, variable: zust, layout: horizontal2_d }
+        unit: m/s
+  - id: downward_sensible_heat_flux
+    target:
+      namespace: era5
+      name: downward_sensible_heat_flux
+    sources:
+      - identity: { role: surface, variable: ishf, layout: horizontal2_d }
+        unit: "W m-2"
+  - id: downward_moisture_flux
+    target:
+      namespace: era5
+      name: downward_moisture_flux
+    sources:
+      - identity: { role: surface, variable: ie, layout: horizontal2_d }
+        unit: "kg m-2 s-1"
+derived_fields:
+  - id: surface_pressure
+    target: surface_pressure
+    expression: "surface_pressure_from_log(log_surface_pressure)"
+    unit: Pa
+    shape: horizontal2_d
+    stage: frame
+    quality: derived
+  - id: sensible_heat_flux
+    target: sensible_heat_flux
+    expression: "-downward_sensible_heat_flux"
+    unit: kg/s3
+    shape: horizontal2_d
+    stage: frame
+    quality: derived
+  - id: latent_heat_flux
+    target: latent_heat_flux
+    expression: "latent_heat_from_moisture_flux(downward_moisture_flux)"
+    unit: kg/s3
+    shape: horizontal2_d
+    stage: frame
+    quality: derived
+  - id: two_metre_specific_humidity
+    target: two_metre_specific_humidity
+    expression: "two_metre_specific_humidity_from_dewpoint(two_metre_dewpoint_temperature, surface_pressure)"
+    unit: "1"
+    shape: horizontal2_d
+    stage: frame
+    quality: derived
+capabilities:
+  transport:
+    - eastward_wind
+    - northward_wind
+    - pressure_vertical_velocity
+    - air_temperature
+    - specific_humidity
+    - surface_pressure
+    - surface_geopotential
+  near_surface_transport:
+    - surface_geopotential
+    - ten_metre_eastward_wind
+    - ten_metre_northward_wind
+    - two_metre_air_temperature
+    - two_metre_specific_humidity
+    - aerodynamic_roughness_length
+    - boundary_layer_height
+    - friction_velocity
+    - sensible_heat_flux
+    - latent_heat_flux

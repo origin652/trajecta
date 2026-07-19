@@ -26,7 +26,7 @@ use crate::field::CapabilitySet;
 use crate::io::reader::{
     DecodeError, ReaderFactory, SourceFormat, SourceMetadata, detect_source_format,
 };
-use crate::profile::document::{DatasetProfile, ProfileCatalog};
+use crate::profile::document::{DatasetProfile, ProfileCatalog, ProfileName};
 
 /// Metadata-only inspection backend used by lock construction.
 pub trait SourceMetadataInspector: Send + Sync {
@@ -50,7 +50,16 @@ impl ReaderMetadataInspector {
 
 impl SourceMetadataInspector for ReaderMetadataInspector {
     fn inspect(&self, path: &Path, format: SourceFormat) -> Result<SourceMetadata, DecodeError> {
-        ReaderFactory::create(format, self.backend)?.inspect(path)
+        let reader = ReaderFactory::create(format, self.backend)?;
+        let reader: Box<dyn crate::io::reader::MetReader> =
+            if let Some(counters) = crate::io::metrics::active_io_counters() {
+                Box::new(crate::io::counting_reader::CountingReader::new(
+                    reader, counters,
+                ))
+            } else {
+                reader
+            };
+        reader.inspect(path)
     }
 }
 
@@ -82,6 +91,10 @@ pub struct DatasetLockRequest {
     pub required_capabilities: CapabilitySet,
     /// Ignore matching cache stamps and stream every payload again.
     pub force_rehash: bool,
+    /// Optional exact Profile name. When set, only files matching this Profile
+    /// participate in topology/coverage selection; other products in a mixed
+    /// root are skipped with non-fatal notes.
+    pub preferred_profile: Option<String>,
 }
 
 /// Ordered lock-construction stage.
@@ -150,8 +163,10 @@ pub struct LockScanSummary {
 pub struct DatasetLockBuildOutcome {
     /// Completed lock; absent when any stage failed.
     pub lock: Option<DatasetLock>,
-    /// Independent root-cause diagnostics.
+    /// Independent root-cause diagnostics (fatal).
     pub diagnostics: Vec<LockBuildDiagnostic>,
+    /// Non-fatal notes (for example mixed-root files skipped by Profile filter).
+    pub notes: Vec<LockBuildDiagnostic>,
     /// Scan and hashing summary.
     pub summary: LockScanSummary,
 }
@@ -376,6 +391,7 @@ impl<'a> DatasetLockBuilder<'a> {
     /// Builds one immutable lock or returns only root-cause diagnostics.
     pub fn build(&mut self, request: &DatasetLockRequest) -> DatasetLockBuildOutcome {
         let mut diagnostics = Vec::new();
+        let mut notes = Vec::new();
         let mut summary = LockScanSummary::default();
         if request.coverage.start > request.coverage.end {
             diagnostics.push(LockBuildDiagnostic::new(
@@ -383,12 +399,12 @@ impl<'a> DatasetLockBuilder<'a> {
                 "lock_build.coverage.reversed",
                 "coverage.start must be no later than coverage.end",
             ));
-            return failed(diagnostics, summary);
+            return failed(diagnostics, notes.clone(), summary);
         }
 
         let candidates = scan_roots(&request.data_roots, &mut summary, &mut diagnostics);
         if !diagnostics.is_empty() {
-            return failed(diagnostics, summary);
+            return failed(diagnostics, notes.clone(), summary);
         }
         if candidates.is_empty() {
             diagnostics.push(LockBuildDiagnostic::new(
@@ -396,14 +412,62 @@ impl<'a> DatasetLockBuilder<'a> {
                 "lock_build.scan.no_meteorology",
                 "no supported meteorological containers were found",
             ));
-            return failed(diagnostics, summary);
+            return failed(diagnostics, notes.clone(), summary);
         }
 
-        let inspected = self.inspect_candidates(candidates, &mut diagnostics);
+        // Preferred Profile with candidate_path_globs: matching paths hard-fail
+        // inspect; non-matching mixed products may be soft-skipped with notes.
+        let preferred_globs = request
+            .preferred_profile
+            .as_ref()
+            .and_then(|name| self.profiles.get(&ProfileName(name.clone())))
+            .map(|profile| profile.document.candidate_path_globs.as_slice())
+            .unwrap_or(&[]);
+        let inspected = self.inspect_candidates_for_preferred(
+            candidates,
+            preferred_globs,
+            request.preferred_profile.is_some(),
+            &mut diagnostics,
+            &mut notes,
+        );
         if !diagnostics.is_empty() {
-            return failed(diagnostics, summary);
+            return failed(diagnostics, notes.clone(), summary);
         }
-        let all_times = inspected
+        // Profile-aware filter first so mixed product roots do not poison topology.
+        let inspected_refs = inspected.iter().collect::<Vec<_>>();
+        let (profile_name, profile_sha256, profile_capabilities, warmup, profile_files) = match self
+            .select_profile_group(
+                &inspected_refs,
+                request.preferred_profile.as_deref(),
+                &mut diagnostics,
+                &mut notes,
+            ) {
+            Some((profile, files)) if diagnostics.is_empty() => {
+                let warmup = profile
+                    .document
+                    .fields
+                    .iter()
+                    .map(|field| usize::from(field.temporal.warmup_frames))
+                    .chain(
+                        profile
+                            .document
+                            .derived_fields
+                            .iter()
+                            .map(|field| usize::from(field.temporal.warmup_frames)),
+                    )
+                    .max()
+                    .unwrap_or(0);
+                (
+                    profile.name().0.clone(),
+                    profile.sha256.clone(),
+                    profile.document.capabilities.clone(),
+                    warmup,
+                    files.into_iter().cloned().collect::<Vec<_>>(),
+                )
+            }
+            _ => return failed(diagnostics, notes.clone(), summary),
+        };
+        let all_times = profile_files
             .iter()
             .flat_map(|candidate| candidate.metadata.valid_times.iter().copied())
             .collect::<BTreeSet<_>>()
@@ -417,29 +481,19 @@ impl<'a> DatasetLockBuilder<'a> {
             Ok(times) => times,
             Err(diagnostic) => {
                 diagnostics.push(diagnostic);
-                return failed(diagnostics, summary);
+                return failed(diagnostics, notes.clone(), summary);
             }
         };
-        let base_candidates = select_candidates(&inspected, &base_times);
-        let profile = match self.match_profile(&base_candidates, &mut diagnostics) {
-            Some(profile) if diagnostics.is_empty() => profile,
-            _ => return failed(diagnostics, summary),
-        };
+        let base_candidates = select_candidates(&profile_files, &base_times);
+        if base_candidates.is_empty() {
+            diagnostics.push(LockBuildDiagnostic::new(
+                LockBuildStage::Assemble,
+                "lock_build.coverage.no_profile_files",
+                format!("Profile `{profile_name}` has no files covering the requested interval"),
+            ));
+            return failed(diagnostics, notes.clone(), summary);
+        }
 
-        let warmup = profile
-            .document
-            .fields
-            .iter()
-            .map(|field| usize::from(field.temporal.warmup_frames))
-            .chain(
-                profile
-                    .document
-                    .derived_fields
-                    .iter()
-                    .map(|field| usize::from(field.temporal.warmup_frames)),
-            )
-            .max()
-            .unwrap_or(0);
         let before = match request
             .coverage
             .interpolation_before_frames
@@ -452,51 +506,44 @@ impl<'a> DatasetLockBuilder<'a> {
                     "lock_build.coverage.buffer_overflow",
                     "warm-up and interpolation frame counts overflow usize",
                 ));
-                return failed(diagnostics, summary);
+                return failed(diagnostics, notes.clone(), summary);
             }
         };
         let selected_times = match select_times(&all_times, request.coverage, before) {
             Ok(times) => times,
             Err(diagnostic) => {
                 diagnostics.push(diagnostic);
-                return failed(diagnostics, summary);
+                return failed(diagnostics, notes.clone(), summary);
             }
         };
-        let selected = select_candidates(&inspected, &selected_times);
-        let final_profile = match self.match_profile(&selected, &mut diagnostics) {
-            Some(value) if diagnostics.is_empty() => value,
-            _ => return failed(diagnostics, summary),
-        };
-        if final_profile.name() != profile.name() || final_profile.sha256 != profile.sha256 {
+        let selected = select_candidates(&profile_files, &selected_times);
+        if selected.is_empty() {
             diagnostics.push(LockBuildDiagnostic::new(
-                LockBuildStage::ProfileMatch,
-                "lock_build.profile.buffer_changed_profile",
-                "buffer frames select a different Profile than Case-interval frames",
+                LockBuildStage::Assemble,
+                "lock_build.coverage.no_selected_files",
+                "no Profile-matched files remain after coverage selection",
             ));
-            return failed(diagnostics, summary);
+            return failed(diagnostics, notes.clone(), summary);
         }
 
         let (grid, vertical) = match stable_topology(&selected, &mut diagnostics) {
             Some(value) if diagnostics.is_empty() => value,
-            _ => return failed(diagnostics, summary),
+            _ => return failed(diagnostics, notes.clone(), summary),
         };
         for capability in request.required_capabilities.iter() {
-            if !profile.document.capabilities.contains_key(&capability) {
+            if !profile_capabilities.contains_key(&capability) {
                 diagnostics.push(LockBuildDiagnostic::new(
                     LockBuildStage::CapabilityValidate,
                     "lock_build.capability.missing",
                     format!(
-                        "Profile '{}' does not provide required capability {capability:?}",
-                        profile.name().0
+                        "Profile '{profile_name}' does not provide required capability {capability:?}"
                     ),
                 ));
             }
         }
         if !diagnostics.is_empty() {
-            return failed(diagnostics, summary);
+            return failed(diagnostics, notes.clone(), summary);
         }
-        let profile_name = profile.name().0.clone();
-        let profile_sha256 = profile.sha256.clone();
 
         let mut files = Vec::with_capacity(selected.len());
         for candidate in selected {
@@ -542,7 +589,7 @@ impl<'a> DatasetLockBuilder<'a> {
             });
         }
         if !diagnostics.is_empty() {
-            return failed(diagnostics, summary);
+            return failed(diagnostics, notes.clone(), summary);
         }
         files.sort_by(|left, right| {
             (&left.root_id, &left.relative_path).cmp(&(&right.root_id, &right.relative_path))
@@ -568,139 +615,275 @@ impl<'a> DatasetLockBuilder<'a> {
                     diagnostic.message(),
                 )
             }));
-            return failed(diagnostics, summary);
+            return failed(diagnostics, notes.clone(), summary);
         }
+        sort_diagnostics(&mut notes);
         DatasetLockBuildOutcome {
             lock: Some(lock),
             diagnostics,
+            notes,
             summary,
         }
     }
 
-    fn inspect_candidates(
+    fn inspect_candidates_for_preferred(
         &self,
         candidates: Vec<SourceCandidate>,
+        preferred_globs: &[String],
+        preferred_active: bool,
         diagnostics: &mut Vec<LockBuildDiagnostic>,
+        notes: &mut Vec<LockBuildDiagnostic>,
     ) -> Vec<InspectedCandidate> {
         candidates
             .into_iter()
             .filter_map(|candidate| {
-                let mut metadata = match self
-                    .inspector
-                    .inspect(&candidate.absolute_path, candidate.format)
-                {
-                    Ok(metadata) => metadata,
-                    Err(error) => {
-                        diagnostics.push(
-                            LockBuildDiagnostic::new(
-                                LockBuildStage::Inspect,
-                                "lock_build.inspect.failed",
-                                decode_message(&error),
-                            )
-                            .at_path(candidate.absolute_path),
-                        );
-                        return None;
-                    }
+                let selected_path = if preferred_active && !preferred_globs.is_empty() {
+                    path_matches_any_glob(&candidate.relative_path, preferred_globs)
+                } else {
+                    // No path contract: every magic-recognized container is selected.
+                    true
                 };
-                if metadata.format != candidate.format {
-                    diagnostics.push(
-                        LockBuildDiagnostic::new(
-                            LockBuildStage::Inspect,
-                            "lock_build.inspect.format_mismatch",
-                            format!(
-                                "magic detected {:?} but inspector returned {:?}",
-                                candidate.format, metadata.format
-                            ),
-                        )
-                        .at_path(candidate.absolute_path),
-                    );
-                    return None;
+                let mut hard = Vec::new();
+                let result = self.inspect_one(candidate, &mut hard);
+                if result.is_some() {
+                    return result;
                 }
-                metadata.path = candidate.absolute_path.clone();
-                let mut times = metadata.valid_times.clone();
-                times.sort();
-                times.dedup();
-                if times != metadata.valid_times {
-                    diagnostics.push(
-                        LockBuildDiagnostic::new(
-                            LockBuildStage::Inspect,
-                            "lock_build.inspect.times_not_sorted_unique",
-                            "inspector valid_times must be sorted and unique",
-                        )
-                        .at_path(candidate.absolute_path),
-                    );
-                    return None;
+                if selected_path {
+                    diagnostics.extend(hard);
+                } else {
+                    for mut diagnostic in hard {
+                        diagnostic.code = "lock_build.inspect.skipped_failed".into();
+                        diagnostic.message = format!(
+                            "skipping non-candidate meteorology container: {}",
+                            diagnostic.message
+                        );
+                        notes.push(diagnostic);
+                    }
                 }
-                let mut roles = metadata.roles.clone();
-                roles.sort();
-                roles.dedup();
-                if roles.is_empty()
-                    || roles.iter().any(|role| role.trim().is_empty())
-                    || roles != metadata.roles
-                {
-                    diagnostics.push(
-                        LockBuildDiagnostic::new(
-                            LockBuildStage::Inspect,
-                            "lock_build.inspect.roles_invalid",
-                            "inspector roles must be non-empty, sorted, and unique",
-                        )
-                        .at_path(candidate.absolute_path),
-                    );
-                    return None;
-                }
-                Some(InspectedCandidate {
-                    root_id: candidate.root_id,
-                    relative_path: candidate.relative_path,
-                    absolute_path: candidate.absolute_path,
-                    metadata,
-                })
+                None
             })
             .collect()
     }
 
-    fn match_profile<'b>(
-        &'b self,
-        candidates: &[&InspectedCandidate],
+    fn inspect_one(
+        &self,
+        candidate: SourceCandidate,
         diagnostics: &mut Vec<LockBuildDiagnostic>,
-    ) -> Option<&'b DatasetProfile> {
-        let mut matched = BTreeMap::new();
+    ) -> Option<InspectedCandidate> {
+        let metadata = match self
+            .inspector
+            .inspect(&candidate.absolute_path, candidate.format)
+        {
+            Ok(metadata) => metadata,
+            Err(error) => {
+                diagnostics.push(
+                    LockBuildDiagnostic::new(
+                        LockBuildStage::Inspect,
+                        "lock_build.inspect.failed",
+                        decode_message(&error),
+                    )
+                    .at_path(candidate.absolute_path),
+                );
+                return None;
+            }
+        };
+        self.finish_inspected(candidate, metadata, diagnostics)
+    }
+
+    fn finish_inspected(
+        &self,
+        candidate: SourceCandidate,
+        mut metadata: crate::io::reader::SourceMetadata,
+        diagnostics: &mut Vec<LockBuildDiagnostic>,
+    ) -> Option<InspectedCandidate> {
+        let _ = self;
+        if metadata.format != candidate.format {
+            diagnostics.push(
+                LockBuildDiagnostic::new(
+                    LockBuildStage::Inspect,
+                    "lock_build.inspect.format_mismatch",
+                    format!(
+                        "magic detected {:?} but inspector returned {:?}",
+                        candidate.format, metadata.format
+                    ),
+                )
+                .at_path(candidate.absolute_path),
+            );
+            return None;
+        }
+        metadata.path = candidate.absolute_path.clone();
+        let mut times = metadata.valid_times.clone();
+        times.sort();
+        times.dedup();
+        if times != metadata.valid_times {
+            diagnostics.push(
+                LockBuildDiagnostic::new(
+                    LockBuildStage::Inspect,
+                    "lock_build.inspect.times_not_sorted_unique",
+                    "inspector valid_times must be sorted and unique",
+                )
+                .at_path(candidate.absolute_path),
+            );
+            return None;
+        }
+        let mut roles = metadata.roles.clone();
+        roles.sort();
+        roles.dedup();
+        if roles.is_empty()
+            || roles.iter().any(|role| role.trim().is_empty())
+            || roles != metadata.roles
+        {
+            diagnostics.push(
+                LockBuildDiagnostic::new(
+                    LockBuildStage::Inspect,
+                    "lock_build.inspect.roles_invalid",
+                    "inspector roles must be non-empty, sorted, and unique",
+                )
+                .at_path(candidate.absolute_path),
+            );
+            return None;
+        }
+        Some(InspectedCandidate {
+            root_id: candidate.root_id,
+            relative_path: candidate.relative_path,
+            absolute_path: candidate.absolute_path,
+            metadata,
+        })
+    }
+
+    /// Partitions inspected candidates by exact Profile match.
+    ///
+    /// Files that match no Profile are skipped with non-fatal notes so mixed
+    /// product directories (for example CFSR `pgbl` + `flxl` + `spllnl`) can lock
+    /// the requested product without manual isolation. Files that match a
+    /// different Profile than the selected group are also skipped with notes.
+    /// A file that should match the selected Profile but fails matching is a
+    /// hard error only when it is the preferred/selected group itself.
+    fn select_profile_group<'b>(
+        &'b self,
+        candidates: &[&'b InspectedCandidate],
+        preferred_profile: Option<&str>,
+        diagnostics: &mut Vec<LockBuildDiagnostic>,
+        notes: &mut Vec<LockBuildDiagnostic>,
+    ) -> Option<(&'b DatasetProfile, Vec<&'b InspectedCandidate>)> {
+        let mut by_profile: BTreeMap<
+            (ProfileName, String),
+            (&'b DatasetProfile, Vec<&'b InspectedCandidate>),
+        > = BTreeMap::new();
         for candidate in candidates {
             match self.profiles.match_source(&candidate.metadata) {
                 Ok(profile) => {
-                    matched.insert((profile.name().clone(), profile.sha256.clone()), profile);
+                    let key = (profile.name().clone(), profile.sha256.clone());
+                    by_profile
+                        .entry(key)
+                        .and_modify(|(_, list)| list.push(*candidate))
+                        .or_insert_with(|| (profile, vec![*candidate]));
                 }
-                Err(error) => diagnostics.push(
+                Err(error) => notes.push(
                     LockBuildDiagnostic::new(
                         LockBuildStage::ProfileMatch,
-                        "lock_build.profile.no_unique_match",
-                        error.to_string(),
+                        "lock_build.profile.unmatched_skipped",
+                        format!("skipping file that matches no exact Profile: {error}"),
                     )
                     .at_path(candidate.absolute_path.clone()),
                 ),
             }
         }
-        if matched.len() > 1 {
+        if by_profile.is_empty() {
+            diagnostics.push(LockBuildDiagnostic::new(
+                LockBuildStage::ProfileMatch,
+                "lock_build.profile.none_matched",
+                "no inspected meteorological file matched an exact Profile",
+            ));
+            return None;
+        }
+        let selected_key = if let Some(preferred) = preferred_profile {
+            match by_profile
+                .keys()
+                .find(|(name, _)| name.0 == preferred)
+                .cloned()
+            {
+                Some(key) => key,
+                None => {
+                    diagnostics.push(LockBuildDiagnostic::new(
+                        LockBuildStage::ProfileMatch,
+                        "lock_build.profile.preferred_missing",
+                        format!(
+                            "preferred Profile `{preferred}` matched no file; available: {}",
+                            by_profile
+                                .keys()
+                                .map(|(name, _)| name.0.as_str())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ),
+                    ));
+                    return None;
+                }
+            }
+        } else if by_profile.len() == 1 {
+            match by_profile.keys().next().cloned() {
+                Some(key) => key,
+                None => {
+                    diagnostics.push(LockBuildDiagnostic::new(
+                        LockBuildStage::ProfileMatch,
+                        "lock_build.profile.none_matched",
+                        "internal error: empty profile map after length check",
+                    ));
+                    return None;
+                }
+            }
+        } else {
             diagnostics.push(LockBuildDiagnostic::new(
                 LockBuildStage::ProfileMatch,
                 "lock_build.profile.not_stable",
                 format!(
-                    "selected files require multiple Profiles: {}",
-                    matched
+                    "selected files require multiple Profiles: {}; set preferred_profile or isolate products",
+                    by_profile
                         .keys()
                         .map(|(name, _)| name.0.as_str())
                         .collect::<Vec<_>>()
                         .join(", ")
                 ),
             ));
+            return None;
+        };
+        for ((name, _), (_, other_group)) in &by_profile {
+            if name != &selected_key.0 {
+                for candidate in other_group {
+                    notes.push(
+                        LockBuildDiagnostic::new(
+                            LockBuildStage::ProfileMatch,
+                            "lock_build.profile.other_product_skipped",
+                            format!(
+                                "skipping file matched by Profile `{}` while locking `{}`",
+                                name.0, selected_key.0.0
+                            ),
+                        )
+                        .at_path(candidate.absolute_path.clone()),
+                    );
+                }
+            }
         }
-        matched.into_values().next()
+        by_profile.remove(&selected_key)
     }
 }
 
 fn failed(
     mut diagnostics: Vec<LockBuildDiagnostic>,
+    mut notes: Vec<LockBuildDiagnostic>,
     summary: LockScanSummary,
 ) -> DatasetLockBuildOutcome {
+    sort_diagnostics(&mut diagnostics);
+    sort_diagnostics(&mut notes);
+    DatasetLockBuildOutcome {
+        lock: None,
+        diagnostics,
+        notes,
+        summary,
+    }
+}
+
+fn sort_diagnostics(diagnostics: &mut [LockBuildDiagnostic]) {
     diagnostics.sort_by(|left, right| {
         (left.stage, &left.code, &left.path, &left.message).cmp(&(
             right.stage,
@@ -709,11 +892,6 @@ fn failed(
             &right.message,
         ))
     });
-    DatasetLockBuildOutcome {
-        lock: None,
-        diagnostics,
-        summary,
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -731,6 +909,8 @@ struct InspectedCandidate {
     absolute_path: PathBuf,
     metadata: SourceMetadata,
 }
+
+// SourceMetadata is already Clone via reader contract.
 
 fn scan_roots(
     roots: &BTreeMap<DataRootId, PathBuf>,
@@ -1002,6 +1182,48 @@ fn select_times(
     Ok(all_times[first..=last].iter().copied().collect())
 }
 
+/// Match relative path or basename against simple `*` globs (no character classes).
+fn path_matches_any_glob(path: &Path, globs: &[String]) -> bool {
+    let relative = path.to_string_lossy().replace('\\', "/");
+    let basename = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    globs.iter().any(|glob| {
+        let normalized = glob.replace('\\', "/");
+        glob_match(&normalized, &relative) || glob_match(&normalized, &basename)
+    })
+}
+
+fn glob_match(pattern: &str, value: &str) -> bool {
+    let mut pattern_chars = pattern.chars().peekable();
+    let mut value_chars = value.chars().peekable();
+    loop {
+        match (pattern_chars.next(), value_chars.peek().copied()) {
+            (Some('*'), _) => {
+                // Greedy star: try remaining pattern at every position.
+                let rest: String = pattern_chars.collect();
+                if rest.is_empty() {
+                    return true;
+                }
+                let value_rest: String = value_chars.collect();
+                for index in 0..=value_rest.len() {
+                    if value_rest.is_char_boundary(index) && glob_match(&rest, &value_rest[index..])
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            (Some(expected), Some(actual)) if expected == actual => {
+                value_chars.next();
+            }
+            (None, None) => return true,
+            _ => return false,
+        }
+    }
+}
+
 fn select_candidates<'a>(
     inspected: &'a [InspectedCandidate],
     selected_times: &BTreeSet<Timestamp>,
@@ -1168,6 +1390,7 @@ mod tests {
             },
             required_capabilities: capabilities,
             force_rehash: false,
+            preferred_profile: None,
         }
     }
 

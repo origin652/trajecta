@@ -19,16 +19,24 @@ use crate::frame::{
     FrameGraphExecutor, FrameMetadata, RawField, RawFieldStore, RawMetFrame, TemporalSupport,
 };
 use crate::grid::DomainGeometry;
+use crate::io::counting_reader::CountingReader;
 use crate::io::inventory::FrameDescriptor;
+use crate::io::metrics::IoCallCounters;
 use crate::io::reader::{
     DecodeError, DecodeRequest, DecodedField, MetReader, ReaderFactory, SourceGridGeometry,
     SourceIndex, detect_source_format,
 };
 use crate::profile::document::{
-    DatasetProfile, FieldMapping, FieldSource, SourceRole, TemporalKind, TemporalSemantics,
+    DatasetProfile, DerivedField, FieldMapping, FieldSource, SourceRole, TemporalKind,
+    TemporalSemantics,
 };
 use crate::profile::graph::{ExecutionStage, GraphNodeId, GraphOp, GraphUnit};
 use crate::provenance::{ProvenanceError, ProvenanceRecord, ProvenanceTable, TransformRecord};
+use crate::science::{
+    LATENT_HEAT_FROM_MOISTURE_FLUX_ALGORITHM_ID, SURFACE_PRESSURE_FROM_LOG_ALGORITHM_ID,
+    TWO_METRE_SPECIFIC_HUMIDITY_FROM_DEWPOINT_ALGORITHM_ID,
+    UPWARD_HEAT_FLUX_FROM_DOWNWARD_ALGORITHM_ID,
+};
 use crate::vertical::VerticalTopology;
 
 /// Inputs required to publish one logical meteorological frame.
@@ -52,7 +60,18 @@ pub struct FrameLoader;
 
 impl FrameLoader {
     /// Decodes, normalizes, derives, validates, and publishes one frame.
+    ///
+    /// Uses [`crate::io::metrics::active_io_counters`] when installed so ordinary
+    /// production entry points share the same instrumentation context.
     pub fn load(request: FrameLoadRequest<'_>) -> Result<RawMetFrame, FrameLoadError> {
+        Self::load_with_io(request, crate::io::metrics::active_io_counters())
+    }
+
+    /// Same as [`Self::load`], recording production I/O into shared counters.
+    pub fn load_with_io(
+        request: FrameLoadRequest<'_>,
+        io_counters: Option<Arc<IoCallCounters>>,
+    ) -> Result<RawMetFrame, FrameLoadError> {
         if request.profile.sha256 != request.descriptor.id.profile_sha256 {
             return Err(FrameLoadError::ProfileIdentityMismatch);
         }
@@ -61,7 +80,7 @@ impl FrameLoader {
             return Err(FrameLoadError::NoRequestedFields);
         }
         let direct_dependencies = direct_dependencies(request.profile, &requested_outputs)?;
-        let opened = open_sources(request.descriptor, request.backend)?;
+        let opened = open_sources(request.descriptor, request.backend, io_counters.clone())?;
         let (grid, vertical) = stable_geometry(request.descriptor, &opened)?;
 
         let mut provenance = ProvenanceTable::new();
@@ -163,7 +182,7 @@ impl FrameLoader {
                 sources,
                 transforms: vec![TransformRecord {
                     operation: "profile_frame_graph".into(),
-                    parameters: vec![("node".into(), format!("derived:{}", derived.id))],
+                    parameters: derived_transform_parameters(derived),
                 }],
                 fallback_reason: None,
                 profile_sha256: request.profile.sha256.clone(),
@@ -183,7 +202,7 @@ impl FrameLoader {
         }
 
         let domain = request.descriptor.id.domain.clone();
-        RawMetFrame::publish(
+        let frame = RawMetFrame::publish(
             FrameMetadata {
                 id: request.descriptor.id.clone(),
                 domain: domain.clone(),
@@ -204,12 +223,19 @@ impl FrameLoader {
             raw_fields,
             Arc::new(provenance),
         )
-        .map_err(FrameLoadError::Frame)
+        .map_err(FrameLoadError::Frame);
+        // Count attempt regardless of publish success/failure.
+        if let Some(counters) = io_counters {
+            counters.record_provider_frame_load();
+        }
+        frame
     }
 }
 
 struct OpenedSource {
     path: PathBuf,
+    /// Logical member role from [`FrameDescriptor::files`] (lock/inventory key).
+    role: String,
     reader: Box<dyn MetReader>,
     index: Box<dyn SourceIndex>,
 }
@@ -217,16 +243,27 @@ struct OpenedSource {
 fn open_sources(
     descriptor: &FrameDescriptor,
     backend: MeteorologyReaderBackend,
+    io_counters: Option<Arc<IoCallCounters>>,
 ) -> Result<Vec<OpenedSource>, FrameLoadError> {
-    let paths = descriptor.files.values().cloned().collect::<BTreeSet<_>>();
-    let mut opened = Vec::with_capacity(paths.len());
-    for path in paths {
-        let format = detect_source_format(&path)?
+    let mut opened = Vec::with_capacity(descriptor.files.len());
+    // Preserve logical roles: multi-file Profiles select by role + variable + layout.
+    for (role, path) in &descriptor.files {
+        if let Some(counters) = io_counters.as_ref() {
+            // Format detection open attempt only — not a full OS open tally.
+            counters.record_format_detection_open_attempt();
+        }
+        let format = detect_source_format(path)?
             .ok_or_else(|| FrameLoadError::UnknownSourceFormat(path.clone()))?;
         let reader = ReaderFactory::create(format, backend)?;
-        let index = reader.build_index(&path)?;
+        let reader: Box<dyn MetReader> = if let Some(counters) = io_counters.clone() {
+            Box::new(CountingReader::new(reader, counters))
+        } else {
+            reader
+        };
+        let index = reader.build_index(path)?;
         opened.push(OpenedSource {
-            path,
+            path: path.clone(),
+            role: role.clone(),
             reader,
             index,
         });
@@ -392,22 +429,43 @@ fn decode_mapping<'a>(
     valid_time: Timestamp,
 ) -> Result<SelectedDecode<'a>, FrameLoadError> {
     for alternative in &mapping.sources {
-        let identity = alternative
-            .identity
-            .iter()
-            .map(|(key, value)| (key.clone(), value.clone()))
-            .collect::<Vec<_>>();
+        let (reader_identity, required_role, expected_layout) =
+            split_source_identity(&alternative.identity)?;
         let request = DecodeRequest {
-            source_identity: identity,
+            source_identity: reader_identity,
             valid_time: Some(valid_time),
         };
+        let candidates: Vec<&OpenedSource> = match required_role {
+            Some(role) => {
+                let matched = opened
+                    .iter()
+                    .filter(|source| source.role == role)
+                    .collect::<Vec<_>>();
+                match matched.len() {
+                    0 => {
+                        return Err(FrameLoadError::MissingRole {
+                            field: mapping.target.to_field_key(),
+                            role: role.to_owned(),
+                        });
+                    }
+                    1 => matched,
+                    _ => {
+                        return Err(FrameLoadError::DuplicateRole {
+                            field: mapping.target.to_field_key(),
+                            role: role.to_owned(),
+                        });
+                    }
+                }
+            }
+            None => opened.iter().collect(),
+        };
         let mut matches = Vec::new();
-        for source in opened {
+        for source in candidates {
             match source
                 .reader
                 .decode(&source.path, source.index.as_ref(), &request)
             {
-                Ok(decoded) => matches.push((&source.path, decoded)),
+                Ok(decoded) => matches.push((source, decoded)),
                 Err(DecodeError::MissingField) => {}
                 Err(error) => return Err(FrameLoadError::Decode(error)),
             }
@@ -415,10 +473,19 @@ fn decode_mapping<'a>(
         match matches.len() {
             0 => {}
             1 => {
-                let (path, decoded) = matches.pop().ok_or(FrameLoadError::MissingField)?;
+                let (source, decoded) = matches.pop().ok_or(FrameLoadError::MissingField)?;
+                if let Some(expected) = expected_layout {
+                    if !layout_matches_expected(&decoded.layout, expected) {
+                        return Err(FrameLoadError::LayoutMismatch {
+                            field: mapping.target.to_field_key(),
+                            expected: expected.to_owned(),
+                            actual: layout_label(&decoded.layout).into(),
+                        });
+                    }
+                }
                 let decoded_identity = decoded.source_identity.clone();
                 return Ok(SelectedDecode {
-                    path,
+                    path: &source.path,
                     source: alternative,
                     decoded,
                     decoded_identity,
@@ -432,6 +499,69 @@ fn decode_mapping<'a>(
         }
     }
     Err(FrameLoadError::MissingField)
+}
+
+/// Split Profile identity into loader selectors (`role`, `layout`) and reader keys.
+///
+/// Unknown selectors hard-fail; readers never see `role`/`layout`.
+type SplitIdentity<'a> = (Vec<(String, String)>, Option<&'a str>, Option<&'a str>);
+
+fn split_source_identity(
+    identity: &BTreeMap<String, String>,
+) -> Result<SplitIdentity<'_>, FrameLoadError> {
+    let mut reader_identity = Vec::new();
+    let mut required_role = None;
+    let mut expected_layout = None;
+    for (key, value) in identity {
+        match key.as_str() {
+            "role" => required_role = Some(value.as_str()),
+            "layout" => expected_layout = Some(value.as_str()),
+            // Format-specific reader keys (NetCDF variable/name/unit; GRIB discipline…).
+            "variable"
+            | "name"
+            | "unit"
+            | "param_id"
+            | "discipline"
+            | "parameter_category"
+            | "parameter_number"
+            | "type_of_level"
+            | "product_definition_template"
+            | "parameter"
+            | "level_type"
+            | "level"
+            | "shortName"
+            | "typeOfLevel" => reader_identity.push((key.clone(), value.clone())),
+            other => {
+                return Err(FrameLoadError::UnknownIdentitySelector(other.to_owned()));
+            }
+        }
+    }
+    Ok((reader_identity, required_role, expected_layout))
+}
+
+fn layout_matches_expected(layout: &crate::frame::ArrayLayout, expected: &str) -> bool {
+    match expected {
+        "scalar" => matches!(layout, crate::frame::ArrayLayout::Scalar),
+        "horizontal2_d" | "horizontal2d" | "Horizontal2D" => {
+            matches!(layout, crate::frame::ArrayLayout::Horizontal2D { .. })
+        }
+        "full3_d" | "full3d" | "Full3D" => {
+            matches!(layout, crate::frame::ArrayLayout::Full3D { .. })
+        }
+        "interface3_d" | "interface3d" | "Interface3D" => {
+            matches!(layout, crate::frame::ArrayLayout::Interface3D { .. })
+        }
+        _ => false,
+    }
+}
+
+fn layout_label(layout: &crate::frame::ArrayLayout) -> &'static str {
+    match layout {
+        crate::frame::ArrayLayout::Scalar => "scalar",
+        crate::frame::ArrayLayout::Horizontal2D { .. } => "horizontal2_d",
+        crate::frame::ArrayLayout::Full3D { .. } => "full3_d",
+        crate::frame::ArrayLayout::Interface3D { .. } => "interface3_d",
+    }
 }
 
 fn normalize_direct_field(
@@ -517,6 +647,49 @@ fn subtract_seconds(time: Timestamp, seconds: u64) -> Result<Timestamp, FrameLoa
         .checked_sub(seconds)
         .ok_or(FrameLoadError::TimeOverflow)?;
     Timestamp::new(value, time.nanosecond()).map_err(|_| FrameLoadError::TimeOverflow)
+}
+
+/// Attach frozen algorithm IDs for M3 NearSurface / lnsp derivations so provenance
+/// is not only a generic `profile_frame_graph` label.
+fn derived_transform_parameters(derived: &DerivedField) -> Vec<(String, String)> {
+    let mut parameters = vec![
+        ("node".into(), format!("derived:{}", derived.id)),
+        ("expression".into(), derived.expression.clone()),
+    ];
+    let algorithm = match derived.id.as_str() {
+        "surface_pressure" if derived.expression.contains("surface_pressure_from_log") => {
+            Some(SURFACE_PRESSURE_FROM_LOG_ALGORITHM_ID)
+        }
+        "two_metre_specific_humidity"
+            if derived
+                .expression
+                .contains("two_metre_specific_humidity_from_dewpoint") =>
+        {
+            Some(TWO_METRE_SPECIFIC_HUMIDITY_FROM_DEWPOINT_ALGORITHM_ID)
+        }
+        "latent_heat_flux"
+            if derived
+                .expression
+                .contains("latent_heat_from_moisture_flux") =>
+        {
+            Some(LATENT_HEAT_FROM_MOISTURE_FLUX_ALGORITHM_ID)
+        }
+        "sensible_heat_flux" if derived.expression.trim_start().starts_with('-') => {
+            Some(UPWARD_HEAT_FLUX_FROM_DOWNWARD_ALGORITHM_ID)
+        }
+        _ => None,
+    };
+    if let Some(algorithm) = algorithm {
+        parameters.push(("algorithm".into(), algorithm.into()));
+    }
+    // Trace logarithmic surface-pressure source variable when present in the expression.
+    if derived.expression.contains("log_surface_pressure")
+        || derived.expression.contains("surface_pressure_from_log")
+    {
+        parameters.push(("source_variable".into(), "lnsp".into()));
+        parameters.push(("source_field_id".into(), "log_surface_pressure".into()));
+    }
+    parameters
 }
 
 fn source_record(
@@ -610,6 +783,31 @@ pub enum FrameLoadError {
     MissingField,
     /// More than one file matched one exact source alternative.
     AmbiguousSource(FieldKey),
+    /// Profile required a logical role that is absent from the frame descriptor.
+    MissingRole {
+        /// Target field.
+        field: FieldKey,
+        /// Required role.
+        role: String,
+    },
+    /// Frame descriptor listed the same logical role more than once.
+    DuplicateRole {
+        /// Target field.
+        field: FieldKey,
+        /// Duplicate role.
+        role: String,
+    },
+    /// Decoded array layout disagrees with the Profile identity contract.
+    LayoutMismatch {
+        /// Target field.
+        field: FieldKey,
+        /// Expected layout selector.
+        expected: String,
+        /// Actual decoded layout label.
+        actual: String,
+    },
+    /// Profile identity contained a selector neither the loader nor reader understands.
+    UnknownIdentitySelector(String),
     /// Indexed source files disagree on normalized grid geometry.
     GridMismatch,
     /// Indexed source files disagree on vertical topology.

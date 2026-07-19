@@ -6,7 +6,7 @@
 //! provenance identity. Published frames never trigger hidden source I/O.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, Weak};
 
 use trajecta_case::model::meteorology::DomainId;
 use trajecta_case::model::time::Timestamp;
@@ -19,10 +19,9 @@ use crate::profile::graph::{
     ThermodynamicOp,
 };
 use crate::provenance::{ProvenanceId, ProvenanceTable};
+use crate::query::cache::ColumnCache;
+use crate::science::{M3_CONSTANTS, two_metre_specific_humidity_from_dewpoint_si};
 use crate::vertical::VerticalTopology;
-
-/// Conventional standard gravity used by the frozen v0 geopotential contract.
-const STANDARD_GRAVITY_M_S2: f64 = 9.806_65;
 
 /// Canonical in-memory array layout.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -831,12 +830,18 @@ fn thermodynamic_field(
                 ThermodynamicOp::PotentialTemperature => {
                     si[0] * (100_000.0 / si[1]).powf(287.05 / 1_004.0)
                 }
-                ThermodynamicOp::GeopotentialHeight => si[0] / STANDARD_GRAVITY_M_S2,
-                ThermodynamicOp::GeopotentialFromHeight => si[0] * STANDARD_GRAVITY_M_S2,
-                ThermodynamicOp::OmegaToGeometricVelocity => {
-                    -si[0] / (si[1] * STANDARD_GRAVITY_M_S2)
+                ThermodynamicOp::GeopotentialHeight => si[0] / M3_CONSTANTS.standard_gravity_m_s2,
+                ThermodynamicOp::GeopotentialFromHeight => {
+                    si[0] * M3_CONSTANTS.standard_gravity_m_s2
                 }
                 ThermodynamicOp::SurfacePressureFromLog => si[0].exp(),
+                ThermodynamicOp::TwoMetreSpecificHumidityFromDewpoint => {
+                    two_metre_specific_humidity_from_dewpoint_si(si[0], si[1]).unwrap_or(f64::NAN)
+                }
+                ThermodynamicOp::LatentHeatFromMoistureFlux => {
+                    // ECMWF moisture flux is positive downward; canonical LE is upward.
+                    -M3_CONSTANTS.latent_heat_vaporization_j_kg * si[0]
+                }
             }
         } else {
             0.0
@@ -1091,14 +1096,146 @@ pub struct FramePair {
 }
 
 /// Pinned frame pair and deterministic temporal weights.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct PreparedWindow {
     /// Frames from one selected domain.
     pub frames: FramePair,
+    /// Previous physical frame for a symmetric exact-frame time derivative.
+    pub previous: Option<Arc<RawMetFrame>>,
+    /// Next physical frame for a symmetric exact-frame time derivative.
+    pub next: Option<Arc<RawMetFrame>>,
+    /// Exact physical query time.
+    pub query_time: Timestamp,
+    /// Frozen bytes available to batch-local columns, workspace, and chunks.
+    pub execution_budget_bytes: u64,
     /// Weight assigned to the earlier frame.
     pub before_weight: f64,
     /// Weight assigned to the later frame.
     pub after_weight: f64,
+    column_cache: Option<Weak<Mutex<ColumnCache>>>,
+}
+
+impl PartialEq for PreparedWindow {
+    fn eq(&self, other: &Self) -> bool {
+        self.frames == other.frames
+            && self.previous == other.previous
+            && self.next == other.next
+            && self.query_time == other.query_time
+            && self.execution_budget_bytes == other.execution_budget_bytes
+            && self.before_weight == other.before_weight
+            && self.after_weight == other.after_weight
+    }
+}
+
+impl PreparedWindow {
+    /// Constructs a strict between-frame window with linear time weights.
+    pub fn between(
+        before: Arc<RawMetFrame>,
+        after: Arc<RawMetFrame>,
+        query_time: Timestamp,
+        execution_budget_bytes: u64,
+    ) -> Result<Self, FrameError> {
+        validate_frame_compatibility(&before, &after)?;
+        let before_time = before.metadata.valid_time;
+        let after_time = after.metadata.valid_time;
+        if before_time >= after_time || query_time <= before_time || query_time >= after_time {
+            return Err(FrameError::InvalidTimeWindow);
+        }
+        let total = timestamp_nanoseconds(after_time) - timestamp_nanoseconds(before_time);
+        let elapsed = timestamp_nanoseconds(query_time) - timestamp_nanoseconds(before_time);
+        let after_weight = elapsed as f64 / total as f64;
+        let before_weight = 1.0 - after_weight;
+        if !before_weight.is_finite()
+            || !after_weight.is_finite()
+            || before_weight <= 0.0
+            || after_weight <= 0.0
+        {
+            return Err(FrameError::InvalidTimeWindow);
+        }
+        Ok(Self {
+            frames: FramePair { before, after },
+            previous: None,
+            next: None,
+            query_time,
+            execution_budget_bytes,
+            before_weight,
+            after_weight,
+            column_cache: None,
+        })
+    }
+
+    /// Constructs an exact-frame window and retains adjacent derivative frames.
+    pub fn at_frame(
+        previous: Option<Arc<RawMetFrame>>,
+        current: Arc<RawMetFrame>,
+        next: Option<Arc<RawMetFrame>>,
+        execution_budget_bytes: u64,
+    ) -> Result<Self, FrameError> {
+        if let Some(frame) = &previous {
+            validate_frame_compatibility(frame, &current)?;
+            if frame.metadata.valid_time >= current.metadata.valid_time {
+                return Err(FrameError::InvalidTimeWindow);
+            }
+        }
+        if let Some(frame) = &next {
+            validate_frame_compatibility(&current, frame)?;
+            if frame.metadata.valid_time <= current.metadata.valid_time {
+                return Err(FrameError::InvalidTimeWindow);
+            }
+        }
+        let query_time = current.metadata.valid_time;
+        Ok(Self {
+            frames: FramePair {
+                before: current.clone(),
+                after: current,
+            },
+            previous,
+            next,
+            query_time,
+            execution_budget_bytes,
+            before_weight: 1.0,
+            after_weight: 0.0,
+            column_cache: None,
+        })
+    }
+
+    /// Returns whether this query lies exactly on one physical frame.
+    #[must_use]
+    pub fn is_exact_frame(&self) -> bool {
+        self.frames.before.metadata.valid_time == self.frames.after.metadata.valid_time
+    }
+
+    /// Verifies the extra frame support required by complete geometric W.
+    pub fn validate_transport_time_support(&self) -> Result<(), FrameError> {
+        if self.is_exact_frame() && (self.previous.is_none() || self.next.is_none()) {
+            return Err(FrameError::MissingSymmetricTimeSupport);
+        }
+        Ok(())
+    }
+
+    /// Attaches the engine-owned preparation cache without retaining the engine.
+    pub(crate) fn attach_column_cache(&mut self, cache: &Arc<Mutex<ColumnCache>>) {
+        self.column_cache = Some(Arc::downgrade(cache));
+    }
+
+    /// Upgrades the engine-owned cache while preparing a batch.
+    pub(crate) fn column_cache(&self) -> Option<Arc<Mutex<ColumnCache>>> {
+        self.column_cache.as_ref().and_then(Weak::upgrade)
+    }
+}
+
+fn validate_frame_compatibility(left: &RawMetFrame, right: &RawMetFrame) -> Result<(), FrameError> {
+    if left.metadata.domain != right.metadata.domain
+        || left.metadata.grid != right.metadata.grid
+        || left.metadata.vertical != right.metadata.vertical
+    {
+        return Err(FrameError::IncompatibleWindowFrames);
+    }
+    Ok(())
+}
+
+fn timestamp_nanoseconds(time: Timestamp) -> i128 {
+    i128::from(time.seconds_since_unix_epoch()) * 1_000_000_000_i128 + i128::from(time.nanosecond())
 }
 
 /// Mutable owner of frame transitions and prefetch policy.
@@ -1106,26 +1243,229 @@ pub struct PreparedWindow {
 pub struct WindowManager;
 
 impl WindowManager {
-    /// Pins the pair required for one physical query time.
-    pub fn prepare(&mut self, _time: Timestamp) -> Result<PreparedWindow, FrameError> {
-        Err(FrameError::NotImplemented)
+    /// Selects a strict window from frames sorted by increasing physical time.
+    pub fn prepare_from_sorted_frames(
+        &mut self,
+        time: Timestamp,
+        frames: &[Arc<RawMetFrame>],
+        execution_budget_bytes: u64,
+    ) -> Result<PreparedWindow, FrameError> {
+        if frames.is_empty()
+            || frames
+                .windows(2)
+                .any(|pair| pair[1].metadata.valid_time <= pair[0].metadata.valid_time)
+        {
+            return Err(FrameError::InvalidFrameSequence);
+        }
+        match frames.binary_search_by_key(&time, |frame| frame.metadata.valid_time) {
+            Ok(index) => PreparedWindow::at_frame(
+                index.checked_sub(1).map(|value| frames[value].clone()),
+                frames[index].clone(),
+                frames.get(index + 1).cloned(),
+                execution_budget_bytes,
+            ),
+            Err(0) => Err(FrameError::MissingBracketingFrames),
+            Err(index) if index == frames.len() => Err(FrameError::MissingBracketingFrames),
+            Err(index) => PreparedWindow::between(
+                frames[index - 1].clone(),
+                frames[index].clone(),
+                time,
+                execution_budget_bytes,
+            ),
+        }
     }
 }
 
-/// Byte-budgeted immutable raw-frame cache.
-#[derive(Clone, Debug, Default)]
-pub struct FrameCache {
-    /// Configured hard byte budget.
-    pub budget_bytes: u64,
-    /// Current resident bytes.
+/// Observable raw-frame cache counters.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct FrameCacheMetrics {
+    /// Successful identity lookups.
+    pub hits: u64,
+    /// Missing identity lookups.
+    pub misses: u64,
+    /// Entries removed to satisfy the hard budget.
+    pub evictions: u64,
+    /// Bytes currently owned by the cache map.
     pub resident_bytes: u64,
+}
+
+#[derive(Clone, Debug)]
+struct FrameCacheEntry {
+    frame: Arc<RawMetFrame>,
+    size_bytes: u64,
+    last_access: u64,
+}
+
+/// Byte-budgeted deterministic immutable raw-frame cache.
+#[derive(Debug, Default)]
+pub struct FrameCache {
+    budget_bytes: u64,
+    entries: BTreeMap<LogicalFrameId, FrameCacheEntry>,
+    access_clock: u64,
+    metrics: FrameCacheMetrics,
+}
+
+impl FrameCache {
+    /// Creates an empty cache with a hard resident-byte budget.
+    #[must_use]
+    pub const fn new(budget_bytes: u64) -> Self {
+        Self {
+            budget_bytes,
+            entries: BTreeMap::new(),
+            access_clock: 0,
+            metrics: FrameCacheMetrics {
+                hits: 0,
+                misses: 0,
+                evictions: 0,
+                resident_bytes: 0,
+            },
+        }
+    }
+
+    /// Returns the configured hard budget.
+    #[must_use]
+    pub const fn budget_bytes(&self) -> u64 {
+        self.budget_bytes
+    }
+
+    /// Returns observable cache counters.
+    #[must_use]
+    pub const fn metrics(&self) -> FrameCacheMetrics {
+        self.metrics
+    }
+
+    /// Returns the number of resident frame identities.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// Returns whether no frames are resident.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    /// Looks up and pins one frame by returning a shared strong reference.
+    pub fn get(&mut self, id: &LogicalFrameId) -> Option<Arc<RawMetFrame>> {
+        self.access_clock = self.access_clock.saturating_add(1);
+        if let Some(entry) = self.entries.get_mut(id) {
+            entry.last_access = self.access_clock;
+            self.metrics.hits = self.metrics.hits.saturating_add(1);
+            return Some(entry.frame.clone());
+        }
+        self.metrics.misses = self.metrics.misses.saturating_add(1);
+        None
+    }
+
+    /// Inserts a measured immutable frame after planning all required evictions.
+    pub fn insert(&mut self, frame: Arc<RawMetFrame>) -> Result<Arc<RawMetFrame>, FrameError> {
+        let id = frame.metadata.id.clone();
+        if let Some(existing) = self.entries.get(&id) {
+            if existing.frame.as_ref() == frame.as_ref() {
+                return Ok(existing.frame.clone());
+            }
+            return Err(FrameError::DuplicateFrameIdentity(id));
+        }
+        let size_bytes = frame.resident_bytes();
+        if size_bytes > self.budget_bytes {
+            return Err(FrameError::InsufficientMemory {
+                required_bytes: size_bytes,
+                available_bytes: self.budget_bytes,
+            });
+        }
+        let required = self.metrics.resident_bytes.checked_add(size_bytes).ok_or(
+            FrameError::InsufficientMemory {
+                required_bytes: u64::MAX,
+                available_bytes: self.budget_bytes,
+            },
+        )?;
+        let mut candidates = self
+            .entries
+            .iter()
+            .filter(|(_, entry)| Arc::strong_count(&entry.frame) == 1)
+            .map(|(key, entry)| (entry.last_access, key.clone(), entry.size_bytes))
+            .collect::<Vec<_>>();
+        candidates.sort_by(|left, right| (left.0, &left.1).cmp(&(right.0, &right.1)));
+        let mut projected = required;
+        let mut evict = Vec::new();
+        for (_, key, bytes) in candidates {
+            if projected <= self.budget_bytes {
+                break;
+            }
+            projected = projected.saturating_sub(bytes);
+            evict.push(key);
+        }
+        if projected > self.budget_bytes {
+            return Err(FrameError::InsufficientMemory {
+                required_bytes: required,
+                available_bytes: self.budget_bytes,
+            });
+        }
+        for key in evict {
+            if let Some(entry) = self.entries.remove(&key) {
+                self.metrics.resident_bytes =
+                    self.metrics.resident_bytes.saturating_sub(entry.size_bytes);
+                self.metrics.evictions = self.metrics.evictions.saturating_add(1);
+            }
+        }
+        self.access_clock = self.access_clock.saturating_add(1);
+        self.metrics.resident_bytes = self.metrics.resident_bytes.saturating_add(size_bytes);
+        self.entries.insert(
+            id,
+            FrameCacheEntry {
+                frame: frame.clone(),
+                size_bytes,
+                last_access: self.access_clock,
+            },
+        );
+        Ok(frame)
+    }
+
+    /// Removes one unpinned identity; pinned frames remain resident.
+    pub fn remove(&mut self, id: &LogicalFrameId) -> Result<bool, FrameError> {
+        let Some(entry) = self.entries.get(id) else {
+            return Ok(false);
+        };
+        if Arc::strong_count(&entry.frame) > 1 {
+            return Err(FrameError::PinnedFrame);
+        }
+        let entry = self.entries.remove(id).ok_or(FrameError::PinnedFrame)?;
+        self.metrics.resident_bytes = self.metrics.resident_bytes.saturating_sub(entry.size_bytes);
+        Ok(true)
+    }
+
+    /// Returns pinned resident frames for one domain in increasing time order.
+    #[must_use]
+    pub fn frames_for_domain(&self, domain: &DomainId) -> Vec<Arc<RawMetFrame>> {
+        let mut frames = self
+            .entries
+            .values()
+            .filter(|entry| &entry.frame.metadata.domain == domain)
+            .map(|entry| entry.frame.clone())
+            .collect::<Vec<_>>();
+        frames.sort_by_key(|frame| frame.metadata.valid_time);
+        frames
+    }
 }
 
 /// Frame assembly, selection, or cache failure.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FrameError {
-    /// Frame/window algorithms have not been implemented yet.
-    NotImplemented,
+    /// Candidate frames are empty or not strictly ordered by physical time.
+    InvalidFrameSequence,
+    /// No real frames strictly bracket the requested time.
+    MissingBracketingFrames,
+    /// Frame times or interpolation weights do not form a valid window.
+    InvalidTimeWindow,
+    /// Window frames disagree in domain, horizontal grid, or vertical topology.
+    IncompatibleWindowFrames,
+    /// Exact-frame geometric W lacks both previous and next physical frames.
+    MissingSymmetricTimeSupport,
+    /// One logical identity was reused for different immutable content.
+    DuplicateFrameIdentity(LogicalFrameId),
+    /// An explicit removal targeted a frame retained by a prepared owner.
+    PinnedFrame,
     /// A field key occurs twice during assembly.
     DuplicateField(FieldKey),
     /// No fields were assembled.
@@ -1214,6 +1554,132 @@ mod tests {
                 pressure_pa: Arc::from([90_000.0, 100_000.0]),
             }),
         }
+    }
+
+    fn minimal_frame_at(seconds: i64) -> Arc<RawMetFrame> {
+        let mut metadata = metadata();
+        let valid_time = Timestamp::new(seconds, 0).unwrap();
+        metadata.valid_time = valid_time;
+        metadata.id.valid_time = valid_time;
+        metadata.id.content_sha256 = sha256_hex(seconds.to_string().as_bytes());
+        let key = FieldKey::Canonical(CanonicalField::AirTemperature);
+        let mut table = ProvenanceTable::new();
+        let provenance = table
+            .intern(ProvenanceRecord {
+                field: key.clone(),
+                quality: FieldQuality::Source,
+                sources: vec![format!("frame:{seconds}")],
+                transforms: Vec::new(),
+                fallback_reason: None,
+                profile_sha256: metadata.id.profile_sha256.clone(),
+            })
+            .unwrap();
+        let field = RawField::new(
+            Arc::from([280.0; 8]),
+            Arc::from([true; 8]),
+            GraphUnit::parse("K").unwrap(),
+            ArrayLayout::Full3D {
+                levels: 2,
+                ny: 2,
+                nx: 2,
+            },
+            TemporalSupport::Instantaneous { valid_time },
+            FieldQuality::Source,
+            provenance,
+        )
+        .unwrap();
+        let mut fields = RawFieldStore::new();
+        fields.insert(key, field).unwrap();
+        Arc::new(RawMetFrame::publish(metadata, fields, Arc::new(table)).unwrap())
+    }
+
+    #[test]
+    fn window_manager_strictly_brackets_and_freezes_time_weights() {
+        let frames = [
+            minimal_frame_at(0),
+            minimal_frame_at(3_600),
+            minimal_frame_at(7_200),
+        ];
+        let mut manager = WindowManager;
+        let between = manager
+            .prepare_from_sorted_frames(Timestamp::new(1_800, 0).unwrap(), &frames, 1_000_000)
+            .unwrap();
+        assert_eq!(between.before_weight, 0.5);
+        assert_eq!(between.after_weight, 0.5);
+        assert!(!between.is_exact_frame());
+        assert!(between.validate_transport_time_support().is_ok());
+
+        let exact = manager
+            .prepare_from_sorted_frames(Timestamp::new(3_600, 0).unwrap(), &frames, 1_000_000)
+            .unwrap();
+        assert!(exact.is_exact_frame());
+        assert!(exact.validate_transport_time_support().is_ok());
+        assert_eq!(
+            exact.previous.as_ref().unwrap().metadata.valid_time,
+            Timestamp::UNIX_EPOCH
+        );
+        assert_eq!(
+            exact.next.as_ref().unwrap().metadata.valid_time,
+            Timestamp::new(7_200, 0).unwrap()
+        );
+    }
+
+    #[test]
+    fn endpoint_exact_frame_is_not_complete_transport_coverage() {
+        let frames = [minimal_frame_at(0), minimal_frame_at(3_600)];
+        let mut manager = WindowManager;
+        let endpoint = manager
+            .prepare_from_sorted_frames(Timestamp::UNIX_EPOCH, &frames, 1_000_000)
+            .unwrap();
+        assert_eq!(
+            endpoint.validate_transport_time_support(),
+            Err(FrameError::MissingSymmetricTimeSupport)
+        );
+        assert_eq!(
+            manager.prepare_from_sorted_frames(Timestamp::new(-1, 0).unwrap(), &frames, 1_000_000,),
+            Err(FrameError::MissingBracketingFrames)
+        );
+    }
+
+    #[test]
+    fn frame_cache_evicts_deterministically_and_never_evicts_pins() {
+        let frame0 = minimal_frame_at(0);
+        let frame1 = minimal_frame_at(3_600);
+        let frame2 = minimal_frame_at(7_200);
+        let id0 = frame0.metadata.id.clone();
+        let id1 = frame1.metadata.id.clone();
+        let id2 = frame2.metadata.id.clone();
+        let size = frame0.resident_bytes();
+        let mut cache = FrameCache::new(size * 2);
+        drop(cache.insert(frame0).unwrap());
+        drop(cache.insert(frame1).unwrap());
+
+        let pin0 = cache.get(&id0).unwrap();
+        drop(cache.insert(frame2).unwrap());
+        assert!(cache.get(&id1).is_none());
+        assert!(cache.get(&id2).is_some());
+        assert_eq!(cache.remove(&id0), Err(FrameError::PinnedFrame));
+        drop(pin0);
+        assert_eq!(cache.remove(&id0), Ok(true));
+        assert!(cache.metrics().resident_bytes <= cache.budget_bytes());
+    }
+
+    #[test]
+    fn frame_cache_failed_insert_is_transactional_when_all_entries_are_pinned() {
+        let frame0 = minimal_frame_at(0);
+        let frame1 = minimal_frame_at(3_600);
+        let id0 = frame0.metadata.id.clone();
+        let size = frame0.resident_bytes();
+        let mut cache = FrameCache::new(size);
+        drop(cache.insert(frame0).unwrap());
+        let pin = cache.get(&id0).unwrap();
+        assert!(matches!(
+            cache.insert(frame1),
+            Err(FrameError::InsufficientMemory { .. })
+        ));
+        assert_eq!(cache.len(), 1);
+        assert_eq!(cache.metrics().resident_bytes, size);
+        drop(pin);
     }
 
     #[test]

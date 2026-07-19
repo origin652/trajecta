@@ -1,0 +1,1160 @@
+{
+  "schema_version": "trajecta.m3.tolerances/v1",
+  "algorithm_id": "trajecta/met_query/m3/v0",
+  "registry_version": "m3-a-tolerance/v1.0.1",
+  "approved_at_utc": "2026-07-19T05:35:15Z",
+  "approval_authority": "A",
+  "calibration_report": {
+    "path": "testdata/M3_TOLERANCE_CALIBRATION.v1.json",
+    "sha256": "c097417f96cde49751372bb56cac141766f1f660830b74b879adbf7514ffb520",
+    "state": "measured_partial"
+  },
+  "rules": [
+    {
+      "id": "backend/era5-pressure/netcdf-exact/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_pressure"
+        ],
+        "comparison_target": "backend_equivalence",
+        "comparison_variant": "rust-netcdf-vs-native-netcdf",
+        "sample_scope": "decoded_field",
+        "field_namespace": "source_identity",
+        "fields": [
+          "pressure:t",
+          "pressure:u",
+          "pressure:v",
+          "pressure:q",
+          "pressure:w",
+          "pressure:z",
+          "surface:sp",
+          "surface:z",
+          "surface:u10",
+          "surface:v10",
+          "surface:t2m",
+          "surface:d2m",
+          "surface:ishf",
+          "surface:ie",
+          "surface:blh",
+          "surface:fsr",
+          "surface:zust"
+        ],
+        "coordinates": [
+          "all"
+        ],
+        "vertical_regions": [
+          "all"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "valid_times",
+        "grid",
+        "vertical_topology",
+        "layout",
+        "mask",
+        "unit",
+        "temporal_support"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "exact",
+        "equality": "numeric",
+        "signed_zero_equal": true
+      },
+      "threshold_basis": "measured_envelope",
+      "evidence_ids": [
+        "calibration:era5-pressure-netcdf-windows-2026-07-18"
+      ],
+      "scientific_reason": "Both readers decode the same stored NetCDF numeric payload; all three times and every required source field measured exact on the frozen official anchor."
+    },
+    {
+      "id": "backend/era5-hybrid/netcdf-exact/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid"
+        ],
+        "comparison_target": "backend_equivalence",
+        "comparison_variant": "rust-netcdf-vs-native-netcdf",
+        "sample_scope": "decoded_field",
+        "field_namespace": "source_identity",
+        "fields": [
+          "hybrid:t",
+          "hybrid:u",
+          "hybrid:v",
+          "hybrid:q",
+          "hybrid:w",
+          "hybrid:sp",
+          "hybrid:lnsp",
+          "surface:z",
+          "surface:u10",
+          "surface:v10",
+          "surface:t2m",
+          "surface:d2m",
+          "surface:ishf",
+          "surface:ie",
+          "surface:blh",
+          "surface:fsr",
+          "surface:zust"
+        ],
+        "coordinates": [
+          "all"
+        ],
+        "vertical_regions": [
+          "all"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "valid_times",
+        "grid",
+        "vertical_topology",
+        "layout",
+        "mask",
+        "unit",
+        "temporal_support"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "exact",
+        "equality": "numeric",
+        "signed_zero_equal": true
+      },
+      "threshold_basis": "measured_envelope",
+      "evidence_ids": [
+        "calibration:era5-hybrid-netcdf-windows-2026-07-18"
+      ],
+      "scientific_reason": "Both readers decode the same stored NetCDF numeric payload; the complete three-time hybrid, lnsp, and surface source matrix measured exact on the frozen official anchor."
+    },
+    {
+      "id": "backend/cfsr-grib/exact-fields/v1",
+      "selector": {
+        "dataset_families": [
+          "cfsr_pressure"
+        ],
+        "comparison_target": "backend_equivalence",
+        "comparison_variant": "rust-grib-vs-native-eccodes",
+        "sample_scope": "decoded_field",
+        "field_namespace": "source_identity",
+        "fields": [
+          "grib:0.0.0:isobaric",
+          "grib:0.2.2:isobaric",
+          "grib:0.2.3:isobaric",
+          "grib:0.3.0:surface",
+          "grib:0.3.5:surface"
+        ],
+        "coordinates": [
+          "all"
+        ],
+        "vertical_regions": [
+          "all"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "valid_times",
+        "grid",
+        "vertical_topology",
+        "layout",
+        "mask",
+        "unit",
+        "temporal_support"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "exact",
+        "equality": "numeric",
+        "signed_zero_equal": true
+      },
+      "threshold_basis": "measured_envelope",
+      "evidence_ids": [
+        "calibration:cfsr-grib-three-times-windows-2026-07-18"
+      ],
+      "scientific_reason": "Temperature, horizontal wind, surface pressure, and surface height decode exactly across Rust GRIB and ecCodes for all three frozen CFSR times."
+    },
+    {
+      "id": "backend/cfsr-grib/q-three-ulp/v1",
+      "selector": {
+        "dataset_families": [
+          "cfsr_pressure"
+        ],
+        "comparison_target": "backend_equivalence",
+        "comparison_variant": "rust-grib-vs-native-eccodes",
+        "sample_scope": "decoded_field",
+        "field_namespace": "source_identity",
+        "fields": [
+          "grib:0.1.0:isobaric"
+        ],
+        "coordinates": [
+          "all"
+        ],
+        "vertical_regions": [
+          "all"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "valid_times",
+        "grid",
+        "vertical_topology",
+        "layout",
+        "mask",
+        "unit",
+        "temporal_support"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "ulp",
+        "maximum_ulps": 3,
+        "signed_zero_equal": true
+      },
+      "threshold_basis": "measured_envelope",
+      "evidence_ids": [
+        "calibration:cfsr-grib-three-times-windows-2026-07-18"
+      ],
+      "scientific_reason": "Specific humidity differs by at most three binary64 ULPs across all three frozen CFSR times; the worst points are tied to the same 5 hPa JPEG2000 message packing and have an absolute difference near 3.1e-25."
+    },
+    {
+      "id": "backend/cfsr-grib/omega-two-ulp/v1",
+      "selector": {
+        "dataset_families": [
+          "cfsr_pressure"
+        ],
+        "comparison_target": "backend_equivalence",
+        "comparison_variant": "rust-grib-vs-native-eccodes",
+        "sample_scope": "decoded_field",
+        "field_namespace": "source_identity",
+        "fields": [
+          "grib:0.2.8:isobaric"
+        ],
+        "coordinates": [
+          "all"
+        ],
+        "vertical_regions": [
+          "all"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "valid_times",
+        "grid",
+        "vertical_topology",
+        "layout",
+        "mask",
+        "unit",
+        "temporal_support"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "ulp",
+        "maximum_ulps": 2,
+        "signed_zero_equal": true
+      },
+      "threshold_basis": "measured_envelope",
+      "evidence_ids": [
+        "calibration:cfsr-grib-three-times-windows-2026-07-18"
+      ],
+      "scientific_reason": "Pressure vertical velocity differs by at most two binary64 ULPs after equivalent decimal-scaled GRIB reconstruction across all three frozen CFSR times, so its existing threshold remains unchanged."
+    },
+    {
+      "id": "oracle/native-anchor/vector-wind/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "native_anchor",
+        "field_namespace": "transport_output",
+        "fields": [
+          "eastward_wind",
+          "northward_wind"
+        ],
+        "coordinates": [
+          "native_level"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "vector",
+        "component_absolute": 2e-05,
+        "component_relative": 5e-07,
+        "component_scale_floor": 0.1,
+        "speed_floor": 0.1,
+        "direction_degrees": 0.02
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:real32-wind-storage",
+        "numeric:binary32-eight-ulp-envelope"
+      ],
+      "scientific_reason": "At exact source time, grid point, and native level the implementations share wind semantics; the bound covers FLEXPART binary32 storage and a small decoder rounding envelope without hiding interpolation errors."
+    },
+    {
+      "id": "oracle/native-anchor/temperature/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "native_anchor",
+        "field_namespace": "transport_output",
+        "fields": [
+          "air_temperature"
+        ],
+        "coordinates": [
+          "native_level"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.0002,
+        "relative": 5e-07,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:real32-temperature-storage",
+        "numeric:binary32-eight-ulp-envelope"
+      ],
+      "scientific_reason": "Native-anchor temperature should differ only through FLEXPART binary32 storage and decoder rounding; the pre-registered bound is fixed before any FLEXPART numeric sample is observed."
+    },
+    {
+      "id": "oracle/native-anchor/specific-humidity/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "native_anchor",
+        "field_namespace": "transport_output",
+        "fields": [
+          "specific_humidity"
+        ],
+        "coordinates": [
+          "native_level"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 2e-08,
+        "relative": 2e-06,
+        "scale_floor": 1e-06
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:real32-humidity-storage",
+        "numeric:binary32-rounding-envelope"
+      ],
+      "scientific_reason": "Native-anchor specific humidity is a common source quantity; the absolute floor protects dry values while the relative term covers bounded binary32 storage and decode rounding."
+    },
+    {
+      "id": "oracle/native-anchor/pressure/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "native_anchor",
+        "field_namespace": "transport_output",
+        "fields": [
+          "air_pressure"
+        ],
+        "coordinates": [
+          "native_level"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.1,
+        "relative": 2e-06,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:real32-pressure-storage",
+        "numeric:binary32-multistep-envelope"
+      ],
+      "scientific_reason": "Native-level pressure is common semantics but hybrid reconstruction performs several binary32 operations in FLEXPART; this fixed pre-observation budget covers that arithmetic without allowing level-order errors."
+    },
+    {
+      "id": "oracle/native-anchor/geopotential-height/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "native_anchor",
+        "field_namespace": "canonical_field",
+        "fields": [
+          "geopotential_height"
+        ],
+        "coordinates": [
+          "native_level"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.02,
+        "relative": 1e-06,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:real32-height-storage",
+        "m3:geopotential-height-common-semantics"
+      ],
+      "scientific_reason": "The hard gate compares geopotential height rather than Trajecta geometric height, avoiding a deliberate semantic difference while still detecting vertical-coordinate and hydrostatic reconstruction errors."
+    },
+    {
+      "id": "oracle/interpolated/vector-wind/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "interpolated_common",
+        "field_namespace": "transport_output",
+        "fields": [
+          "eastward_wind",
+          "northward_wind"
+        ],
+        "coordinates": [
+          "asl",
+          "agl",
+          "pressure_pa"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "vector",
+        "component_absolute": 0.02,
+        "component_relative": 0.0005,
+        "component_scale_floor": 0.1,
+        "speed_floor": 0.5,
+        "direction_degrees": 0.2
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:bilinear-time-vertical-interpolation",
+        "m3:spherical-vector-interpolation-v0"
+      ],
+      "scientific_reason": "Off-node common wind remains a hard gate, but the bound explicitly covers FLEXPART binary32 interpolation and the small local-basis difference from Trajecta spherical vector interpolation."
+    },
+    {
+      "id": "oracle/interpolated/temperature/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "interpolated_common",
+        "field_namespace": "transport_output",
+        "fields": [
+          "air_temperature"
+        ],
+        "coordinates": [
+          "asl",
+          "agl",
+          "pressure_pa"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.02,
+        "relative": 2e-05,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:bilinear-time-vertical-interpolation",
+        "numeric:binary32-interpolation-envelope"
+      ],
+      "scientific_reason": "Temperature uses common scalar interpolation semantics; the fixed bound covers binary32 accumulation and minor bracket arithmetic differences but remains far below meteorologically material errors."
+    },
+    {
+      "id": "oracle/interpolated/specific-humidity/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "interpolated_common",
+        "field_namespace": "transport_output",
+        "fields": [
+          "specific_humidity"
+        ],
+        "coordinates": [
+          "asl",
+          "agl",
+          "pressure_pa"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 2e-06,
+        "relative": 0.0002,
+        "scale_floor": 1e-06
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:bilinear-time-vertical-interpolation",
+        "numeric:binary32-interpolation-envelope"
+      ],
+      "scientific_reason": "Interpolated humidity uses an absolute dry-air floor plus a relative term; the threshold is fixed before oracle observations and is tight enough to expose unit or level-selection mistakes."
+    },
+    {
+      "id": "oracle/interpolated/pressure/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "interpolated_common",
+        "field_namespace": "transport_output",
+        "fields": [
+          "air_pressure"
+        ],
+        "coordinates": [
+          "asl",
+          "agl",
+          "pressure_pa"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 2.0,
+        "relative": 2e-05,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:bilinear-time-vertical-interpolation",
+        "numeric:binary32-multistep-envelope"
+      ],
+      "scientific_reason": "Pressure interpolation and hybrid reconstruction involve several binary32 operations in FLEXPART; the bound detects wrong coordinates or units while allowing the expected precision loss."
+    },
+    {
+      "id": "oracle/interpolated/geopotential-height/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "interpolated_common",
+        "field_namespace": "canonical_field",
+        "fields": [
+          "geopotential_height"
+        ],
+        "coordinates": [
+          "asl",
+          "agl",
+          "pressure_pa"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.5,
+        "relative": 1e-05,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:height-interpolation",
+        "m3:geopotential-height-common-semantics"
+      ],
+      "scientific_reason": "The comparison remains in geopotential-height semantics and allows binary32 vertical interpolation, while a half-metre absolute gate still exposes wrong layers, terrain anchors, or units."
+    },
+    {
+      "id": "oracle/modern/geometric-w/report/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_difference_report",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "modern_difference",
+        "field_namespace": "transport_output",
+        "fields": [
+          "geometric_vertical_velocity"
+        ],
+        "coordinates": [
+          "asl",
+          "agl",
+          "pressure_pa"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.1,
+        "relative": 0.2,
+        "scale_floor": 0.01
+      },
+      "threshold_basis": "diagnostic_scale",
+      "evidence_ids": [
+        "m3:full-kinematic-geometric-w-v0",
+        "flexpart:v11.1-legacy-w"
+      ],
+      "scientific_reason": "Trajecta uses the frozen full kinematic geometric-W chain and FLEXPART does not define the same quantity; analytic formulas remain the hard gate and this scale only organizes the external difference report.",
+      "allowlist_issue": "M3-ORACLE-MODERN-W-SEMANTICS"
+    },
+    {
+      "id": "oracle/modern/density/report/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_difference_report",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "modern_difference",
+        "field_namespace": "transport_output",
+        "fields": [
+          "air_density"
+        ],
+        "coordinates": [
+          "asl",
+          "agl",
+          "pressure_pa"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.02,
+        "relative": 0.05,
+        "scale_floor": 0.1
+      },
+      "threshold_basis": "diagnostic_scale",
+      "evidence_ids": [
+        "m3:moist-density-from-final-state-v0",
+        "flexpart:v11.1-density"
+      ],
+      "scientific_reason": "Trajecta recomputes moist-air density from final pressure, temperature, and humidity, whereas FLEXPART storage and interpolation order differ; the analytic thermodynamic invariant is authoritative.",
+      "allowlist_issue": "M3-ORACLE-MODERN-DENSITY-ORDER"
+    },
+    {
+      "id": "oracle/modern/geometric-terrain/report/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_difference_report",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "modern_difference",
+        "field_namespace": "transport_output",
+        "fields": [
+          "geometric_terrain_height"
+        ],
+        "coordinates": [
+          "asl",
+          "agl",
+          "pressure_pa"
+        ],
+        "vertical_regions": [
+          "all"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 5.0,
+        "relative": 0.002,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "diagnostic_scale",
+      "evidence_ids": [
+        "m3:geopotential-to-geometric-height-v0",
+        "flexpart:v11.1-orography-height"
+      ],
+      "scientific_reason": "Trajecta deliberately converts geopotential to geometric height while FLEXPART orography follows legacy height semantics; common geopotential height is hard-gated separately and this value is report-only.",
+      "allowlist_issue": "M3-ORACLE-GEOMETRIC-TERRAIN-SEMANTICS"
+    },
+    {
+      "id": "oracle/surface-layer/vector-wind/report/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_difference_report",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "surface_layer",
+        "field_namespace": "transport_output",
+        "fields": [
+          "eastward_wind",
+          "northward_wind"
+        ],
+        "coordinates": [
+          "agl"
+        ],
+        "vertical_regions": [
+          "surface_layer"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "vector",
+        "component_absolute": 1.0,
+        "component_relative": 0.2,
+        "component_scale_floor": 0.1,
+        "speed_floor": 0.5,
+        "direction_degrees": 30.0
+      },
+      "threshold_basis": "diagnostic_scale",
+      "evidence_ids": [
+        "m3:monin-obukhov-businger-dyer-v0",
+        "flexpart:v11.1-pbl-profile"
+      ],
+      "scientific_reason": "The near-surface algorithms are intentionally not FLEXPART-compatible in M3; analytic stability, continuity, and physical invariants remain the hard gates while oracle values are retained for review.",
+      "allowlist_issue": "M3-ORACLE-SURFACE-LAYER-MODEL-DIFFERENCE"
+    },
+    {
+      "id": "oracle/surface-layer/temperature/report/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_difference_report",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "surface_layer",
+        "field_namespace": "transport_output",
+        "fields": [
+          "air_temperature"
+        ],
+        "coordinates": [
+          "agl"
+        ],
+        "vertical_regions": [
+          "surface_layer"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 2.0,
+        "relative": 0.01,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "diagnostic_scale",
+      "evidence_ids": [
+        "m3:monin-obukhov-businger-dyer-v0",
+        "flexpart:v11.1-pbl-profile"
+      ],
+      "scientific_reason": "Surface-layer temperature uses a modern frozen similarity bridge rather than FLEXPART compatibility; the Kelvin-scale diagnostic cannot override the independent stability and continuity hard gates.",
+      "allowlist_issue": "M3-ORACLE-SURFACE-LAYER-MODEL-DIFFERENCE"
+    },
+    {
+      "id": "oracle/surface-layer/humidity/report/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_difference_report",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "surface_layer",
+        "field_namespace": "transport_output",
+        "fields": [
+          "specific_humidity"
+        ],
+        "coordinates": [
+          "agl"
+        ],
+        "vertical_regions": [
+          "surface_layer"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.002,
+        "relative": 0.2,
+        "scale_floor": 1e-06
+      },
+      "threshold_basis": "diagnostic_scale",
+      "evidence_ids": [
+        "m3:monin-obukhov-businger-dyer-v0",
+        "flexpart:v11.1-pbl-profile"
+      ],
+      "scientific_reason": "Surface-layer humidity follows Trajecta's frozen moist similarity bridge; a humidity-specific reporting scale is retained without treating legacy FLEXPART profile values as the scientific reference.",
+      "allowlist_issue": "M3-ORACLE-SURFACE-LAYER-MODEL-DIFFERENCE"
+    },
+    {
+      "id": "oracle/surface-layer/pressure/report/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_difference_report",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "surface_layer",
+        "field_namespace": "transport_output",
+        "fields": [
+          "air_pressure"
+        ],
+        "coordinates": [
+          "agl"
+        ],
+        "vertical_regions": [
+          "surface_layer"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 100.0,
+        "relative": 0.002,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "diagnostic_scale",
+      "evidence_ids": [
+        "m3:monin-obukhov-businger-dyer-v0",
+        "flexpart:v11.1-pbl-profile"
+      ],
+      "scientific_reason": "Surface-layer pressure is constrained by Trajecta's log-pressure bridge and final-state thermodynamics; the pressure-specific diagnostic scale does not replace those hard invariants.",
+      "allowlist_issue": "M3-ORACLE-SURFACE-LAYER-MODEL-DIFFERENCE"
+    },
+    {
+      "id": "oracle/surface-layer/geometric-w/report/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_difference_report",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "surface_layer",
+        "field_namespace": "transport_output",
+        "fields": [
+          "geometric_vertical_velocity"
+        ],
+        "coordinates": [
+          "agl"
+        ],
+        "vertical_regions": [
+          "surface_layer"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.5,
+        "relative": 0.5,
+        "scale_floor": 0.01
+      },
+      "threshold_basis": "diagnostic_scale",
+      "evidence_ids": [
+        "m3:modern-surface-transport-v0",
+        "flexpart:v11.1-pbl-profile"
+      ],
+      "scientific_reason": "Near-surface geometric W combines the frozen no-penetration and full kinematic contracts, which are not FLEXPART-compatible; only a velocity-specific difference scale is recorded.",
+      "allowlist_issue": "M3-ORACLE-SURFACE-LAYER-MODERN-FIELDS"
+    },
+    {
+      "id": "oracle/surface-layer/density/report/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_difference_report",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "surface_layer",
+        "field_namespace": "transport_output",
+        "fields": [
+          "air_density"
+        ],
+        "coordinates": [
+          "agl"
+        ],
+        "vertical_regions": [
+          "surface_layer"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.1,
+        "relative": 0.1,
+        "scale_floor": 0.1
+      },
+      "threshold_basis": "diagnostic_scale",
+      "evidence_ids": [
+        "m3:modern-surface-transport-v0",
+        "flexpart:v11.1-pbl-profile"
+      ],
+      "scientific_reason": "Near-surface density is recomputed from the final Trajecta thermodynamic state, so a density-specific difference scale is reported while the equation-of-state invariant remains authoritative.",
+      "allowlist_issue": "M3-ORACLE-SURFACE-LAYER-MODERN-FIELDS"
+    },
+    {
+      "id": "oracle/surface-layer/geometric-terrain/report/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid",
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_difference_report",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "surface_layer",
+        "field_namespace": "transport_output",
+        "fields": [
+          "geometric_terrain_height"
+        ],
+        "coordinates": [
+          "agl"
+        ],
+        "vertical_regions": [
+          "surface_layer"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 5.0,
+        "relative": 0.002,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "diagnostic_scale",
+      "evidence_ids": [
+        "m3:modern-surface-transport-v0",
+        "flexpart:v11.1-pbl-profile"
+      ],
+      "scientific_reason": "The geometric-terrain conversion deliberately differs from FLEXPART orography semantics; a height-specific difference scale is retained and common geopotential height is hard-gated elsewhere.",
+      "allowlist_issue": "M3-ORACLE-SURFACE-LAYER-MODERN-FIELDS"
+    }
+  ]
+}

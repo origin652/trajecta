@@ -9,12 +9,26 @@ source_matchers:
     centre: 7
     keys:
       dataset_family: cfsr_pgbl_pressure
+# Mixed NCEI product roots also contain flxl/spllnl; only pgbl is this Profile.
+candidate_path_globs:
+  - "pgbl*.grb2"
+  - "**/pgbl*.grb2"
 frame_interval_seconds: 21600
 extension_fields:
   - target:
       namespace: cfsr
       name: surface_orography_height
     unit: m
+    shape: horizontal2_d
+  - target:
+      namespace: cfsr
+      name: downward_sensible_heat_flux
+    unit: kg/s3
+    shape: horizontal2_d
+  - target:
+      namespace: cfsr
+      name: downward_latent_heat_flux
+    unit: kg/s3
     shape: horizontal2_d
 fields:
   - id: eastward_wind
@@ -62,6 +76,15 @@ fields:
           parameter_number: "0"
           type_of_level: isobaric
         unit: "1"
+  - id: geopotential_height
+    target: geopotential_height
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "3"
+          parameter_number: "5"
+          type_of_level: isobaric
+        unit: m
   - id: surface_pressure
     target: surface_pressure
     sources:
@@ -71,6 +94,9 @@ fields:
           parameter_number: "0"
           type_of_level: surface
         unit: Pa
+  # CFSR surface HGT/orog is geopotential height (m), not geometric height.
+  # It is retained as an extension source and converted to SurfaceGeopotential;
+  # the query engine derives geometric terrain via the frozen Φ → z formula.
   - id: surface_orography_height
     target:
       namespace: cfsr
@@ -82,6 +108,109 @@ fields:
           parameter_number: "5"
           type_of_level: surface
         unit: m
+  - id: ten_metre_eastward_wind
+    target: ten_metre_eastward_wind
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "2"
+          parameter_number: "2"
+          type_of_level: height_above_ground
+          level: "10"
+        unit: m/s
+  - id: ten_metre_northward_wind
+    target: ten_metre_northward_wind
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "2"
+          parameter_number: "3"
+          type_of_level: height_above_ground
+          level: "10"
+        unit: m/s
+  - id: two_metre_air_temperature
+    target: two_metre_air_temperature
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "0"
+          parameter_number: "0"
+          type_of_level: height_above_ground
+          level: "2"
+        unit: K
+  - id: two_metre_specific_humidity
+    target: two_metre_specific_humidity
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "1"
+          parameter_number: "0"
+          type_of_level: height_above_ground
+          level: "2"
+        unit: "1"
+  - id: aerodynamic_roughness_length
+    target: aerodynamic_roughness_length
+    sources:
+      # NCEP land-surface SFCR (discipline 2 / category 0 / number 1).
+      - identity:
+          discipline: "2"
+          parameter_category: "0"
+          parameter_number: "1"
+          type_of_level: surface
+        unit: m
+  - id: boundary_layer_height
+    target: boundary_layer_height
+    sources:
+      # NCEP local table HPBL (0-3-196) observed in CFSR pgbl; centre=7 only.
+      - identity:
+          discipline: "0"
+          parameter_category: "3"
+          parameter_number: "196"
+          type_of_level: surface
+        unit: m
+  - id: downward_sensible_heat_flux
+    target:
+      namespace: cfsr
+      name: downward_sensible_heat_flux
+    # Instantaneous surface sensible heat net flux (PDT 4.0 / ishf). Average
+    # products (avg_ishf, PDT 8) also exist but are not mapped here.
+    temporal:
+      kind: instantaneous
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "0"
+          parameter_number: "11"
+          type_of_level: surface
+          product_definition_template: "0"
+        unit: kg/s3
+  - id: downward_latent_heat_flux
+    target:
+      namespace: cfsr
+      name: downward_latent_heat_flux
+    temporal:
+      kind: instantaneous
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "0"
+          parameter_number: "10"
+          type_of_level: surface
+          product_definition_template: "0"
+        unit: kg/s3
+  - id: friction_velocity
+    target: friction_velocity
+    # Instantaneous NCEP local FRICV (0-2-197) observed in CFSR pgbl; centre=7.
+    temporal:
+      kind: instantaneous
+    sources:
+      - identity:
+          discipline: "0"
+          parameter_category: "2"
+          parameter_number: "197"
+          type_of_level: surface
+          product_definition_template: "0"
+        unit: m/s
 derived_fields:
   - id: surface_geopotential
     target: surface_geopotential
@@ -90,6 +219,26 @@ derived_fields:
     shape: horizontal2_d
     stage: frame
     quality: derived
+  # NCEP GRIB2 fluxes are positive downward; Trajecta canonical turbulent
+  # heat fluxes are positive upward. The explicit negation is provenance-visible.
+  - id: sensible_heat_flux
+    target: sensible_heat_flux
+    expression: "-downward_sensible_heat_flux"
+    unit: kg/s3
+    shape: horizontal2_d
+    stage: frame
+    quality: derived
+    temporal:
+      kind: instantaneous
+  - id: latent_heat_flux
+    target: latent_heat_flux
+    expression: "-downward_latent_heat_flux"
+    unit: kg/s3
+    shape: horizontal2_d
+    stage: frame
+    quality: derived
+    temporal:
+      kind: instantaneous
 capabilities:
   transport:
     - eastward_wind
@@ -97,5 +246,17 @@ capabilities:
     - pressure_vertical_velocity
     - air_temperature
     - specific_humidity
+    - geopotential_height
     - surface_pressure
     - surface_geopotential
+  near_surface_transport:
+    - surface_geopotential
+    - ten_metre_eastward_wind
+    - ten_metre_northward_wind
+    - two_metre_air_temperature
+    - two_metre_specific_humidity
+    - aerodynamic_roughness_length
+    - boundary_layer_height
+    - sensible_heat_flux
+    - latent_heat_flux
+    - friction_velocity

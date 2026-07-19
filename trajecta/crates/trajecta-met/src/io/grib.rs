@@ -60,6 +60,8 @@ pub struct GribFieldIdentity {
     pub sub_centre: u16,
     /// Generating-process identifier when encoded by the product template.
     pub generating_process: Option<u16>,
+    /// GRIB2 product-definition template number when present.
+    pub product_definition_template: Option<u16>,
     /// Exact edition-native parameter identity.
     pub parameter: GribParameterIdentity,
     /// Numeric GRIB level-type code.
@@ -353,7 +355,7 @@ fn build_rust_index(file: &Path) -> Result<GribFileIndex, DecodeError> {
         }
         let valid_time =
             reference_time_to_timestamp(message.valid_time().unwrap_or(*message.reference_time()))?;
-        let source_unit = source_unit(&identity.parameter).map(str::to_owned);
+        let source_unit = source_unit(&identity.parameter, identity.centre).map(str::to_owned);
         entries.push(GribIndexEntry {
             message_index,
             field_index_in_message: message.metadata().field_index_in_message,
@@ -770,7 +772,7 @@ fn field_identity(
     message: &grib_reader::Message<'_>,
 ) -> Result<Option<GribFieldIdentity>, DecodeError> {
     let parameter = message.parameter();
-    let (generating_process, level_type_code, level) =
+    let (generating_process, product_definition_template, level_type_code, level) =
         if let Some(product) = message.product_definition() {
             let surface = product.first_surface().ok_or_else(|| {
                 DecodeError::InvalidMetadata("GRIB2 field has no first fixed surface".into())
@@ -787,12 +789,14 @@ fn field_identity(
             };
             (
                 product.generating_process().map(u16::from),
+                Some(product.template_number()),
                 surface.surface_type,
                 level,
             )
         } else if let Some(product) = message.grib1_product_definition() {
             (
                 Some(u16::from(product.generating_process_id)),
+                None,
                 product.level_type,
                 i32::from(product.level_value),
             )
@@ -820,6 +824,7 @@ fn field_identity(
         centre: message.center_id(),
         sub_centre: message.subcenter_id(),
         generating_process,
+        product_definition_template,
         parameter,
         level_type_code,
         level_type: normalized_level_type(level_type_code).into(),
@@ -969,6 +974,9 @@ fn identity_value(entry: &GribIndexEntry, key: &str) -> Option<String> {
         "centre" => Some(identity.centre.to_string()),
         "sub_centre" => Some(identity.sub_centre.to_string()),
         "generating_process" => identity.generating_process.map(|value| value.to_string()),
+        "product_definition_template" => identity
+            .product_definition_template
+            .map(|value| value.to_string()),
         "discipline" => identity.parameter.discipline.map(|value| value.to_string()),
         "parameter_category" => identity.parameter.category.map(|value| value.to_string()),
         "parameter_number" => Some(identity.parameter.number.to_string()),
@@ -1027,7 +1035,7 @@ fn normalized_param_id(
     }
 }
 
-fn source_unit(parameter: &GribParameterIdentity) -> Option<&'static str> {
+fn source_unit(parameter: &GribParameterIdentity, centre: u16) -> Option<&'static str> {
     match parameter.param_id {
         Some(129) => Some("m2/s2"),
         Some(130) => Some("K"),
@@ -1040,12 +1048,25 @@ fn source_unit(parameter: &GribParameterIdentity) -> Option<&'static str> {
         Some(201_031) => Some("1"),
         _ => match (parameter.discipline, parameter.category, parameter.number) {
             (Some(0), Some(0), 0) => Some("K"),
+            // Sensible / latent heat net flux (W m-2 == kg s-3).
+            // Sign convention is source-native; conversion to a global "upward
+            // positive" convention is reserved for A adjudication.
+            (Some(0), Some(0), 10 | 11) => Some("kg/s3"),
             (Some(0), Some(1), 0) => Some("1"),
             (Some(0), Some(2), 2 | 3) => Some("m/s"),
             (Some(0), Some(2), 8) => Some("Pa/s"),
+            // UFLX/VFLX momentum fluxes (Pa / N m-2).
+            (Some(0), Some(2), 17 | 18) => Some("Pa"),
+            // WMO friction velocity.
+            (Some(0), Some(2), 30) => Some("m/s"),
             (Some(0), Some(3), 0 | 1) => Some("Pa"),
             (Some(0), Some(3), 4) => Some("m2/s2"),
             (Some(0), Some(3), 5) => Some("m"),
+            // Land-surface aerodynamic roughness length (SFCR / fsr).
+            (Some(2), Some(0), 1) => Some("m"),
+            // NCEP local-table parameters are centre-scoped (kwbc / centre 7).
+            (Some(0), Some(2), 197) if centre == 7 => Some("m/s"), // FRICV
+            (Some(0), Some(3), 196) if centre == 7 => Some("m"),   // HPBL
             _ => None,
         },
     }

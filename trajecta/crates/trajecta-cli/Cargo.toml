@@ -8,9 +8,14 @@ authors.workspace = true
 description = "Thin command-line contract for Trajecta"
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 trajecta-case = { path = "../trajecta-case" }
 trajecta-met = { path = "../trajecta-met" }
 trajecta-core = { path = "../trajecta-core" }
+
+[dev-dependencies]
+tempfile = "3"
 
 [lints]
 workspace = true

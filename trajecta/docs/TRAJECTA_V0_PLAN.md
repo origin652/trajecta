@@ -669,6 +669,9 @@ CI：
 
 ### M3：气象查询引擎
 
+权威实施计划与验收标准见 `TRAJECTA_M3_MET_QUERY_PLAN.md`，A/B/C 模型任务边界见
+`TRAJECTA_M3_MODEL_ASSIGNMENT.md`。
+
 - 滚动窗口；
 - 域选择；
 - hybrid 与等压局地柱；

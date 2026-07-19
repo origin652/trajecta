@@ -11,6 +11,8 @@
 *~
 .DS_Store
 Thumbs.db
+**/__pycache__/
+*.py[cod]
 
 # Future Rust build outputs.
 /target/

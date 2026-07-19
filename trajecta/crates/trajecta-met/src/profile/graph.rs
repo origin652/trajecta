@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
-use trajecta_case::quantity::Dimension;
+pub use trajecta_case::quantity::Dimension as DimensionVector;
 
 use crate::field::{FieldKey, FieldShape};
 use crate::vertical::VerticalStagger;
@@ -16,96 +16,6 @@ use crate::vertical::VerticalStagger;
 /// Stable identifier for a graph node.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct GraphNodeId(pub String);
-
-/// Fundamental SI dimension exponents used by the Profile type checker.
-///
-/// Pressure and velocity are reduced to mass, length, and time so compound
-/// expressions such as `Pa / (kg/m3)` are checked physically rather than as
-/// unrelated named categories.
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-pub struct DimensionVector {
-    /// Mass exponent.
-    pub mass: i8,
-    /// Length exponent.
-    pub length: i8,
-    /// Time exponent.
-    pub time: i8,
-    /// Thermodynamic-temperature exponent.
-    pub temperature: i8,
-}
-
-impl DimensionVector {
-    /// Dimensionless value.
-    pub const DIMENSIONLESS: Self = Self::new(0, 0, 0, 0);
-    /// Time.
-    pub const TIME: Self = Self::new(0, 0, 1, 0);
-    /// Length.
-    pub const LENGTH: Self = Self::new(0, 1, 0, 0);
-    /// Mass.
-    pub const MASS: Self = Self::new(1, 0, 0, 0);
-    /// Temperature.
-    pub const TEMPERATURE: Self = Self::new(0, 0, 0, 1);
-    /// Velocity.
-    pub const VELOCITY: Self = Self::new(0, 1, -1, 0);
-    /// Pressure.
-    pub const PRESSURE: Self = Self::new(1, -1, -2, 0);
-
-    /// Creates a dimension vector from SI base exponents.
-    #[must_use]
-    pub const fn new(mass: i8, length: i8, time: i8, temperature: i8) -> Self {
-        Self {
-            mass,
-            length,
-            time,
-            temperature,
-        }
-    }
-
-    /// Converts a Case quantity dimension into fundamental exponents.
-    #[must_use]
-    pub const fn from_named(dimension: Dimension) -> Self {
-        match dimension {
-            Dimension::Dimensionless => Self::DIMENSIONLESS,
-            Dimension::Time => Self::TIME,
-            Dimension::Length => Self::LENGTH,
-            Dimension::Pressure => Self::PRESSURE,
-            Dimension::Mass => Self::MASS,
-            Dimension::Temperature => Self::TEMPERATURE,
-            Dimension::Velocity => Self::VELOCITY,
-        }
-    }
-
-    /// Multiplies dimensions, returning `None` on exponent overflow.
-    #[must_use]
-    pub fn checked_product(self, other: Self) -> Option<Self> {
-        Some(Self {
-            mass: self.mass.checked_add(other.mass)?,
-            length: self.length.checked_add(other.length)?,
-            time: self.time.checked_add(other.time)?,
-            temperature: self.temperature.checked_add(other.temperature)?,
-        })
-    }
-
-    /// Divides dimensions, returning `None` on exponent overflow.
-    #[must_use]
-    pub fn checked_quotient(self, other: Self) -> Option<Self> {
-        Some(Self {
-            mass: self.mass.checked_sub(other.mass)?,
-            length: self.length.checked_sub(other.length)?,
-            time: self.time.checked_sub(other.time)?,
-            temperature: self.temperature.checked_sub(other.temperature)?,
-        })
-    }
-
-    fn checked_power(self, exponent: i8) -> Option<Self> {
-        Some(Self {
-            mass: self.mass.checked_mul(exponent)?,
-            length: self.length.checked_mul(exponent)?,
-            time: self.time.checked_mul(exponent)?,
-            temperature: self.temperature.checked_mul(exponent)?,
-        })
-    }
-}
 
 /// Parsed, conversion-aware unit used inside Profile graphs.
 #[derive(Clone, Debug, PartialEq)]
@@ -225,10 +135,12 @@ pub enum ThermodynamicOp {
     GeopotentialHeight,
     /// Convert geopotential height to geopotential using the declared constant gravity.
     GeopotentialFromHeight,
-    /// Convert pressure vertical velocity to geometric vertical velocity.
-    OmegaToGeometricVelocity,
     /// Convert logarithmic surface pressure into pressure.
     SurfacePressureFromLog,
+    /// IFS CY41R2 water-surface 2 m specific humidity from dewpoint and surface pressure.
+    TwoMetreSpecificHumidityFromDewpoint,
+    /// Convert downward moisture flux into upward latent heat flux (`-Lv * ie`).
+    LatentHeatFromMoistureFlux,
 }
 
 /// Whitelisted vertical-coordinate operation.
@@ -692,7 +604,6 @@ fn validate_thermodynamic(
     let dimensionless = DimensionVector::DIMENSIONLESS;
     let density = DimensionVector::new(1, -3, 0, 0);
     let geopotential = DimensionVector::new(0, 2, -2, 0);
-    let pressure_rate = DimensionVector::new(1, -1, -3, 0);
     let (expected_dimensions, output_dimension) = match operation {
         ThermodynamicOp::VirtualTemperature => (vec![temperature, dimensionless], temperature),
         ThermodynamicOp::AirDensity => (vec![pressure, temperature], density),
@@ -702,10 +613,15 @@ fn validate_thermodynamic(
         ThermodynamicOp::PotentialTemperature => (vec![temperature, pressure], temperature),
         ThermodynamicOp::GeopotentialHeight => (vec![geopotential], DimensionVector::LENGTH),
         ThermodynamicOp::GeopotentialFromHeight => (vec![DimensionVector::LENGTH], geopotential),
-        ThermodynamicOp::OmegaToGeometricVelocity => {
-            (vec![pressure_rate, density], DimensionVector::VELOCITY)
-        }
         ThermodynamicOp::SurfacePressureFromLog => (vec![dimensionless], pressure),
+        ThermodynamicOp::TwoMetreSpecificHumidityFromDewpoint => {
+            (vec![temperature, pressure], dimensionless)
+        }
+        ThermodynamicOp::LatentHeatFromMoistureFlux => {
+            // moisture flux kg m-2 s-1 -> energy flux kg s-3 (= W m-2).
+            let moisture_flux = DimensionVector::new(1, -2, -1, 0);
+            (vec![moisture_flux], DimensionVector::ENERGY_FLUX)
+        }
     };
     expect_arity(node, inputs, expected_dimensions.len())?;
     for (input, expected) in inputs.iter().zip(expected_dimensions) {
@@ -973,6 +889,19 @@ fn base_unit(symbol: &str) -> Option<BaseUnit> {
             scale_to_si: 100.0,
             offset_to_si: 0.0,
         },
+        // SI derived watt: 1 W = 1 kg m2 s-3. CF energy fluxes often use W m-2
+        // which reduces to ENERGY_FLUX (kg s-3), matching the canonical heat-flux unit.
+        "W" => BaseUnit {
+            dimension: DimensionVector::new(1, 2, -3, 0),
+            scale_to_si: 1.0,
+            offset_to_si: 0.0,
+        },
+        // SI joule: 1 J = 1 kg m2 s-2 (used in Lv * moisture-flux products).
+        "J" => BaseUnit {
+            dimension: DimensionVector::new(1, 2, -2, 0),
+            scale_to_si: 1.0,
+            offset_to_si: 0.0,
+        },
         _ => return None,
     };
     Some(unit)
@@ -1216,6 +1145,16 @@ mod tests {
             DimensionVector::VELOCITY
         );
         assert!(GraphUnit::parse("degC/s").is_err());
+        // SI watt and CF flux spellings must resolve to ENERGY_FLUX (kg s-3).
+        let watt = GraphUnit::parse("W").unwrap();
+        assert_eq!(watt.dimension(), DimensionVector::new(1, 2, -3, 0));
+        for symbol in ["W m-2", "W/m2", "W m**-2"] {
+            let flux = GraphUnit::parse(&symbol.replace("**", "")).unwrap();
+            assert_eq!(flux.dimension(), DimensionVector::ENERGY_FLUX, "{symbol}");
+            assert!((flux.scale_to_si() - 1.0).abs() < f64::EPSILON);
+        }
+        assert!(GraphUnit::parse("Q").is_err());
+        assert!(GraphUnit::parse("W K").is_ok());
     }
 
     #[test]

@@ -29,23 +29,247 @@ use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize, Serializer};
 
 /// Runtime physical dimension used by schemas and computation graphs.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Dimension {
+///
+/// Dimensions are reduced to SI base exponents so compound quantities such
+/// as density, geopotential, and energy flux cannot be represented by an
+/// unrelated placeholder category. The four exponents are ordered as mass,
+/// length, time, and thermodynamic temperature.
+///
+/// Serde preserves the v0 string representation for the original named
+/// dimensions. Other dimensions use the stable object representation
+/// `{mass, length, time, temperature}`.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct Dimension {
+    /// Mass exponent.
+    pub mass: i8,
+    /// Length exponent.
+    pub length: i8,
+    /// Time exponent.
+    pub time: i8,
+    /// Thermodynamic-temperature exponent.
+    pub temperature: i8,
+}
+
+impl Dimension {
     /// Dimensionless ratio or count.
-    Dimensionless,
+    pub const DIMENSIONLESS: Self = Self::new(0, 0, 0, 0);
     /// Time.
-    Time,
+    pub const TIME: Self = Self::new(0, 0, 1, 0);
     /// Length.
-    Length,
+    pub const LENGTH: Self = Self::new(0, 1, 0, 0);
     /// Pressure.
-    Pressure,
+    pub const PRESSURE: Self = Self::new(1, -1, -2, 0);
     /// Mass.
-    Mass,
-    /// Temperature.
-    Temperature,
+    pub const MASS: Self = Self::new(1, 0, 0, 0);
+    /// Thermodynamic temperature.
+    pub const TEMPERATURE: Self = Self::new(0, 0, 0, 1);
     /// Speed or velocity.
-    Velocity,
+    pub const VELOCITY: Self = Self::new(0, 1, -1, 0);
+    /// Pressure tendency such as omega (`Pa s-1`).
+    pub const PRESSURE_TENDENCY: Self = Self::new(1, -1, -3, 0);
+    /// Mass density (`kg m-3`).
+    pub const DENSITY: Self = Self::new(1, -3, 0, 0);
+    /// Geopotential (`m2 s-2`).
+    pub const GEOPOTENTIAL: Self = Self::new(0, 2, -2, 0);
+    /// Energy flux density (`W m-2`, equivalently `kg s-3`).
+    pub const ENERGY_FLUX: Self = Self::new(1, 0, -3, 0);
+
+    // Compatibility spellings retained for existing public callers and v0
+    // code. New code should prefer the conventional upper-case constants.
+    #[allow(non_upper_case_globals)]
+    /// Compatibility alias for [`Self::DIMENSIONLESS`].
+    pub const Dimensionless: Self = Self::DIMENSIONLESS;
+    #[allow(non_upper_case_globals)]
+    /// Compatibility alias for [`Self::TIME`].
+    pub const Time: Self = Self::TIME;
+    #[allow(non_upper_case_globals)]
+    /// Compatibility alias for [`Self::LENGTH`].
+    pub const Length: Self = Self::LENGTH;
+    #[allow(non_upper_case_globals)]
+    /// Compatibility alias for [`Self::PRESSURE`].
+    pub const Pressure: Self = Self::PRESSURE;
+    #[allow(non_upper_case_globals)]
+    /// Compatibility alias for [`Self::MASS`].
+    pub const Mass: Self = Self::MASS;
+    #[allow(non_upper_case_globals)]
+    /// Compatibility alias for [`Self::TEMPERATURE`].
+    pub const Temperature: Self = Self::TEMPERATURE;
+    #[allow(non_upper_case_globals)]
+    /// Compatibility alias for [`Self::VELOCITY`].
+    pub const Velocity: Self = Self::VELOCITY;
+
+    /// Creates a dimension from SI base exponents.
+    #[must_use]
+    pub const fn new(mass: i8, length: i8, time: i8, temperature: i8) -> Self {
+        Self {
+            mass,
+            length,
+            time,
+            temperature,
+        }
+    }
+
+    /// Converts a named or compound dimension into the shared exponent form.
+    #[must_use]
+    pub const fn from_named(dimension: Self) -> Self {
+        dimension
+    }
+
+    /// Multiplies dimensions, returning `None` on exponent overflow.
+    #[must_use]
+    pub fn checked_product(self, other: Self) -> Option<Self> {
+        Some(Self {
+            mass: self.mass.checked_add(other.mass)?,
+            length: self.length.checked_add(other.length)?,
+            time: self.time.checked_add(other.time)?,
+            temperature: self.temperature.checked_add(other.temperature)?,
+        })
+    }
+
+    /// Divides dimensions, returning `None` on exponent overflow.
+    #[must_use]
+    pub fn checked_quotient(self, other: Self) -> Option<Self> {
+        Some(Self {
+            mass: self.mass.checked_sub(other.mass)?,
+            length: self.length.checked_sub(other.length)?,
+            time: self.time.checked_sub(other.time)?,
+            temperature: self.temperature.checked_sub(other.temperature)?,
+        })
+    }
+
+    /// Raises a dimension to an integer power, returning `None` on overflow.
+    #[must_use]
+    pub fn checked_power(self, exponent: i8) -> Option<Self> {
+        Some(Self {
+            mass: self.mass.checked_mul(exponent)?,
+            length: self.length.checked_mul(exponent)?,
+            time: self.time.checked_mul(exponent)?,
+            temperature: self.temperature.checked_mul(exponent)?,
+        })
+    }
+
+    fn legacy_name(self) -> Option<&'static str> {
+        if self == Self::DIMENSIONLESS {
+            Some("dimensionless")
+        } else if self == Self::TIME {
+            Some("time")
+        } else if self == Self::LENGTH {
+            Some("length")
+        } else if self == Self::PRESSURE {
+            Some("pressure")
+        } else if self == Self::MASS {
+            Some("mass")
+        } else if self == Self::TEMPERATURE {
+            Some("temperature")
+        } else if self == Self::VELOCITY {
+            Some("velocity")
+        } else {
+            None
+        }
+    }
+}
+
+impl Serialize for Dimension {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if let Some(name) = self.legacy_name() {
+            return serializer.serialize_str(name);
+        }
+        let mut state = serializer.serialize_struct("Dimension", 4)?;
+        state.serialize_field("mass", &self.mass)?;
+        state.serialize_field("length", &self.length)?;
+        state.serialize_field("time", &self.time)?;
+        state.serialize_field("temperature", &self.temperature)?;
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for Dimension {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct DimensionVisitor;
+
+        impl<'de> Visitor<'de> for DimensionVisitor {
+            type Value = Dimension;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter
+                    .write_str("a named physical dimension or {mass, length, time, temperature}")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                match value {
+                    "dimensionless" => Ok(Dimension::DIMENSIONLESS),
+                    "time" => Ok(Dimension::TIME),
+                    "length" => Ok(Dimension::LENGTH),
+                    "pressure" => Ok(Dimension::PRESSURE),
+                    "mass" => Ok(Dimension::MASS),
+                    "temperature" => Ok(Dimension::TEMPERATURE),
+                    "velocity" => Ok(Dimension::VELOCITY),
+                    other => Err(de::Error::unknown_variant(
+                        other,
+                        &[
+                            "dimensionless",
+                            "time",
+                            "length",
+                            "pressure",
+                            "mass",
+                            "temperature",
+                            "velocity",
+                        ],
+                    )),
+                }
+            }
+
+            fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+            where
+                M: MapAccess<'de>,
+            {
+                let mut mass = None;
+                let mut length = None;
+                let mut time = None;
+                let mut temperature = None;
+                while let Some(key) = map.next_key::<String>()? {
+                    let slot = match key.as_str() {
+                        "mass" => &mut mass,
+                        "length" => &mut length,
+                        "time" => &mut time,
+                        "temperature" => &mut temperature,
+                        other => {
+                            return Err(de::Error::unknown_field(
+                                other,
+                                &["mass", "length", "time", "temperature"],
+                            ));
+                        }
+                    };
+                    if slot.is_some() {
+                        return Err(de::Error::duplicate_field(match key.as_str() {
+                            "mass" => "mass",
+                            "length" => "length",
+                            "time" => "time",
+                            _ => "temperature",
+                        }));
+                    }
+                    *slot = Some(map.next_value::<i8>()?);
+                }
+                Ok(Dimension::new(
+                    mass.ok_or_else(|| de::Error::missing_field("mass"))?,
+                    length.ok_or_else(|| de::Error::missing_field("length"))?,
+                    time.ok_or_else(|| de::Error::missing_field("time"))?,
+                    temperature.ok_or_else(|| de::Error::missing_field("temperature"))?,
+                ))
+            }
+        }
+
+        deserializer.deserialize_any(DimensionVisitor)
+    }
 }
 
 /// Compile-time marker implemented by quantity dimensions.
@@ -604,6 +828,42 @@ offset_to_si: 0
         let json =
             r#"{"symbol":"s","dimension":"time","scale_to_si":1.0,"offset_to_si":0.0,"extra":1}"#;
         assert!(serde_json::from_str::<Unit>(json).is_err());
+    }
+
+    #[test]
+    fn dimension_serde_preserves_named_strings_and_stabilizes_compounds() {
+        assert_eq!(
+            serde_json::to_string(&Dimension::TIME).unwrap(),
+            r#""time""#
+        );
+        assert_eq!(
+            serde_json::from_str::<Dimension>(r#""velocity""#).unwrap(),
+            Dimension::VELOCITY
+        );
+        let density = serde_json::to_string(&Dimension::DENSITY).unwrap();
+        assert_eq!(
+            density,
+            r#"{"mass":1,"length":-3,"time":0,"temperature":0}"#
+        );
+        assert_eq!(
+            serde_json::from_str::<Dimension>(&density).unwrap(),
+            Dimension::DENSITY
+        );
+        assert!(serde_json::from_str::<Dimension>(r#"{"mass":1}"#).is_err());
+    }
+
+    #[test]
+    fn compound_dimension_arithmetic_is_shared_with_units() {
+        assert_eq!(
+            Dimension::PRESSURE.checked_quotient(Dimension::TIME),
+            Some(Dimension::PRESSURE_TENDENCY)
+        );
+        assert_eq!(
+            Dimension::MASS.checked_quotient(Dimension::LENGTH.checked_power(3).unwrap()),
+            Some(Dimension::DENSITY)
+        );
+        let unit = Unit::new("kg/m3", Dimension::DENSITY, 1.0, 0.0).unwrap();
+        assert_eq!(unit.dimension(), Dimension::DENSITY);
     }
 
     #[test]
