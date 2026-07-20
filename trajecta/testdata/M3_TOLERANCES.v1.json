@@ -1,8 +1,8 @@
 {
   "schema_version": "trajecta.m3.tolerances/v1",
   "algorithm_id": "trajecta/met_query/m3/v0",
-  "registry_version": "m3-a-tolerance/v1.0.1",
-  "approved_at_utc": "2026-07-19T05:35:15Z",
+  "registry_version": "m3-a-tolerance/v1.0.2",
+  "approved_at_utc": "2026-07-20T08:41:05Z",
   "approval_authority": "A",
   "calibration_report": {
     "path": "testdata/M3_TOLERANCE_CALIBRATION.v1.json",
@@ -265,9 +265,7 @@
       "id": "oracle/native-anchor/vector-wind/v1",
       "selector": {
         "dataset_families": [
-          "era5_hybrid",
-          "era5_pressure",
-          "cfsr_pressure"
+          "era5_hybrid"
         ],
         "comparison_target": "flexpart_common_semantics",
         "comparison_variant": "trajecta-vs-flexpart-v11.1",
@@ -311,9 +309,7 @@
       "id": "oracle/native-anchor/temperature/v1",
       "selector": {
         "dataset_families": [
-          "era5_hybrid",
-          "era5_pressure",
-          "cfsr_pressure"
+          "era5_hybrid"
         ],
         "comparison_target": "flexpart_common_semantics",
         "comparison_variant": "trajecta-vs-flexpart-v11.1",
@@ -354,9 +350,7 @@
       "id": "oracle/native-anchor/specific-humidity/v1",
       "selector": {
         "dataset_families": [
-          "era5_hybrid",
-          "era5_pressure",
-          "cfsr_pressure"
+          "era5_hybrid"
         ],
         "comparison_target": "flexpart_common_semantics",
         "comparison_variant": "trajecta-vs-flexpart-v11.1",
@@ -397,9 +391,7 @@
       "id": "oracle/native-anchor/pressure/v1",
       "selector": {
         "dataset_families": [
-          "era5_hybrid",
-          "era5_pressure",
-          "cfsr_pressure"
+          "era5_hybrid"
         ],
         "comparison_target": "flexpart_common_semantics",
         "comparison_variant": "trajecta-vs-flexpart-v11.1",
@@ -437,12 +429,10 @@
       "scientific_reason": "Native-level pressure is common semantics but hybrid reconstruction performs several binary32 operations in FLEXPART; this fixed pre-observation budget covers that arithmetic without allowing level-order errors."
     },
     {
-      "id": "oracle/native-anchor/geopotential-height/v1",
+      "id": "oracle/hybrid-native-anchor/geopotential-height/report/v1",
       "selector": {
         "dataset_families": [
-          "era5_hybrid",
-          "era5_pressure",
-          "cfsr_pressure"
+          "era5_hybrid"
         ],
         "comparison_target": "flexpart_common_semantics",
         "comparison_variant": "trajecta-vs-flexpart-v11.1",
@@ -458,7 +448,7 @@
           "upper_air"
         ]
       },
-      "decision": "hard_gate",
+      "decision": "report_only",
       "exact_metadata": [
         "status",
         "validity",
@@ -475,17 +465,18 @@
       "threshold_basis": "preregistered_precision_budget",
       "evidence_ids": [
         "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:real32-height-storage",
-        "m3:geopotential-height-common-semantics"
+        "flexpart:v11.1-verttransform-ecmwf-heights-real32-hypsometric",
+        "trajecta:m3-ecmwf-alpha-hydrostatic-f64",
+        "m3-oracle:pressure-coordinate-p0p1-2026-07-20"
       ],
-      "scientific_reason": "The hard gate compares geopotential height rather than Trajecta geometric height, avoiding a deliberate semantic difference while still detecting vertical-coordinate and hydrostatic reconstruction errors."
+      "scientific_reason": "FLEXPART v11.1 constructs native hybrid meter heights with a default-REAL layerwise hypsometric recurrence anchored at its surface, while Trajecta uses the ECMWF alpha hydrostatic geopotential recurrence in binary64 and then converts height semantics explicitly. The observed bounded difference is therefore an algorithm-identity report, not evidence for widening the pre-registered common-height threshold.",
+      "allowlist_issue": "M3-ORACLE-HYBRID-NATIVE-HEIGHT-ALGORITHM"
     },
     {
       "id": "oracle/interpolated/vector-wind/v1",
       "selector": {
         "dataset_families": [
-          "era5_hybrid",
-          "era5_pressure",
-          "cfsr_pressure"
+          "era5_hybrid"
         ],
         "comparison_target": "flexpart_common_semantics",
         "comparison_variant": "trajecta-vs-flexpart-v11.1",
@@ -531,9 +522,7 @@
       "id": "oracle/interpolated/temperature/v1",
       "selector": {
         "dataset_families": [
-          "era5_hybrid",
-          "era5_pressure",
-          "cfsr_pressure"
+          "era5_hybrid"
         ],
         "comparison_target": "flexpart_common_semantics",
         "comparison_variant": "trajecta-vs-flexpart-v11.1",
@@ -576,9 +565,7 @@
       "id": "oracle/interpolated/specific-humidity/v1",
       "selector": {
         "dataset_families": [
-          "era5_hybrid",
-          "era5_pressure",
-          "cfsr_pressure"
+          "era5_hybrid"
         ],
         "comparison_target": "flexpart_common_semantics",
         "comparison_variant": "trajecta-vs-flexpart-v11.1",
@@ -588,7 +575,6 @@
           "specific_humidity"
         ],
         "coordinates": [
-          "asl",
           "agl",
           "pressure_pa"
         ],
@@ -621,9 +607,7 @@
       "id": "oracle/interpolated/pressure/v1",
       "selector": {
         "dataset_families": [
-          "era5_hybrid",
-          "era5_pressure",
-          "cfsr_pressure"
+          "era5_hybrid"
         ],
         "comparison_target": "flexpart_common_semantics",
         "comparison_variant": "trajecta-vs-flexpart-v11.1",
@@ -633,7 +617,6 @@
           "air_pressure"
         ],
         "coordinates": [
-          "asl",
           "agl",
           "pressure_pa"
         ],
@@ -666,9 +649,7 @@
       "id": "oracle/interpolated/geopotential-height/v1",
       "selector": {
         "dataset_families": [
-          "era5_hybrid",
-          "era5_pressure",
-          "cfsr_pressure"
+          "era5_hybrid"
         ],
         "comparison_target": "flexpart_common_semantics",
         "comparison_variant": "trajecta-vs-flexpart-v11.1",
@@ -706,6 +687,551 @@
         "m3:geopotential-height-common-semantics"
       ],
       "scientific_reason": "The comparison remains in geopotential-height semantics and allows binary32 vertical interpolation, while a half-metre absolute gate still exposes wrong layers, terrain anchors, or units."
+    },
+    {
+      "id": "oracle/hybrid-interpolated/specific-humidity/asl-report/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "interpolated_common",
+        "field_namespace": "transport_output",
+        "fields": [
+          "specific_humidity"
+        ],
+        "coordinates": [
+          "asl"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 2e-06,
+        "relative": 0.0002,
+        "scale_floor": 1e-06
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:bilinear-time-vertical-interpolation",
+        "m3-oracle:hybrid-asl-operator-order-2026-07-20"
+      ],
+      "scientific_reason": "For hybrid above-sea-level samples FLEXPART first maps each source column onto its legacy fixed meter grid and then performs point interpolation, while Trajecta performs horizontal, vertical, and time interpolation against native hybrid ColumnGeometry. AGL and pressure-coordinate humidity remain hard-gated and pass; this ASL-only operator-order difference is retained at the unchanged threshold as a diagnostic report.",
+      "allowlist_issue": "M3-ORACLE-HYBRID-ASL-OPERATOR-ORDER"
+    },
+    {
+      "id": "oracle/hybrid-interpolated/pressure/asl-report/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_hybrid"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-v11.1",
+        "sample_scope": "interpolated_common",
+        "field_namespace": "transport_output",
+        "fields": [
+          "air_pressure"
+        ],
+        "coordinates": [
+          "asl"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 2.0,
+        "relative": 2e-05,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:bilinear-time-vertical-interpolation",
+        "m3-oracle:hybrid-asl-operator-order-2026-07-20"
+      ],
+      "scientific_reason": "For hybrid above-sea-level samples FLEXPART first maps each source column onto its legacy fixed meter grid and then performs point interpolation, while Trajecta evaluates pressure against native hybrid ColumnGeometry before its own interpolation ordering. AGL and explicit pressure-coordinate samples remain hard-gated and pass; the unchanged pressure envelope is retained here only to quantify this ASL operator difference.",
+      "allowlist_issue": "M3-ORACLE-HYBRID-ASL-OPERATOR-ORDER"
+    },
+    {
+      "id": "oracle/pressure-adapter/native-anchor/vector-wind/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-pressure-adapter-v1",
+        "sample_scope": "native_anchor",
+        "field_namespace": "transport_output",
+        "fields": [
+          "eastward_wind",
+          "northward_wind"
+        ],
+        "coordinates": [
+          "native_level"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "vector",
+        "component_absolute": 2e-05,
+        "component_relative": 5e-07,
+        "component_scale_floor": 0.1,
+        "speed_floor": 0.1,
+        "direction_degrees": 0.02
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:real32-wind-storage",
+        "numeric:binary32-eight-ulp-envelope",
+        "m3-oracle:pressure-coordinate-p0p1-2026-07-20"
+      ],
+      "scientific_reason": "The registered pressure adapter calls FLEXPART verttransform_gfs and preserves exact native pressure-level wind identity; its mechanical pplev-to-prs bridge does not touch wind values, so the original binary32 native-anchor budget remains a hard gate without threshold changes."
+    },
+    {
+      "id": "oracle/pressure-adapter/native-anchor/temperature/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-pressure-adapter-v1",
+        "sample_scope": "native_anchor",
+        "field_namespace": "transport_output",
+        "fields": [
+          "air_temperature"
+        ],
+        "coordinates": [
+          "native_level"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.0002,
+        "relative": 5e-07,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:real32-temperature-storage",
+        "numeric:binary32-eight-ulp-envelope",
+        "m3-oracle:pressure-coordinate-p0p1-2026-07-20"
+      ],
+      "scientific_reason": "The pressure adapter preserves source pressure-level temperature and only selects the frozen GFS vertical branch for downstream meter interpolation. The unchanged binary32 native-anchor envelope therefore remains an appropriate hard gate for ERA5 and CFSR pressure families."
+    },
+    {
+      "id": "oracle/pressure-adapter/native-anchor/specific-humidity/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-pressure-adapter-v1",
+        "sample_scope": "native_anchor",
+        "field_namespace": "transport_output",
+        "fields": [
+          "specific_humidity"
+        ],
+        "coordinates": [
+          "native_level"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 2e-08,
+        "relative": 2e-06,
+        "scale_floor": 1e-06
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:real32-humidity-storage",
+        "numeric:binary32-rounding-envelope",
+        "m3-oracle:pressure-coordinate-p0p1-2026-07-20"
+      ],
+      "scientific_reason": "The pressure adapter preserves source pressure-level humidity and does not introduce a humidity-specific formula. The original dry-air floor and relative binary32 budget therefore remain a hard gate for both registered pressure-coordinate source families."
+    },
+    {
+      "id": "oracle/pressure-adapter/native-anchor/pressure/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-pressure-adapter-v1",
+        "sample_scope": "native_anchor",
+        "field_namespace": "transport_output",
+        "fields": [
+          "air_pressure"
+        ],
+        "coordinates": [
+          "native_level"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.1,
+        "relative": 2e-06,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:real32-pressure-storage",
+        "numeric:binary32-multistep-envelope",
+        "m3-oracle:pressure-coordinate-p0p1-2026-07-20"
+      ],
+      "scientific_reason": "The adapter's pressure bridge is a mechanical assignment from FLEXPART verttransform_gfs output pplev to the meter-mode prs consumer slot, with no pressure formula or unit change. Native pressure identity therefore retains the original hard-gate envelope."
+    },
+    {
+      "id": "oracle/pressure-adapter/native-anchor/geopotential-height/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-pressure-adapter-v1",
+        "sample_scope": "native_anchor",
+        "field_namespace": "canonical_field",
+        "fields": [
+          "geopotential_height"
+        ],
+        "coordinates": [
+          "native_level"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "hard_gate",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.02,
+        "relative": 1e-06,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:real32-height-storage",
+        "m3:geopotential-height-common-semantics",
+        "m3-oracle:pressure-coordinate-p0p1-2026-07-20"
+      ],
+      "scientific_reason": "Pressure-coordinate native anchors compare the same source geopotential-height field and do not use the hybrid hydrostatic reconstruction that is separately report-only. The unchanged source-height budget remains a hard gate for the registered adapter."
+    },
+    {
+      "id": "oracle/pressure-adapter/interpolated/vector-wind/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-pressure-adapter-v1",
+        "sample_scope": "interpolated_common",
+        "field_namespace": "transport_output",
+        "fields": [
+          "eastward_wind",
+          "northward_wind"
+        ],
+        "coordinates": [
+          "asl",
+          "agl",
+          "pressure_pa"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "vector",
+        "component_absolute": 0.02,
+        "component_relative": 0.0005,
+        "component_scale_floor": 0.1,
+        "speed_floor": 0.5,
+        "direction_degrees": 0.2
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:bilinear-time-vertical-interpolation",
+        "m3:spherical-vector-interpolation-v0",
+        "flexpart:v11.1-verttransform-gfs-single-reference-z-grid",
+        "trajecta:m3-native-pressure-column-interpolation",
+        "m3-oracle:pressure-coordinate-p0p1-2026-07-20"
+      ],
+      "scientific_reason": "FLEXPART verttransform_gfs first remaps every pressure column onto one Cartesian z grid initialized from a single high-surface-pressure reference column and then runs its legacy point interpolation, whereas Trajecta interpolates against each point's native pressure ColumnGeometry. The unchanged wind threshold is retained only to quantify this compatibility difference; native anchors remain the pressure-adapter hard gate.",
+      "allowlist_issue": "M3-ORACLE-PRESSURE-ADAPTER-LEGACY-METER-REMAP"
+    },
+    {
+      "id": "oracle/pressure-adapter/interpolated/temperature/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-pressure-adapter-v1",
+        "sample_scope": "interpolated_common",
+        "field_namespace": "transport_output",
+        "fields": [
+          "air_temperature"
+        ],
+        "coordinates": [
+          "asl",
+          "agl",
+          "pressure_pa"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.02,
+        "relative": 2e-05,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:bilinear-time-vertical-interpolation",
+        "numeric:binary32-interpolation-envelope",
+        "flexpart:v11.1-verttransform-gfs-single-reference-z-grid",
+        "trajecta:m3-native-pressure-column-interpolation",
+        "m3-oracle:pressure-coordinate-p0p1-2026-07-20"
+      ],
+      "scientific_reason": "Pressure-coordinate temperature is remapped by FLEXPART onto a single legacy Cartesian z grid before interpolation, while Trajecta retains local source pressure geometry through horizontal, vertical, and time interpolation. This is an explicit compatibility measurement at the unchanged threshold, not a reason to alter Trajecta or widen the common-semantics budget.",
+      "allowlist_issue": "M3-ORACLE-PRESSURE-ADAPTER-LEGACY-METER-REMAP"
+    },
+    {
+      "id": "oracle/pressure-adapter/interpolated/specific-humidity/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-pressure-adapter-v1",
+        "sample_scope": "interpolated_common",
+        "field_namespace": "transport_output",
+        "fields": [
+          "specific_humidity"
+        ],
+        "coordinates": [
+          "asl",
+          "agl",
+          "pressure_pa"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 2e-06,
+        "relative": 0.0002,
+        "scale_floor": 1e-06
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:bilinear-time-vertical-interpolation",
+        "numeric:binary32-interpolation-envelope",
+        "flexpart:v11.1-verttransform-gfs-single-reference-z-grid",
+        "trajecta:m3-native-pressure-column-interpolation",
+        "m3-oracle:pressure-coordinate-p0p1-2026-07-20"
+      ],
+      "scientific_reason": "Pressure-coordinate humidity follows FLEXPART's single-reference z-grid remap before legacy interpolation, unlike Trajecta's native local-column operator. The dry-air-aware threshold remains unchanged as a diagnostic scale, while exact native pressure-level humidity stays independently hard-gated.",
+      "allowlist_issue": "M3-ORACLE-PRESSURE-ADAPTER-LEGACY-METER-REMAP"
+    },
+    {
+      "id": "oracle/pressure-adapter/interpolated/pressure/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-pressure-adapter-v1",
+        "sample_scope": "interpolated_common",
+        "field_namespace": "transport_output",
+        "fields": [
+          "air_pressure"
+        ],
+        "coordinates": [
+          "asl",
+          "agl",
+          "pressure_pa"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 2.0,
+        "relative": 2e-05,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:bilinear-time-vertical-interpolation",
+        "numeric:binary32-multistep-envelope",
+        "flexpart:v11.1-verttransform-gfs-single-reference-z-grid",
+        "trajecta:m3-native-pressure-column-interpolation",
+        "m3-oracle:pressure-coordinate-p0p1-2026-07-20"
+      ],
+      "scientific_reason": "The audited pplev-to-prs assignment is mechanically correct, but the pressure sampled afterward belongs to FLEXPART's legacy single-reference meter-grid remap rather than Trajecta's native pressure-column interpolation. The original pressure threshold is preserved only to report that algorithm difference; native pressure anchors remain hard-gated.",
+      "allowlist_issue": "M3-ORACLE-PRESSURE-ADAPTER-LEGACY-METER-REMAP"
+    },
+    {
+      "id": "oracle/pressure-adapter/interpolated/geopotential-height/v1",
+      "selector": {
+        "dataset_families": [
+          "era5_pressure",
+          "cfsr_pressure"
+        ],
+        "comparison_target": "flexpart_common_semantics",
+        "comparison_variant": "trajecta-vs-flexpart-pressure-adapter-v1",
+        "sample_scope": "interpolated_common",
+        "field_namespace": "canonical_field",
+        "fields": [
+          "geopotential_height"
+        ],
+        "coordinates": [
+          "asl",
+          "agl",
+          "pressure_pa"
+        ],
+        "vertical_regions": [
+          "upper_air"
+        ]
+      },
+      "decision": "report_only",
+      "exact_metadata": [
+        "status",
+        "validity",
+        "unit"
+      ],
+      "mask_policy": "exact",
+      "non_finite_policy": "reject",
+      "metric": {
+        "kind": "absolute_relative",
+        "absolute": 0.5,
+        "relative": 1e-05,
+        "scale_floor": 1.0
+      },
+      "threshold_basis": "preregistered_precision_budget",
+      "evidence_ids": [
+        "flexpart:dace3affa2ba71677f12f3858b04aaf59f8ee51e:height-interpolation",
+        "m3:geopotential-height-common-semantics",
+        "flexpart:v11.1-verttransform-gfs-single-reference-z-grid",
+        "trajecta:m3-native-pressure-column-interpolation",
+        "m3-oracle:pressure-coordinate-p0p1-2026-07-20"
+      ],
+      "scientific_reason": "Although pressure-level native geopotential height is shared and hard-gated, FLEXPART's interpolated height is tied to its single-reference Cartesian z-grid remap while Trajecta evaluates local native pressure geometry and explicit geometric/geopotential conversions. The unchanged half-metre budget is retained as a compatibility report, not a scientific equivalence gate.",
+      "allowlist_issue": "M3-ORACLE-PRESSURE-ADAPTER-LEGACY-METER-REMAP"
     },
     {
       "id": "oracle/modern/geometric-w/report/v1",

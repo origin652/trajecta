@@ -12,6 +12,8 @@ M3 的模型分工见 `TRAJECTA_M3_MODEL_ASSIGNMENT.md`。若本文与更早的�
 
 截至 2026-07-19，reader/provider execute 零调用计数、百万点确定性矩阵和三套 Windows native 全场比较已有实际证据；A 已发布 `m3-a-tolerance/v1.0.1`，仅将 CFSR specific humidity 从 2 ULP 修订为 3 ULP，pressure vertical velocity 保持 2 ULP，三套 backend 在新 registry 下全部通过。当前仍不是 M3 完成：三套真实 FLEXPART 数值 oracle、Linux 全矩阵、跨平台裁决和 A2 最终认证尚未闭合。
 
+截至 2026-07-20，A 已发布 `m3-a-tolerance/v1.0.2`，注册 pressure-coordinate adapter，并完成三套 FLEXPART 75/75 oracle 的分层科学裁决。Windows 与 WSL Ubuntu 24.04 的完整门禁、三套 Rust/native 全场比较、三套 MIT oracle hard gate、百万点长测及模拟 M4 两次 RK2 查询均已实际通过；WSL 机器汇总为 `core_status=0`、`a2_full_status=passed`。A2 最终签署见 `TRAJECTA_M3_A2_CLOSURE.md`，M3 状态改为完成。明确列入 report-only 的 FLEXPART legacy 算法差异继续保留，不构成 Trajecta 科学算法回退或数值阈值放宽。
+
 ## 2. M3 目标与完成边界
 
 M3 的终点是：给定本地锁定的真实气象资料、物理时刻、经纬度和一种垂直坐标，返回可由 M4 直接消费的完整输送气象查询结果。

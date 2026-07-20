@@ -9,7 +9,13 @@ cd "$ROOT"
 OUT="$ROOT/target/m3-linux-gate"
 mkdir -p "$OUT"
 LOG="$OUT/gate.log"
+: > "$LOG"
 exec > >(tee -a "$LOG") 2>&1
+PYTHON=/usr/bin/python3
+if [[ ! -x "$PYTHON" ]]; then
+  echo "required Linux interpreter missing: $PYTHON" >&2
+  exit 2
+fi
 
 echo "=== Trajecta M3 Linux gate ==="
 date -u +"utc=%Y-%m-%dT%H:%M:%SZ"
@@ -35,7 +41,7 @@ run() {
 {
   echo "rustc=$(rustc --version 2>/dev/null || true)"
   echo "cargo=$(cargo --version 2>/dev/null || true)"
-  echo "python=$(python3 --version 2>/dev/null || true)"
+  echo "python=$("$PYTHON" --version 2>/dev/null || true)"
   echo "pkg-config=$(command -v pkg-config || true)"
   if command -v pkg-config >/dev/null 2>&1; then
     echo "netcdf_pc=$(pkg-config --modversion netcdf 2>/dev/null || echo missing)"
@@ -79,6 +85,8 @@ echo "HAS_NETCDF=$HAS_NETCDF HAS_ECCODES=$HAS_ECCODES"
 
 CORE_STATUS=0
 A2_REASONS=()
+A2_HARD_FAIL=0
+A2_EXTERNAL_BLOCKED=0
 
 run fmt cargo fmt --all -- --check
 grep -q '^fmt=0$' "$OUT/exit_codes.txt" || CORE_STATUS=1
@@ -99,31 +107,82 @@ if [[ -d target/test-data/era5-cds-pressure-official/ready ]]; then
 else
   echo "era5_chain=skipped_fixture_missing" >> "$OUT/exit_codes.txt"
   A2_REASONS+=("era5_fixtures_missing")
+  A2_EXTERNAL_BLOCKED=1
 fi
 
 BACKEND_RAN=0
 if [[ "$HAS_NETCDF" -eq 1 && "$HAS_ECCODES" -eq 1 ]]; then
-  run backend_cmp python3 tools/run_m3_backend_comparison.py
+  run backend_cmp "$PYTHON" tools/run_m3_backend_comparison.py
   BACKEND_RAN=1
   BRC=$(grep '^backend_cmp=' "$OUT/exit_codes.txt" | tail -1 | cut -d= -f2)
   echo "backend_cmp_rc=$BRC"
   # 0=all passed, 1=hard fail (e.g. CFSR 2ULP registry), 2=incomplete
-  if [[ "$BRC" -eq 2 ]]; then
-    A2_REASONS+=("backend_incomplete")
-  fi
+  case "$BRC" in
+    0) ;;
+    1)
+      A2_REASONS+=("backend_hard_gate_failed")
+      A2_HARD_FAIL=1
+      ;;
+    2)
+      A2_REASONS+=("backend_incomplete")
+      A2_EXTERNAL_BLOCKED=1
+      ;;
+    *)
+      A2_REASONS+=("backend_failed_rc_$BRC")
+      A2_EXTERNAL_BLOCKED=1
+      ;;
+  esac
 else
   echo "backend_cmp=external_blocked_native_libs netcdf=$HAS_NETCDF eccodes=$HAS_ECCODES" >> "$OUT/exit_codes.txt"
   A2_REASONS+=("native_libs_missing")
+  A2_EXTERNAL_BLOCKED=1
 fi
 
 ORACLE_RAN=0
-run oracle bash tools/flexpart_oracle/run_oracle.sh
+run oracle_raw bash tools/flexpart_oracle/run_oracle.sh
 ORACLE_RAN=1
-ORC=$(grep '^oracle=' "$OUT/exit_codes.txt" | tail -1 | cut -d= -f2)
-echo "oracle_rc=$ORC"
-if [[ "$ORC" -eq 0 ]]; then
-  A2_REASONS+=("oracle_unexpected_success_without_complete_harness")
-fi
+ORC=$(grep '^oracle_raw=' "$OUT/exit_codes.txt" | tail -1 | cut -d= -f2)
+echo "oracle_raw_rc=$ORC"
+case "$ORC" in
+  0)
+    echo "oracle reported complete; final artifact coverage is checked below"
+    ;;
+  3)
+    A2_REASONS+=("oracle_partial")
+    ;;
+  2)
+    A2_REASONS+=("oracle_external_blocked")
+    A2_EXTERNAL_BLOCKED=1
+    ;;
+  *)
+    A2_REASONS+=("oracle_failed_rc_$ORC")
+    A2_EXTERNAL_BLOCKED=1
+    ;;
+esac
+
+ORACLE_COMPARE_RAN=0
+run oracle_compare "$PYTHON" tools/run_m3_oracle_comparison.py
+ORACLE_COMPARE_RAN=1
+OCRC=$(grep '^oracle_compare=' "$OUT/exit_codes.txt" | tail -1 | cut -d= -f2)
+echo "oracle_compare_rc=$OCRC"
+case "$OCRC" in
+  0) ;;
+  1)
+    A2_REASONS+=("oracle_hard_gate_failed")
+    A2_HARD_FAIL=1
+    ;;
+  2)
+    A2_REASONS+=("oracle_comparison_external_blocked")
+    A2_EXTERNAL_BLOCKED=1
+    ;;
+  3)
+    A2_REASONS+=("oracle_comparison_partial")
+    ;;
+  *)
+    A2_REASONS+=("oracle_comparison_failed_rc_$OCRC")
+    A2_EXTERNAL_BLOCKED=1
+    ;;
+esac
 
 MILLION_RAN=0
 if [[ "${TRAJECTA_RUN_MILLION:-0}" == "1" ]]; then
@@ -141,7 +200,7 @@ else
 fi
 
 set +e
-python3 - <<'PY'
+"$PYTHON" - <<'PY'
 import hashlib, json, os, sys
 from pathlib import Path
 root = Path('.')
@@ -201,22 +260,21 @@ if [[ "$SCHEMA_RC" -ne 0 ]]; then
   A2_REASONS+=("schema_validate_failed")
 fi
 
-if [[ ${#A2_REASONS[@]} -eq 0 && "$BACKEND_RAN" -eq 1 && "$ORACLE_RAN" -eq 1 && "$MILLION_RAN" -eq 1 && "$CORE_STATUS" -eq 0 ]]; then
-  A2_STATUS="incomplete"
-  A2_REASONS+=("flexpart_oracle_harness_incomplete")
+if [[ "$CORE_STATUS" -ne 0 || "$A2_HARD_FAIL" -eq 1 ]]; then
+  A2_STATUS="failed"
+elif [[ "$A2_EXTERNAL_BLOCKED" -eq 1 ]]; then
+  A2_STATUS="external_blocked"
+elif [[ ${#A2_REASONS[@]} -eq 0 && "$BACKEND_RAN" -eq 1 && "$ORACLE_RAN" -eq 1 && "$ORACLE_COMPARE_RAN" -eq 1 && "$MILLION_RAN" -eq 1 ]]; then
+  A2_STATUS="passed"
 else
-  if [[ "$HAS_NETCDF" -eq 0 || "$HAS_ECCODES" -eq 0 ]]; then
-    A2_STATUS="external_blocked"
-  else
-    A2_STATUS="incomplete"
-  fi
+  A2_STATUS="incomplete"
 fi
 
 {
   echo "core_status=$CORE_STATUS"
   echo "a2_full_status=$A2_STATUS"
   echo "a2_reasons=${A2_REASONS[*]-}"
-  echo "backend_ran=$BACKEND_RAN oracle_ran=$ORACLE_RAN million_ran=$MILLION_RAN"
+  echo "backend_ran=$BACKEND_RAN oracle_ran=$ORACLE_RAN oracle_compare_ran=$ORACLE_COMPARE_RAN million_ran=$MILLION_RAN"
   echo "NOTE=core_smoke_is_not_A2_certification"
 } | tee "$OUT/STATUS.txt"
 

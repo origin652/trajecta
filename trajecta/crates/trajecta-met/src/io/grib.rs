@@ -1428,10 +1428,10 @@ impl NativeDecoder {
 impl Drop for NativeDecoder {
     fn drop(&mut self) {
         let _ = self.commands.send(NativeCommand::Shutdown);
-        if let Ok(mut worker) = self.worker.lock()
-            && let Some(worker) = worker.take()
-        {
-            let _ = worker.join();
+        if let Ok(mut worker) = self.worker.lock() {
+            if let Some(worker) = worker.take() {
+                let _ = worker.join();
+            }
         }
     }
 }

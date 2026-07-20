@@ -126,10 +126,11 @@ def _eccodes_bin(name: str) -> str | None:
     import os
     import shutil
 
-    local = ROOT / ".native/eccodes/Library/bin" / name
-    for cand in (local, Path(str(local) + ".exe")):
-        if cand.is_file():
-            return str(cand)
+    if os.name == "nt":
+        local = ROOT / ".native/eccodes/Library/bin" / name
+        for cand in (local, Path(str(local) + ".exe")):
+            if cand.is_file():
+                return str(cand)
     return shutil.which(name)
 
 
@@ -155,8 +156,13 @@ def try_load_terrain_cfsr_grib(paths: list[Path]):
 
     env = os.environ.copy()
     defs = ROOT / ".native/eccodes/Library/share/eccodes/definitions"
-    if defs.is_dir():
+    if os.name == "nt" and defs.is_dir():
         env["ECCODES_DEFINITION_PATH"] = str(defs)
+
+    identity_filter = (
+        "discipline=0,parameterCategory=3,parameterNumber=5,"
+        "typeOfFirstFixedSurface=1"
+    )
 
     decoded = []
     for path in paths:
@@ -164,7 +170,7 @@ def try_load_terrain_cfsr_grib(paths: list[Path]):
             [
                 grib_ls,
                 "-w",
-                "shortName=orog",
+                identity_filter,
                 "-p",
                 "shortName,units,Ni,Nj,"
                 "latitudeOfFirstGridPointInDegrees,longitudeOfFirstGridPointInDegrees,"
@@ -179,14 +185,21 @@ def try_load_terrain_cfsr_grib(paths: list[Path]):
             env=env,
             check=False,
         )
-        if meta_p.returncode != 0 or "orog" not in (meta_p.stdout or ""):
+        if meta_p.returncode != 0:
             raise SystemExit(f"CFSR orog/0.3.5 surface not found in {path}")
         # parse last data row
         lines = [ln for ln in (meta_p.stdout or "").splitlines() if ln.strip()]
         data_line = None
         for ln in lines:
-            if ln.strip().startswith("orog"):
-                data_line = ln.split()
+            parts = ln.split()
+            if len(parts) < 12:
+                continue
+            try:
+                identity = tuple(int(value) for value in parts[-3:])
+            except ValueError:
+                continue
+            if identity == (0, 3, 5):
+                data_line = parts
                 break
         if not data_line or len(data_line) < 10:
             raise SystemExit(f"failed to parse orog metadata for {path}: {lines[:5]}")
@@ -204,7 +217,7 @@ def try_load_terrain_cfsr_grib(paths: list[Path]):
         lats = [lat1 + j * dj for j in range(nj)]
 
         data_p = subprocess.run(
-            [grib_get_data, "-w", "shortName=orog", str(path)],
+            [grib_get_data, "-w", identity_filter, str(path)],
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -266,13 +279,24 @@ def half_step_center(coords: list[float], idx: int) -> float:
 
 
 def select_sites(lons: list[float], lats: list[float], z: list[list[float]]) -> dict[str, dict]:
-    """H = Φ/g0 already applied. mountain must be >= 500 m."""
+    """Select terrain classes inside Trajecta's one-cell safe interpolation halo.
+
+    H = Φ/g0 is already applied and mountain must be >= 500 m.  Native anchors
+    use the selected grid node; interpolated records use the cell immediately
+    toward increasing array indices.  A node therefore needs both the leading
+    halo and one complete cell before the trailing halo.
+    """
     ny = len(lats)
     nx = len(lons)
+    halo = 1
+    if nx < 2 * halo + 2 or ny < 2 * halo + 2:
+        raise SystemExit(
+            f"terrain grid {nx}x{ny} is too small for {halo}-cell safe halo"
+        )
     sea = plain = mountain = None
     mountain_z = -1e300
-    for j in range(ny):
-        for i in range(nx):
+    for j in range(halo, ny - halo - 1):
+        for i in range(halo, nx - halo - 1):
             h = float(z[j][i])
             if not math.isfinite(h):
                 continue
@@ -296,6 +320,8 @@ def select_sites(lons: list[float], lats: list[float], z: list[list[float]]) -> 
             f"mountain terrain {mountain['terrain_m']:.4f} m < 500 m; hand to A "
             "(do not lower threshold)"
         )
+    for site in (sea, plain, mountain):
+        site["safe_interpolation_halo_cells"] = halo
     return {"sea": sea, "plain": plain, "mountain": mountain}
 
 

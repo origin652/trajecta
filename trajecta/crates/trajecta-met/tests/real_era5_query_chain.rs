@@ -902,11 +902,20 @@ fn era5_cli_probe_and_replay_in_box() {
 fn ensure_trajecta_cli_binary() -> PathBuf {
     use std::process::Command;
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let target_dir = std::env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .map(|path| {
+            if path.is_absolute() {
+                path
+            } else {
+                workspace.join(path)
+            }
+        })
+        .unwrap_or_else(|| workspace.join("target"));
+    let executable = format!("trajecta-cli{}", std::env::consts::EXE_SUFFIX);
     let candidates = [
-        workspace.join("target/debug/trajecta-cli.exe"),
-        workspace.join("target/debug/trajecta-cli"),
-        workspace.join("target/release/trajecta-cli.exe"),
-        workspace.join("target/release/trajecta-cli"),
+        target_dir.join("debug").join(&executable),
+        target_dir.join("release").join(&executable),
     ];
     if let Some(existing) = candidates.into_iter().find(|p| p.is_file()) {
         return existing;
@@ -920,11 +929,10 @@ fn ensure_trajecta_cli_binary() -> PathBuf {
         status.success(),
         "failed to build trajecta-cli (exit {status})"
     );
-    [
-        workspace.join("target/debug/trajecta-cli.exe"),
-        workspace.join("target/debug/trajecta-cli"),
-    ]
-    .into_iter()
-    .find(|p| p.is_file())
-    .unwrap_or_else(|| panic!("trajecta-cli binary missing after cargo build"))
+    let built = target_dir.join("debug").join(executable);
+    if built.is_file() {
+        built
+    } else {
+        panic!("trajecta-cli binary missing after cargo build");
+    }
 }

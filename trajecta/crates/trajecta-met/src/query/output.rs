@@ -151,10 +151,10 @@ fn word_count(len: usize) -> usize {
 
 fn clear_unused_bits(words: &mut [u64], len: usize) {
     let used = len % u64::BITS as usize;
-    if used != 0
-        && let Some(last) = words.last_mut()
-    {
-        *last &= (1_u64 << used) - 1;
+    if used != 0 {
+        if let Some(last) = words.last_mut() {
+            *last &= (1_u64 << used) - 1;
+        }
     }
 }
 

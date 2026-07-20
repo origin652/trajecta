@@ -80,7 +80,7 @@ fn m3_tolerance_registry_has_frozen_evidence_and_unique_matches() -> Result<(), 
     );
     assert_eq!(
         registry.get("registry_version").and_then(Value::as_str),
-        Some("m3-a-tolerance/v1.0.1")
+        Some("m3-a-tolerance/v1.0.2")
     );
     let expected_hash = registry
         .pointer("/calibration_report/sha256")
@@ -214,6 +214,18 @@ fn m3_tolerance_registry_has_frozen_evidence_and_unique_matches() -> Result<(), 
     assert!(
         ids.contains("oracle/native-anchor/vector-wind/v1"),
         "FLEXPART native-anchor wind rule must remain pre-registered"
+    );
+    assert!(
+        ids.contains("oracle/pressure-adapter/interpolated/pressure/v1"),
+        "registered pressure adapter must have explicit common-semantics rules"
+    );
+    assert!(
+        ids.contains("oracle/hybrid-native-anchor/geopotential-height/report/v1"),
+        "hybrid native height algorithm difference must remain explicit"
+    );
+    assert!(
+        ids.contains("oracle/hybrid-interpolated/pressure/asl-report/v1"),
+        "hybrid ASL operator-order difference must remain explicit"
     );
     Ok(())
 }

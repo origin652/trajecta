@@ -1,6 +1,6 @@
 {
   "schema_hint": "trajecta.m3.backend_expected_matrix/v1",
-  "registry_version": "m3-a-tolerance/v1.0.1",
+  "registry_version": "m3-a-tolerance/v1.0.2",
   "cds_area_nswe": [
     53,
     0,

@@ -36,12 +36,19 @@ def write_json(name: str, payload: dict) -> Path:
 
 
 def native_env(*, with_eccodes: bool = False) -> dict[str, str]:
-    """Build env per docs/TRAJECTA_NATIVE_NETCDF_WINDOWS.md.
+    """Build a native-backend environment for the current platform.
 
-    NetCDF alone must use only MSYS2 UCRT64 pkgconfig. Prepending
-    .native/eccodes pollutes HDF5 discovery and falsely reports blocked.
+    Windows uses the pinned MSYS2/ecCodes layout documented by Trajecta.
+    Linux keeps pkg-config discovery from the calling gate and only removes a
+    known-bogus empty/current-directory LIBCLANG_PATH.
     """
     env = os.environ.copy()
+    if os.name != "nt":
+        raw = (env.get("LIBCLANG_PATH") or "").strip()
+        if not raw or raw in {".", "./"}:
+            env.pop("LIBCLANG_PATH", None)
+        return env
+
     ucrt = Path("D:/msys64/ucrt64")
     path_parts: list[str] = []
     if ucrt.is_dir():

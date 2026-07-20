@@ -494,7 +494,7 @@ mod tests {
     #[test]
     fn loads_frozen_registry_and_checks_calibration_sha() {
         let reg = load_registry_from_path(&registry_path()).expect("load");
-        assert_eq!(reg.document.registry_version, "m3-a-tolerance/v1.0.1");
+        assert_eq!(reg.document.registry_version, "m3-a-tolerance/v1.0.2");
         assert!(!reg.sha256.is_empty());
     }
 
@@ -531,6 +531,87 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(err, RuleMatchError::Unvalidated);
+    }
+
+    #[test]
+    fn pressure_adapter_and_hybrid_exceptions_match_explicit_rules() {
+        let reg = load_registry_from_path(&registry_path()).unwrap();
+        let pressure = match_rule(
+            &reg,
+            &SampleContext {
+                dataset_family: "era5_pressure",
+                comparison_target: "flexpart_common_semantics",
+                comparison_variant: "trajecta-vs-flexpart-pressure-adapter-v1",
+                sample_scope: "interpolated_common",
+                field_namespace: "transport_output",
+                field: "air_pressure",
+                coordinate: "asl",
+                vertical_region: "upper_air",
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            pressure.id,
+            "oracle/pressure-adapter/interpolated/pressure/v1"
+        );
+        assert_eq!(pressure.decision, Decision::ReportOnly);
+
+        let pressure_native = match_rule(
+            &reg,
+            &SampleContext {
+                dataset_family: "era5_pressure",
+                comparison_target: "flexpart_common_semantics",
+                comparison_variant: "trajecta-vs-flexpart-pressure-adapter-v1",
+                sample_scope: "native_anchor",
+                field_namespace: "transport_output",
+                field: "air_pressure",
+                coordinate: "native_level",
+                vertical_region: "upper_air",
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            pressure_native.id,
+            "oracle/pressure-adapter/native-anchor/pressure/v1"
+        );
+        assert_eq!(pressure_native.decision, Decision::HardGate);
+
+        let hybrid_asl = match_rule(
+            &reg,
+            &SampleContext {
+                dataset_family: "era5_hybrid",
+                comparison_target: "flexpart_common_semantics",
+                comparison_variant: "trajecta-vs-flexpart-v11.1",
+                sample_scope: "interpolated_common",
+                field_namespace: "transport_output",
+                field: "air_pressure",
+                coordinate: "asl",
+                vertical_region: "upper_air",
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            hybrid_asl.id,
+            "oracle/hybrid-interpolated/pressure/asl-report/v1"
+        );
+        assert_eq!(hybrid_asl.decision, Decision::ReportOnly);
+
+        let hybrid_pressure = match_rule(
+            &reg,
+            &SampleContext {
+                dataset_family: "era5_hybrid",
+                comparison_target: "flexpart_common_semantics",
+                comparison_variant: "trajecta-vs-flexpart-v11.1",
+                sample_scope: "interpolated_common",
+                field_namespace: "transport_output",
+                field: "air_pressure",
+                coordinate: "pressure_pa",
+                vertical_region: "upper_air",
+            },
+        )
+        .unwrap();
+        assert_eq!(hybrid_pressure.id, "oracle/interpolated/pressure/v1");
+        assert_eq!(hybrid_pressure.decision, Decision::HardGate);
     }
 
     #[test]

@@ -580,10 +580,10 @@ impl ColumnGeometry {
         if valid_count == 0 {
             return Err(VerticalError::InvalidValidityMask);
         }
-        if let (Some(physical_top), Some(data_top)) = (physical_model_top_asl_m, available_top)
-            && physical_top < data_top
-        {
-            return Err(VerticalError::InvalidPhysicalAnchor);
+        if let (Some(physical_top), Some(data_top)) = (physical_model_top_asl_m, available_top) {
+            if physical_top < data_top {
+                return Err(VerticalError::InvalidPhysicalAnchor);
+            }
         }
         Ok(Self {
             pressure_pa,

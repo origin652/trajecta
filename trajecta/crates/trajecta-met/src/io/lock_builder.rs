@@ -271,14 +271,16 @@ impl FileHashCache {
             platform_identity: platform_identity(&metadata),
             sha256: String::new(),
         };
-        if !force
-            && let Some(cached) = self.entries.get(&canonical)
-            && cached.size_bytes == stamp.size_bytes
-            && cached.modified_unix_nanos == stamp.modified_unix_nanos
-            && cached.created_unix_nanos == stamp.created_unix_nanos
-            && cached.platform_identity == stamp.platform_identity
-        {
-            return Ok((cached.size_bytes, cached.sha256.clone(), true));
+        if !force {
+            if let Some(cached) = self.entries.get(&canonical) {
+                if cached.size_bytes == stamp.size_bytes
+                    && cached.modified_unix_nanos == stamp.modified_unix_nanos
+                    && cached.created_unix_nanos == stamp.created_unix_nanos
+                    && cached.platform_identity == stamp.platform_identity
+                {
+                    return Ok((cached.size_bytes, cached.sha256.clone(), true));
+                }
+            }
         }
         let (size_bytes, sha256) =
             sha256_file_streaming(&canonical).map_err(|error| HashCacheError::Io {

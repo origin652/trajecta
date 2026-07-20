@@ -281,10 +281,10 @@ fn stable_geometry(
         if source.index.grid_signature() != Some(&descriptor.grid) {
             return Err(FrameLoadError::GridMismatch);
         }
-        if let Some(signature) = source.index.vertical_signature()
-            && signature != &descriptor.vertical
-        {
-            return Err(FrameLoadError::VerticalMismatch);
+        if let Some(signature) = source.index.vertical_signature() {
+            if signature != &descriptor.vertical {
+                return Err(FrameLoadError::VerticalMismatch);
+            }
         }
         if let Some(candidate) = source.index.grid_geometry() {
             if grid

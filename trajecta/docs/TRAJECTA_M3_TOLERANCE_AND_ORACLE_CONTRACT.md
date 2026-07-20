@@ -10,12 +10,18 @@
 - FLEXPART 原始 oracle Schema：`testdata/M3_FLEXPART_ORACLE.schema.json`；
 - 统一比较报告 Schema：`testdata/M3_COMPARISON_REPORT.schema.json`。
 
-注册表版本为 `m3-a-tolerance/v1.0.1`，算法版本为
-`trajecta/met_query/m3/v0`。当前校准状态为 `measured_partial`：Windows
-Rust/native 后端规则已经有三套真实锚点证据；FLEXPART hard gate 在看到任何
-真实 oracle 数值前按 FLEXPART binary32 存储和运算预算预注册，因此禁止事后
-为了通过而放宽。Linux、格式等价和真实 oracle 结果尚未产生，不能据此宣称
-M3 完成。
+注册表版本为 `m3-a-tolerance/v1.0.2`，算法版本为
+`trajecta/met_query/m3/v0`。注册表中的校准包状态保持 `measured_partial`，因为冻结
+阈值的拟合证据仍明确来自 Windows 单主机，而不是把后续 Linux 验证结果反向用于
+重新拟合阈值。Windows Rust/native 后端规则已有三套真实锚点证据；三套 FLEXPART
+raw oracle 已完成 75/75，并在 A 注册的 variant/decision 下完成 MIT 裁决。
+v1.0.2 没有放宽任何数值阈值，而是把已经证明不共享算法语义的 legacy 路径显式
+改为 report-only。
+
+2026-07-20 的 WSL Ubuntu 24.04 full+million 使用同一 registry 和冻结资料独立实跑：
+三套 backend、三套 oracle hard gate、Schema 和百万点长测全部通过。因此
+`measured_partial` 只描述阈值校准包的来源范围，不再表示 M3 平台验收未完成；M3/A2
+完成裁决见 `TRAJECTA_M3_A2_CLOSURE.md`。
 
 ## 2. 唯一规则匹配
 
@@ -127,9 +133,34 @@ node 和 exact native full level；它主要隔离读取、单位、层序和存
 interpolated common 指 off-node/off-level/intermediate-time 的共同字段，覆盖实际
 FLEXPART 插值路径。
 
-`trajecta-vs-flexpart-v11.1` 只认证 `default_real_bits=32`。禁止使用
+`trajecta-vs-flexpart-v11.1` 只认证 ERA5 hybrid 的 `default_real_bits=32` 路径；
+ERA5/CFSR pressure-coordinate harness 使用独立注册的
+`trajecta-vs-flexpart-pressure-adapter-v1`。禁止使用
 `-fdefault-real-8` 等精度提升选项后仍套用本 registry；不同默认精度必须使用新的
 comparison variant，并在 A 注册前标为 `unvalidated`。
+
+Pressure adapter 的 hard gate 只覆盖 exact source time/grid/native pressure level
+的 U/V/T/q/p/geopotential height。该 adapter 调用真实 `verttransform_gfs`，并以
+机械赋值 `prs = pplev` 把 GFS transform 产出的 pressure 暴露给 meter-mode
+consumer；此桥不改公式、单位或值，因此 native anchors 属于共同语义。
+
+Pressure adapter 的全部 `interpolated_common` 字段改为显式 report-only，原因不是
+误差略大，而是算法不同：FLEXPART 首次从一个高地面气压参考点构造全域、全时次
+共用的 Cartesian z-grid，再把每个 pressure column 重映射到该网格并执行 legacy
+插值；Trajecta 则在每个查询点的原生 pressure ColumnGeometry 上完成水平、垂直和
+时间插值。阈值原值保留用于量化兼容性差异，禁止据此修改 Trajecta 科学算法。
+
+ERA5 hybrid 继续使用 `trajecta-vs-flexpart-v11.1`。除以下三项外，原 hard gates
+保持不变：
+
+- native hybrid geopotential height：FLEXPART default-REAL layerwise hypsometric
+  meter-height recurrence 与 Trajecta ECMWF alpha hydrostatic geopotential recurrence
+  算法身份不同；
+- ASL air pressure 与 ASL specific humidity：FLEXPART 先映射 legacy meter/ETA
+  网格再插值，Trajecta 在 native hybrid column 上插值，算子顺序不同。
+
+这三项使用原阈值输出 `reported`，对应显式 allowlist issue；hybrid AGL、Pa 坐标、
+其余字段和全部 native U/V/T/q/p 继续 hard gate。
 
 ### 5.2 现代语义 report only
 
@@ -139,6 +170,8 @@ comparison variant，并在 A 注册前标为 `unvalidated`。
 - geopotential 到 geometric height 的现代转换结果；
 - 从最终 p/T/q 重算的 moist-air density；
 - `MoninObukhovBusingerDyer/v0` 近地层及其三维层桥接。
+- pressure adapter 的 legacy single-reference meter-grid 插值输出；
+- hybrid native height 重构与 hybrid ASL p/q 的 legacy 算子顺序差异。
 
 它们必须继续通过独立解析公式、物理不变量和真实资料边界 hard gate，同时生成
 相对 FLEXPART 的版本化差异报告。`report_only` 不等于通过；超出诊断尺度不会
@@ -207,6 +240,10 @@ Harness 必须：
 - loader 完成后必须调用 FLEXPART 的垂直处理、`interpol_wind` 和
   `interpol_partoutput_val` 实际路径，不允许自行重写一个“看起来像 FLEXPART”的
   插值器；
+- pressure adapter 必须记录 `source_family`、`vertical_coordinate=pressure`、
+  `pbl_height_mode=official_prescribed`、`vertical_transform=verttransform_gfs`，并
+  把 `prs = pplev` 明示为机械 consumer bridge；ERA5 hybrid 必须记录
+  `vertical_transform=verttransform_ecmwf`；
 - 记录 harness version/SHA、host、输入文件 size/SHA、manifest/Profile/query SHA；
 - 按 `M3_FLEXPART_ORACLE.schema.json` 输出原始结果；
 - 不在原始 oracle 内做容差裁决。

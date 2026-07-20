@@ -968,10 +968,10 @@ impl RawMetFrame {
             if field.temporal().valid_time() != metadata.valid_time {
                 return Err(FrameError::FieldTimeMismatch(key.clone()));
             }
-            if let Some((ny, nx)) = field.layout().horizontal_dimensions()
-                && (nx != metadata.grid.nx || ny != metadata.grid.ny)
-            {
-                return Err(FrameError::HorizontalShapeMismatch(key.clone()));
+            if let Some((ny, nx)) = field.layout().horizontal_dimensions() {
+                if nx != metadata.grid.nx || ny != metadata.grid.ny {
+                    return Err(FrameError::HorizontalShapeMismatch(key.clone()));
+                }
             }
             match field.layout() {
                 ArrayLayout::Full3D { levels, .. } if levels != full_levels => {
