@@ -681,6 +681,9 @@ CI：
 
 ### M4：最小粒子闭环
 
+权威实施计划与验收标准见 `TRAJECTA_M4_PARTICLE_LOOP_PLAN.md`，A/B/C 模型任务边界见
+`TRAJECTA_M4_MODEL_ASSIGNMENT.md`。
+
 - 粒子数据结构；
 - 球面 RK2；
 - 边界策略；
