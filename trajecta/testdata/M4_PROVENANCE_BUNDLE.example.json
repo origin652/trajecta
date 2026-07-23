@@ -1,0 +1,108 @@
+{
+  "schema_version": "trajecta.provenance-bundle/v1",
+  "run_id": "018f0000-0000-7000-8000-000000000000",
+  "sqlite": {
+    "relative_path": "particles.sqlite",
+    "schema_version": 1,
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "record_hash_algorithm": "sha256-rfc8785",
+  "records": [
+    {
+      "sha256": "9d1c53b1263bc4c28da409f290cf9ff1db97097c9789c63e08aa9167a93cbb69",
+      "record": {
+        "field": "air_pressure",
+        "quality": "derived",
+        "sources": ["content-sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#pressure"],
+        "transforms": [
+          {
+            "operation": "vertical_interpolation/log_pressure/v1",
+            "parameters": []
+          }
+        ],
+        "profile_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      }
+    },
+    {
+      "sha256": "a52a6e72bf3f6f4a69195a74bce9aef441dc9ba4f674277a6cb8d78393f7e93e",
+      "record": {
+        "field": "geometric_vertical_velocity",
+        "quality": "derived",
+        "sources": ["content-sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#omega"],
+        "transforms": [
+          {
+            "operation": "omega_to_geometric_vertical_velocity/v1",
+            "parameters": [
+              { "name": "gravity_m_s2", "value": "9.80665" }
+            ]
+          }
+        ],
+        "profile_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      }
+    },
+    {
+      "sha256": "ab41ffc2f349e61a6c178ad9fb03e9f44f7882728d9343bb0aa980e6e028fb29",
+      "record": {
+        "field": "air_temperature",
+        "quality": "source",
+        "sources": ["content-sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#t"],
+        "transforms": [],
+        "profile_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      }
+    },
+    {
+      "sha256": "d080963a79a9753b7fbfd43aee5ac3cfb5e9df21ac984db71ca6cc0191c3d359",
+      "record": {
+        "field": "northward_wind",
+        "quality": "source",
+        "sources": ["content-sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#v"],
+        "transforms": [],
+        "profile_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      }
+    },
+    {
+      "sha256": "df258ea96c8e9d074ce91d612c96c596ce62aa5ca337ef0e99fe39aa93f7e46e",
+      "record": {
+        "field": "eastward_wind",
+        "quality": "source",
+        "sources": ["content-sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#u"],
+        "transforms": [],
+        "profile_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      }
+    }
+  ],
+  "field_sets": [
+    {
+      "sha256": "08c3844306eee20713681eec7c428ee503d2176f6a840653f781947dbb1fd67e",
+      "fields": {
+        "eastward_wind": null,
+        "northward_wind": null,
+        "geometric_vertical_velocity": null,
+        "air_pressure": null,
+        "air_temperature": null
+      }
+    },
+    {
+      "sha256": "6cf43e294081c9a2132221ad0f1e4e29811be602aa1470aaf7409db614ece4c1",
+      "fields": {
+        "eastward_wind": "df258ea96c8e9d074ce91d612c96c596ce62aa5ca337ef0e99fe39aa93f7e46e",
+        "northward_wind": "d080963a79a9753b7fbfd43aee5ac3cfb5e9df21ac984db71ca6cc0191c3d359",
+        "geometric_vertical_velocity": "a52a6e72bf3f6f4a69195a74bce9aef441dc9ba4f674277a6cb8d78393f7e93e",
+        "air_pressure": "9d1c53b1263bc4c28da409f290cf9ff1db97097c9789c63e08aa9167a93cbb69",
+        "air_temperature": "ab41ffc2f349e61a6c178ad9fb03e9f44f7882728d9343bb0aa980e6e028fb29"
+      }
+    }
+  ],
+  "samples": [
+    {
+      "particle_id": 1,
+      "sample_sequence": 0,
+      "field_set_sha256": "6cf43e294081c9a2132221ad0f1e4e29811be602aa1470aaf7409db614ece4c1"
+    },
+    {
+      "particle_id": 1,
+      "sample_sequence": 1,
+      "field_set_sha256": "08c3844306eee20713681eec7c428ee503d2176f6a840653f781947dbb1fd67e"
+    }
+  ]
+}

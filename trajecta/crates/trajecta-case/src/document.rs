@@ -175,6 +175,8 @@ pub struct RunProfileDocument {
     pub metadata: Metadata,
     /// Local Case path selected for a run.
     pub case_path: PathBuf,
+    /// Root under which unique run directories are created.
+    pub output_root: PathBuf,
     /// Logical dataset bindings.
     #[serde(default)]
     pub datasets: Vec<DatasetBinding>,
@@ -225,6 +227,8 @@ pub struct ResolvedRunProfile {
     pub metadata: Metadata,
     /// Canonical Case path.
     pub case_path: PathBuf,
+    /// Absolute normalized output root; it need not exist before the run.
+    pub output_root: PathBuf,
     /// Canonical local dataset bindings.
     pub datasets: Vec<DatasetBinding>,
     /// Canonical local Profile files and directories.

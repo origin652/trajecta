@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m4-numerical-contract-v1.json",
+  "title": "Trajecta M4 numerical contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "contract_id", "algorithms", "constants", "tolerances", "policy"],
+  "properties": {
+    "schema_version": { "const": "trajecta.m4.numerical-contract/v1" },
+    "contract_id": { "const": "trajecta/particle_loop/m4/v1" },
+    "algorithms": { "$ref": "#/$defs/stringMap" },
+    "constants": { "$ref": "#/$defs/numberMap" },
+    "tolerances": { "$ref": "#/$defs/numberMap" },
+    "policy": { "$ref": "#/$defs/stringMap" }
+  },
+  "$defs": {
+    "stringMap": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "numberMap": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "number" }
+    }
+  }
+}

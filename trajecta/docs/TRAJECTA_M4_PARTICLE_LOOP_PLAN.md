@@ -1,9 +1,11 @@
 # Trajecta M4：最小粒子闭环实施与验收计划
 
-状态：设计已冻结，尚未开始实现；本文不代表 M4 已完成。
-日期：2026-07-20
+状态：M4-A0 已完成；M4-A1 的 A 级数值与生命周期核心已完成，B/C 工程闭环尚未完成；M4-A2–A4 尚未开始。本文不代表 M4 已完成。
+日期：2026-07-21
 上游基线：M3 已完成并提交，气象查询引擎、三套真实资料与 Windows/WSL 验收可供 M4 复用。
 模型分工：见 `TRAJECTA_M4_MODEL_ASSIGNMENT.md`。
+M4-A0 冻结公式、常量、错误码与机器 schema：见 `TRAJECTA_M4_A0_SCIENCE_CONTRACT.md`。
+M4-A1 A 级核心交付：见 `TRAJECTA_M4_A1_A_DELIVERY_REPORT.md`；B 工程接续任务见 `B_PROMPT_M4_A1_ENGINEERING.md`。
 
 ## 1. 目标
 
@@ -101,7 +103,7 @@ draw_index
 - event 必须完整落在模拟物理时间范围内；
 - duplicate ID、零粒子、负质量、非有限质量和全零质量硬失败。
 
-连续释放将时段按粒子数等分，在每个时间格内用计数器随机采样一次。出生时刻预先固定，不受积分步、线程或分块影响。
+连续释放将时段按粒子数等分，在每个时间格内用 `integer_stratified_birth/v1` 的 64-bit 乘高映射采样一次。出生时刻预先固定，不受积分步、线程或分块影响。
 
 ### 4.3 GeoJSON
 
@@ -245,9 +247,13 @@ surface_reflect/v0
 model_top_terminate/v0
 limited_domain_terminate/v0
 global_periodic/v0
+release_driven/v1
+integer_stratified_birth/v1
 dry_air_domain_fill/v1
+stratospheric_ozone_domain_fill/v1
 ertel_pv_spherical/v1
 flexpart_stratospheric_ozone_pv60/v1
+particle_state/v1
 particle_state_sqlite/v1
 ~~~
 
@@ -558,16 +564,10 @@ RunManifest 必须 serde 化并拥有稳定 schema/version，至少记录：
 
 ### M4-A1：普通粒子闭环
 
-- ParticleBatch 与 typed origin；
-- Philox counter RNG；
-- explicit ReleaseSchedule；
-- GeoJSON 解析、跨日期线自动切分和球面采样；
-- StepPlanner；
-- spherical RK2；
-- boundary policies；
-- SimulationRunner；
-- SQLite typed sink；
-- 合成解析场完整闭环。
+- A 已完成：ParticleBatch/typed origin、Philox、exact birth/质量分配、StepPlanner、spherical RK2、连续 boundary policies、ReleaseDriven lifecycle、SimulationRunner、exact-time output query 接口和解析 hard gate；
+- B 待完成：GeoJSON 解析/日期线切分/球面采样、AGL/pressure release resolver、生产 boundary path sampler、RunnerBuilder/registry、manifest 原子 I/O、SQLite typed sink 和合成端到端文件闭环；
+- C 待完成：golden、错误文本、SQL/manifest 文档和 schema 示例；
+- 在 B/C 交付经 A 验收前，M4-A1 不得标记完成。
 
 ### M4-A2：Air-mass domain-fill
 

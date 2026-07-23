@@ -16,6 +16,7 @@
 //! | [`SchemaError`] | Parse / kind / version failures |
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Component;
 
 use crate::diagnostic::{Diagnostic, DiagnosticBag, DiagnosticPath};
 use crate::document::{
@@ -23,9 +24,12 @@ use crate::document::{
 };
 use crate::model::meteorology::{DomainId, MeteorologySpec};
 use crate::model::numerics::NumericsSpec;
-use crate::model::output::OutputProductSpec;
+use crate::model::output::{OutputProductSpec, OutputSchedule};
 use crate::model::physics::PhysicsModuleSpec;
-use crate::model::population::{DomainFillAirMassSpec, ParticlePopulationSpec};
+use crate::model::population::{
+    DomainFillAirMassSpec, GeoJsonGeometry, GeoJsonSource, ParticlePopulationSpec,
+    ReleaseEventSpec, ReleaseVerticalSpec,
+};
 use crate::model::substance::SubstanceSpec;
 use crate::model::time::{Direction, TimeSpec};
 use crate::quantity::Quantity;
@@ -177,6 +181,7 @@ pub fn validate_resolved_case(case: &ResolvedCase) -> DiagnosticBag {
         DiagnosticPath::root().field("outputs"),
         &mut diagnostics,
     );
+    validate_cross_component_contracts(case, &mut diagnostics);
     diagnostics
 }
 
@@ -211,6 +216,15 @@ impl SchemaDocument for RunProfileDocument {
             diagnostics.push(
                 Diagnostic::error("run_profile.case_path_empty", "case_path must not be empty")
                     .at(DiagnosticPath::root().field("case_path")),
+            );
+        }
+        if self.output_root.as_os_str().is_empty() {
+            diagnostics.push(
+                Diagnostic::error(
+                    "run_profile.output_root_empty",
+                    "output_root must not be empty",
+                )
+                .at(DiagnosticPath::root().field("output_root")),
             );
         }
         validate_execution(
@@ -483,12 +497,25 @@ fn validate_numerics(
             .at(path.clone().field("time_step")),
         );
     }
+    let mut policies = BTreeSet::new();
     for (index, policy) in numerics.boundaries.policies.iter().enumerate() {
         if policy.0.trim().is_empty() {
             diagnostics.push(
                 Diagnostic::error(
                     "case.numerics.boundary_empty",
                     "boundary policy model id must not be empty",
+                )
+                .at(path
+                    .clone()
+                    .field("boundaries")
+                    .field("policies")
+                    .index(index)),
+            );
+        } else if !policies.insert(policy.0.as_str()) {
+            diagnostics.push(
+                Diagnostic::error(
+                    "case.numerics.boundary_duplicate",
+                    format!("duplicate boundary policy '{}'", policy.0),
                 )
                 .at(path
                     .clone()
@@ -516,14 +543,36 @@ fn validate_population(
                     .at(path.clone().field("id")),
                 );
             }
-            if spec.schedule.trim().is_empty() {
+            if spec.events.is_empty() {
                 diagnostics.push(
                     Diagnostic::error(
-                        "case.population.schedule_empty",
-                        "release schedule id must not be empty",
+                        "case.population.events_empty",
+                        "release-driven population must contain at least one event",
                     )
-                    .at(path.field("schedule")),
+                    .at(path.clone().field("events")),
                 );
+            }
+            let mut ids = BTreeSet::new();
+            for (index, event) in spec.events.iter().enumerate() {
+                let event_path = path.clone().field("events").index(index);
+                if event.id.0.trim().is_empty() {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            "case.release.event_id_empty",
+                            "release event id must not be empty",
+                        )
+                        .at(event_path.clone().field("id")),
+                    );
+                } else if !ids.insert(event.id.0.clone()) {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            "case.release.event_id_duplicate",
+                            format!("duplicate release event id '{}'", event.id.0),
+                        )
+                        .at(event_path.clone().field("id")),
+                    );
+                }
+                validate_release_event(event, event_path, diagnostics);
             }
         }
         ParticlePopulationSpec::DomainFillAirMass(spec) => {
@@ -541,10 +590,243 @@ fn validate_population(
                         "case.population.ozone_rule_empty",
                         "ozone_rule must not be empty",
                     )
-                    .at(path.field("ozone_rule")),
+                    .at(path.clone().field("ozone_rule")),
+                );
+            }
+            if spec.ozone_substance.0.trim().is_empty() {
+                diagnostics.push(
+                    Diagnostic::error(
+                        "case.population.ozone_substance_empty",
+                        "ozone_substance must not be empty",
+                    )
+                    .at(path.field("ozone_substance")),
                 );
             }
         }
+    }
+}
+
+fn validate_release_event(
+    event: &ReleaseEventSpec,
+    path: DiagnosticPath,
+    diagnostics: &mut DiagnosticBag,
+) {
+    if event.start > event.end {
+        diagnostics.push(
+            Diagnostic::error(
+                "case.release.time_inverted",
+                "release event requires start <= end in physical time",
+            )
+            .at(path.clone()),
+        );
+    }
+    if event.particle_count == 0 {
+        diagnostics.push(
+            Diagnostic::error(
+                "case.release.particle_count_zero",
+                "release event particle_count must be > 0",
+            )
+            .at(path.clone().field("particle_count")),
+        );
+    }
+    if event.mass.is_empty() {
+        diagnostics.push(
+            Diagnostic::error(
+                "case.release.mass_empty",
+                "release event must define at least one substance mass",
+            )
+            .at(path.clone().field("mass")),
+        );
+    } else {
+        let mut any_positive = false;
+        for (substance, mass) in &event.mass {
+            if substance.0.trim().is_empty() {
+                diagnostics.push(
+                    Diagnostic::error(
+                        "case.release.mass_substance_empty",
+                        "release mass substance id must not be empty",
+                    )
+                    .at(path.clone().field("mass")),
+                );
+            }
+            let value = mass.value_si();
+            if !value.is_finite() || value < 0.0 {
+                diagnostics.push(
+                    Diagnostic::error(
+                        "case.release.mass_invalid",
+                        "release mass must be finite and non-negative",
+                    )
+                    .at(path.clone().field("mass")),
+                );
+            }
+            any_positive |= value > 0.0;
+        }
+        if !any_positive {
+            diagnostics.push(
+                Diagnostic::error(
+                    "case.release.mass_all_zero",
+                    "release event total mass must be greater than zero",
+                )
+                .at(path.clone().field("mass")),
+            );
+        }
+    }
+    validate_geojson_source(&event.geometry, path.clone().field("geometry"), diagnostics);
+    validate_release_vertical(&event.vertical, path.field("vertical"), diagnostics);
+}
+
+fn validate_geojson_source(
+    source: &GeoJsonSource,
+    path: DiagnosticPath,
+    diagnostics: &mut DiagnosticBag,
+) {
+    match source {
+        GeoJsonSource::Inline { geometry } => {
+            validate_geojson_geometry(geometry, path.field("geometry"), diagnostics);
+        }
+        GeoJsonSource::File { path: file_path } => {
+            let text = file_path.to_string_lossy();
+            if file_path.as_os_str().is_empty()
+                || file_path.is_absolute()
+                || file_path
+                    .components()
+                    .any(|component| matches!(component, Component::ParentDir))
+                || text.contains("://")
+                || file_path
+                    .extension()
+                    .and_then(|extension| extension.to_str())
+                    .is_none_or(|extension| !extension.eq_ignore_ascii_case("geojson"))
+            {
+                diagnostics.push(
+                    Diagnostic::error(
+                        "case.release.geometry_path_unsafe",
+                        "GeoJSON path must be a non-empty local relative path without '..'",
+                    )
+                    .at(path.field("path")),
+                );
+            }
+        }
+    }
+}
+
+fn validate_geojson_geometry(
+    geometry: &GeoJsonGeometry,
+    path: DiagnosticPath,
+    diagnostics: &mut DiagnosticBag,
+) {
+    let invalid = match geometry {
+        GeoJsonGeometry::Point(point) => coordinate_is_invalid(point),
+        GeoJsonGeometry::MultiPoint(points) => {
+            points.is_empty() || points.iter().any(coordinate_is_invalid)
+        }
+        GeoJsonGeometry::LineString(line) => {
+            line.len() < 2 || line.iter().any(coordinate_is_invalid)
+        }
+        GeoJsonGeometry::MultiLineString(lines) => {
+            lines.is_empty()
+                || lines.iter().any(|line| line.len() < 2)
+                || lines
+                    .iter()
+                    .flat_map(|line| line.iter())
+                    .any(coordinate_is_invalid)
+        }
+        GeoJsonGeometry::Polygon(rings) => {
+            !rings_are_structurally_valid(rings)
+                || rings
+                    .iter()
+                    .flat_map(|ring| ring.iter())
+                    .any(coordinate_is_invalid)
+        }
+        GeoJsonGeometry::MultiPolygon(polygons) => {
+            polygons.is_empty()
+                || polygons
+                    .iter()
+                    .any(|rings| !rings_are_structurally_valid(rings))
+                || polygons
+                    .iter()
+                    .flat_map(|rings| rings.iter())
+                    .flat_map(|ring| ring.iter())
+                    .any(coordinate_is_invalid)
+        }
+    };
+    if invalid {
+        diagnostics.push(
+            Diagnostic::error(
+                "case.release.geometry_shape_invalid",
+                "GeoJSON geometry is empty, non-finite, out of latitude range, or structurally degenerate",
+            )
+            .at(path),
+        );
+    }
+}
+
+fn coordinate_is_invalid(coordinate: &[f64; 2]) -> bool {
+    !coordinate[0].is_finite()
+        || !coordinate[1].is_finite()
+        || !(-90.0..=90.0).contains(&coordinate[1])
+}
+
+fn rings_are_structurally_valid(rings: &[Vec<[f64; 2]>]) -> bool {
+    !rings.is_empty()
+        && rings.iter().all(|ring| {
+            ring.len() >= 4
+                && ring
+                    .first()
+                    .zip(ring.last())
+                    .is_some_and(|(first, last)| first == last)
+        })
+}
+
+fn validate_release_vertical(
+    vertical: &ReleaseVerticalSpec,
+    path: DiagnosticPath,
+    diagnostics: &mut DiagnosticBag,
+) {
+    let (lower, upper, minimum, strict_minimum, code) = match vertical {
+        ReleaseVerticalSpec::AboveSeaLevel { lower, upper } => (
+            lower.value_si(),
+            upper.as_ref().map(Quantity::value_si),
+            f64::NEG_INFINITY,
+            false,
+            "asl",
+        ),
+        ReleaseVerticalSpec::AboveGround { lower, upper } => (
+            lower.value_si(),
+            upper.as_ref().map(Quantity::value_si),
+            0.0,
+            false,
+            "agl",
+        ),
+        ReleaseVerticalSpec::Pressure { lower, upper } => (
+            lower.value_si(),
+            upper.as_ref().map(Quantity::value_si),
+            0.0,
+            true,
+            "pressure",
+        ),
+    };
+    let below_minimum = if strict_minimum {
+        lower <= minimum
+    } else {
+        lower < minimum
+    };
+    let invalid_lower = !lower.is_finite() || below_minimum;
+    let invalid_upper = upper.is_some_and(|value| {
+        let below_minimum = if strict_minimum {
+            value <= minimum
+        } else {
+            value < minimum
+        };
+        !value.is_finite() || value < lower || below_minimum
+    });
+    if invalid_lower || invalid_upper {
+        diagnostics.push(
+            Diagnostic::error(
+                "case.release.vertical_invalid",
+                format!("{code} release bounds are invalid or not ordered"),
+            )
+            .at(path),
+        );
     }
 }
 
@@ -562,12 +844,24 @@ fn validate_domain_fill_air_mass(
             .at(path.clone().field("id")),
         );
     }
-    match (&spec.target_particle_mass, &spec.target_particle_count) {
+    if spec.domain_id.0.trim().is_empty() {
+        diagnostics.push(
+            Diagnostic::error(
+                "case.population.domain_id_empty",
+                "domain-fill domain_id must not be empty",
+            )
+            .at(path.clone().field("domain_id")),
+        );
+    }
+    match (
+        &spec.target_dry_air_mass_per_particle,
+        &spec.target_particle_count,
+    ) {
         (None, None) => {
             diagnostics.push(
                 Diagnostic::error(
                     "case.population.target_missing",
-                    "domain-fill requires exactly one of target_particle_mass or target_particle_count",
+                    "domain-fill requires exactly one of target_dry_air_mass_per_particle or target_particle_count",
                 )
                 .at(path),
             );
@@ -576,7 +870,7 @@ fn validate_domain_fill_air_mass(
             diagnostics.push(
                 Diagnostic::error(
                     "case.population.target_both",
-                    "domain-fill must not set both target_particle_mass and target_particle_count",
+                    "domain-fill must not set both target_dry_air_mass_per_particle and target_particle_count",
                 )
                 .at(path),
             );
@@ -586,9 +880,9 @@ fn validate_domain_fill_air_mass(
                 diagnostics.push(
                     Diagnostic::error(
                         "case.population.target_mass_invalid",
-                        "target_particle_mass must be a finite positive mass",
+                        "target_dry_air_mass_per_particle must be a finite positive mass",
                     )
-                    .at(path.field("target_particle_mass")),
+                    .at(path.field("target_dry_air_mass_per_particle")),
                 );
             }
         }
@@ -673,31 +967,137 @@ fn validate_outputs(
                 .at(product_path.clone().field("product")),
             );
         }
-        if product.encoder.model.0.trim().is_empty() {
+        if product.sink.model.0.trim().is_empty() {
             diagnostics.push(
                 Diagnostic::error(
-                    "case.output.encoder_empty",
-                    "output encoder model id must not be empty",
+                    "case.output.sink_empty",
+                    "output sink model id must not be empty",
                 )
-                .at(product_path.clone().field("encoder").field("model")),
+                .at(product_path.clone().field("sink").field("model")),
             );
         }
-        validate_positive_duration(
-            &product.schedule.interval,
-            product_path.clone().field("schedule").field("interval"),
-            "case.output.interval_invalid",
-            "output interval must be a finite positive duration",
-            diagnostics,
-        );
-        if let Some(avg) = &product.schedule.averaging_interval {
+        if let OutputSchedule::Interval { interval, .. } = &product.schedule {
             validate_positive_duration(
-                avg,
-                product_path.field("schedule").field("averaging_interval"),
-                "case.output.averaging_interval_invalid",
-                "output averaging_interval must be a finite positive duration",
+                interval,
+                product_path.field("schedule").field("interval"),
+                "case.output.interval_invalid",
+                "output interval must be a finite positive duration",
                 diagnostics,
             );
         }
+    }
+}
+
+fn validate_cross_component_contracts(case: &ResolvedCase, diagnostics: &mut DiagnosticBag) {
+    let domain_ids = case
+        .meteorology
+        .as_ref()
+        .map(|met| {
+            met.domains
+                .iter()
+                .map(|domain| domain.id.0.as_str())
+                .collect::<BTreeSet<_>>()
+        })
+        .unwrap_or_default();
+    let substance_ids = case
+        .substances
+        .iter()
+        .map(|substance| substance.id.0.as_str())
+        .collect::<BTreeSet<_>>();
+
+    let Some(population) = &case.particle_population else {
+        return;
+    };
+    match population {
+        ParticlePopulationSpec::ReleaseDriven(spec) => {
+            let physical_bounds = case.time.as_ref().map(|time| {
+                if time.start <= time.end {
+                    (time.start, time.end)
+                } else {
+                    (time.end, time.start)
+                }
+            });
+            for (index, event) in spec.events.iter().enumerate() {
+                let path = DiagnosticPath::root()
+                    .field("particle_population")
+                    .field("events")
+                    .index(index);
+                if let Some((start, end)) = physical_bounds {
+                    if event.start < start || event.end > end {
+                        diagnostics.push(
+                            Diagnostic::error(
+                                "case.release.outside_simulation_time",
+                                "release event must lie completely inside the simulation time range",
+                            )
+                            .at(path.clone()),
+                        );
+                    }
+                }
+                for substance in event.mass.keys() {
+                    if !substance_ids.contains(substance.0.as_str()) {
+                        diagnostics.push(
+                            Diagnostic::error(
+                                "case.release.substance_unknown",
+                                format!("release references unknown substance '{}'", substance.0),
+                            )
+                            .at(path.clone().field("mass")),
+                        );
+                    }
+                }
+            }
+        }
+        ParticlePopulationSpec::DomainFillAirMass(spec) => {
+            validate_population_domain_reference(
+                spec,
+                DiagnosticPath::root().field("particle_population"),
+                &domain_ids,
+                diagnostics,
+            );
+        }
+        ParticlePopulationSpec::DomainFillStratosphericOzone(spec) => {
+            validate_population_domain_reference(
+                &spec.air_mass,
+                DiagnosticPath::root()
+                    .field("particle_population")
+                    .field("air_mass"),
+                &domain_ids,
+                diagnostics,
+            );
+            if !substance_ids.contains(spec.ozone_substance.0.as_str()) {
+                diagnostics.push(
+                    Diagnostic::error(
+                        "case.population.ozone_substance_unknown",
+                        format!(
+                            "ozone_substance '{}' is not declared in substances",
+                            spec.ozone_substance.0
+                        ),
+                    )
+                    .at(DiagnosticPath::root()
+                        .field("particle_population")
+                        .field("ozone_substance")),
+                );
+            }
+        }
+    }
+}
+
+fn validate_population_domain_reference(
+    spec: &DomainFillAirMassSpec,
+    path: DiagnosticPath,
+    domain_ids: &BTreeSet<&str>,
+    diagnostics: &mut DiagnosticBag,
+) {
+    if !domain_ids.contains(spec.domain_id.0.as_str()) {
+        diagnostics.push(
+            Diagnostic::error(
+                "case.population.domain_unknown",
+                format!(
+                    "domain-fill references unknown domain '{}'",
+                    spec.domain_id.0
+                ),
+            )
+            .at(path.field("domain_id")),
+        );
     }
 }
 
@@ -898,7 +1298,8 @@ metadata:
             particle_population: Some(ComponentRef::Inline(
                 ParticlePopulationSpec::DomainFillAirMass(DomainFillAirMassSpec {
                     id: PopulationId("p0".into()),
-                    target_particle_mass: None,
+                    domain_id: DomainId("d0".into()),
+                    target_dry_air_mass_per_particle: None,
                     target_particle_count: Some(0),
                 }),
             )),
@@ -916,7 +1317,8 @@ metadata:
         doc.particle_population = Some(ComponentRef::Inline(
             ParticlePopulationSpec::DomainFillAirMass(DomainFillAirMassSpec {
                 id: PopulationId("p0".into()),
-                target_particle_mass: Some(mass),
+                domain_id: DomainId("d0".into()),
+                target_dry_air_mass_per_particle: Some(mass),
                 target_particle_count: Some(1),
             }),
         ));
@@ -964,6 +1366,7 @@ meteorology:
                 ..Metadata::default()
             },
             case_path: PathBuf::from("case.yaml"),
+            output_root: PathBuf::from("output"),
             datasets: vec![
                 DatasetBinding {
                     dataset: DatasetRef("era5".into()),

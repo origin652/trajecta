@@ -40,4 +40,10 @@ pub struct NumericsSpec {
     pub integrator: IntegratorSpec,
     /// Boundary policy chain.
     pub boundaries: BoundarySpec,
+    /// Optional explicit seed for deterministic counter-based sampling.
+    ///
+    /// When absent, the runner generates a seed from system entropy and writes
+    /// it to the running manifest before the first particle is created.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub random_seed: Option<u64>,
 }

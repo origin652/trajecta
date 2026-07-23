@@ -7,6 +7,10 @@
 
 use std::path::Path;
 
+pub mod particle_state;
+pub mod provenance_bundle;
+pub mod sqlite;
+
 use trajecta_case::model::time::Timestamp;
 use trajecta_met::query::output::QueryOutput;
 
@@ -27,6 +31,9 @@ pub trait OutputEncoder: Send {
 
 /// Scientific output product sampled by the simulation runner.
 pub trait OutputProduct: Send {
+    /// Returns the stable scientific product identifier.
+    fn product_id(&self) -> &'static str;
+
     /// Initializes product state for one run.
     fn begin(&mut self, manifest: &RunManifest) -> Result<(), OutputError>;
 
@@ -40,36 +47,42 @@ pub trait OutputProduct: Send {
 
     /// Finalizes product summaries and output targets.
     fn finish(&mut self) -> Result<(), OutputError>;
-}
 
-/// Particle-state output product.
-#[derive(Default)]
-pub struct ParticleStateProduct;
-
-impl OutputProduct for ParticleStateProduct {
-    fn begin(&mut self, _manifest: &RunManifest) -> Result<(), OutputError> {
-        Err(OutputError::NotImplemented)
-    }
-
-    fn sample(
+    /// Optionally contributes product-owned summaries into the terminal manifest.
+    ///
+    /// Default is a no-op so existing products remain valid. SQLite sinks use this
+    /// to publish integrity-checked row counts before the final manifest write.
+    fn contribute_manifest(
         &mut self,
-        _time: Timestamp,
-        _particles: &ParticleBatch,
-        _meteorology: Option<&QueryOutput>,
+        _manifest: &mut crate::manifest::RunManifest,
     ) -> Result<(), OutputError> {
-        Err(OutputError::NotImplemented)
+        Ok(())
     }
 
-    fn finish(&mut self) -> Result<(), OutputError> {
-        Err(OutputError::NotImplemented)
+    /// Immediate abort of product/sink ephemeral state. Default no-op.
+    fn abort(&mut self) -> Result<(), OutputError> {
+        Ok(())
+    }
+
+    /// Quarantine formal artifacts after terminal manifest persistence failure.
+    fn quarantine_forensic(&mut self) -> Result<(), OutputError> {
+        Ok(())
     }
 }
+
+pub use particle_state::ParticleStateProduct;
+pub use provenance_bundle::{ProvenanceBundleBuilder, ProvenanceBundleIdentity};
+pub use sqlite::{ParticleStateSqliteSink, SQLITE_SCHEMA_SQL, SqliteInspection, sqlite_summary};
 
 /// Deterministic meteorology-replay output product.
 #[derive(Default)]
 pub struct MeteorologyReplayProduct;
 
 impl OutputProduct for MeteorologyReplayProduct {
+    fn product_id(&self) -> &'static str {
+        "meteorology_replay/v1"
+    }
+
     fn begin(&mut self, _manifest: &RunManifest) -> Result<(), OutputError> {
         Err(OutputError::NotImplemented)
     }
@@ -124,6 +137,51 @@ impl OutputEncoder for CsvEncoder {
     }
 }
 
+/// Typed sink for particle-state events.
+pub trait ParticleStateSink: Send {
+    /// Returns the stable sink implementation identifier.
+    fn sink_id(&self) -> &'static str;
+
+    /// Opens one run target after the running manifest exists.
+    fn begin(&mut self, target: &Path, manifest: &RunManifest) -> Result<(), OutputError>;
+
+    /// Atomically writes one logical event for all supplied particles.
+    ///
+    /// Meteorology, when present, must have been queried at `time` and the
+    /// exact stored particle positions rather than reused from an RK2 midpoint.
+    fn write_event(
+        &mut self,
+        time: Timestamp,
+        particles: &ParticleBatch,
+        meteorology: Option<&QueryOutput>,
+    ) -> Result<(), OutputError>;
+
+    /// Finalizes indexes, integrity checks, and target metadata.
+    fn finish(&mut self) -> Result<(), OutputError>;
+
+    /// Optional published row counts after a successful finish.
+    fn row_counts(&self) -> Option<std::collections::BTreeMap<String, u64>> {
+        None
+    }
+
+    /// Formal provenance-bundle/v1 identity after a successful finish.
+    fn provenance_identity(&self) -> Option<crate::manifest::ProvenanceBundleIdentity> {
+        None
+    }
+
+    /// Immediate abort of in-flight sink state (spool/tmp/runs). Default no-op.
+    fn abort(&mut self) -> Result<(), OutputError> {
+        Ok(())
+    }
+
+    /// Quarantine a published formal bundle after terminal manifest failure.
+    ///
+    /// Must not leave a seemingly formal `provenance-bundle.json` in place.
+    fn quarantine_forensic(&mut self) -> Result<(), OutputError> {
+        Ok(())
+    }
+}
+
 /// Explicit sampling and averaging event scheduler.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct OutputScheduler {
@@ -142,4 +200,17 @@ pub enum OutputError {
     Io(String),
     /// Encoding failed for a typed record.
     Encoding(String),
+}
+
+impl OutputError {
+    /// Returns the stable machine-readable error code.
+    #[must_use]
+    pub const fn code(&self) -> &'static str {
+        match self {
+            Self::NotImplemented => "output.not_implemented",
+            Self::InvalidInput => "output.invalid_input",
+            Self::Io(_) => "output.io",
+            Self::Encoding(_) => "output.encoding",
+        }
+    }
 }

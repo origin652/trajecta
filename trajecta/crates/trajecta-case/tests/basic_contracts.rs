@@ -17,7 +17,11 @@ use trajecta_case::lockfile::{
 use trajecta_case::model::meteorology::{DatasetRef, DomainId, DomainSpec, MeteorologySpec};
 use trajecta_case::model::numerics::{BoundarySpec, IntegratorSpec, NumericsSpec};
 use trajecta_case::model::physics::ModelId;
-use trajecta_case::model::population::{ParticlePopulationSpec, PopulationId, ReleaseDrivenSpec};
+use trajecta_case::model::population::{
+    GeoJsonGeometry, GeoJsonSource, ParticlePopulationSpec, PopulationId, ReleaseDrivenSpec,
+    ReleaseEventId, ReleaseEventSpec, ReleaseVerticalSpec,
+};
+use trajecta_case::model::substance::{SubstanceId, SubstanceSpec};
 use trajecta_case::model::time::{Direction, TimeSpec, Timestamp};
 use trajecta_case::quantity::{Quantity, QuantityInput, Time, UnitRegistry};
 use trajecta_case::reference::{ComponentRef, RefPath};
@@ -73,13 +77,30 @@ meteorology:
 particle_population:
   strategy: release_driven
   id: release-a
-  schedule: continuous
+  events:
+    - id: event-0
+      start: { seconds_since_unix_epoch: 0, nanosecond: 0 }
+      end: { seconds_since_unix_epoch: 3600, nanosecond: 0 }
+      particle_count: 10
+      mass:
+        tracer: { value: 1, unit: kg }
+      geometry:
+        source: inline
+        geometry:
+          type: Point
+          coordinates: [0, 0]
+      vertical:
+        coordinate: above_sea_level
+        lower: { value: 100, unit: m }
+substances:
+  - id: tracer
+    display_name: Tracer
 numerics:
   time_step: { value: 10, unit: min }
   integrator:
     model: rk2_spherical/v0
   boundaries:
-    policies: [ground_reflect, model_top_terminate]
+    policies: [surface_reflect/v0, model_top_terminate/v0]
 "#;
     let doc = parse_case_yaml(yaml).expect("parse case");
     let shape = doc.validate_shape().expect("shape");
@@ -131,6 +152,7 @@ fn quantity_registry_and_numerics_si_normalization() {
         boundaries: BoundarySpec {
             policies: vec![ModelId("ground_reflect".into())],
         },
+        random_seed: None,
     };
     let json = serde_json::to_string(&numerics).unwrap();
     let back: NumericsSpec = serde_json::from_str(&json).unwrap();
@@ -145,6 +167,7 @@ fn run_profile_and_lock_pipeline() {
   "kind": "run_profile",
   "metadata": { "name": "local" },
   "case_path": "cases/demo.yaml",
+  "output_root": "output",
   "datasets": [
     {
       "dataset": "era5",
@@ -222,9 +245,28 @@ fn local_ref_resolver_reads_under_root() {
 
 #[test]
 fn population_and_domain_specs_roundtrip() {
+    let mass = UnitRegistry::standard()
+        .resolve(&QuantityInput::object(1.0, "kg"))
+        .unwrap();
+    let height = UnitRegistry::standard()
+        .resolve(&QuantityInput::object(100.0, "m"))
+        .unwrap();
     let pop = ParticlePopulationSpec::ReleaseDriven(ReleaseDrivenSpec {
         id: PopulationId("p0".into()),
-        schedule: "s0".into(),
+        events: vec![ReleaseEventSpec {
+            id: ReleaseEventId("e0".into()),
+            start: Timestamp::UNIX_EPOCH,
+            end: Timestamp::new(1, 0).unwrap(),
+            particle_count: 1,
+            mass: [(SubstanceId("tracer".into()), mass)].into(),
+            geometry: GeoJsonSource::Inline {
+                geometry: GeoJsonGeometry::Point([0.0, 0.0]),
+            },
+            vertical: ReleaseVerticalSpec::AboveSeaLevel {
+                lower: height,
+                upper: None,
+            },
+        }],
     });
     let yaml = serde_yml::to_string(&pop).unwrap();
     let back: ParticlePopulationSpec = serde_yml::from_str(&yaml).unwrap();
@@ -253,7 +295,6 @@ fn population_and_domain_specs_roundtrip() {
         })),
         meteorology: Some(ComponentRef::Inline(met)),
         particle_population: None,
-        substances: None,
         numerics: Some(ComponentRef::Inline(NumericsSpec {
             time_step: Quantity::<Time>::resolve(
                 &QuantityInput::text("900 s"),
@@ -265,7 +306,13 @@ fn population_and_domain_specs_roundtrip() {
                 parameters: Default::default(),
             },
             boundaries: BoundarySpec { policies: vec![] },
+            random_seed: None,
         })),
+        substances: Some(ComponentRef::Inline(vec![SubstanceSpec {
+            id: SubstanceId("tracer".into()),
+            display_name: "Tracer".into(),
+            properties: Default::default(),
+        }])),
         physics: None,
         outputs: None,
     };
@@ -279,6 +326,7 @@ fn population_and_domain_specs_roundtrip() {
             ..Metadata::default()
         },
         case_path: PathBuf::from("case.yaml"),
+        output_root: PathBuf::from("output"),
         datasets: vec![],
         profile_sources: vec![],
         execution: ExecutionSpec {

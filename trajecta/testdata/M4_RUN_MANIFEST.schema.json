@@ -1,0 +1,363 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m4-run-manifest-v1.json",
+  "title": "Trajecta M4 run manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "run_id", "case_name", "status", "started_at",
+    "software", "inputs", "execution", "numerical", "geometries",
+    "effective_outputs", "sqlite", "terminations", "mass_ledger"
+  ],
+  "properties": {
+    "schema_version": { "const": "trajecta.run-manifest/v1" },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-7[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$"
+    },
+    "case_name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^/\\\\]+$"
+    },
+    "status": {
+      "enum": ["running", "complete", "completed_with_particle_errors", "failed"]
+    },
+    "started_at": { "$ref": "#/$defs/timestamp" },
+    "finished_at": { "$ref": "#/$defs/timestamp" },
+    "software": { "$ref": "#/$defs/software" },
+    "inputs": { "$ref": "#/$defs/inputs" },
+    "execution": { "$ref": "#/$defs/execution" },
+    "numerical": { "$ref": "#/$defs/numerical" },
+    "geometries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/geometry" }
+    },
+    "effective_outputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/output" },
+      "contains": {
+        "type": "object",
+        "required": ["product"],
+        "properties": { "product": { "const": "particle_state/v1" } }
+      }
+    },
+    "sqlite": { "$ref": "#/$defs/sqlite" },
+    "provenance": { "$ref": "#/$defs/provenanceBundle" },
+    "terminations": { "$ref": "#/$defs/terminations" },
+    "mass_ledger": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/massLedger" }
+    },
+    "failure": { "$ref": "#/$defs/failure" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "running" } } },
+      "then": {
+        "not": {
+          "anyOf": [
+            { "required": ["finished_at"] },
+            { "required": ["failure"] },
+            { "required": ["provenance"] }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "enum": ["complete", "completed_with_particle_errors"] }
+        }
+      },
+      "then": {
+        "required": ["finished_at", "provenance"],
+        "not": { "required": ["failure"] }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "failed" } } },
+      "then": { "required": ["finished_at", "failure"] }
+    },
+    {
+      "if": { "properties": { "status": { "const": "complete" } } },
+      "then": {
+        "properties": {
+          "terminations": {
+            "properties": { "abnormal_count": { "const": 0 } }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "completed_with_particle_errors" } }
+      },
+      "then": {
+        "properties": {
+          "terminations": {
+            "properties": { "abnormal_count": { "minimum": 1 } }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "timestamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seconds_since_unix_epoch", "nanosecond"],
+      "properties": {
+        "seconds_since_unix_epoch": { "type": "integer" },
+        "nanosecond": { "type": "integer", "minimum": 0, "maximum": 999999999 }
+      }
+    },
+    "stringMap": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "minLength": 1 },
+      "additionalProperties": { "type": "string" }
+    },
+    "uintMap": {
+      "type": "object",
+      "propertyNames": { "minLength": 1 },
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "numberMap": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "minLength": 1 },
+      "additionalProperties": { "type": "number" }
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{64}$"
+    },
+    "shaMap": {
+      "type": "object",
+      "propertyNames": { "minLength": 1 },
+      "additionalProperties": { "$ref": "#/$defs/sha256" }
+    },
+    "software": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["crate_versions"],
+      "properties": {
+        "crate_versions": { "$ref": "#/$defs/stringMap" },
+        "git_commit": { "type": "string", "minLength": 1 }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_sha256", "run_profile_sha256", "dataset_lock_sha256",
+        "dataset_profile_sha256", "dataset_content_sha256"
+      ],
+      "properties": {
+        "case_sha256": { "$ref": "#/$defs/sha256" },
+        "run_profile_sha256": { "$ref": "#/$defs/sha256" },
+        "dataset_lock_sha256": { "$ref": "#/$defs/shaMap" },
+        "dataset_profile_sha256": { "$ref": "#/$defs/shaMap" },
+        "dataset_content_sha256": { "$ref": "#/$defs/shaMap" }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "worker_threads", "memory_budget_bytes", "executor",
+        "reader_backends", "io_counters"
+      ],
+      "properties": {
+        "worker_threads": { "type": "integer", "minimum": 1 },
+        "memory_budget_bytes": { "type": "integer", "minimum": 1 },
+        "executor": { "type": "string", "minLength": 1 },
+        "reader_backends": {
+          "type": "object",
+          "propertyNames": { "minLength": 1 },
+          "additionalProperties": { "enum": ["native", "rust"] }
+        },
+        "wall_time_ns": { "type": "integer", "minimum": 0 },
+        "peak_rss_bytes": { "type": "integer", "minimum": 0 },
+        "io_counters": { "$ref": "#/$defs/uintMap" }
+      }
+    },
+    "numerical": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "random_seed", "integrator", "boundary_policies", "population",
+        "particle_state_sink", "tolerance_registry", "tolerances", "deterministic"
+      ],
+      "properties": {
+        "random_seed": { "type": "integer", "minimum": 0 },
+        "integrator": { "type": "string", "minLength": 1 },
+        "boundary_policies": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "population": { "type": "string", "minLength": 1 },
+        "ozone_rule": { "type": "string", "minLength": 1 },
+        "particle_state_sink": { "type": "string", "minLength": 1 },
+        "tolerance_registry": { "type": "string", "minLength": 1 },
+        "tolerances": { "$ref": "#/$defs/numberMap" },
+        "deterministic": { "type": "boolean" }
+      }
+    },
+    "geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_id", "canonical_geometry_sha256", "spherical_area_m2"],
+      "properties": {
+        "event_id": { "type": "string", "minLength": 1 },
+        "source_path": { "type": "string", "minLength": 1 },
+        "source_size_bytes": { "type": "integer", "minimum": 0 },
+        "source_sha256": { "$ref": "#/$defs/sha256" },
+        "canonical_geometry_sha256": { "$ref": "#/$defs/sha256" },
+        "spherical_area_m2": { "type": "number", "minimum": 0 }
+      },
+      "dependentRequired": {
+        "source_path": ["source_size_bytes", "source_sha256"],
+        "source_size_bytes": ["source_path", "source_sha256"],
+        "source_sha256": ["source_path", "source_size_bytes"]
+      }
+    },
+    "quantity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "unit"],
+      "properties": {
+        "value": { "type": "number", "exclusiveMinimum": 0 },
+        "unit": { "type": "string", "minLength": 1 }
+      }
+    },
+    "outputSink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model"],
+      "properties": {
+        "model": { "type": "string", "minLength": 1 },
+        "parameters": {
+          "type": "object",
+          "propertyNames": { "minLength": 1 },
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "outputSchedule": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": { "mode": { "const": "endpoints" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "interval"],
+          "properties": {
+            "mode": { "const": "interval" },
+            "interval": { "$ref": "#/$defs/quantity" },
+            "origin": { "$ref": "#/$defs/timestamp" }
+          }
+        }
+      ]
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["product", "schedule", "sink"],
+      "properties": {
+        "product": { "type": "string", "minLength": 1 },
+        "schedule": { "$ref": "#/$defs/outputSchedule" },
+        "sink": { "$ref": "#/$defs/outputSink" }
+      }
+    },
+    "sqlite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "relative_path", "journal_mode", "synchronous", "row_counts"],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "relative_path": { "type": "string", "minLength": 1 },
+        "journal_mode": { "const": "WAL" },
+        "synchronous": { "const": "NORMAL" },
+        "row_counts": { "$ref": "#/$defs/uintMap" }
+      }
+    },
+    "provenanceBundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "relative_path",
+        "sha256",
+        "sqlite_sha256",
+        "content_sha256",
+        "sqlite_sql_sha256",
+        "canonical_output_sha256",
+        "record_count",
+        "field_set_count",
+        "sample_count"
+      ],
+      "properties": {
+        "schema_version": { "const": "trajecta.provenance-bundle/v1" },
+        "relative_path": { "const": "provenance-bundle.json" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "sqlite_sha256": { "$ref": "#/$defs/sha256" },
+        "content_sha256": { "$ref": "#/$defs/sha256" },
+        "sqlite_sql_sha256": { "$ref": "#/$defs/sha256" },
+        "canonical_output_sha256": { "$ref": "#/$defs/sha256" },
+        "record_count": { "type": "integer", "minimum": 0 },
+        "field_set_count": { "type": "integer", "minimum": 0 },
+        "sample_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "terminations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["normal_count", "abnormal_count", "by_reason"],
+      "properties": {
+        "normal_count": { "type": "integer", "minimum": 0 },
+        "abnormal_count": { "type": "integer", "minimum": 0 },
+        "by_reason": { "$ref": "#/$defs/uintMap" }
+      }
+    },
+    "massLedger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_index", "time", "opening_active_kg", "opening_residual_kg",
+        "incoming_kg", "outgoing_kg", "normal_terminated_kg",
+        "abnormal_terminated_kg", "closing_active_kg", "closing_residual_kg",
+        "imbalance_kg", "tolerance_kg"
+      ],
+      "properties": {
+        "step_index": { "type": "integer", "minimum": 0 },
+        "time": { "$ref": "#/$defs/timestamp" },
+        "opening_active_kg": { "type": "number", "minimum": 0 },
+        "opening_residual_kg": { "type": "number", "minimum": 0 },
+        "incoming_kg": { "type": "number", "minimum": 0 },
+        "outgoing_kg": { "type": "number", "minimum": 0 },
+        "normal_terminated_kg": { "type": "number", "minimum": 0 },
+        "abnormal_terminated_kg": { "type": "number", "minimum": 0 },
+        "closing_active_kg": { "type": "number", "minimum": 0 },
+        "closing_residual_kg": { "type": "number", "minimum": 0 },
+        "imbalance_kg": { "type": "number" },
+        "tolerance_kg": { "type": "number", "minimum": 0 }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string" }
+      }
+    }
+  }
+}

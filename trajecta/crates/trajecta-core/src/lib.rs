@@ -10,13 +10,18 @@
 pub mod boundary;
 pub mod clock;
 pub mod integrator;
+pub mod lifecycle_clock;
 pub mod manifest;
+pub mod manifest_store;
 pub mod output;
 pub mod particle;
 pub mod population;
+pub mod reference;
 pub mod release;
 pub mod rng;
 pub mod runner;
+pub mod science;
+pub mod synthetic;
 
 /// Version of the compiler-checked public code contracts.
-pub const CONTRACT_VERSION: u32 = 0;
+pub const CONTRACT_VERSION: u32 = 1;

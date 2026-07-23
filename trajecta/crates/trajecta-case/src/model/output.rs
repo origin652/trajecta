@@ -1,33 +1,40 @@
 //! # Contract: output products
 //!
-//! Outputs declare scientific products, schedules, and encoders. Encoding and
-//! file I/O remain execution-layer responsibilities.
+//! Outputs declare scientific products, event schedules, and typed sinks.
+//! Particle-state output is instantaneous; M4 does not support averaging
+//! particle trajectories.
 
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
 use crate::model::physics::ModelId;
+use crate::model::time::Timestamp;
 use crate::quantity::{Quantity, Time as TimeDimension};
 
 /// Output sampling schedule.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct OutputSchedule {
-    /// Interval between output events.
-    pub interval: Quantity<TimeDimension>,
-    /// Optional averaging interval.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub averaging_interval: Option<Quantity<TimeDimension>>,
+#[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
+pub enum OutputSchedule {
+    /// Save birth/start and end/termination states only.
+    Endpoints,
+    /// Save endpoints plus every aligned interval event.
+    Interval {
+        /// Positive interval between output events.
+        interval: Quantity<TimeDimension>,
+        /// Optional UTC alignment origin; simulation start is used when absent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        origin: Option<Timestamp>,
+    },
 }
 
-/// Encoder selection for one product.
+/// Sink selection for one product.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct EncoderSpec {
-    /// Stable encoder identifier.
+pub struct OutputSinkSpec {
+    /// Stable sink implementation identifier.
     pub model: ModelId,
-    /// Explicit encoder parameters.
+    /// Explicit sink-specific parameters.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub parameters: BTreeMap<String, String>,
 }
@@ -36,10 +43,29 @@ pub struct EncoderSpec {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OutputProductSpec {
-    /// Stable product identifier.
+    /// Stable scientific product identifier.
     pub product: ModelId,
-    /// Sampling and averaging schedule.
+    /// Exact event schedule.
     pub schedule: OutputSchedule,
-    /// Selected representation.
-    pub encoder: EncoderSpec,
+    /// Selected representation sink.
+    pub sink: OutputSinkSpec,
+}
+
+/// Stable particle-state product identifier.
+pub const PARTICLE_STATE_PRODUCT_ID: &str = "particle_state/v1";
+
+/// Stable SQLite particle-state sink identifier.
+pub const PARTICLE_STATE_SQLITE_SINK_ID: &str = "particle_state_sqlite/v1";
+
+/// Returns the output injected when a Case omits `outputs` entirely.
+#[must_use]
+pub fn default_particle_state_output() -> OutputProductSpec {
+    OutputProductSpec {
+        product: ModelId(PARTICLE_STATE_PRODUCT_ID.into()),
+        schedule: OutputSchedule::Endpoints,
+        sink: OutputSinkSpec {
+            model: ModelId(PARTICLE_STATE_SQLITE_SINK_ID.into()),
+            parameters: BTreeMap::new(),
+        },
+    }
 }

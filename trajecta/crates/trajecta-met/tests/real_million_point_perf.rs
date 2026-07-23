@@ -277,6 +277,7 @@ fn peak_working_set_bytes() -> Option<u64> {
 
 /// A2 performance matrix: chunk sizes, permutation, cold/hot, 1/4 threads, N vs 2N.
 #[test]
+#[ignore = "explicit legacy M3 million-point performance gate"]
 fn cfsr_pgbl_million_point_performance_matrix() {
     let start = Timestamp::new(1_230_768_000, 0).unwrap();
     let end = Timestamp::new(1_230_811_200, 0).unwrap();

@@ -8,8 +8,18 @@ authors.workspace = true
 description = "Compiler-checked particle lifecycle and simulation contracts for Trajecta"
 
 [dependencies]
+hex = "0.4"
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
 trajecta-case = { path = "../trajecta-case" }
 trajecta-met = { path = "../trajecta-met" }
+uuid = { version = "1", features = ["v7", "std"] }
+
+[dev-dependencies]
+serde_json = "1"
+tempfile = "3"
 
 [lints]
 workspace = true

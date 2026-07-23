@@ -731,6 +731,7 @@ struct MillionPointColumns {
 }
 
 #[test]
+#[ignore = "explicit legacy M3 million-point performance gate"]
 fn cfsr_pgbl_million_point_budget_and_threading() {
     // Million-point gate: total >1e6 points across many chunks, dynamic budget <1 GiB,
     // 1-thread vs multi-thread bitwise identical on full 8 columns + validity/quality/status.

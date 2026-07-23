@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m4-provenance-bundle-v1.json",
+  "title": "Trajecta M4 particle-state provenance bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "sqlite",
+    "record_hash_algorithm",
+    "records",
+    "field_sets",
+    "samples"
+  ],
+  "properties": {
+    "schema_version": { "const": "trajecta.provenance-bundle/v1" },
+    "run_id": { "$ref": "#/$defs/runId" },
+    "sqlite": { "$ref": "#/$defs/sqliteIdentity" },
+    "record_hash_algorithm": { "const": "sha256-rfc8785" },
+    "records": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/recordEntry" }
+    },
+    "field_sets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fieldSetEntry" }
+    },
+    "samples": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sampleAssignment" }
+    }
+  },
+  "$defs": {
+    "runId": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-7[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "sqliteIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relative_path", "schema_version", "sha256"],
+      "properties": {
+        "relative_path": { "const": "particles.sqlite" },
+        "schema_version": { "const": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "canonicalField": {
+      "enum": [
+        "eastward_wind",
+        "northward_wind",
+        "geometric_vertical_velocity",
+        "pressure_vertical_velocity",
+        "hybrid_vertical_velocity",
+        "air_temperature",
+        "air_pressure",
+        "specific_humidity",
+        "relative_humidity",
+        "surface_pressure",
+        "surface_geopotential",
+        "geometric_height",
+        "geometric_terrain_height",
+        "geopotential_height",
+        "air_density",
+        "potential_vorticity",
+        "precipitation_rate",
+        "boundary_layer_height",
+        "ten_metre_eastward_wind",
+        "ten_metre_northward_wind",
+        "two_metre_air_temperature",
+        "two_metre_specific_humidity",
+        "aerodynamic_roughness_length",
+        "eastward_surface_stress",
+        "northward_surface_stress",
+        "sensible_heat_flux",
+        "latent_heat_flux",
+        "friction_velocity",
+        "monin_obukhov_length",
+        "convective_velocity_scale",
+        "land_sea_mask",
+        "cloud_liquid_water",
+        "cloud_ice_water",
+        "ozone_mass_mixing_ratio"
+      ]
+    },
+    "extensionField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace", "name"],
+      "properties": {
+        "namespace": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 }
+      }
+    },
+    "fieldReference": {
+      "oneOf": [
+        { "$ref": "#/$defs/canonicalField" },
+        { "$ref": "#/$defs/extensionField" }
+      ]
+    },
+    "transformParameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "value": { "type": "string" }
+      }
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation", "parameters"],
+      "properties": {
+        "operation": { "type": "string", "minLength": 1 },
+        "parameters": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/transformParameter" }
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "quality",
+        "sources",
+        "transforms",
+        "profile_sha256"
+      ],
+      "properties": {
+        "field": { "$ref": "#/$defs/fieldReference" },
+        "quality": { "enum": ["source", "derived", "estimated"] },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "transforms": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/transform" }
+        },
+        "fallback_reason": { "type": "string", "minLength": 1 },
+        "profile_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "recordEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "record"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "record": { "$ref": "#/$defs/record" }
+      }
+    },
+    "nullableRecordSha": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256" },
+        { "type": "null" }
+      ]
+    },
+    "fieldSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eastward_wind",
+        "northward_wind",
+        "geometric_vertical_velocity",
+        "air_pressure",
+        "air_temperature"
+      ],
+      "properties": {
+        "eastward_wind": { "$ref": "#/$defs/nullableRecordSha" },
+        "northward_wind": { "$ref": "#/$defs/nullableRecordSha" },
+        "geometric_vertical_velocity": { "$ref": "#/$defs/nullableRecordSha" },
+        "air_pressure": { "$ref": "#/$defs/nullableRecordSha" },
+        "air_temperature": { "$ref": "#/$defs/nullableRecordSha" }
+      }
+    },
+    "fieldSetEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "fields"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "fields": { "$ref": "#/$defs/fieldSet" }
+      }
+    },
+    "sampleAssignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["particle_id", "sample_sequence", "field_set_sha256"],
+      "properties": {
+        "particle_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "sample_sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "field_set_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

@@ -37,7 +37,7 @@ use crate::document::{
 };
 use crate::model::meteorology::MeteorologySpec;
 use crate::model::numerics::NumericsSpec;
-use crate::model::output::OutputProductSpec;
+use crate::model::output::{OutputProductSpec, default_particle_state_output};
 use crate::model::physics::PhysicsModuleSpec;
 use crate::model::population::ParticlePopulationSpec;
 use crate::model::substance::SubstanceSpec;
@@ -184,7 +184,7 @@ pub fn expand_case_document(
         &mut graph,
         &mut sources,
     )?
-    .unwrap_or_default();
+    .unwrap_or_else(|| vec![default_particle_state_output()]);
 
     let resolved = ResolvedCase {
         metadata: document.metadata.clone(),
@@ -238,6 +238,7 @@ pub fn expand_run_profile_document(
     }
 
     let case_path = require_existing_regular_file(profile_path, &document.case_path)?;
+    let output_root = absolutize_machine_path(profile_path, &document.output_root)?;
     let mut datasets = Vec::with_capacity(document.datasets.len());
     for binding in &document.datasets {
         let lockfile = require_existing_regular_file(profile_path, &binding.lockfile)?;
@@ -282,6 +283,7 @@ pub fn expand_run_profile_document(
     Ok(ResolvedRunProfile {
         metadata: document.metadata.clone(),
         case_path,
+        output_root,
         datasets,
         profile_sources,
         execution: document.execution.clone(),
@@ -596,6 +598,7 @@ direction: backward
             r#"
 strategy: domain_fill_air_mass
 id: p0
+domain_id: d0
 target_particle_count: 0
 "#,
         )
@@ -634,6 +637,7 @@ schema_version: 0
 kind: run_profile
 metadata: { name: local }
 case_path: case.yaml
+output_root: output
 datasets: []
 execution:
   worker_threads: 0
@@ -670,6 +674,7 @@ schema_version: 0
 kind: run_profile
 metadata: { name: local }
 case_path: cases
+output_root: output
 datasets:
   - dataset: era5
     lockfile: lock.json
@@ -716,6 +721,7 @@ schema_version: 0
 kind: run_profile
 metadata: {{ name: local }}
 case_path: cases/demo.yaml
+output_root: output
 datasets:
   - dataset: era5
     lockfile: {}
@@ -760,6 +766,7 @@ schema_version: 0
 kind: run_profile
 metadata: { name: local }
 case_path: missing-case.yaml
+output_root: output
 datasets: []
 execution:
   worker_threads: 1

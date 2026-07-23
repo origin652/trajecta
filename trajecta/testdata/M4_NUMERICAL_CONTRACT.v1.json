@@ -1,0 +1,58 @@
+{
+  "schema_version": "trajecta.m4.numerical-contract/v1",
+  "contract_id": "trajecta/particle_loop/m4/v1",
+  "algorithms": {
+    "counter_rng": "philox4x32-10/v1",
+    "integrator": "rk2_spherical/v0",
+    "surface_boundary": "surface_reflect/v0",
+    "model_top_boundary": "model_top_terminate/v0",
+    "limited_domain_boundary": "limited_domain_terminate/v0",
+    "global_boundary": "global_periodic/v0",
+    "release_population": "release_driven/v1",
+    "release_birth_time": "integer_stratified_birth/v1",
+    "air_mass_population": "dry_air_domain_fill/v1",
+    "ozone_population": "stratospheric_ozone_domain_fill/v1",
+    "cell_area": "spherical_lat_lon_cell_area/v1",
+    "pressure_interfaces": "pressure_log_midpoint_interfaces/v1",
+    "mass_ledger": "domain_fill_mass/v1",
+    "potential_vorticity": "ertel_pv_spherical/v1",
+    "ozone_rule": "flexpart_stratospheric_ozone_pv60/v1",
+    "particle_product": "particle_state/v1",
+    "particle_sink": "particle_state_sqlite/v1"
+  },
+  "constants": {
+    "standard_gravity_m_s2": 9.80665,
+    "earth_radius_m": 6371229.0,
+    "dry_air_gas_constant_j_kg_k": 287.06,
+    "water_vapour_gas_constant_j_kg_k": 461.53,
+    "dry_air_heat_capacity_j_kg_k": 1004.709,
+    "earth_rotation_rate_rad_s": 0.00007292115,
+    "potential_temperature_reference_pressure_pa": 100000.0,
+    "surface_clearance_min_m": 0.000001,
+    "surface_clearance_ulps": 64,
+    "maximum_surface_reflections_per_step": 4,
+    "boundary_root_bisection_iterations": 64,
+    "release_birth_time_random_dimension": 0,
+    "release_horizontal_component_random_dimension": 1,
+    "release_horizontal_u_random_dimension": 2,
+    "release_horizontal_v_random_dimension": 3,
+    "release_vertical_random_dimension": 4,
+    "ozone_minimum_height_asl_m_strict": 3000.0,
+    "ozone_minimum_hemisphere_pv_pvu_strict": 2.0,
+    "ozone_ppbv_per_pvu": 60.0,
+    "ozone_molar_mass_g_mol": 48.0,
+    "dry_air_molar_mass_g_mol": 29.0
+  },
+  "tolerances": {
+    "domain_fill_step_relative": 1e-12,
+    "domain_fill_final_relative": 1e-11,
+    "domain_fill_ulp_floor": 64,
+    "geometry_area_relative": 1e-12,
+    "rk2_minimum_convergence_order": 1.9
+  },
+  "policy": {
+    "mass_gate": "max(relative_tolerance * scale, ulp_floor * positive_ulp(scale))",
+    "flexpart_trajectory_comparison": "report_only",
+    "schema_coverage_hash_finite_failures": "hard_gate"
+  }
+}

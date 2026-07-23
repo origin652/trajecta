@@ -80,6 +80,7 @@ metadata: { name: p }
 particle_population:
   strategy: domain_fill_air_mass
   id: p0
+  domain_id: d0
   target_particle_count: 0
 "#;
     let doc = parse_case_yaml(yaml).unwrap();
@@ -244,6 +245,7 @@ schema_version: 0
 kind: run_profile
 metadata: { name: local }
 case_path: cases/demo.yaml
+output_root: output
 datasets: []
 execution:
   worker_threads: 1

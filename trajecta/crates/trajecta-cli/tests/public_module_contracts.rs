@@ -22,8 +22,8 @@ fn every_public_module_has_an_authoritative_contract_file() -> Result<(), Box<dy
     }
     assert_eq!(
         visited.len(),
-        82,
-        "the v0 public module inventory changed; review and update its contracts"
+        93,
+        "the public module inventory changed; review and update its contracts"
     );
     Ok(())
 }
