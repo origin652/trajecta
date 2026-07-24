@@ -13,6 +13,8 @@ use trajecta_case::document::MeteorologyReaderBackend;
 use trajecta_case::lockfile::VerticalSignature;
 use trajecta_case::model::time::Timestamp;
 
+use crate::derive::pv::PotentialVorticityDeriver;
+use crate::derive::{DeriveError, DeriveRequest, FieldDeriver};
 use crate::field::{CapabilitySet, FieldKey};
 use crate::frame::{
     FrameComputationField, FrameError, FrameGraphExecutionError, FrameGraphExecutionRequest,
@@ -79,6 +81,8 @@ impl FrameLoader {
         if requested_outputs.is_empty() {
             return Err(FrameLoadError::NoRequestedFields);
         }
+        let (frame_outputs, tile_outputs) =
+            partition_requested_outputs(request.profile, &requested_outputs)?;
         let direct_dependencies = direct_dependencies(request.profile, &requested_outputs)?;
         let opened = open_sources(request.descriptor, request.backend, io_counters.clone())?;
         let (grid, vertical) = stable_geometry(request.descriptor, &opened)?;
@@ -126,7 +130,7 @@ impl FrameLoader {
         let computed_outputs = FrameGraphExecutor::execute(FrameGraphExecutionRequest {
             graph: &request.profile.compiled.graph,
             execution_plan: &request.profile.compiled.execution_plan,
-            requested_outputs: &requested_outputs,
+            requested_outputs: &frame_outputs,
             sources: &computations,
             previous_sources: previous_sources.as_ref(),
             valid_time: request.descriptor.id.valid_time,
@@ -149,10 +153,7 @@ impl FrameLoader {
                 .find(|candidate| candidate.target.to_field_key() == *field)
                 .ok_or_else(|| FrameLoadError::MissingDerivedField(field.clone()))?;
             if derived.stage != ExecutionStage::Frame {
-                return Err(FrameLoadError::UnsupportedDerivedStage {
-                    field: field.clone(),
-                    stage: derived.stage,
-                });
+                continue;
             }
             let computed = computed_outputs
                 .get(field)
@@ -202,28 +203,65 @@ impl FrameLoader {
         }
 
         let domain = request.descriptor.id.domain.clone();
-        let frame = RawMetFrame::publish(
-            FrameMetadata {
-                id: request.descriptor.id.clone(),
-                domain: domain.clone(),
-                valid_time: request.descriptor.id.valid_time,
-                grid: DomainGeometry {
-                    domain,
-                    longitude_origin_degrees: grid.longitude_origin_degrees,
-                    latitude_origin_degrees: grid.latitude_origin_degrees,
-                    longitude_spacing_degrees: grid.longitude_spacing_degrees,
-                    latitude_spacing_degrees: grid.latitude_spacing_degrees,
-                    nx: grid.nx,
-                    ny: grid.ny,
-                    periodic_longitude: grid.periodic_longitude,
-                    halo_cells: 1,
-                },
-                vertical,
+        let metadata = FrameMetadata {
+            id: request.descriptor.id.clone(),
+            domain: domain.clone(),
+            valid_time: request.descriptor.id.valid_time,
+            grid: DomainGeometry {
+                domain,
+                longitude_origin_degrees: grid.longitude_origin_degrees,
+                latitude_origin_degrees: grid.latitude_origin_degrees,
+                longitude_spacing_degrees: grid.longitude_spacing_degrees,
+                latitude_spacing_degrees: grid.latitude_spacing_degrees,
+                nx: grid.nx,
+                ny: grid.ny,
+                periodic_longitude: grid.periodic_longitude,
+                halo_cells: 1,
             },
-            raw_fields,
-            Arc::new(provenance),
-        )
-        .map_err(FrameLoadError::Frame);
+            vertical,
+        };
+        if !tile_outputs.is_empty() {
+            let preliminary = RawMetFrame::publish(
+                metadata.clone(),
+                raw_fields.clone(),
+                Arc::new(provenance.clone()),
+            )?;
+            let derived = PotentialVorticityDeriver.derive(DeriveRequest {
+                frame: &preliminary,
+                outputs: &tile_outputs.iter().cloned().collect::<Vec<_>>(),
+            })?;
+            if derived.len() != tile_outputs.len() {
+                return Err(FrameLoadError::MissingComputedTileField);
+            }
+            for output in derived {
+                if !tile_outputs.contains(&output.key) {
+                    return Err(FrameLoadError::UnexpectedComputedTileField(output.key));
+                }
+                let declaration = request
+                    .profile
+                    .document
+                    .derived_fields
+                    .iter()
+                    .find(|candidate| candidate.target.to_field_key() == output.key)
+                    .ok_or_else(|| FrameLoadError::MissingDerivedField(output.key.clone()))?;
+                validate_tile_output(declaration, &output)?;
+                let provenance_id = provenance.intern(output.provenance)?;
+                raw_fields.insert(
+                    output.key,
+                    RawField::new(
+                        output.values,
+                        output.validity.as_arc().clone(),
+                        output.unit,
+                        output.layout,
+                        output.temporal,
+                        output.quality,
+                        provenance_id,
+                    )?,
+                )?;
+            }
+        }
+        let frame = RawMetFrame::publish(metadata, raw_fields, Arc::new(provenance))
+            .map_err(FrameLoadError::Frame);
         // Count attempt regardless of publish success/failure.
         if let Some(counters) = io_counters {
             counters.record_provider_frame_load();
@@ -340,6 +378,75 @@ fn requested_outputs(
         fields.extend(required.iter().map(|field| field.to_field_key()));
     }
     Ok(fields)
+}
+
+fn partition_requested_outputs(
+    profile: &DatasetProfile,
+    requested: &BTreeSet<FieldKey>,
+) -> Result<(BTreeSet<FieldKey>, BTreeSet<FieldKey>), FrameLoadError> {
+    let direct = profile
+        .document
+        .fields
+        .iter()
+        .map(|mapping| mapping.target.to_field_key())
+        .collect::<BTreeSet<_>>();
+    let mut frame = BTreeSet::new();
+    let mut tile = BTreeSet::new();
+    for field in requested {
+        if direct.contains(field) {
+            frame.insert(field.clone());
+            continue;
+        }
+        let declaration = profile
+            .document
+            .derived_fields
+            .iter()
+            .find(|candidate| candidate.target.to_field_key() == *field)
+            .ok_or_else(|| FrameLoadError::MissingDerivedField(field.clone()))?;
+        match declaration.stage {
+            ExecutionStage::Frame => {
+                frame.insert(field.clone());
+            }
+            ExecutionStage::Tile => {
+                tile.insert(field.clone());
+            }
+            stage => {
+                return Err(FrameLoadError::UnsupportedDerivedStage {
+                    field: field.clone(),
+                    stage,
+                });
+            }
+        }
+    }
+    Ok((frame, tile))
+}
+
+fn validate_tile_output(
+    declaration: &DerivedField,
+    output: &crate::derive::DerivedField,
+) -> Result<(), FrameLoadError> {
+    let declared_unit = GraphUnit::parse(&declaration.unit)
+        .map_err(|error| FrameLoadError::InvalidUnit(error.to_string()))?;
+    let temporal_matches = match declaration.temporal.kind {
+        TemporalKind::Instantaneous => {
+            matches!(output.temporal, TemporalSupport::Instantaneous { .. })
+        }
+        TemporalKind::Interval => matches!(output.temporal, TemporalSupport::Interval { .. }),
+        TemporalKind::Accumulation => {
+            matches!(output.temporal, TemporalSupport::Accumulation { .. })
+        }
+    };
+    if declaration.stage != ExecutionStage::Tile
+        || output.quality != declaration.quality
+        || output.layout.shape() != declaration.shape
+        || !same_unit_conversion(&output.unit, &declared_unit)
+        || output.provenance.field != output.key
+        || output.provenance.quality != output.quality
+        || !temporal_matches
+    {
+        return Err(FrameLoadError::InvalidComputedTileField(output.key.clone()));
+    }
+    Ok(())
 }
 
 fn direct_dependencies(
@@ -777,6 +884,12 @@ pub enum FrameLoadError {
     },
     /// Frame executor omitted a requested output.
     MissingComputedField(FieldKey),
+    /// Tile-stage derivers returned fewer fields than requested.
+    MissingComputedTileField,
+    /// A tile-stage deriver returned a field outside the requested set.
+    UnexpectedComputedTileField(FieldKey),
+    /// A tile-stage result disagrees with its Profile declaration.
+    InvalidComputedTileField(FieldKey),
     /// Local file magic is not a supported meteorological container.
     UnknownSourceFormat(PathBuf),
     /// No source alternative contained the requested field.
@@ -837,6 +950,8 @@ pub enum FrameLoadError {
     Decode(DecodeError),
     /// Frame-stage graph execution failed.
     Graph(FrameGraphExecutionError),
+    /// Native-grid scientific derivation failed.
+    Derivation(DeriveError),
     /// Provenance table construction failed.
     Provenance(ProvenanceError),
     /// Raw-field or frame publication failed.
@@ -852,6 +967,12 @@ impl From<DecodeError> for FrameLoadError {
 impl From<FrameGraphExecutionError> for FrameLoadError {
     fn from(value: FrameGraphExecutionError) -> Self {
         Self::Graph(value)
+    }
+}
+
+impl From<DeriveError> for FrameLoadError {
+    fn from(value: DeriveError) -> Self {
+        Self::Derivation(value)
     }
 }
 

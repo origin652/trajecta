@@ -297,7 +297,10 @@ W_surface = U * d(terrain)/dx + V * d(terrain)/dy
 
 ### 6.7 近地层
 
-M3 只公开 `MoninObukhovBusingerDyer/v0`。FLEXPART-compatible surface model 延期，FLEXPART 只作为外部 oracle。
+M3 历史证据冻结为 `MoninObukhovBusingerDyer/v0`。M4-A2 运行时升级为
+`surface_layer/monin_obukhov_businger_dyer/v1`：风剖面以实际 10 m 风向量按稳定度形状函数归一化，
+避免将独立 `u*` 加法修正与 10 m 锚点重复约束。FLEXPART-compatible surface model 延期，
+FLEXPART 只作为外部 oracle。
 
 严格输入包括：
 

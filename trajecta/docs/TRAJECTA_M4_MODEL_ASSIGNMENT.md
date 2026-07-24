@@ -1,8 +1,18 @@
-# Trajecta M4：A/B/C 模型职责与交付边界
+# Trajecta M4：现行 A 主责、Prompt-only B 与历史 A/B/C 交付边界
 
-状态：M4-A0 已完成；M4-A1 的 A 级核心已完成并进入 B/C 工程接续，M4-A1 整体及 M4-A2–A4 尚未完成。本文不代表 M4 已完成。
-日期：2026-07-21
+状态：M4-A0、M4-A1、M4-A2、M4-A3 已完成；M4-A4 尚未完成。本文不代表 M4 已完成。
+日期：2026-07-24
 权威实施计划：`TRAJECTA_M4_PARTICLE_LOOP_PLAN.md`。
+
+## 0. 现行责任配置（2026-07-24，覆盖下文历史分工）
+
+- B 模型可以由用户另行使用，但 A 不调用子代理、不代用户启动 B；需要交接时，A 只编写完整书面 Prompt，由用户自行发送；
+- 中难和高难任务继续由 A 亲自实现；只有合同已冻结、机械性强、风险为中等及以下的任务才考虑写 Prompt 交给 B；
+- C 模型当前不可用，也不进行 C 委派；
+- M4-A2 以后所有科学实现、数值诊断、Windows/WSL/native 执行、artifact 汇总、报告和最终验收仍由 A 负责并签署；
+- 下文 B/C 章节保留为历史职责设计，也可作为今后书面 B Prompt 的边界模板；它不授权 A 调用子代理；
+- 此后的每一份阶段、返工、执行或验收报告都必须明确写出上述责任配置，不能把“等待 B”当作 A 的完成结论；
+- 已有以 `B` 命名的报告只作为历史执行证据，后续结论必须由 A 重新审阅并签署。
 
 ## 1. 分级原则
 
@@ -14,6 +24,7 @@
 
 基本规则：
 
+- 中难及高难任务默认由 A 亲自实现和验收；只有中等及以下、合同已冻结、机械性强且失败风险较低的任务，才考虑交给 B；
 - A 先冻结公式、类型、失败语义、算法 ID 和验收夹具；
 - B/C 不得自行解释未冻结的科学含义；
 - B/C 发现合同矛盾时停止相关分支，提交最小复现给 A；
@@ -73,7 +84,7 @@ A 对 M4 的总体目标是：完成并签署最小粒子闭环的数学、公�
 - 算法 ID、常量表和 tolerance registry；
 - 独立解析参考公式和不变量测试；
 - A 亲自完成的高风险数值核心；
-- 给 B/C 的阶段 prompt；
+- 给 B 的书面阶段 Prompt（仅在用户决定另行启动 B 时）；
 - 每轮 B/C 交付审计报告；
 - 最终科学验收报告；
 - 经验证的阶段 commit。
@@ -87,7 +98,7 @@ A 对 M4 的总体目标是：完成并签署最小粒子闭环的数学、公�
 - 不得因真实差分失败自动放宽容差；
 - 不得把正常出流和 numerical failure 混成同一状态；
 - 不得只测单粒子、单步、单方向或单线程；
-- 不得在 B/C 尚未实跑平台和长测时签署完成。
+- 不得把未经 A 复验的平台、native 或长测证据用于签署完成。
 
 ## 3. B 模型职责
 
@@ -269,71 +280,53 @@ C：
 
 ### M4-A2：Air-mass domain-fill
 
-A：
+现行责任：仅 A。
 
 - AirMassDeriver；
 - 初始化、边界通量、residual 和守恒；
-- 正反向科学审计。
-
-B：
-
-- 三套真实资料编排；
-- 1 万粒子矩阵；
-- 计数器、性能和 artifact。
-
-C：
-
-- 质量账本文档和报告表格；
-- 正常 outflow 示例。
+- 精确 boundary-birth 时刻与 Runner 生命周期接入；
+- pressure/hybrid、有限域、正反向和确定性 hard gate；
+- 正反向科学审计、真实资料编排、Windows/WSL 实跑、artifact 汇总和完成报告。
 
 退出条件：三套资料 air-mass 1 万正反向在 Windows/WSL 通过，守恒 hard gate 通过。
 
+状态：已满足；完成裁决与证据见 `TRAJECTA_M4_A2_A_COMPLETION_REPORT.md`。此前的
+`TRAJECTA_M4_A2_B_EXECUTION_REPORT.md` 仅作为失败阶段的历史证据，不代表仍存在 B 执行角色。
+
 ### M4-A3：Ozone domain-fill
 
-A：
+现行责任：A 完成并签署；B 若被用户另行使用也仅接受书面 Prompt，不参与本阶段既有裁决。
 
 - Ertel PV；
 - OzoneAssignmentRule；
 - PV60 规则；
-- 公开公式和 GPL oracle 裁决。
-
-B：
-
-- 三套资料 ozone 真实链；
-- Rust/native 差分；
-- GPL harness 和 JSON artifact。
-
-C：
-
-- 规则说明、provenance 和报告渲染。
+- 公开公式和 GPL oracle 裁决；
+- 三套资料 ozone 真实链、Rust/native 差分、GPL harness、JSON artifact；
+- 规则说明、provenance、报告与最终验收。
 
 退出条件：三套资料 1,000 粒子正反向通过，标量 hard gate 与完整差异报告齐全。
 
+状态：已满足；完成裁决与证据见 `TRAJECTA_M4_A3_A_COMPLETION_REPORT.md`。
+
 ### M4-A4：终审
 
-A：
+现行责任：A 负责中难/高难、全部数值裁决和最终签署；合同已冻结的中等及以下机械任务只可由
+用户通过 A 编写的书面 Prompt 另行交给 B，A 不调用子代理。
 
 - 重新检查所有公式、状态、输入身份和报告；
 - 裁决所有 FLEXPART 差异；
 - 确认 abnormal termination=0；
-- 签署或拒绝 M4。
-
-B：
-
 - WSL hybrid 10 万正反向；
 - Windows/WSL/native 最终矩阵；
 - 性能 baseline、RSS、SQLite size、I/O 和 digest；
-- 完整交付报告。
-
-C：
-
-- 最终文档、链接、复现命令和 artifact index。
+- 跨平台数值差异量化与完整交付报告；
+- 最终文档、链接、复现命令、artifact index，并签署或拒绝 M4。
 
 退出条件：A 给出书面完成裁决；此前任何模型不得宣称 M4 完成。
 
-## 6. 报告格式
+## 6. 现行报告格式
 
-B/C 每轮报告必须包含：
+A 的每轮阶段、返工、执行或验收报告必须包含：
 
 | 字段 | 含义 |
 |---|---|
@@ -350,6 +343,7 @@ B/C 每轮报告必须包含：
 - OS、Rust、compiler、SQLite、netCDF、HDF5、ecCodes 和 libclang 版本；
 - 未运行项；
 - 未提交声明；
+- B 仅通过用户转交的书面 Prompt 使用、A 不调用子代理且当前结论由 A 完成的声明；
 - 不宣称 M4 完成声明。
 
 报告不得只写“测试数量”，也不得把代码存在写成 executed/passed。
@@ -357,9 +351,8 @@ B/C 每轮报告必须包含：
 ## 7. Commit 规则
 
 - A 自己完成的合同/数值核心可在 A 门禁通过后形成阶段 commit；
-- B/C 默认在未提交状态交付；
 - A 必须检查 diff、真实 artifact 和未运行项；
-- A 验收通过后再提交对应阶段；
+- 阶段默认保持未提交，只有用户明确要求提交后才形成 commit；
 - scientific formula、tolerance、algorithm ID、schema version 和 GPL/MIT 边界的修改必须由 A 明确写入审计；
 - 最终 M4 标记只能由 A 在完整终审后提交。
 
@@ -368,12 +361,12 @@ B/C 每轮报告必须包含：
 ### A 完成
 
 - 所有公式、公共接口和 hard gate 已冻结并实现；
-- 没有待 B/C 自行裁决的科学空白；
+- 没有待外部模型自行裁决的科学空白；
 - 真实资料、native、平台、性能和 oracle 证据已审阅；
 - 所有异常有书面裁决；
 - 最终 M4 状态已签署。
 
-### B 完成
+### 历史 B 完成定义（不再适用于后续阶段）
 
 - A 冻结后的工程链全部实现；
 - 三资料、双方向、Windows/WSL、native 和 10 万长测均有实际记录；
@@ -381,7 +374,7 @@ B/C 每轮报告必须包含：
 - 未完成项诚实列出；
 - 交付保持未提交等待 A 验收。
 
-### C 完成
+### 历史 C 完成定义（不再适用于后续阶段）
 
 - serde、schema、文档、golden、错误文本和报告与冻结合同一致；
 - 示例可由普通开发者复现；

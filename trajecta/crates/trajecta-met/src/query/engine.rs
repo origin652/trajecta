@@ -13,7 +13,7 @@ use trajecta_case::model::time::Timestamp;
 use crate::derive::surface::{
     SurfaceExchangeInput, SurfaceExchangeScales, SurfaceMomentumInput, surface_exchange_scales,
 };
-use crate::derive::thermo::moist_air_density_kg_m3;
+use crate::derive::thermo::{moist_air_density_kg_m3, project_specific_humidity_nonnegative};
 use crate::derive::vertical_velocity::{
     KinematicVerticalVelocityInput, geometric_vertical_velocity_m_s,
     native_coordinate_velocity_from_omega, terrain_following_surface_velocity_m_s,
@@ -44,9 +44,15 @@ use crate::query::request::{
     ExplainMode, QueryBatch, QueryPlan, QueryPlanBuilder, QueryPlanError, QueryPlanRequest,
     TransportPlan, TransportPlanRequest, VerticalQuery,
 };
-use crate::science::M3_MET_QUERY_ALGORITHM_ID;
+use crate::science::{
+    AERODYNAMIC_ROUGHNESS_ZERO_PROJECTION_ALGORITHM_ID,
+    LOWEST_COMPLETE_TRANSPORT_ANCHOR_ALGORITHM_ID, M3_MET_QUERY_ALGORITHM_ID,
+    SPECIFIC_HUMIDITY_NONNEGATIVE_PROJECTION_ALGORITHM_ID,
+    TEN_METRE_ANCHORED_SURFACE_WIND_ALGORITHM_ID, TWO_METRE_ANCHORED_SURFACE_SCALAR_ALGORITHM_ID,
+};
 use crate::surface_layer::{
     SurfaceLayerInput, SurfaceLayerRegistry, SurfaceLayerStatus, minimum_transport_height_agl_m,
+    project_aerodynamic_roughness_for_physics,
 };
 use crate::vertical::{
     ColumnGeometry, ColumnRequest, ColumnStencil, NativeCoordinateKind, VerticalBounds,
@@ -522,14 +528,17 @@ struct ExecutionMetadata {
     table: Arc<ProvenanceTable>,
     upper_transport: [FieldMetadata; TRANSPORT_FIELD_COUNT],
     surface_transport: [FieldMetadata; TRANSPORT_FIELD_COUNT],
+    mixed_transport: [FieldMetadata; TRANSPORT_FIELD_COUNT],
     generic_upper: Vec<FieldMetadata>,
     generic_surface: Vec<FieldMetadata>,
+    generic_mixed: Vec<FieldMetadata>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum QueryRoute {
     UpperAir,
     SurfaceLayer,
+    TemporalMixedSurfaceUpper,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -539,6 +548,24 @@ struct FramePointSample {
     pressure_pa: f64,
     temperature_k: f64,
     specific_humidity: f64,
+    physical_specific_humidity: f64,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct TransportSample {
+    eastward_wind_m_s: f64,
+    northward_wind_m_s: f64,
+    geometric_vertical_velocity_m_s: f64,
+    pressure_pa: f64,
+    temperature_k: f64,
+    specific_humidity: f64,
+    physical_specific_humidity: f64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum WindowEndpoint {
+    Before,
+    After,
 }
 
 #[derive(Clone, Debug)]
@@ -922,6 +949,9 @@ fn sample_frame_point(
     let specific_humidity = bracket
         .interpolate(column.specific_humidity())
         .map_err(EngineError::Vertical)?;
+    let physical_specific_humidity = bracket
+        .interpolate(column.physical_specific_humidity())
+        .map_err(EngineError::Vertical)?;
     let first_vector = sample_level_vector(
         frame_stencils,
         &column,
@@ -956,6 +986,7 @@ fn sample_frame_point(
         pressure_pa,
         temperature_k,
         specific_humidity,
+        physical_specific_humidity,
     })
 }
 
@@ -1085,6 +1116,47 @@ fn sample_surface_scalar_time(
         longitude_degrees,
         latitude_degrees,
         field,
+    )?;
+    blend_value(before, after, window)
+}
+
+fn sample_physical_two_metre_specific_humidity_frame(
+    frame_stencils: &PreparedFrameStencils,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+) -> Result<f64, EngineError> {
+    let source = sample_surface_scalar_frame(
+        frame_stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        CanonicalField::TwoMetreSpecificHumidity,
+    )?;
+    project_specific_humidity_nonnegative(source).map_err(|_| EngineError::NumericalFailure)
+}
+
+fn sample_physical_two_metre_specific_humidity_time(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+) -> Result<f64, EngineError> {
+    let before = sample_physical_two_metre_specific_humidity_frame(
+        frame_stencils(stencils, &window.frames.before)?,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    if window.is_exact_frame() {
+        return Ok(before);
+    }
+    let after = sample_physical_two_metre_specific_humidity_frame(
+        frame_stencils(stencils, &window.frames.after)?,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
     )?;
     blend_value(before, after, window)
 }
@@ -1521,6 +1593,241 @@ fn terrain_vertical_velocity(
     .map_err(|_| EngineError::NumericalFailure)
 }
 
+fn terrain_vertical_velocity_frame(
+    frame_stencils: &PreparedFrameStencils,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+) -> Result<f64, EngineError> {
+    let terrain = frame_stencils
+        .stencil(cell)?
+        .terrain_geometry(ColumnRequest {
+            frame: &frame_stencils.frame,
+            cell,
+            longitude_degrees,
+            latitude_degrees,
+        })
+        .map_err(EngineError::Vertical)?;
+    let wind = sample_surface_vector_frame(
+        frame_stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        CanonicalField::TenMetreEastwardWind,
+        CanonicalField::TenMetreNorthwardWind,
+    )?;
+    terrain_following_surface_velocity_m_s(
+        wind.0,
+        wind.1,
+        terrain.eastward_gradient,
+        terrain.northward_gradient,
+    )
+    .map_err(|_| EngineError::NumericalFailure)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn endpoint_geometric_vertical_velocity_m_s(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    endpoint: WindowEndpoint,
+    column: &ColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    level: usize,
+) -> Result<f64, EngineError> {
+    if window.is_exact_frame() || !column.validity().valid.get(level).copied().unwrap_or(false) {
+        return Err(EngineError::InvalidPreparedState);
+    }
+    let before_stencils = frame_stencils(stencils, &window.frames.before)?;
+    let after_stencils = frame_stencils(stencils, &window.frames.after)?;
+    let level_geometry = |prepared: &PreparedFrameStencils| {
+        prepared
+            .stencil(cell)?
+            .level_geometry(
+                ColumnRequest {
+                    frame: &prepared.frame,
+                    cell,
+                    longitude_degrees,
+                    latitude_degrees,
+                },
+                level,
+            )
+            .map_err(EngineError::Vertical)
+    };
+    let before_geometry = level_geometry(before_stencils)?;
+    let after_geometry = level_geometry(after_stencils)?;
+    let seconds = seconds_between(
+        window.frames.before.metadata().valid_time,
+        window.frames.after.metadata().valid_time,
+    )?;
+    let height_time_derivative_m_s =
+        (after_geometry.height_asl_m - before_geometry.height_asl_m) / seconds;
+    let pressure_time_derivative_pa_s =
+        (after_geometry.pressure_pa - before_geometry.pressure_pa) / seconds;
+    let prepared = match endpoint {
+        WindowEndpoint::Before => before_stencils,
+        WindowEndpoint::After => after_stencils,
+    };
+    let geometry = match endpoint {
+        WindowEndpoint::Before => before_geometry,
+        WindowEndpoint::After => after_geometry,
+    };
+    let (eastward_wind_m_s, northward_wind_m_s) = sample_level_vector(
+        prepared,
+        column,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        level,
+        CanonicalField::EastwardWind,
+        CanonicalField::NorthwardWind,
+    )?;
+    let vertical_field = vertical_velocity_source(window);
+    let source_vertical_velocity =
+        sample_level_scalar(prepared, column, cell, level, vertical_field)?;
+    let (coordinate_kind, native_coordinate) = prepared.stencil(cell)?.native_coordinate();
+    if native_coordinate.len() != column.height_asl_m().len() {
+        return Err(EngineError::InvalidPreparedState);
+    }
+    let height_coordinate_derivative =
+        derivative_at(column.height_asl_m(), native_coordinate, level)?;
+    let coordinate_velocity = match coordinate_kind {
+        NativeCoordinateKind::PressurePa => source_vertical_velocity,
+        NativeCoordinateKind::HybridEta
+            if vertical_field == CanonicalField::HybridVerticalVelocity =>
+        {
+            source_vertical_velocity
+        }
+        NativeCoordinateKind::HybridEta => {
+            let pressure_coordinate_derivative =
+                derivative_at(column.pressure_pa(), native_coordinate, level)?;
+            native_coordinate_velocity_from_omega(
+                source_vertical_velocity,
+                pressure_time_derivative_pa_s,
+                eastward_wind_m_s,
+                northward_wind_m_s,
+                geometry.pressure_eastward_gradient_pa_m,
+                geometry.pressure_northward_gradient_pa_m,
+                pressure_coordinate_derivative,
+            )
+            .map_err(|_| EngineError::NumericalFailure)?
+        }
+    };
+    geometric_vertical_velocity_m_s(KinematicVerticalVelocityInput {
+        height_time_derivative_m_s,
+        eastward_wind_m_s,
+        northward_wind_m_s,
+        height_eastward_gradient: geometry.height_eastward_gradient,
+        height_northward_gradient: geometry.height_northward_gradient,
+        coordinate_velocity,
+        height_coordinate_derivative,
+    })
+    .map_err(|_| EngineError::NumericalFailure)
+}
+
+fn is_incomplete_transport_level(error: &EngineError) -> bool {
+    matches!(
+        error,
+        EngineError::Vertical(
+            VerticalError::InvalidHorizontalSupport | VerticalError::InvalidVerticalColumn
+        )
+    )
+}
+
+#[derive(Clone, Copy, Debug)]
+struct EndpointTransportAnchor {
+    level: usize,
+    wind_m_s: (f64, f64),
+    geometric_vertical_velocity_m_s: f64,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn lowest_complete_endpoint_transport_anchor(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    endpoint: WindowEndpoint,
+    frame_stencils: &PreparedFrameStencils,
+    column: &ColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+) -> Result<EndpointTransportAnchor, EngineError> {
+    for level in (0..column.pressure_pa().len()).rev() {
+        if !column.validity().valid[level] {
+            continue;
+        }
+        let wind_m_s = match sample_level_vector(
+            frame_stencils,
+            column,
+            cell,
+            longitude_degrees,
+            latitude_degrees,
+            level,
+            CanonicalField::EastwardWind,
+            CanonicalField::NorthwardWind,
+        ) {
+            Ok(value) => value,
+            Err(error) if is_incomplete_transport_level(&error) => continue,
+            Err(error) => return Err(error),
+        };
+        let geometric_vertical_velocity_m_s = match endpoint_geometric_vertical_velocity_m_s(
+            window,
+            stencils,
+            endpoint,
+            column,
+            cell,
+            longitude_degrees,
+            latitude_degrees,
+            level,
+        ) {
+            Ok(value) => value,
+            Err(error) if is_incomplete_transport_level(&error) => continue,
+            Err(error) => return Err(error),
+        };
+        return Ok(EndpointTransportAnchor {
+            level,
+            wind_m_s,
+            geometric_vertical_velocity_m_s,
+        });
+    }
+    Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn lowest_complete_time_transport_anchor(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    target_column: &ColumnGeometry,
+    before_column: &ColumnGeometry,
+    after_column: &ColumnGeometry,
+    w_valid: &[bool],
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+) -> Result<(usize, (f64, f64)), EngineError> {
+    for level in (0..target_column.pressure_pa().len()).rev() {
+        if !target_column.validity().valid[level] || !w_valid.get(level).copied().unwrap_or(false) {
+            continue;
+        }
+        match time_level_vector(
+            window,
+            stencils,
+            before_column,
+            after_column,
+            cell,
+            longitude_degrees,
+            latitude_degrees,
+            level,
+        ) {
+            Ok(wind_m_s) => return Ok((level, wind_m_s)),
+            Err(error) if is_incomplete_transport_level(&error) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn))
+}
+
 fn has_field_at_query_time(window: &PreparedWindow, field: CanonicalField) -> bool {
     let key = FieldKey::Canonical(field);
     window.frames.before.fields().get(&key).is_some()
@@ -1684,6 +1991,9 @@ fn query_transform(
                 "trajecta.m3.query.monin_obukhov_businger_dyer".into()
             }
             QueryRoute::SurfaceLayer => "trajecta.m3.query.surface_column".into(),
+            QueryRoute::TemporalMixedSurfaceUpper => {
+                "trajecta.m3.query.temporal_mixed_surface_upper".into()
+            }
         },
         parameters: vec![
             ("algorithm".into(), M3_MET_QUERY_ALGORITHM_ID.into()),
@@ -1701,12 +2011,84 @@ fn query_transform(
     }
 }
 
+fn append_physical_projection_transforms(
+    transforms: &mut Vec<TransformRecord>,
+    route: QueryRoute,
+    field: CanonicalField,
+) {
+    let surface_physical_output = route != QueryRoute::UpperAir
+        && matches!(
+            field,
+            CanonicalField::EastwardWind
+                | CanonicalField::NorthwardWind
+                | CanonicalField::GeometricVerticalVelocity
+                | CanonicalField::AirTemperature
+                | CanonicalField::SpecificHumidity
+                | CanonicalField::AirDensity
+        );
+    if field == CanonicalField::AirDensity || surface_physical_output {
+        push_unique(
+            transforms,
+            TransformRecord {
+                operation: SPECIFIC_HUMIDITY_NONNEGATIVE_PROJECTION_ALGORITHM_ID.into(),
+                parameters: vec![("scope".into(), "physical_consumer_only".into())],
+            },
+        );
+    }
+    if surface_physical_output {
+        push_unique(
+            transforms,
+            TransformRecord {
+                operation: AERODYNAMIC_ROUGHNESS_ZERO_PROJECTION_ALGORITHM_ID.into(),
+                parameters: vec![("scope".into(), "surface_layer_physics_only".into())],
+            },
+        );
+        push_unique(
+            transforms,
+            TransformRecord {
+                operation: LOWEST_COMPLETE_TRANSPORT_ANCHOR_ALGORITHM_ID.into(),
+                parameters: vec![("required_components".into(), "u,v,w".into())],
+            },
+        );
+    }
+    if route != QueryRoute::UpperAir
+        && matches!(
+            field,
+            CanonicalField::EastwardWind | CanonicalField::NorthwardWind
+        )
+    {
+        push_unique(
+            transforms,
+            TransformRecord {
+                operation: TEN_METRE_ANCHORED_SURFACE_WIND_ALGORITHM_ID.into(),
+                parameters: vec![("reference_height_m".into(), "10".into())],
+            },
+        );
+    }
+    if route != QueryRoute::UpperAir
+        && matches!(
+            field,
+            CanonicalField::AirTemperature
+                | CanonicalField::SpecificHumidity
+                | CanonicalField::AirDensity
+        )
+    {
+        push_unique(
+            transforms,
+            TransformRecord {
+                operation: TWO_METRE_ANCHORED_SURFACE_SCALAR_ALGORITHM_ID.into(),
+                parameters: vec![("reference_height_m".into(), "2".into())],
+            },
+        );
+    }
+}
+
 fn field_inputs_and_quality(
     window: &PreparedWindow,
     field: CanonicalField,
     route: QueryRoute,
 ) -> (Vec<CanonicalField>, FieldQuality, bool) {
-    if route == QueryRoute::SurfaceLayer
+    if route != QueryRoute::UpperAir
         && matches!(
             field,
             CanonicalField::EastwardWind
@@ -1813,6 +2195,7 @@ fn build_field_metadata(
             }
         }
     }
+    append_physical_projection_transforms(&mut transforms, route, field);
     transforms.push(query_transform(window, route, field));
     let provenance = table
         .intern(ProvenanceRecord {
@@ -1840,6 +2223,7 @@ fn build_execution_metadata(
         provenance: ProvenanceId(0),
     }; TRANSPORT_FIELD_COUNT];
     let mut surface_transport = upper_transport;
+    let mut mixed_transport = upper_transport;
     for index in 0..TRANSPORT_FIELD_COUNT {
         let field = transport_field(index);
         upper_transport[index] =
@@ -1849,13 +2233,25 @@ fn build_execution_metadata(
         } else {
             upper_transport[index]
         };
+        mixed_transport[index] = if plan.surface_layer_model().is_some() {
+            build_field_metadata(
+                &mut table,
+                window,
+                field,
+                QueryRoute::TemporalMixedSurfaceUpper,
+            )?
+        } else {
+            upper_transport[index]
+        };
     }
     let mut generic_upper = Vec::with_capacity(plan.fields().len());
     let mut generic_surface = Vec::with_capacity(plan.fields().len());
+    let mut generic_mixed = Vec::with_capacity(plan.fields().len());
     for field in plan.fields() {
         if let Some(index) = transport_field_index(field) {
             generic_upper.push(upper_transport[index]);
             generic_surface.push(surface_transport[index]);
+            generic_mixed.push(mixed_transport[index]);
             continue;
         }
         let FieldKey::Canonical(canonical) = field else {
@@ -1874,19 +2270,28 @@ fn build_execution_metadata(
                 .last()
                 .ok_or(EngineError::InvalidPreparedState)?
         });
+        generic_mixed.push(
+            *generic_surface
+                .last()
+                .ok_or(EngineError::InvalidPreparedState)?,
+        );
     }
     let metadata = ExecutionMetadata {
         table: Arc::new(table),
         upper_transport,
         surface_transport,
+        mixed_transport,
         generic_upper,
         generic_surface,
+        generic_mixed,
     };
     if !plan.allow_estimated() {
         for (index, field) in plan.fields().iter().enumerate() {
             if metadata.generic_upper[index].quality == FieldQuality::Estimated
                 || (plan.surface_layer_model().is_some()
                     && metadata.generic_surface[index].quality == FieldQuality::Estimated)
+                || (plan.surface_layer_model().is_some()
+                    && metadata.generic_mixed[index].quality == FieldQuality::Estimated)
             {
                 return Err(EngineError::QueryPlan(
                     QueryPlanError::EstimatedFieldForbidden(field.clone()),
@@ -1935,6 +2340,11 @@ fn target_frame_point(
         pressure_pa: blend_value(before.pressure_pa, after.pressure_pa, window)?,
         temperature_k: blend_value(before.temperature_k, after.temperature_k, window)?,
         specific_humidity: blend_value(before.specific_humidity, after.specific_humidity, window)?,
+        physical_specific_humidity: blend_value(
+            before.physical_specific_humidity,
+            after.physical_specific_humidity,
+            window,
+        )?,
     })
 }
 
@@ -2003,7 +2413,7 @@ fn sample_upper_transport(
     let density = moist_air_density_kg_m3(
         state.pressure_pa,
         state.temperature_k,
-        state.specific_humidity,
+        state.physical_specific_humidity,
     )
     .map_err(|_| EngineError::NumericalFailure)?;
     Ok(TransportPointResult {
@@ -2036,41 +2446,84 @@ fn derive_surface_exchange_scales(
     two_metre_temperature_k: f64,
     two_metre_specific_humidity: f64,
 ) -> Result<SurfaceExchangeScales, EngineError> {
+    derive_surface_exchange_scales_with_sampler(
+        surface_pressure_pa,
+        two_metre_temperature_k,
+        two_metre_specific_humidity,
+        has_field_at_query_time(window, CanonicalField::FrictionVelocity),
+        has_field_at_query_time(window, CanonicalField::MoninObukhovLength),
+        |field| {
+            sample_surface_scalar_time(
+                window,
+                stencils,
+                cell,
+                longitude_degrees,
+                latitude_degrees,
+                field,
+            )
+        },
+    )
+}
+
+fn derive_surface_exchange_scales_frame(
+    frame_stencils: &PreparedFrameStencils,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    surface_pressure_pa: f64,
+    two_metre_temperature_k: f64,
+    two_metre_specific_humidity: f64,
+) -> Result<SurfaceExchangeScales, EngineError> {
+    let has = |field| {
+        frame_stencils
+            .frame
+            .fields()
+            .get(&FieldKey::Canonical(field))
+            .is_some()
+    };
+    derive_surface_exchange_scales_with_sampler(
+        surface_pressure_pa,
+        two_metre_temperature_k,
+        two_metre_specific_humidity,
+        has(CanonicalField::FrictionVelocity),
+        has(CanonicalField::MoninObukhovLength),
+        |field| {
+            sample_surface_scalar_frame(
+                frame_stencils,
+                cell,
+                longitude_degrees,
+                latitude_degrees,
+                field,
+            )
+        },
+    )
+}
+
+fn derive_surface_exchange_scales_with_sampler<F>(
+    surface_pressure_pa: f64,
+    two_metre_temperature_k: f64,
+    two_metre_specific_humidity: f64,
+    has_friction_velocity: bool,
+    has_monin_obukhov_length: bool,
+    mut sample: F,
+) -> Result<SurfaceExchangeScales, EngineError>
+where
+    F: FnMut(CanonicalField) -> Result<f64, EngineError>,
+{
     let density = moist_air_density_kg_m3(
         surface_pressure_pa,
         two_metre_temperature_k,
         two_metre_specific_humidity,
     )
     .map_err(|_| EngineError::NumericalFailure)?;
-    let momentum = if has_field_at_query_time(window, CanonicalField::FrictionVelocity) {
+    let momentum = if has_friction_velocity {
         SurfaceMomentumInput::FrictionVelocity {
-            friction_velocity_m_s: sample_surface_scalar_time(
-                window,
-                stencils,
-                cell,
-                longitude_degrees,
-                latitude_degrees,
-                CanonicalField::FrictionVelocity,
-            )?,
+            friction_velocity_m_s: sample(CanonicalField::FrictionVelocity)?,
         }
     } else {
         SurfaceMomentumInput::SurfaceStress {
-            eastward_pa: sample_surface_scalar_time(
-                window,
-                stencils,
-                cell,
-                longitude_degrees,
-                latitude_degrees,
-                CanonicalField::EastwardSurfaceStress,
-            )?,
-            northward_pa: sample_surface_scalar_time(
-                window,
-                stencils,
-                cell,
-                longitude_degrees,
-                latitude_degrees,
-                CanonicalField::NorthwardSurfaceStress,
-            )?,
+            eastward_pa: sample(CanonicalField::EastwardSurfaceStress)?,
+            northward_pa: sample(CanonicalField::NorthwardSurfaceStress)?,
         }
     };
     let mut scales = surface_exchange_scales(SurfaceExchangeInput {
@@ -2078,33 +2531,12 @@ fn derive_surface_exchange_scales(
         air_temperature_k: two_metre_temperature_k,
         specific_humidity: two_metre_specific_humidity,
         momentum,
-        sensible_heat_flux_w_m2: sample_surface_scalar_time(
-            window,
-            stencils,
-            cell,
-            longitude_degrees,
-            latitude_degrees,
-            CanonicalField::SensibleHeatFlux,
-        )?,
-        latent_heat_flux_w_m2: sample_surface_scalar_time(
-            window,
-            stencils,
-            cell,
-            longitude_degrees,
-            latitude_degrees,
-            CanonicalField::LatentHeatFlux,
-        )?,
+        sensible_heat_flux_w_m2: sample(CanonicalField::SensibleHeatFlux)?,
+        latent_heat_flux_w_m2: sample(CanonicalField::LatentHeatFlux)?,
     })
     .map_err(|_| EngineError::NumericalFailure)?;
-    if has_field_at_query_time(window, CanonicalField::MoninObukhovLength) {
-        let monin_obukhov_length_m = sample_surface_scalar_time(
-            window,
-            stencils,
-            cell,
-            longitude_degrees,
-            latitude_degrees,
-            CanonicalField::MoninObukhovLength,
-        )?;
+    if has_monin_obukhov_length {
+        let monin_obukhov_length_m = sample(CanonicalField::MoninObukhovLength)?;
         if monin_obukhov_length_m == 0.0 {
             scales.monin_obukhov_length_m = 1.0;
             scales.neutral_stability = true;
@@ -2187,11 +2619,60 @@ fn sample_surface_transport(
         latitude_degrees,
         CanonicalField::AerodynamicRoughnessLength,
     )?;
-    let minimum =
-        minimum_transport_height_agl_m(roughness).map_err(|_| EngineError::NumericalFailure)?;
-    let lowest = target_column
+    let physical_roughness = project_aerodynamic_roughness_for_physics(roughness)
+        .map_err(|_| EngineError::NumericalFailure)?;
+    let minimum = minimum_transport_height_agl_m(physical_roughness)
+        .map_err(|_| EngineError::NumericalFailure)?;
+    let structural_lowest = target_column
         .lowest_valid_index()
         .map_err(EngineError::Vertical)?;
+    let structural_lowest_height_agl_m =
+        target_column.height_asl_m()[structural_lowest] - target_column.terrain_asl_m();
+    let structural_query_height_agl_m =
+        surface_query_height_agl_m(target_column, coordinate, vertical_value, structural_lowest)?;
+    if !structural_query_height_agl_m.is_finite()
+        || structural_query_height_agl_m < minimum
+        || structural_query_height_agl_m > structural_lowest_height_agl_m
+    {
+        return Ok(TransportPointResult::invalid(
+            SampleStatus::SurfaceLayerUndefined,
+            Some(bounds),
+            metadata,
+        ));
+    }
+    let before_column = frame_stencils(stencils, &window.frames.before)?.column(
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    let after_column = if window.is_exact_frame() {
+        before_column.clone()
+    } else {
+        frame_stencils(stencils, &window.frames.after)?.column(
+            cell,
+            longitude_degrees,
+            latitude_degrees,
+        )?
+    };
+    let (w_profile, w_valid) = geometric_w_profile(
+        window,
+        stencils,
+        target_column,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    let (lowest, lowest_wind) = lowest_complete_time_transport_anchor(
+        window,
+        stencils,
+        target_column,
+        &before_column,
+        &after_column,
+        &w_valid,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
     let lowest_height_agl_m = target_column.height_asl_m()[lowest] - target_column.terrain_asl_m();
     let query_height_agl_m =
         surface_query_height_agl_m(target_column, coordinate, vertical_value, lowest)?;
@@ -2222,13 +2703,12 @@ fn sample_surface_transport(
         latitude_degrees,
         CanonicalField::TwoMetreAirTemperature,
     )?;
-    let two_metre_specific_humidity = sample_surface_scalar_time(
+    let two_metre_specific_humidity = sample_physical_two_metre_specific_humidity_time(
         window,
         stencils,
         cell,
         longitude_degrees,
         latitude_degrees,
-        CanonicalField::TwoMetreSpecificHumidity,
     )?;
     let scales = derive_surface_exchange_scales(
         window,
@@ -2240,43 +2720,16 @@ fn sample_surface_transport(
         two_metre_temperature_k,
         two_metre_specific_humidity,
     )?;
-    let before_column = frame_stencils(stencils, &window.frames.before)?.column(
-        cell,
-        longitude_degrees,
-        latitude_degrees,
-    )?;
-    let after_column = if window.is_exact_frame() {
-        before_column.clone()
-    } else {
-        frame_stencils(stencils, &window.frames.after)?.column(
-            cell,
-            longitude_degrees,
-            latitude_degrees,
-        )?
-    };
-    let lowest_wind = time_level_vector(
-        window,
-        stencils,
-        &before_column,
-        &after_column,
-        cell,
-        longitude_degrees,
-        latitude_degrees,
-        lowest,
-    )?;
-    let (w_profile, w_valid) = geometric_w_profile(
-        window,
-        stencils,
-        target_column,
-        cell,
-        longitude_degrees,
-        latitude_degrees,
-    )?;
-    if !w_valid[lowest] {
-        return Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn));
-    }
     let terrain_w =
         terrain_vertical_velocity(window, stencils, cell, longitude_degrees, latitude_degrees)?;
+    let boundary_layer_height_m = sample_surface_scalar_time(
+        window,
+        stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        CanonicalField::BoundaryLayerHeight,
+    )?;
     let model = plan
         .surface_layer()
         .ok_or(EngineError::InvalidPreparedState)?;
@@ -2289,25 +2742,18 @@ fn sample_surface_transport(
             ten_metre_northward_wind_m_s: &[ten_metre_wind.1],
             two_metre_air_temperature_k: &[two_metre_temperature_k],
             two_metre_specific_humidity: &[two_metre_specific_humidity],
-            roughness_length_m: &[roughness],
+            roughness_length_m: &[physical_roughness],
             monin_obukhov_length_m: &[scales.monin_obukhov_length_m],
             neutral_stability: &neutral,
             friction_velocity_m_s: &[scales.friction_velocity_m_s],
             temperature_scale_k: &[scales.temperature_scale_k],
             humidity_scale: &[scales.humidity_scale],
-            boundary_layer_height_m: &[sample_surface_scalar_time(
-                window,
-                stencils,
-                cell,
-                longitude_degrees,
-                latitude_degrees,
-                CanonicalField::BoundaryLayerHeight,
-            )?],
+            boundary_layer_height_m: &[boundary_layer_height_m],
             lowest_model_height_agl_m: &[lowest_height_agl_m],
             lowest_model_eastward_wind_m_s: &[lowest_wind.0],
             lowest_model_northward_wind_m_s: &[lowest_wind.1],
             lowest_model_air_temperature_k: &[target_column.temperature_k()[lowest]],
-            lowest_model_specific_humidity: &[target_column.specific_humidity()[lowest]],
+            lowest_model_specific_humidity: &[target_column.physical_specific_humidity()[lowest]],
             terrain_vertical_velocity_m_s: &[terrain_w],
             lowest_model_geometric_vertical_velocity_m_s: &[w_profile[lowest]],
         })
@@ -2368,6 +2814,435 @@ fn sample_surface_transport(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
+fn sample_upper_transport_endpoint(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    endpoint: WindowEndpoint,
+    frame_stencils: &PreparedFrameStencils,
+    column: &ColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+    bracket: VerticalBracket,
+) -> Result<TransportSample, EngineError> {
+    let state = sample_frame_point(
+        frame_stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        coordinate,
+        vertical_value,
+    )?;
+    let first_w = endpoint_geometric_vertical_velocity_m_s(
+        window,
+        stencils,
+        endpoint,
+        column,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        bracket.first,
+    )?;
+    let second_w = if bracket.second == bracket.first {
+        first_w
+    } else {
+        endpoint_geometric_vertical_velocity_m_s(
+            window,
+            stencils,
+            endpoint,
+            column,
+            cell,
+            longitude_degrees,
+            latitude_degrees,
+            bracket.second,
+        )?
+    };
+    let geometric_vertical_velocity_m_s =
+        (second_w - first_w).mul_add(bracket.second_weight, first_w);
+    Ok(TransportSample {
+        eastward_wind_m_s: state.eastward_wind_m_s,
+        northward_wind_m_s: state.northward_wind_m_s,
+        geometric_vertical_velocity_m_s,
+        pressure_pa: state.pressure_pa,
+        temperature_k: state.temperature_k,
+        specific_humidity: state.specific_humidity,
+        physical_specific_humidity: state.physical_specific_humidity,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_surface_transport_endpoint(
+    plan: &QueryPlan,
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    endpoint: WindowEndpoint,
+    frame_stencils: &PreparedFrameStencils,
+    column: &ColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+) -> Result<Result<TransportSample, SampleStatus>, EngineError> {
+    let roughness = sample_surface_scalar_frame(
+        frame_stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        CanonicalField::AerodynamicRoughnessLength,
+    )?;
+    let physical_roughness = project_aerodynamic_roughness_for_physics(roughness)
+        .map_err(|_| EngineError::NumericalFailure)?;
+    let minimum = minimum_transport_height_agl_m(physical_roughness)
+        .map_err(|_| EngineError::NumericalFailure)?;
+    let anchor = lowest_complete_endpoint_transport_anchor(
+        window,
+        stencils,
+        endpoint,
+        frame_stencils,
+        column,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    let lowest = anchor.level;
+    let lowest_height_agl_m = column.height_asl_m()[lowest] - column.terrain_asl_m();
+    let query_height_agl_m =
+        surface_query_height_agl_m(column, coordinate, vertical_value, lowest)?;
+    if !query_height_agl_m.is_finite()
+        || query_height_agl_m < minimum
+        || query_height_agl_m > lowest_height_agl_m
+    {
+        return Ok(Err(SampleStatus::SurfaceLayerUndefined));
+    }
+    let ten_metre_wind = sample_surface_vector_frame(
+        frame_stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        CanonicalField::TenMetreEastwardWind,
+        CanonicalField::TenMetreNorthwardWind,
+    )?;
+    let two_metre_temperature_k = sample_surface_scalar_frame(
+        frame_stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        CanonicalField::TwoMetreAirTemperature,
+    )?;
+    let two_metre_specific_humidity = sample_physical_two_metre_specific_humidity_frame(
+        frame_stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    let scales = derive_surface_exchange_scales_frame(
+        frame_stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        column.surface_pressure_pa(),
+        two_metre_temperature_k,
+        two_metre_specific_humidity,
+    )?;
+    let lowest_wind = anchor.wind_m_s;
+    let lowest_w = anchor.geometric_vertical_velocity_m_s;
+    let terrain_w =
+        terrain_vertical_velocity_frame(frame_stencils, cell, longitude_degrees, latitude_degrees)?;
+    let boundary_layer_height_m = sample_surface_scalar_frame(
+        frame_stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        CanonicalField::BoundaryLayerHeight,
+    )?;
+    let model = plan
+        .surface_layer()
+        .ok_or(EngineError::InvalidPreparedState)?;
+    let neutral = [scales.neutral_stability];
+    let output = model
+        .evaluate(SurfaceLayerInput {
+            query_height_agl_m: &[query_height_agl_m],
+            minimum_height_agl_m: &[minimum],
+            ten_metre_eastward_wind_m_s: &[ten_metre_wind.0],
+            ten_metre_northward_wind_m_s: &[ten_metre_wind.1],
+            two_metre_air_temperature_k: &[two_metre_temperature_k],
+            two_metre_specific_humidity: &[two_metre_specific_humidity],
+            roughness_length_m: &[physical_roughness],
+            monin_obukhov_length_m: &[scales.monin_obukhov_length_m],
+            neutral_stability: &neutral,
+            friction_velocity_m_s: &[scales.friction_velocity_m_s],
+            temperature_scale_k: &[scales.temperature_scale_k],
+            humidity_scale: &[scales.humidity_scale],
+            boundary_layer_height_m: &[boundary_layer_height_m],
+            lowest_model_height_agl_m: &[lowest_height_agl_m],
+            lowest_model_eastward_wind_m_s: &[lowest_wind.0],
+            lowest_model_northward_wind_m_s: &[lowest_wind.1],
+            lowest_model_air_temperature_k: &[column.temperature_k()[lowest]],
+            lowest_model_specific_humidity: &[column.physical_specific_humidity()[lowest]],
+            terrain_vertical_velocity_m_s: &[terrain_w],
+            lowest_model_geometric_vertical_velocity_m_s: &[lowest_w],
+        })
+        .map_err(|_| EngineError::InvalidPreparedState)?;
+    let status = match output.status[0] {
+        SurfaceLayerStatus::Ok => None,
+        SurfaceLayerStatus::Undefined => Some(SampleStatus::SurfaceLayerUndefined),
+        SurfaceLayerStatus::InvalidPhysicalState => Some(SampleStatus::InvalidVerticalColumn),
+        SurfaceLayerStatus::NumericalFailure => Some(SampleStatus::NumericalFailure),
+    };
+    if let Some(status) = status {
+        return Ok(Err(status));
+    }
+    let pressure_pa = surface_query_pressure_pa(
+        column,
+        coordinate,
+        vertical_value,
+        query_height_agl_m,
+        lowest,
+    )?;
+    Ok(Ok(TransportSample {
+        eastward_wind_m_s: output.eastward_wind_m_s[0],
+        northward_wind_m_s: output.northward_wind_m_s[0],
+        geometric_vertical_velocity_m_s: output.geometric_vertical_velocity_m_s[0],
+        pressure_pa,
+        temperature_k: output.air_temperature_k[0],
+        specific_humidity: output.specific_humidity[0],
+        physical_specific_humidity: output.specific_humidity[0],
+    }))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_transport_endpoint(
+    plan: &QueryPlan,
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    endpoint: WindowEndpoint,
+    frame_stencils: &PreparedFrameStencils,
+    column: &ColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+) -> Result<Result<TransportSample, SampleStatus>, EngineError> {
+    match vertical_bracket(column, coordinate, vertical_value) {
+        Ok(bracket) => {
+            let upper = sample_upper_transport_endpoint(
+                window,
+                stencils,
+                endpoint,
+                frame_stencils,
+                column,
+                cell,
+                longitude_degrees,
+                latitude_degrees,
+                coordinate,
+                vertical_value,
+                bracket,
+            );
+            match upper {
+                Ok(value) => Ok(Ok(value)),
+                Err(error)
+                    if is_incomplete_transport_level(&error)
+                        && column.lowest_valid_index().ok() == Some(bracket.second) =>
+                {
+                    // A pressure endpoint can have thermodynamic geometry at its
+                    // nominal bottom level while one transport component is
+                    // underground or masked there.  In the bottommost interval,
+                    // the complete transport domain therefore starts at the next
+                    // jointly supported level and the explicit surface route owns
+                    // the query.  Higher-level support holes remain hard errors.
+                    match sample_surface_transport_endpoint(
+                        plan,
+                        window,
+                        stencils,
+                        endpoint,
+                        frame_stencils,
+                        column,
+                        cell,
+                        longitude_degrees,
+                        latitude_degrees,
+                        coordinate,
+                        vertical_value,
+                    ) {
+                        Ok(Ok(value)) => Ok(Ok(value)),
+                        Ok(Err(SampleStatus::SurfaceLayerUndefined)) => Err(error),
+                        Ok(Err(status)) => Ok(Err(status)),
+                        Err(surface_error) if is_incomplete_transport_level(&surface_error) => {
+                            Err(error)
+                        }
+                        Err(surface_error) => Err(surface_error),
+                    }
+                }
+                Err(error) => Err(error),
+            }
+        }
+        Err(VerticalError::SurfaceLayerRequired) => sample_surface_transport_endpoint(
+            plan,
+            window,
+            stencils,
+            endpoint,
+            frame_stencils,
+            column,
+            cell,
+            longitude_degrees,
+            latitude_degrees,
+            coordinate,
+            vertical_value,
+        ),
+        Err(error) => Ok(Err(sample_status_for_vertical_error(&error))),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_temporal_mixed_transport(
+    plan: &QueryPlan,
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    target_column: &ColumnGeometry,
+    before_column: &ColumnGeometry,
+    after_column: &ColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+    bounds: VerticalBounds,
+    metadata: &[FieldMetadata; TRANSPORT_FIELD_COUNT],
+) -> Result<TransportPointResult, EngineError> {
+    let before_stencils = frame_stencils(stencils, &window.frames.before)?;
+    let after_stencils = frame_stencils(stencils, &window.frames.after)?;
+    let before_result = sample_transport_endpoint(
+        plan,
+        window,
+        stencils,
+        WindowEndpoint::Before,
+        before_stencils,
+        before_column,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        coordinate,
+        vertical_value,
+    );
+    let before = match before_result? {
+        Ok(value) => value,
+        Err(status) => {
+            return Ok(TransportPointResult::invalid(
+                status,
+                Some(bounds),
+                metadata,
+            ));
+        }
+    };
+    let after_result = sample_transport_endpoint(
+        plan,
+        window,
+        stencils,
+        WindowEndpoint::After,
+        after_stencils,
+        after_column,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        coordinate,
+        vertical_value,
+    );
+    let after = match after_result? {
+        Ok(value) => value,
+        Err(status) => {
+            return Ok(TransportPointResult::invalid(
+                status,
+                Some(bounds),
+                metadata,
+            ));
+        }
+    };
+    let eastward_wind_m_s = blend_value(before.eastward_wind_m_s, after.eastward_wind_m_s, window)?;
+    let northward_wind_m_s =
+        blend_value(before.northward_wind_m_s, after.northward_wind_m_s, window)?;
+    let geometric_vertical_velocity_m_s = blend_value(
+        before.geometric_vertical_velocity_m_s,
+        after.geometric_vertical_velocity_m_s,
+        window,
+    )?;
+    let pressure_pa = blend_value(before.pressure_pa, after.pressure_pa, window)?;
+    let temperature_k = blend_value(before.temperature_k, after.temperature_k, window)?;
+    let specific_humidity = blend_value(before.specific_humidity, after.specific_humidity, window)?;
+    let physical_specific_humidity = blend_value(
+        before.physical_specific_humidity,
+        after.physical_specific_humidity,
+        window,
+    )?;
+    let density = moist_air_density_kg_m3(pressure_pa, temperature_k, physical_specific_humidity)
+        .map_err(|_| EngineError::NumericalFailure)?;
+    Ok(TransportPointResult {
+        values: [
+            eastward_wind_m_s,
+            northward_wind_m_s,
+            geometric_vertical_velocity_m_s,
+            pressure_pa,
+            temperature_k,
+            specific_humidity,
+            density,
+            target_column.terrain_asl_m(),
+        ],
+        valid: [true; TRANSPORT_FIELD_COUNT],
+        quality: std::array::from_fn(|index| metadata[index].quality),
+        provenance: std::array::from_fn(|index| metadata[index].provenance),
+        status: SampleStatus::Ok,
+        bounds: Some(bounds),
+    })
+}
+
+fn endpoint_routes_are_mixed(
+    before: &Result<VerticalBracket, VerticalError>,
+    after: &Result<VerticalBracket, VerticalError>,
+) -> bool {
+    matches!(
+        (before, after),
+        (Ok(_), Err(VerticalError::SurfaceLayerRequired))
+            | (Err(VerticalError::SurfaceLayerRequired), Ok(_))
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn temporal_mixed_columns(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+    target_bracket: &Result<VerticalBracket, VerticalError>,
+) -> Result<Option<(ColumnGeometry, ColumnGeometry)>, EngineError> {
+    if window.is_exact_frame()
+        || !matches!(
+            target_bracket,
+            Ok(_) | Err(VerticalError::SurfaceLayerRequired)
+        )
+    {
+        return Ok(None);
+    }
+    let before = frame_stencils(stencils, &window.frames.before)?.column(
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    let after = frame_stencils(stencils, &window.frames.after)?.column(
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    let before_bracket = vertical_bracket(&before, coordinate, vertical_value);
+    let after_bracket = vertical_bracket(&after, coordinate, vertical_value);
+    Ok(endpoint_routes_are_mixed(&before_bracket, &after_bracket).then_some((before, after)))
+}
+
 fn sample_transport_point(
     plan: &QueryPlan,
     window: &PreparedWindow,
@@ -2389,38 +3264,67 @@ fn sample_transport_point(
         longitude_degrees,
         latitude_degrees,
     )?;
-    let result = match vertical_bracket(&column, batch.vertical_coordinate, vertical_value) {
-        Ok(bracket) => sample_upper_transport(
-            window,
-            stencils,
-            &column,
-            cell,
-            longitude_degrees,
-            latitude_degrees,
-            batch.vertical_coordinate,
-            vertical_value,
-            bracket,
-            bounds,
-            &metadata.upper_transport,
-        ),
-        Err(VerticalError::SurfaceLayerRequired) => sample_surface_transport(
+    let target_bracket = vertical_bracket(&column, batch.vertical_coordinate, vertical_value);
+    let mixed_columns = temporal_mixed_columns(
+        window,
+        stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        batch.vertical_coordinate,
+        vertical_value,
+        &target_bracket,
+    )?;
+    let result = if let Some((before_column, after_column)) = mixed_columns {
+        sample_temporal_mixed_transport(
             plan,
             window,
             stencils,
             &column,
+            &before_column,
+            &after_column,
             cell,
             longitude_degrees,
             latitude_degrees,
             batch.vertical_coordinate,
             vertical_value,
             bounds,
-            &metadata.surface_transport,
-        ),
-        Err(error) => Ok(TransportPointResult::invalid(
-            sample_status_for_vertical_error(&error),
-            Some(bounds),
-            &metadata.upper_transport,
-        )),
+            &metadata.mixed_transport,
+        )
+    } else {
+        match target_bracket {
+            Ok(bracket) => sample_upper_transport(
+                window,
+                stencils,
+                &column,
+                cell,
+                longitude_degrees,
+                latitude_degrees,
+                batch.vertical_coordinate,
+                vertical_value,
+                bracket,
+                bounds,
+                &metadata.upper_transport,
+            ),
+            Err(VerticalError::SurfaceLayerRequired) => sample_surface_transport(
+                plan,
+                window,
+                stencils,
+                &column,
+                cell,
+                longitude_degrees,
+                latitude_degrees,
+                batch.vertical_coordinate,
+                vertical_value,
+                bounds,
+                &metadata.surface_transport,
+            ),
+            Err(error) => Ok(TransportPointResult::invalid(
+                sample_status_for_vertical_error(&error),
+                Some(bounds),
+                &metadata.upper_transport,
+            )),
+        }
     };
     match result {
         Err(error) if local_status_for_error(&error).is_some() => {
@@ -2502,8 +3406,38 @@ fn explain_record_for_point(
         return Err(EngineError::InvalidPreparedState);
     }
     let column = target_column(window, stencils, cell, longitude_degrees, latitude_degrees)?;
-    let (horizontal, vertical) =
-        match vertical_bracket(&column, batch.vertical_coordinate, vertical_value) {
+    let target_bracket = vertical_bracket(&column, batch.vertical_coordinate, vertical_value);
+    let mixed_route = generic_needs_surface_model(plan)
+        && plan.surface_layer_model().is_some()
+        && temporal_mixed_columns(
+            window,
+            stencils,
+            cell,
+            longitude_degrees,
+            latitude_degrees,
+            batch.vertical_coordinate,
+            vertical_value,
+            &target_bracket,
+        )?
+        .is_some();
+    let (horizontal, vertical) = if mixed_route {
+        (
+            ExplainHorizontalSupport {
+                points: base.points,
+                first_level_weights: base.weights,
+                first_level_method: ExplainHorizontalMethod::TimeBlended,
+                second_level_weights: None,
+                second_level_method: None,
+            },
+            ExplainVerticalSupport {
+                path: ExplainVerticalPath::TemporalMixedSurfaceUpper,
+                first_level: None,
+                second_level: None,
+                second_weight: None,
+            },
+        )
+    } else {
+        match target_bracket {
             Ok(bracket) => {
                 let first_weights = column.level_horizontal_weights()[bracket.first];
                 let (second_level_weights, second_level_method) = if bracket.second == bracket.first
@@ -2566,10 +3500,14 @@ fn explain_record_for_point(
                     second_weight: None,
                 },
             ),
-        };
-    let surface_model = (vertical.path == ExplainVerticalPath::SurfaceLayer)
-        .then(|| plan.surface_layer_model().cloned())
-        .flatten();
+        }
+    };
+    let surface_model = matches!(
+        vertical.path,
+        ExplainVerticalPath::SurfaceLayer | ExplainVerticalPath::TemporalMixedSurfaceUpper
+    )
+    .then(|| plan.surface_layer_model().cloned())
+    .flatten();
     Ok(ExplainRecord {
         domain: window.frames.before.metadata().domain.clone(),
         cell,
@@ -2679,6 +3617,12 @@ fn generic_bounds(
         .map_err(|_| EngineError::Vertical(VerticalError::InvalidVerticalColumn))
 }
 
+fn generic_needs_surface_model(plan: &QueryPlan) -> bool {
+    plan.fields()
+        .iter()
+        .any(|field| matches!(transport_field_index(field), Some(0 | 1 | 2 | 4 | 5 | 6)))
+}
+
 #[allow(clippy::too_many_arguments)]
 fn sample_generic_surface_point(
     plan: &QueryPlan,
@@ -2693,21 +3637,7 @@ fn sample_generic_surface_point(
     bounds: VerticalBounds,
     metadata: &ExecutionMetadata,
 ) -> Result<GenericPointResult, EngineError> {
-    let lowest = column.lowest_valid_index().map_err(EngineError::Vertical)?;
-    let query_height_agl_m =
-        surface_query_height_agl_m(column, coordinate, vertical_value, lowest)?;
-    let pressure_pa = surface_query_pressure_pa(
-        column,
-        coordinate,
-        vertical_value,
-        query_height_agl_m,
-        lowest,
-    )?;
-    let needs_surface_model = plan
-        .fields()
-        .iter()
-        .any(|field| matches!(transport_field_index(field), Some(0 | 1 | 2 | 4 | 5 | 6)));
-    let transport = if needs_surface_model && plan.surface_layer_model().is_some() {
+    let transport = if generic_needs_surface_model(plan) && plan.surface_layer_model().is_some() {
         Some(sample_surface_transport(
             plan,
             window,
@@ -2724,16 +3654,106 @@ fn sample_generic_surface_point(
     } else {
         None
     };
+    build_generic_surface_like_result(
+        plan,
+        window,
+        stencils,
+        column,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        coordinate,
+        vertical_value,
+        bounds,
+        &metadata.generic_surface,
+        transport,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_generic_temporal_mixed_point(
+    plan: &QueryPlan,
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    target_column: &ColumnGeometry,
+    before_column: &ColumnGeometry,
+    after_column: &ColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+    bounds: VerticalBounds,
+    metadata: &ExecutionMetadata,
+) -> Result<GenericPointResult, EngineError> {
+    let transport = if generic_needs_surface_model(plan) && plan.surface_layer_model().is_some() {
+        Some(sample_temporal_mixed_transport(
+            plan,
+            window,
+            stencils,
+            target_column,
+            before_column,
+            after_column,
+            cell,
+            longitude_degrees,
+            latitude_degrees,
+            coordinate,
+            vertical_value,
+            bounds,
+            &metadata.mixed_transport,
+        )?)
+    } else {
+        None
+    };
+    build_generic_surface_like_result(
+        plan,
+        window,
+        stencils,
+        target_column,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        coordinate,
+        vertical_value,
+        bounds,
+        &metadata.generic_mixed,
+        transport,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_generic_surface_like_result(
+    plan: &QueryPlan,
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    column: &ColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+    bounds: VerticalBounds,
+    field_metadata: &[FieldMetadata],
+    transport: Option<TransportPointResult>,
+) -> Result<GenericPointResult, EngineError> {
+    if field_metadata.len() != plan.fields().len() {
+        return Err(EngineError::InvalidPreparedState);
+    }
+    let lowest = column.lowest_valid_index().map_err(EngineError::Vertical)?;
+    let query_height_agl_m =
+        surface_query_height_agl_m(column, coordinate, vertical_value, lowest)?;
+    let pressure_pa = surface_query_pressure_pa(
+        column,
+        coordinate,
+        vertical_value,
+        query_height_agl_m,
+        lowest,
+    )?;
     let mut result = GenericPointResult {
         values: vec![0.0; plan.fields().len()],
         valid: vec![false; plan.fields().len()],
-        quality: metadata
-            .generic_surface
-            .iter()
-            .map(|value| value.quality)
-            .collect(),
-        provenance: metadata
-            .generic_surface
+        quality: field_metadata.iter().map(|value| value.quality).collect(),
+        provenance: field_metadata
             .iter()
             .map(|value| value.provenance)
             .collect(),
@@ -2777,9 +3797,9 @@ fn sample_generic_surface_point(
                 latitude_degrees,
                 *canonical,
             )?),
-            CanonicalField::PressureVerticalVelocity | CanonicalField::HybridVerticalVelocity => {
-                None
-            }
+            CanonicalField::PressureVerticalVelocity
+            | CanonicalField::HybridVerticalVelocity
+            | CanonicalField::PotentialVorticity => None,
             CanonicalField::TenMetreEastwardWind | CanonicalField::TenMetreNorthwardWind => {
                 let vector = sample_surface_vector_time(
                     window,
@@ -2850,7 +3870,36 @@ fn sample_generic_point(
         longitude_degrees,
         latitude_degrees,
     )?;
-    let bracket = match vertical_bracket(&column, batch.vertical_coordinate, vertical_value) {
+    let target_bracket = vertical_bracket(&column, batch.vertical_coordinate, vertical_value);
+    if generic_needs_surface_model(plan) && plan.surface_layer_model().is_some() {
+        if let Some((before_column, after_column)) = temporal_mixed_columns(
+            window,
+            stencils,
+            cell,
+            longitude_degrees,
+            latitude_degrees,
+            batch.vertical_coordinate,
+            vertical_value,
+            &target_bracket,
+        )? {
+            return sample_generic_temporal_mixed_point(
+                plan,
+                window,
+                stencils,
+                &column,
+                &before_column,
+                &after_column,
+                cell,
+                longitude_degrees,
+                latitude_degrees,
+                batch.vertical_coordinate,
+                vertical_value,
+                bounds,
+                metadata,
+            );
+        }
+    }
+    let bracket = match target_bracket {
         Ok(bracket) => bracket,
         Err(VerticalError::SurfaceLayerRequired) => {
             return sample_generic_surface_point(
@@ -2898,7 +3947,7 @@ fn sample_generic_point(
     let density = moist_air_density_kg_m3(
         state.pressure_pa,
         state.temperature_k,
-        state.specific_humidity,
+        state.physical_specific_humidity,
     )
     .map_err(|_| EngineError::NumericalFailure)?;
     let needs_w = plan
@@ -2969,18 +4018,18 @@ fn sample_generic_point(
         let value = match canonical {
             CanonicalField::GeometricHeight => geometric_height,
             CanonicalField::SurfacePressure => column.surface_pressure_pa(),
-            CanonicalField::PressureVerticalVelocity | CanonicalField::HybridVerticalVelocity => {
-                sample_scalar_query_time(
-                    window,
-                    stencils,
-                    cell,
-                    longitude_degrees,
-                    latitude_degrees,
-                    batch.vertical_coordinate,
-                    vertical_value,
-                    *canonical,
-                )?
-            }
+            CanonicalField::PressureVerticalVelocity
+            | CanonicalField::HybridVerticalVelocity
+            | CanonicalField::PotentialVorticity => sample_scalar_query_time(
+                window,
+                stencils,
+                cell,
+                longitude_degrees,
+                latitude_degrees,
+                batch.vertical_coordinate,
+                vertical_value,
+                *canonical,
+            )?,
             CanonicalField::TenMetreEastwardWind | CanonicalField::TenMetreNorthwardWind => {
                 let vector = sample_surface_vector_time(
                     window,
@@ -3464,6 +4513,14 @@ mod tests {
         seconds: i64,
         estimated: Option<CanonicalField>,
     ) -> Arc<RawMetFrame> {
+        analytic_pressure_frame_with_surface_humidity(seconds, estimated, 0.005)
+    }
+
+    fn analytic_pressure_frame_with_surface_humidity(
+        seconds: i64,
+        estimated: Option<CanonicalField>,
+        two_metre_specific_humidity: f64,
+    ) -> Arc<RawMetFrame> {
         let domain = DomainId("analytic".into());
         let valid_time = Timestamp::new(seconds, 0).unwrap();
         let id = LogicalFrameId {
@@ -3555,7 +4612,10 @@ mod tests {
             (CanonicalField::TenMetreEastwardWind, vec![4.0; 4]),
             (CanonicalField::TenMetreNorthwardWind, vec![1.0; 4]),
             (CanonicalField::TwoMetreAirTemperature, vec![290.0; 4]),
-            (CanonicalField::TwoMetreSpecificHumidity, vec![0.005; 4]),
+            (
+                CanonicalField::TwoMetreSpecificHumidity,
+                vec![two_metre_specific_humidity; 4],
+            ),
             (CanonicalField::AerodynamicRoughnessLength, vec![0.1; 4]),
             (CanonicalField::BoundaryLayerHeight, vec![1_000.0; 4]),
             (CanonicalField::EastwardSurfaceStress, vec![0.12; 4]),
@@ -3731,6 +4791,14 @@ mod tests {
     }
 
     fn generic_plan(fields: Vec<CanonicalField>, with_surface_layer: bool) -> QueryPlan {
+        generic_plan_with_explain(fields, with_surface_layer, ExplainMode::Disabled)
+    }
+
+    fn generic_plan_with_explain(
+        fields: Vec<CanonicalField>,
+        with_surface_layer: bool,
+        explain: ExplainMode,
+    ) -> QueryPlan {
         let mut registry = FieldRegistry::new();
         for canonical in &fields {
             let semantics = canonical.semantics();
@@ -3763,7 +4831,7 @@ mod tests {
             allow_estimated: false,
             surface_layer_model: with_surface_layer
                 .then(|| ModelId(MoninObukhovBusingerDyer::MODEL_ID.into())),
-            explain: ExplainMode::Disabled,
+            explain,
         })
         .unwrap()
     }
@@ -3947,6 +5015,32 @@ mod tests {
         assert_eq!(row.status(), SampleStatus::Ok);
         assert!((row.eastward_wind_m_s().unwrap() - 4.0).abs() < 1.0e-3);
         assert!(row.geometric_vertical_velocity_m_s().unwrap().is_finite());
+        let near_q = near
+            .provenance()
+            .get(near.columns().specific_humidity.provenance()[0])
+            .unwrap();
+        assert!(near_q.transforms.iter().any(|transform| {
+            transform.operation == SPECIFIC_HUMIDITY_NONNEGATIVE_PROJECTION_ALGORITHM_ID
+        }));
+        assert!(near_q.transforms.iter().any(|transform| {
+            transform.operation == AERODYNAMIC_ROUGHNESS_ZERO_PROJECTION_ALGORITHM_ID
+        }));
+        assert!(near_q.transforms.iter().any(|transform| {
+            transform.operation == LOWEST_COMPLETE_TRANSPORT_ANCHOR_ALGORITHM_ID
+        }));
+        assert!(near_q.transforms.iter().any(|transform| {
+            transform.operation == TWO_METRE_ANCHORED_SURFACE_SCALAR_ALGORITHM_ID
+        }));
+        let near_wind = near
+            .provenance()
+            .get(near.columns().eastward_wind_m_s.provenance()[0])
+            .unwrap();
+        assert!(near_wind.transforms.iter().any(|transform| {
+            transform.operation == TEN_METRE_ANCHORED_SURFACE_WIND_ALGORITHM_ID
+        }));
+        assert!(near_wind.transforms.iter().any(|transform| {
+            transform.operation == LOWEST_COMPLETE_TRANSPORT_ANCHOR_ALGORITHM_ID
+        }));
 
         let mut between = PreparedWindow::between(
             analytic_pressure_frame(0),
@@ -3982,6 +5076,42 @@ mod tests {
                 .unwrap()
                 .is_finite()
         );
+    }
+
+    #[test]
+    fn surface_layer_projects_two_metre_humidity_per_frame_before_time_blending() {
+        let before = analytic_pressure_frame_with_surface_humidity(0, None, -0.01);
+        let after = analytic_pressure_frame_with_surface_humidity(3_600, None, 0.01);
+        let mut window = PreparedWindow::between(
+            before,
+            after,
+            Timestamp::new(1_800, 0).unwrap(),
+            8 * 1024 * 1024,
+        )
+        .unwrap();
+        let cache = Arc::new(Mutex::new(ColumnCache::new(8 * 1024 * 1024)));
+        window.attach_column_cache(&cache);
+        let mut workspace = BatchWorkspace::default();
+        let output = window
+            .prepare_transport_batch(
+                &transport_plan(),
+                QueryBatch {
+                    vertical_coordinate: VerticalQuery::AboveGround,
+                    points: crate::query::request::QueryPointArrays {
+                        longitude_degrees: vec![0.5],
+                        latitude_degrees: vec![0.5],
+                        vertical: vec![2.0],
+                    },
+                },
+                &mut workspace,
+            )
+            .unwrap()
+            .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+            .unwrap();
+        let row = output.row(0).unwrap();
+        assert_eq!(row.status(), SampleStatus::Ok);
+        let humidity = row.specific_humidity().unwrap();
+        assert!((humidity - 0.005).abs() < 1.0e-15, "humidity={humidity}");
     }
 
     #[test]
@@ -4053,6 +5183,7 @@ mod tests {
             vec![
                 CanonicalField::SurfacePressure,
                 CanonicalField::AirTemperature,
+                CanonicalField::SpecificHumidity,
                 CanonicalField::AirDensity,
             ],
             false,
@@ -4100,6 +5231,16 @@ mod tests {
                 .iter()
                 .any(|value| value.operation == "trajecta.m3.query.upper_air")
         );
+        let humidity = FieldKey::Canonical(CanonicalField::SpecificHumidity);
+        let humidity_record = output.row(0).unwrap().provenance_record(&humidity).unwrap();
+        assert!(!humidity_record.transforms.iter().any(|transform| {
+            transform.operation == SPECIFIC_HUMIDITY_NONNEGATIVE_PROJECTION_ALGORITHM_ID
+        }));
+        let density = FieldKey::Canonical(CanonicalField::AirDensity);
+        let density_record = output.row(0).unwrap().provenance_record(&density).unwrap();
+        assert!(density_record.transforms.iter().any(|transform| {
+            transform.operation == SPECIFIC_HUMIDITY_NONNEGATIVE_PROJECTION_ALGORITHM_ID
+        }));
     }
 
     #[test]
@@ -4184,6 +5325,88 @@ mod tests {
             row.value(&FieldKey::Canonical(CanonicalField::EastwardWind))
                 .is_none()
         );
+    }
+
+    #[test]
+    fn generic_temporal_mixed_surface_upper_matches_transport_and_explain() {
+        let generic_plan = generic_plan_with_explain(
+            vec![
+                CanonicalField::EastwardWind,
+                CanonicalField::SpecificHumidity,
+                CanonicalField::AirDensity,
+            ],
+            true,
+            ExplainMode::Full,
+        );
+        let transport_plan = transport_plan_with_options(false, ExplainMode::Full);
+        let mut window = PreparedWindow::between(
+            analytic_pressure_frame(0),
+            analytic_pressure_frame(3_600),
+            Timestamp::new(1_800, 0).unwrap(),
+            8 * 1024 * 1024,
+        )
+        .unwrap();
+        let cache = Arc::new(Mutex::new(ColumnCache::new(8 * 1024 * 1024)));
+        window.attach_column_cache(&cache);
+        let batch = QueryBatch {
+            vertical_coordinate: VerticalQuery::AboveSeaLevel,
+            points: crate::query::request::QueryPointArrays {
+                longitude_degrees: vec![0.0],
+                latitude_degrees: vec![0.0],
+                vertical: vec![1_300.0],
+            },
+        };
+        let mut workspace = BatchWorkspace::default();
+        let generic = window
+            .prepare_batch(&generic_plan, batch.clone(), &mut workspace)
+            .unwrap()
+            .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+            .unwrap();
+        let transport = window
+            .prepare_transport_batch(&transport_plan, batch, &mut workspace)
+            .unwrap()
+            .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+            .unwrap();
+        let generic_row = generic.row(0).unwrap();
+        let transport_row = transport.row(0).unwrap();
+        assert_eq!(generic_row.status(), SampleStatus::Ok);
+        assert_eq!(transport_row.status(), SampleStatus::Ok);
+        for (field, expected) in [
+            (
+                CanonicalField::EastwardWind,
+                transport_row.eastward_wind_m_s().unwrap(),
+            ),
+            (
+                CanonicalField::SpecificHumidity,
+                transport_row.specific_humidity().unwrap(),
+            ),
+            (
+                CanonicalField::AirDensity,
+                transport_row.air_density_kg_m3().unwrap(),
+            ),
+        ] {
+            let actual = generic_row.value(&FieldKey::Canonical(field)).unwrap();
+            assert!((actual - expected).abs() <= 1.0e-12 * expected.abs().max(1.0));
+        }
+        let generic_explain = generic.explain().unwrap()[0].as_ref().unwrap();
+        let transport_explain = transport.explain().unwrap()[0].as_ref().unwrap();
+        assert_eq!(
+            generic_explain.vertical.path,
+            ExplainVerticalPath::TemporalMixedSurfaceUpper
+        );
+        assert_eq!(
+            transport_explain.vertical.path,
+            ExplainVerticalPath::TemporalMixedSurfaceUpper
+        );
+        assert_eq!(
+            generic_explain.surface_model.as_ref().unwrap().0,
+            MoninObukhovBusingerDyer::MODEL_ID
+        );
+        let humidity = FieldKey::Canonical(CanonicalField::SpecificHumidity);
+        let humidity_record = generic_row.provenance_record(&humidity).unwrap();
+        assert!(humidity_record.transforms.iter().any(|transform| {
+            transform.operation == "trajecta.m3.query.temporal_mixed_surface_upper"
+        }));
     }
 
     #[test]

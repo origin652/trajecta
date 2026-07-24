@@ -421,12 +421,43 @@ where
     for segment in segments {
         let left_fraction = segment.start_fraction;
         let left = sample_at(path, left_fraction)?;
+        if left.meteorology_status == SampleStatus::OutOfDomain {
+            return Ok(None);
+        }
         let left_value = scalar(&left)?;
         if !left_value.is_finite() {
             return Err(BoundaryError::InvalidParticleState);
         }
         let right_fraction = segment.end_fraction;
         let right = sample_at(path, right_fraction)?;
+        if right.meteorology_status == SampleStatus::OutOfDomain {
+            let (inside_fraction, inside, _, _) = bisect_domain_exit_bracket(
+                path,
+                left_fraction,
+                left.clone(),
+                right_fraction,
+                right,
+            )?;
+            let inside_value = scalar(&inside)?;
+            if !inside_value.is_finite() {
+                return Err(BoundaryError::InvalidParticleState);
+            }
+            if left_value < 0.0 || (left_value == 0.0 && inside_value < 0.0) {
+                return Ok(Some((left_fraction, left)));
+            }
+            if left_value > 0.0 && inside_value <= 0.0 {
+                return bisect_scalar_downcrossing(
+                    path,
+                    left_fraction,
+                    left_value,
+                    inside_fraction,
+                    inside_value,
+                    scalar,
+                )
+                .map(Some);
+            }
+            return Ok(None);
+        }
         let right_value = scalar(&right)?;
         if !right_value.is_finite() {
             return Err(BoundaryError::InvalidParticleState);
@@ -533,11 +564,23 @@ fn find_first_domain_exit(
 
 fn bisect_domain_exit(
     path: &mut dyn BoundaryPathSampler,
+    left_fraction: f64,
+    left: BoundarySample,
+    right_fraction: f64,
+    right: BoundarySample,
+) -> Result<(f64, BoundarySample), BoundaryError> {
+    let (_, _, right_fraction, right) =
+        bisect_domain_exit_bracket(path, left_fraction, left, right_fraction, right)?;
+    Ok((right_fraction, right))
+}
+
+fn bisect_domain_exit_bracket(
+    path: &mut dyn BoundaryPathSampler,
     mut left_fraction: f64,
     mut left: BoundarySample,
     mut right_fraction: f64,
     mut right: BoundarySample,
-) -> Result<(f64, BoundarySample), BoundaryError> {
+) -> Result<(f64, BoundarySample, f64, BoundarySample), BoundaryError> {
     if left.meteorology_status == SampleStatus::OutOfDomain
         || right.meteorology_status != SampleStatus::OutOfDomain
     {
@@ -557,8 +600,7 @@ fn bisect_domain_exit(
             left = midpoint;
         }
     }
-    let _ = left;
-    Ok((right_fraction, right))
+    Ok((left_fraction, left, right_fraction, right))
 }
 
 fn terminate_at_sample(
@@ -750,6 +792,49 @@ mod tests {
         template: ParticleState,
     }
 
+    struct DomainExitMissingFieldsPath {
+        start: ParticleState,
+        proposed: ParticleState,
+    }
+
+    impl BoundaryPathSampler for DomainExitMissingFieldsPath {
+        fn ordered_segments(&self) -> Result<Vec<BoundaryPathSegment>, BoundaryError> {
+            Ok(vec![BoundaryPathSegment {
+                start_fraction: 0.0,
+                end_fraction: 1.0,
+            }])
+        }
+
+        fn sample(&mut self, fraction: f64) -> Result<BoundarySample, BoundaryError> {
+            let mut position = self.start.clone();
+            position.longitude_degrees = self.start.longitude_degrees
+                + fraction * (self.proposed.longitude_degrees - self.start.longitude_degrees);
+            let inside = position.longitude_degrees <= 1.0;
+            Ok(BoundarySample {
+                fraction,
+                position,
+                meteorology_status: if inside {
+                    SampleStatus::Ok
+                } else {
+                    SampleStatus::OutOfDomain
+                },
+                surface_height_asl_m: inside.then_some(0.0),
+                model_top_height_asl_m: inside.then_some(100.0),
+            })
+        }
+
+        fn retarget(
+            &mut self,
+            _start_fraction: f64,
+            start: &ParticleState,
+            proposed: &ParticleState,
+        ) -> Result<(), BoundaryError> {
+            self.start = start.clone();
+            self.proposed = proposed.clone();
+            Ok(())
+        }
+    }
+
     impl BoundaryPathSampler for MissingTerrainPath {
         fn ordered_segments(&self) -> Result<Vec<BoundaryPathSegment>, BoundaryError> {
             Ok(vec![BoundaryPathSegment {
@@ -841,6 +926,39 @@ mod tests {
             }]),
             Err(BoundaryError::InvalidPathSegments)
         );
+    }
+
+    #[test]
+    fn met_dependent_policies_stop_at_domain_exit_before_limited_termination() {
+        let start = particle(0.0, 10.0);
+        let mut proposed = particle(2.0, 10.0);
+        let mut path = DomainExitMissingFieldsPath {
+            start: start.clone(),
+            proposed: proposed.clone(),
+        };
+        let mut boundary_context = context(&mut path);
+        assert_eq!(
+            SurfaceReflect
+                .apply(&start, &mut proposed, &mut boundary_context)
+                .unwrap(),
+            BoundaryDecision::Continue
+        );
+        assert_eq!(
+            ModelTopTerminate
+                .apply(&start, &mut proposed, &mut boundary_context)
+                .unwrap(),
+            BoundaryDecision::Continue
+        );
+        let decision = LimitedDomainTerminate
+            .apply(&start, &mut proposed, &mut boundary_context)
+            .unwrap();
+        assert!(matches!(
+            decision,
+            BoundaryDecision::Terminated {
+                reason: TerminationReason::OutsideDomain,
+                ..
+            }
+        ));
     }
 
     #[test]

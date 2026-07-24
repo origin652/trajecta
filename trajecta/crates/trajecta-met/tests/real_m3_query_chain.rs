@@ -17,7 +17,8 @@ use trajecta_met::derive::height::{
     geopotential_to_geometric_height_m,
 };
 use trajecta_met::field::{
-    CanonicalField, Capability, CapabilitySet, ExtensionFieldId, FieldKey, FieldRegistry,
+    CanonicalField, Capability, CapabilitySet, ExtensionFieldId, FieldKey, FieldQuality,
+    FieldRegistry,
 };
 use trajecta_met::frame::{FrameError, RawMetFrame, TemporalSupport};
 use trajecta_met::io::frame_loader::{FrameLoadRequest, FrameLoader};
@@ -34,7 +35,8 @@ use trajecta_met::query::engine::{
 };
 use trajecta_met::query::output::SampleStatus;
 use trajecta_met::query::request::{
-    ExplainMode, QueryBatch, QueryPointArrays, TransportPlanRequest, VerticalQuery,
+    ExplainMode, QueryBatch, QueryPlanRequest, QueryPointArrays, TransportPlanRequest,
+    VerticalQuery,
 };
 use trajecta_met::science::M3_CONSTANTS;
 use trajecta_met::surface_layer::{MoninObukhovBusingerDyer, SurfaceLayerRegistry};
@@ -111,6 +113,16 @@ fn load_cfsr_frames(
     start: Timestamp,
     end: Timestamp,
 ) -> Option<(ProfileCatalog, MetCatalog, Vec<Arc<RawMetFrame>>)> {
+    load_cfsr_frames_with_capabilities(directory, files, start, end, transport_capabilities())
+}
+
+fn load_cfsr_frames_with_capabilities(
+    directory: &Path,
+    files: &[&str],
+    start: Timestamp,
+    end: Timestamp,
+    capabilities: CapabilitySet,
+) -> Option<(ProfileCatalog, MetCatalog, Vec<Arc<RawMetFrame>>)> {
     for name in files {
         if !directory.join(name).is_file() {
             skip_or_fail(name);
@@ -124,7 +136,6 @@ fn load_cfsr_frames(
     let profiles = ProfileCatalog::load(&[]).expect("profiles");
     let inspector = ReaderMetadataInspector::new(MeteorologyReaderBackend::Rust);
     let mut hash_cache = FileHashCache::new();
-    let capabilities = transport_capabilities();
     let request = DatasetLockRequest {
         identity: DatasetIdentity {
             id: DatasetRef("cfsr-m3-query".into()),
@@ -336,6 +347,80 @@ fn assert_transport_row_complete(
         assert_eq!(record.field, field.field);
         assert_eq!(record.quality, field.quality);
     }
+}
+
+#[test]
+fn cfsr_pgbl_pv_is_derived_on_native_grid_and_queryable() {
+    let start = Timestamp::new(1_230_768_000, 0).unwrap();
+    let end = Timestamp::new(1_230_789_600, 0).unwrap();
+    let capabilities = transport_capabilities().with(Capability::Diagnostics);
+    let Some((profiles, catalog, frames)) = load_cfsr_frames_with_capabilities(
+        &cfsr_directory(),
+        &["pgbl00.gdas.2009010100.grb2", "pgbl00.gdas.2009010106.grb2"],
+        start,
+        end,
+        capabilities,
+    ) else {
+        return;
+    };
+
+    let key = FieldKey::Canonical(CanonicalField::PotentialVorticity);
+    for frame in &frames {
+        let field = frame.fields().get(&key).expect("CFSR native-grid PV");
+        assert_eq!(field.unit().symbol(), "PVU");
+        assert!(field.validity().as_arc().iter().any(|valid| *valid));
+        let record = frame
+            .provenance()
+            .get(field.provenance())
+            .expect("CFSR PV provenance");
+        assert_eq!(record.quality, FieldQuality::Derived);
+        assert_eq!(
+            record.transforms[0].operation,
+            trajecta_met::science::ERTEL_PV_SPHERICAL_ALGORITHM_ID
+        );
+        assert!(
+            record.transforms[0].parameters.iter().any(|(name, value)| {
+                name == "vertical_coordinate" && value == "pressure_levels"
+            })
+        );
+    }
+
+    let mut engine = engine_from_frames(profiles, catalog, &frames);
+    let plan = engine
+        .compile_plan(
+            QueryPlanRequest {
+                fields: vec![key.clone()],
+                allow_estimated: false,
+                surface_layer_model: None,
+                explain: ExplainMode::Full,
+            },
+            &ExecutionPlan::default(),
+        )
+        .expect("CFSR PV query plan");
+    let window = engine
+        .prepare(Timestamp::new(1_230_778_800, 0).unwrap())
+        .expect("CFSR PV 03 UTC window");
+    let batch = QueryBatch {
+        vertical_coordinate: VerticalQuery::Pressure,
+        points: QueryPointArrays {
+            longitude_degrees: vec![-95.0],
+            latitude_degrees: vec![40.0],
+            vertical: vec![50_000.0],
+        },
+    };
+    let mut workspace = BatchWorkspace::default();
+    let output = window
+        .prepare_batch(&plan, batch, &mut workspace)
+        .expect("prepare CFSR PV")
+        .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+        .expect("execute CFSR PV");
+    assert_eq!(output.status().get(0), Some(SampleStatus::Ok));
+    assert_eq!(output.fields()[0].field(), &key);
+    let value = output.fields()[0]
+        .samples()
+        .value(0)
+        .expect("valid CFSR PV sample");
+    assert!(value.is_finite());
 }
 
 #[test]

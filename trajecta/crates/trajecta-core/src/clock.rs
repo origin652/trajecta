@@ -49,6 +49,13 @@ pub enum StepBoundary {
         /// Stable output-product identifier.
         product_id: String,
     },
+    /// Exact dynamic population event such as a finite-domain inflow birth.
+    Population {
+        /// Event physical time.
+        time: Timestamp,
+        /// Stable population-local event description.
+        event_id: String,
+    },
     /// Final simulation time.
     End(Timestamp),
 }
@@ -139,7 +146,9 @@ impl StepBoundary {
     pub const fn time(&self) -> Timestamp {
         match self {
             Self::MeteorologyFrame(time) | Self::End(time) => *time,
-            Self::Release { time, .. } | Self::Output { time, .. } => *time,
+            Self::Release { time, .. }
+            | Self::Output { time, .. }
+            | Self::Population { time, .. } => *time,
         }
     }
 }

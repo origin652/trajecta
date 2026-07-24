@@ -7,7 +7,8 @@
 use std::sync::Arc;
 
 use crate::field::{FieldKey, FieldQuality};
-use crate::frame::RawMetFrame;
+use crate::frame::{ArrayLayout, RawMetFrame, TemporalSupport, ValidityMask};
+use crate::profile::graph::GraphUnit;
 use crate::provenance::ProvenanceRecord;
 
 pub mod cloud;
@@ -36,6 +37,14 @@ pub struct DerivedField {
     pub key: FieldKey,
     /// Flat canonical-order values.
     pub values: Arc<[f64]>,
+    /// Independent structural and numerical validity mask.
+    pub validity: ValidityMask,
+    /// Canonical unit carried by the values.
+    pub unit: GraphUnit,
+    /// Canonical runtime array layout.
+    pub layout: ArrayLayout,
+    /// Physical source-time support inherited from the inputs.
+    pub temporal: TemporalSupport,
     /// Derived or estimated quality.
     pub quality: FieldQuality,
     /// Exact input field identities.

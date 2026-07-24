@@ -160,6 +160,13 @@ derived_fields:
     shape: horizontal2_d
     stage: frame
     quality: derived
+  - id: potential_vorticity
+    target: potential_vorticity
+    expression: "ertel_potential_vorticity(eastward_wind, northward_wind, air_temperature, surface_pressure)"
+    unit: PVU
+    shape: full3_d
+    stage: tile
+    quality: derived
 capabilities:
   transport:
     - eastward_wind
@@ -181,3 +188,13 @@ capabilities:
     - friction_velocity
     - sensible_heat_flux
     - latent_heat_flux
+  domain_fill:
+    - eastward_wind
+    - northward_wind
+    - air_temperature
+    - specific_humidity
+    - geopotential_height
+    - surface_pressure
+    - surface_geopotential
+  diagnostics:
+    - potential_vorticity

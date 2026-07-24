@@ -239,7 +239,7 @@ impl CanonicalField {
                 InterpolationKind::MaskedTriangle,
             ),
             F::PotentialVorticity => CanonicalFieldSemantics::full_level(
-                "K m2 kg-1 s-1",
+                "PVU",
                 Capability::Diagnostics,
                 InterpolationKind::MaskedTriangle,
             ),
@@ -320,6 +320,15 @@ impl CanonicalField {
         };
         semantics.dimension = self.dimension();
         semantics
+    }
+
+    /// Returns the multiplicative conversion from the canonical unit to SI.
+    #[must_use]
+    pub const fn unit_scale_to_si(self) -> f64 {
+        match self {
+            Self::PotentialVorticity => crate::science::PVU_SCALE_TO_SI,
+            _ => 1.0,
+        }
     }
 }
 
@@ -553,8 +562,13 @@ impl FieldRegistry {
         let mut registry = Self::new();
         for field in CanonicalField::ALL {
             let semantics = field.semantics();
-            let unit = Unit::new(semantics.unit, semantics.dimension, 1.0, 0.0)
-                .map_err(|_| FieldRegistryError::InvalidCanonicalUnit(field))?;
+            let unit = Unit::new(
+                semantics.unit,
+                semantics.dimension,
+                field.unit_scale_to_si(),
+                0.0,
+            )
+            .map_err(|_| FieldRegistryError::InvalidCanonicalUnit(field))?;
             registry.register(FieldDescriptor {
                 key: FieldKey::Canonical(field),
                 unit,
@@ -577,6 +591,8 @@ impl FieldRegistry {
             let semantics = field.semantics();
             if descriptor.unit.symbol() != semantics.unit
                 || descriptor.unit.dimension() != semantics.dimension
+                || descriptor.unit.scale_to_si() != field.unit_scale_to_si()
+                || descriptor.unit.offset_to_si() != 0.0
                 || descriptor.shape != semantics.shape
                 || descriptor.vertical_stagger != semantics.vertical_stagger
                 || descriptor.required_capability != semantics.required_capability
@@ -643,6 +659,12 @@ mod tests {
             CanonicalField::SensibleHeatFlux.dimension(),
             Dimension::ENERGY_FLUX
         );
+        let pv = registry
+            .get(&FieldKey::Canonical(CanonicalField::PotentialVorticity))
+            .unwrap();
+        assert_eq!(pv.unit.symbol(), "PVU");
+        assert_eq!(pv.unit.scale_to_si(), crate::science::PVU_SCALE_TO_SI);
+        assert_eq!(pv.unit.to_si(2.0).unwrap(), 2.0e-6);
     }
 
     #[test]

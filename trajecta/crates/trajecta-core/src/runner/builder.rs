@@ -46,7 +46,8 @@ use crate::manifest_store::AtomicRunManifestStore;
 use crate::output::sqlite::ParticleStateSqliteSink;
 use crate::output::{OutputScheduler, ParticleStateProduct};
 use crate::population::{
-    DirectAslReleaseResolver, MetReleaseVerticalResolver, ReleaseDrivenPopulation,
+    DirectAslReleaseResolver, DomainFillAirMass, DomainFillStratosphericOzone,
+    MetReleaseVerticalResolver, OzoneAssignmentRuleRegistry, ReleaseDrivenPopulation,
 };
 use crate::release::geometry::{SphericalGeometrySampler, canonicalize_geometry};
 use crate::release::vertical::SpecVerticalSampler;
@@ -57,7 +58,7 @@ use crate::runner::{
 };
 use crate::science::{
     GLOBAL_PERIODIC_ID, LIMITED_DOMAIN_TERMINATE_ID, M4_CONSTANTS, MODEL_TOP_TERMINATE_ID,
-    RELEASE_DRIVEN_POPULATION_ID, RK2_SPHERICAL_ID, SURFACE_REFLECT_ID,
+    RK2_SPHERICAL_ID, SURFACE_REFLECT_ID,
 };
 
 impl RunnerBuilder {
@@ -157,44 +158,89 @@ fn build_runner_inner(
         ParticlePopulationSpec::ReleaseDriven(spec) => {
             build_release_schedule(spec, Some(case_dir.as_path()))?
         }
-        _ => {
-            return Err(RunError::InvalidConfiguration(
-                "M4-A1 builder currently supports release_driven populations only".into(),
-            ));
+        ParticlePopulationSpec::DomainFillAirMass(_)
+        | ParticlePopulationSpec::DomainFillStratosphericOzone(_) => {
+            (ReleaseSchedule::default(), Vec::new())
+        }
+    };
+    let required_capabilities = required_capabilities_for_population(&population_spec)?;
+    let runtime_domain = resolve_runtime_domain(
+        &case,
+        &population_spec,
+        synthetic.as_ref().map(|stack| &stack.domain),
+    )?;
+    let is_domain_fill = matches!(
+        &population_spec,
+        ParticlePopulationSpec::DomainFillAirMass(_)
+            | ParticlePopulationSpec::DomainFillStratosphericOzone(_)
+    );
+    let ozone_rule_id = match &population_spec {
+        ParticlePopulationSpec::DomainFillStratosphericOzone(specification) => {
+            Some(specification.ozone_rule.clone())
+        }
+        ParticlePopulationSpec::ReleaseDriven(_) | ParticlePopulationSpec::DomainFillAirMass(_) => {
+            None
         }
     };
 
-    let ParticlePopulationSpec::ReleaseDriven(release_spec) = population_spec else {
-        unreachable!();
+    let population: Box<dyn crate::population::PopulationStrategy> = match population_spec {
+        ParticlePopulationSpec::ReleaseDriven(release_spec) => {
+            if release_spec.id.0.trim().is_empty() {
+                return Err(RunError::InvalidConfiguration("population id empty".into()));
+            }
+            let geometry_sampler: Box<dyn crate::release::GeometrySampler> =
+                Box::new(MultiEventGeometrySampler::from_schedule(&schedule)?);
+            let vertical_sampler = Box::new(SpecVerticalSampler);
+            let needs_met_vertical = schedule.events.iter().any(|event| {
+                !matches!(
+                    event.vertical,
+                    trajecta_case::model::population::ReleaseVerticalSpec::AboveSeaLevel { .. }
+                )
+            });
+            let vertical_resolver: Box<dyn crate::population::ReleaseVerticalResolver> =
+                if needs_met_vertical {
+                    Box::new(MetReleaseVerticalResolver)
+                } else {
+                    Box::new(DirectAslReleaseResolver)
+                };
+            Box::new(ReleaseDrivenPopulation::new(
+                release_spec,
+                schedule.clone(),
+                geometry_sampler,
+                vertical_sampler,
+                vertical_resolver,
+            ))
+        }
+        ParticlePopulationSpec::DomainFillAirMass(specification) => {
+            if specification.id.0.trim().is_empty() || specification.domain_id != runtime_domain {
+                return Err(RunError::InvalidConfiguration(
+                    "domain-fill population identity or selected domain is invalid".into(),
+                ));
+            }
+            Box::new(DomainFillAirMass::new(specification))
+        }
+        ParticlePopulationSpec::DomainFillStratosphericOzone(specification) => {
+            if specification.air_mass.id.0.trim().is_empty()
+                || specification.air_mass.domain_id != runtime_domain
+            {
+                return Err(RunError::InvalidConfiguration(
+                    "ozone domain-fill population identity or selected domain is invalid".into(),
+                ));
+            }
+            let registry = OzoneAssignmentRuleRegistry::builtins();
+            let rule = registry.resolve(&specification.ozone_rule).ok_or_else(|| {
+                RunError::InvalidConfiguration(format!(
+                    "unknown ozone assignment rule '{}'",
+                    specification.ozone_rule
+                ))
+            })?;
+            Box::new(
+                DomainFillStratosphericOzone::new(specification, rule)
+                    .map_err(|error| RunError::Population(error.code().into()))?,
+            )
+        }
     };
-    if release_spec.id.0.trim().is_empty() {
-        return Err(RunError::InvalidConfiguration("population id empty".into()));
-    }
-
-    let geometry_sampler: Box<dyn crate::release::GeometrySampler> =
-        Box::new(MultiEventGeometrySampler::from_schedule(&schedule)?);
-
-    let vertical_sampler = Box::new(SpecVerticalSampler);
-    let needs_met_vertical = schedule.events.iter().any(|event| {
-        !matches!(
-            event.vertical,
-            trajecta_case::model::population::ReleaseVerticalSpec::AboveSeaLevel { .. }
-        )
-    });
-    let vertical_resolver: Box<dyn crate::population::ReleaseVerticalResolver> =
-        if needs_met_vertical {
-            Box::new(MetReleaseVerticalResolver)
-        } else {
-            Box::new(DirectAslReleaseResolver)
-        };
-
-    let population = Box::new(ReleaseDrivenPopulation::new(
-        release_spec,
-        schedule.clone(),
-        geometry_sampler,
-        vertical_sampler,
-        vertical_resolver,
-    ));
+    let population_model_id = population.model_id().to_string();
 
     let (
         meteorology,
@@ -218,7 +264,14 @@ fn build_runner_inner(
         )
     } else {
         let query_times = collect_meteorology_query_times(&case, &time, &schedule, &numerics)?;
-        let loaded = load_production_meteorology(&case, &run_profile, &time, &query_times)?;
+        let loaded = load_production_meteorology(
+            &case,
+            &run_profile,
+            &time,
+            &query_times,
+            &runtime_domain,
+            required_capabilities,
+        )?;
         (
             loaded.engine,
             loaded.transport_plan,
@@ -246,6 +299,30 @@ fn build_runner_inner(
     };
 
     let outputs = build_outputs(&case, &time, &sqlite_path, &meteorology, &knobs)?;
+    let mut numerical_tolerances = BTreeMap::from([
+        (
+            "rk2_minimum_convergence_order".into(),
+            crate::science::RK2_MINIMUM_CONVERGENCE_ORDER,
+        ),
+        (
+            "geometry_area_relative_tolerance".into(),
+            crate::science::GEOMETRY_AREA_RELATIVE_TOLERANCE,
+        ),
+    ]);
+    if is_domain_fill {
+        numerical_tolerances.insert(
+            "domain_fill_step_relative".into(),
+            crate::science::MASS_BALANCE_STEP_RELATIVE_TOLERANCE,
+        );
+        numerical_tolerances.insert(
+            "domain_fill_final_relative".into(),
+            crate::science::MASS_BALANCE_FINAL_RELATIVE_TOLERANCE,
+        );
+        numerical_tolerances.insert(
+            "domain_fill_ulp_floor".into(),
+            f64::from(crate::science::MASS_BALANCE_ULP_FLOOR),
+        );
+    }
 
     let manifest = RunManifest::running(RunManifestStart {
         run_id: run_id.clone(),
@@ -284,20 +361,11 @@ fn build_runner_inner(
                 .iter()
                 .map(|policy| policy.0.clone())
                 .collect(),
-            population: RELEASE_DRIVEN_POPULATION_ID.into(),
-            ozone_rule: None,
+            population: population_model_id,
+            ozone_rule: ozone_rule_id,
             particle_state_sink: trajecta_case::model::output::PARTICLE_STATE_SQLITE_SINK_ID.into(),
             tolerance_registry: "trajecta.m4.numerical-contract/v1".into(),
-            tolerances: BTreeMap::from([
-                (
-                    "rk2_minimum_convergence_order".into(),
-                    crate::science::RK2_MINIMUM_CONVERGENCE_ORDER,
-                ),
-                (
-                    "geometry_area_relative_tolerance".into(),
-                    crate::science::GEOMETRY_AREA_RELATIVE_TOLERANCE,
-                ),
-            ]),
+            tolerances: numerical_tolerances,
             deterministic: true,
         },
         geometries,
@@ -379,6 +447,93 @@ pub fn build_runner_with_store_and_knobs(
     knobs: RunnerBuildKnobs,
 ) -> Result<SimulationRunner, RunError> {
     build_runner_inner(case, run_profile, synthetic, Some(manifest_store), knobs)
+}
+
+fn required_capabilities_for_population(
+    population: &ParticlePopulationSpec,
+) -> Result<CapabilitySet, RunError> {
+    let base = CapabilitySet::new()
+        .with(Capability::Transport)
+        .with(Capability::NearSurfaceTransport);
+    match population {
+        ParticlePopulationSpec::ReleaseDriven(_) => Ok(base),
+        ParticlePopulationSpec::DomainFillAirMass(_) => Ok(base.with(Capability::DomainFill)),
+        ParticlePopulationSpec::DomainFillStratosphericOzone(_) => Ok(base
+            .with(Capability::DomainFill)
+            .with(Capability::Diagnostics)),
+    }
+}
+
+fn resolve_runtime_domain(
+    case: &ResolvedCase,
+    population: &ParticlePopulationSpec,
+    synthetic_domain: Option<&DomainId>,
+) -> Result<DomainId, RunError> {
+    if let Some(domain) = synthetic_domain {
+        let population_domain = match population {
+            ParticlePopulationSpec::DomainFillAirMass(specification) => {
+                Some(&specification.domain_id)
+            }
+            ParticlePopulationSpec::DomainFillStratosphericOzone(specification) => {
+                Some(&specification.air_mass.domain_id)
+            }
+            ParticlePopulationSpec::ReleaseDriven(_) => None,
+        };
+        if let Some(population_domain) = population_domain
+            && population_domain != domain
+        {
+            return Err(RunError::InvalidConfiguration(format!(
+                "domain-fill domain '{}' does not match synthetic domain '{}'",
+                population_domain.0, domain.0
+            )));
+        }
+        return Ok(domain.clone());
+    }
+
+    let meteorology = case.meteorology.as_ref().ok_or_else(|| {
+        RunError::InvalidConfiguration(
+            "case.meteorology is required for production RunnerBuilder::build".into(),
+        )
+    })?;
+    match population {
+        ParticlePopulationSpec::ReleaseDriven(_) => {
+            let [domain] = meteorology.domains.as_slice() else {
+                return Err(RunError::InvalidConfiguration(
+                    "release-driven M4 runner currently requires exactly one explicit meteorology domain"
+                        .into(),
+                ));
+            };
+            Ok(domain.id.clone())
+        }
+        ParticlePopulationSpec::DomainFillAirMass(specification) => {
+            if meteorology
+                .domains
+                .iter()
+                .any(|domain| domain.id == specification.domain_id)
+            {
+                Ok(specification.domain_id.clone())
+            } else {
+                Err(RunError::InvalidConfiguration(format!(
+                    "domain-fill domain '{}' is not declared by case.meteorology",
+                    specification.domain_id.0
+                )))
+            }
+        }
+        ParticlePopulationSpec::DomainFillStratosphericOzone(specification) => {
+            if meteorology
+                .domains
+                .iter()
+                .any(|domain| domain.id == specification.air_mass.domain_id)
+            {
+                Ok(specification.air_mass.domain_id.clone())
+            } else {
+                Err(RunError::InvalidConfiguration(format!(
+                    "ozone domain-fill domain '{}' is not declared by case.meteorology",
+                    specification.air_mass.domain_id.0
+                )))
+            }
+        }
+    }
 }
 
 fn build_release_schedule(
@@ -528,7 +683,9 @@ fn build_outputs(
                             ),
                         ],
                         allow_estimated: false,
-                        surface_layer_model: None,
+                        surface_layer_model: Some(ModelId(
+                            MoninObukhovBusingerDyer::MODEL_ID.into(),
+                        )),
                         explain: ExplainMode::Disabled,
                     },
                     &Default::default(),
@@ -567,7 +724,9 @@ fn build_outputs(
                             ),
                         ],
                         allow_estimated: false,
-                        surface_layer_model: None,
+                        surface_layer_model: Some(ModelId(
+                            MoninObukhovBusingerDyer::MODEL_ID.into(),
+                        )),
                         explain: ExplainMode::Disabled,
                     },
                     &Default::default(),
@@ -1202,6 +1361,8 @@ fn load_production_meteorology(
     run_profile: &ResolvedRunProfile,
     _time: &trajecta_case::model::time::TimeSpec,
     query_times: &[Timestamp],
+    runtime_domain: &DomainId,
+    capabilities: CapabilitySet,
 ) -> Result<ProductionMeteorology, RunError> {
     let meteorology = case.meteorology.as_ref().ok_or_else(|| {
         RunError::InvalidConfiguration(
@@ -1223,22 +1384,22 @@ fn load_production_meteorology(
         .map_err(|error| RunError::InvalidConfiguration(format!("profile catalog: {error:?}")))?;
     let profiles_for_loader = profiles.clone();
 
-    let capabilities = CapabilitySet::new()
-        .with(Capability::Transport)
-        .with(Capability::NearSurfaceTransport);
-
     let mut catalog = MetCatalog {
         capabilities,
         ..MetCatalog::default()
     };
-    let mut selected_domain = None;
+    let selected_domain = Some(runtime_domain.clone());
     let mut dataset_lock_sha256 = BTreeMap::new();
     let mut dataset_profile_sha256 = BTreeMap::new();
     let mut dataset_content_sha256 = BTreeMap::new();
     let mut reader_backends = BTreeMap::new();
     let mut frame_jobs = Vec::new();
 
-    for domain_spec in &meteorology.domains {
+    for domain_spec in meteorology
+        .domains
+        .iter()
+        .filter(|domain| domain.id == *runtime_domain)
+    {
         let binding = run_profile
             .datasets
             .iter()
@@ -1309,8 +1470,11 @@ fn load_production_meteorology(
             .ok_or_else(|| RunError::InvalidConfiguration("inventory catalog missing".into()))?;
         let profile_name = ProfileName(lock.profile.name.clone());
         for (domain_id, domain) in domain_catalog.domains {
-            if selected_domain.is_none() {
-                selected_domain = Some(domain_id.clone());
+            if domain_id != *runtime_domain {
+                return Err(RunError::InvalidConfiguration(format!(
+                    "inventory returned unexpected domain '{}' while loading '{}'",
+                    domain_id.0, runtime_domain.0
+                )));
             }
             for descriptor in domain.frames.values() {
                 frame_jobs.push((
@@ -1457,7 +1621,16 @@ fn _constants() {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use super::{max_warmup_frames_for_capabilities, select_bracketing_frame_indices};
+    use super::{
+        max_warmup_frames_for_capabilities, required_capabilities_for_population,
+        select_bracketing_frame_indices,
+    };
+    use trajecta_case::model::meteorology::DomainId;
+    use trajecta_case::model::population::{
+        DomainFillAirMassSpec, DomainFillStratosphericOzoneSpec, ParticlePopulationSpec,
+        PopulationId,
+    };
+    use trajecta_case::model::substance::SubstanceId;
     use trajecta_case::model::time::Timestamp;
     use trajecta_met::field::{
         CanonicalField, Capability, CapabilitySet, FieldQuality, FieldShape,
@@ -1467,6 +1640,45 @@ mod tests {
         ProfileDocumentKind, ProfileName, TemporalKind, TemporalSemantics,
     };
     use trajecta_met::profile::graph::ExecutionStage;
+
+    #[test]
+    fn air_mass_builder_requests_domain_fill_capability_in_addition_to_transport() {
+        let capabilities = required_capabilities_for_population(
+            &ParticlePopulationSpec::DomainFillAirMass(DomainFillAirMassSpec {
+                id: PopulationId("air".into()),
+                domain_id: DomainId("d".into()),
+                target_dry_air_mass_per_particle: None,
+                target_particle_count: Some(1),
+            }),
+        )
+        .unwrap();
+        assert!(capabilities.contains(Capability::Transport));
+        assert!(capabilities.contains(Capability::NearSurfaceTransport));
+        assert!(capabilities.contains(Capability::DomainFill));
+    }
+
+    #[test]
+    fn ozone_builder_requests_domain_fill_and_diagnostics_capabilities() {
+        let capabilities = required_capabilities_for_population(
+            &ParticlePopulationSpec::DomainFillStratosphericOzone(
+                DomainFillStratosphericOzoneSpec {
+                    air_mass: DomainFillAirMassSpec {
+                        id: PopulationId("ozone".into()),
+                        domain_id: DomainId("d".into()),
+                        target_dry_air_mass_per_particle: None,
+                        target_particle_count: Some(1),
+                    },
+                    ozone_rule: crate::science::FLEXPART_PV60_OZONE_ID.into(),
+                    ozone_substance: SubstanceId("ozone".into()),
+                },
+            ),
+        )
+        .unwrap();
+        assert!(capabilities.contains(Capability::Transport));
+        assert!(capabilities.contains(Capability::NearSurfaceTransport));
+        assert!(capabilities.contains(Capability::DomainFill));
+        assert!(capabilities.contains(Capability::Diagnostics));
+    }
 
     fn ts(seconds: i64) -> Timestamp {
         Timestamp::new(seconds, 0).unwrap()

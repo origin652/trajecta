@@ -151,7 +151,9 @@ fields:
   - id: aerodynamic_roughness_length
     target: aerodynamic_roughness_length
     sources:
-      # NCEP land-surface SFCR (discipline 2 / category 0 / number 1).
+      # NCEP SFCR (discipline 2 / category 0 / number 1). Frozen pgbl messages use a
+      # 1e-4 m decimal quantum and exact zero over part of the ocean. The source field
+      # remains zero; logarithmic physical consumers apply the frozen zero projection.
       - identity:
           discipline: "2"
           parameter_category: "0"
@@ -239,6 +241,13 @@ derived_fields:
     quality: derived
     temporal:
       kind: instantaneous
+  - id: potential_vorticity
+    target: potential_vorticity
+    expression: "ertel_potential_vorticity(eastward_wind, northward_wind, air_temperature, surface_pressure)"
+    unit: PVU
+    shape: full3_d
+    stage: tile
+    quality: derived
 capabilities:
   transport:
     - eastward_wind
@@ -260,3 +269,13 @@ capabilities:
     - sensible_heat_flux
     - latent_heat_flux
     - friction_velocity
+  domain_fill:
+    - eastward_wind
+    - northward_wind
+    - air_temperature
+    - specific_humidity
+    - geopotential_height
+    - surface_pressure
+    - surface_geopotential
+  diagnostics:
+    - potential_vorticity

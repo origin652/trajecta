@@ -138,9 +138,13 @@ fn transport_terrain(
     vertical: f64,
     coordinate: VerticalQuery,
 ) -> Result<(SampleStatus, Option<f64>), PopulationError> {
+    let domain = context
+        .domain
+        .as_ref()
+        .ok_or(PopulationError::MissingMeteorology)?;
     let window = context
         .meteorology
-        .prepare(time)
+        .prepare_for_domain(time, domain)
         .map_err(|_| PopulationError::MissingMeteorology)?;
     let plan = context
         .meteorology
@@ -179,9 +183,13 @@ fn geometric_height_at_pressure(
     lat: f64,
     pressure_pa: f64,
 ) -> Result<(SampleStatus, Option<f64>), PopulationError> {
+    let domain = context
+        .domain
+        .as_ref()
+        .ok_or(PopulationError::MissingMeteorology)?;
     let window = context
         .meteorology
-        .prepare(time)
+        .prepare_for_domain(time, domain)
         .map_err(|_| PopulationError::MissingMeteorology)?;
     let plan = context
         .meteorology

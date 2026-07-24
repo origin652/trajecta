@@ -1327,6 +1327,7 @@ fn explain_vertical_path_label(
         ExplainVerticalPath::LinearHeight => "linear_height",
         ExplainVerticalPath::LogPressure => "log_pressure",
         ExplainVerticalPath::SurfaceLayer => "surface_layer",
+        ExplainVerticalPath::TemporalMixedSurfaceUpper => "temporal_mixed_surface_upper",
         ExplainVerticalPath::Unavailable => "unavailable",
     }
 }

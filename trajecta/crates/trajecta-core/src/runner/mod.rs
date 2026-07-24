@@ -31,7 +31,7 @@ use crate::integrator::{IntegratorContext, IntegratorInput, IntegratorModel};
 use crate::manifest::{RunFailure, RunLifecycleStatus, RunManifest, TerminationSummary};
 use crate::output::{OutputProduct, OutputScheduler};
 use crate::particle::{ParticleBatch, ParticleState, ParticleStatus, TerminationClass};
-use crate::population::{PopulationContext, PopulationState, PopulationStrategy};
+use crate::population::{PopulationContext, PopulationError, PopulationState, PopulationStrategy};
 
 /// Mutable in-memory simulation state.
 ///
@@ -285,7 +285,7 @@ impl SimulationRunner {
             };
             self.population
                 .initialize(&mut context, &mut self.state.particles)
-                .map_err(|error| RunError::Population(format!("{error:?}")))?;
+                .map_err(map_population_error)?;
         }
         self.sync_population_state();
         self.emit_current_particles()?;
@@ -314,7 +314,7 @@ impl SimulationRunner {
                 };
                 self.population
                     .before_step(&mut context, &self.state.particles)
-                    .map_err(|error| RunError::Population(format!("{error:?}")))?;
+                    .map_err(map_population_error)?;
             }
 
             let start_particles = self.state.particles.clone();
@@ -330,6 +330,7 @@ impl SimulationRunner {
                         meteorology: &mut self.meteorology,
                         query_plan: &self.query_plan,
                         execution: self.execution.as_ref(),
+                        domain: self.domain.as_ref(),
                     },
                 )
                 .map_err(|error| RunError::Integration(format!("{error:?}")))?;
@@ -356,10 +357,10 @@ impl SimulationRunner {
                 };
                 self.population
                     .after_advection(&mut context, &self.state.particles)
-                    .map_err(|error| RunError::Population(format!("{error:?}")))?;
+                    .map_err(map_population_error)?;
                 self.population
                     .apply_boundary_maintenance(&mut context, &mut self.state.particles)
-                    .map_err(|error| RunError::Population(format!("{error:?}")))?;
+                    .map_err(map_population_error)?;
             }
             self.state.numerical_step_index = self
                 .state
@@ -389,7 +390,7 @@ impl SimulationRunner {
             };
             self.population
                 .finalize(&mut context, &self.state.particles)
-                .map_err(|error| RunError::Population(format!("{error:?}")))?;
+                .map_err(map_population_error)?;
         }
         self.sync_population_state();
         for output in &mut self.outputs {
@@ -458,7 +459,7 @@ impl SimulationRunner {
             };
             self.population
                 .emit_particles(&mut context)
-                .map_err(|error| RunError::Population(format!("{error:?}")))?
+                .map_err(map_population_error)?
         };
         let count = emitted
             .len()
@@ -471,13 +472,13 @@ impl SimulationRunner {
         Ok(count)
     }
 
-    fn collect_step_boundaries(&self) -> Result<Vec<StepBoundary>, RunError> {
+    fn collect_step_boundaries(&mut self) -> Result<Vec<StepBoundary>, RunError> {
         let target =
             add_timestamp(self.state.clock.current, self.time_step).map_err(RunError::Clock)?;
         let mut boundaries = self
             .population
             .step_boundaries(self.state.clock, self.time_step)
-            .map_err(|error| RunError::Population(format!("{error:?}")))?;
+            .map_err(map_population_error)?;
         let inside = |time: Timestamp| match self.state.clock.direction {
             Direction::Forward => time > self.state.clock.current && time <= target,
             Direction::Backward => time < self.state.clock.current && time >= target,
@@ -506,10 +507,32 @@ impl SimulationRunner {
             );
         }
         boundaries.push(StepBoundary::End(self.end_time));
-        boundaries.sort_by_key(StepBoundary::time);
-        if self.state.clock.direction == Direction::Backward {
-            boundaries.reverse();
-        }
+        order_step_boundaries(&mut boundaries, self.state.clock.direction);
+        let statically_capped = *StepPlanner::plan(self.state.clock, self.time_step, &boundaries)
+            .map_err(RunError::Clock)?
+            .first()
+            .ok_or_else(|| {
+                RunError::InvalidConfiguration(
+                    "static step-boundary planning made no progress before end".into(),
+                )
+            })?;
+        let dynamic = {
+            let mut context = PopulationContext {
+                time: self.state.clock.current,
+                direction: self.state.clock.direction,
+                step: Some(statically_capped),
+                step_index: Some(self.state.numerical_step_index),
+                random_seed: self.random_seed,
+                meteorology: &mut self.meteorology,
+                execution: self.execution.as_ref(),
+                domain: self.domain.clone(),
+            };
+            self.population
+                .dynamic_step_boundaries(&mut context, statically_capped)
+                .map_err(map_population_error)?
+        };
+        boundaries.extend(dynamic);
+        order_step_boundaries(&mut boundaries, self.state.clock.direction);
         Ok(boundaries)
     }
 
@@ -615,9 +638,12 @@ impl SimulationRunner {
         time: Timestamp,
         plan: &QueryPlan,
     ) -> Result<QueryOutput, RunError> {
+        let domain = self.domain.as_ref().ok_or_else(|| {
+            RunError::Meteorology("output query requires an explicit meteorology domain".into())
+        })?;
         let window = self
             .meteorology
-            .prepare(time)
+            .prepare_for_domain(time, domain)
             .map_err(|error| RunError::Meteorology(format!("{error:?}")))?;
         let mut workspace = BatchWorkspace::default();
         window
@@ -658,6 +684,7 @@ impl SimulationRunner {
         };
 
         let terminal = (|| -> Result<RunOutcome, RunError> {
+            self.manifest.mass_ledger = self.population.mass_ledger_records();
             for output in &mut self.outputs {
                 output
                     .product
@@ -746,6 +773,7 @@ impl SimulationRunner {
         };
         self.manifest.status = RunLifecycleStatus::Failed;
         self.manifest.finished_at = Some(finished_at);
+        self.manifest.mass_ledger = self.population.mass_ledger_records();
         let mut message = format!("{error:?}");
         if let Some(te) = &term_err {
             message = format!("{message}; termination_summary={te:?}");
@@ -791,6 +819,21 @@ impl SimulationRunner {
         self.manifest_store
             .persist(&self.manifest)
             .map_err(RunError::Manifest)
+    }
+}
+
+fn map_population_error(error: PopulationError) -> RunError {
+    if matches!(error, PopulationError::MassImbalance) {
+        RunError::MassConservation
+    } else {
+        RunError::Population(format!("{error:?}"))
+    }
+}
+
+fn order_step_boundaries(boundaries: &mut [StepBoundary], direction: Direction) {
+    boundaries.sort_by_key(StepBoundary::time);
+    if direction == Direction::Backward {
+        boundaries.reverse();
     }
 }
 
@@ -1147,6 +1190,112 @@ mod tests {
         }
     }
 
+    struct MassCheckingPopulation {
+        state: PopulationState,
+        expected_carrier_mass_kg: f64,
+    }
+
+    impl PopulationStrategy for MassCheckingPopulation {
+        fn model_id(&self) -> &'static str {
+            TEST_POPULATION_ID
+        }
+
+        fn snapshot_state(&self) -> PopulationState {
+            self.state.clone()
+        }
+
+        fn initialize(
+            &mut self,
+            _context: &mut PopulationContext<'_>,
+            particles: &mut ParticleBatch,
+        ) -> Result<(), PopulationError> {
+            let mut particle = one_particle();
+            particle.dry_air_mass_kg[0] = self.expected_carrier_mass_kg;
+            particles
+                .append(particle)
+                .map_err(|_| PopulationError::InvalidParticleBatch)?;
+            self.state = PopulationState::ReleaseDriven {
+                emitted_birth_count: 0,
+            };
+            Ok(())
+        }
+
+        fn before_step(
+            &mut self,
+            _context: &mut PopulationContext<'_>,
+            _particles: &ParticleBatch,
+        ) -> Result<(), PopulationError> {
+            Ok(())
+        }
+
+        fn emit_particles(
+            &mut self,
+            _context: &mut PopulationContext<'_>,
+        ) -> Result<ParticleBatch, PopulationError> {
+            Ok(ParticleBatch::default())
+        }
+
+        fn after_advection(
+            &mut self,
+            _context: &mut PopulationContext<'_>,
+            particles: &ParticleBatch,
+        ) -> Result<(), PopulationError> {
+            particles
+                .validate()
+                .map_err(|_| PopulationError::InvalidParticleBatch)?;
+            if particles
+                .dry_air_mass_kg
+                .iter()
+                .any(|mass| *mass != self.expected_carrier_mass_kg)
+            {
+                return Err(PopulationError::MassImbalance);
+            }
+            Ok(())
+        }
+
+        fn apply_boundary_maintenance(
+            &mut self,
+            _context: &mut PopulationContext<'_>,
+            _particles: &mut ParticleBatch,
+        ) -> Result<(), PopulationError> {
+            Ok(())
+        }
+
+        fn finalize(
+            &mut self,
+            _context: &mut PopulationContext<'_>,
+            _particles: &ParticleBatch,
+        ) -> Result<(), PopulationError> {
+            Ok(())
+        }
+    }
+
+    struct DryAirMassTamperingIntegrator;
+
+    impl IntegratorModel for DryAirMassTamperingIntegrator {
+        fn model_id(&self) -> &'static str {
+            TEST_INTEGRATOR_ID
+        }
+
+        fn advance(
+            &self,
+            input: IntegratorInput<'_>,
+            _context: &mut IntegratorContext<'_>,
+        ) -> Result<StepResult, IntegratorError> {
+            let mut particles = input.particles.clone();
+            particles
+                .validate()
+                .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+            for mass in &mut particles.dry_air_mass_kg {
+                *mass *= 2.0;
+            }
+            Ok(StepResult {
+                particles,
+                abnormal_terminated_count: 0,
+            })
+        }
+    }
+
     struct LoggingOutput {
         log: Arc<Mutex<Vec<String>>>,
         fail_begin: bool,
@@ -1477,6 +1626,79 @@ mod tests {
         assert!(matches!(runner.run(), Err(RunError::Output(_))));
         assert_eq!(runner.manifest.status, RunLifecycleStatus::Failed);
         assert_eq!(log.lock().unwrap().last().unwrap(), "manifest:Failed");
+    }
+
+    #[test]
+    fn carrier_mass_tampering_fails_runner_and_persists_mass_conservation_code() {
+        let output = tempfile::tempdir().unwrap();
+        let manifest_path = output.path().join("run-manifest.json");
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let (meteorology, query_plan) = engine_and_plan();
+        let mut runner = SimulationRunner::from_components(SimulationComponents {
+            state: SimulationState {
+                clock: SimulationClock {
+                    current: Timestamp::UNIX_EPOCH,
+                    direction: Direction::Forward,
+                },
+                particles: ParticleBatch::default(),
+                population_state: PopulationState::Uninitialized,
+                numerical_step_index: 0,
+                output_event_index: 0,
+            },
+            meteorology,
+            query_plan,
+            execution: Box::new(RayonExecutionContext { worker_threads: 1 }),
+            population: Box::new(MassCheckingPopulation {
+                state: PopulationState::Uninitialized,
+                expected_carrier_mass_kg: 1.0,
+            }),
+            integrator: Box::new(DryAirMassTamperingIntegrator),
+            boundaries: Vec::new(),
+            boundary_sampler_factory: None,
+            outputs: vec![ScheduledOutputProduct {
+                product: Box::new(LoggingOutput {
+                    log,
+                    fail_begin: false,
+                    fail_contribute: false,
+                }),
+                scheduler: OutputScheduler::default(),
+                meteorology_plan: None,
+            }],
+            manifest: manifest(Direction::Forward),
+            manifest_store: Box::new(crate::manifest_store::AtomicRunManifestStore::new(
+                manifest_path.clone(),
+            )),
+            lifecycle_clock: Box::new(FixedLifecycleClock),
+            time_step: SignedDuration(1_000_000_000),
+            end_time: Timestamp::new(1, 0).unwrap(),
+            random_seed: 7,
+            domain: None,
+        })
+        .unwrap();
+
+        assert_eq!(runner.run(), Err(RunError::MassConservation));
+        assert_eq!(runner.manifest.status, RunLifecycleStatus::Failed);
+        assert_eq!(
+            runner
+                .manifest
+                .failure
+                .as_ref()
+                .map(|failure| failure.code.as_str()),
+            Some("run.mass_conservation")
+        );
+        runner.manifest.validate().unwrap();
+
+        let persisted: RunManifest =
+            serde_json::from_slice(&std::fs::read(manifest_path).unwrap()).unwrap();
+        assert_eq!(persisted.status, RunLifecycleStatus::Failed);
+        assert_eq!(
+            persisted
+                .failure
+                .as_ref()
+                .map(|failure| failure.code.as_str()),
+            Some("run.mass_conservation")
+        );
+        persisted.validate().unwrap();
     }
 
     #[test]

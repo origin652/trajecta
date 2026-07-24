@@ -390,6 +390,8 @@ pub enum ExplainVerticalPath {
     LogPressure,
     /// Dedicated near-surface similarity model.
     SurfaceLayer,
+    /// Time interpolation whose two source frames use surface-layer and upper-air routes.
+    TemporalMixedSurfaceUpper,
     /// No valid bracket was available for this point.
     Unavailable,
 }

@@ -21,6 +21,18 @@ pub const RELEASE_HORIZONTAL_U_DIMENSION: u32 = 2;
 pub const RELEASE_HORIZONTAL_V_DIMENSION: u32 = 3;
 /// Release event-native vertical coordinate dimension.
 pub const RELEASE_VERTICAL_DIMENSION: u32 = 4;
+/// Domain-fill mass-stratum selection dimension.
+pub const DOMAIN_FILL_MASS_STRATUM_DIMENSION: u32 = 10;
+/// Domain-fill within-control-volume longitude dimension.
+pub const DOMAIN_FILL_LONGITUDE_DIMENSION: u32 = 11;
+/// Domain-fill within-control-volume equal-area latitude dimension.
+pub const DOMAIN_FILL_LATITUDE_DIMENSION: u32 = 12;
+/// Domain-fill within-layer pressure-mass dimension.
+pub const DOMAIN_FILL_PRESSURE_DIMENSION: u32 = 13;
+/// Domain-fill boundary-face tangential coordinate dimension.
+pub const DOMAIN_FILL_BOUNDARY_TANGENTIAL_DIMENSION: u32 = 14;
+/// Domain-fill boundary-face vertical coordinate dimension.
+pub const DOMAIN_FILL_BOUNDARY_VERTICAL_DIMENSION: u32 = 15;
 
 /// Frozen deterministic low-discrepancy identifier.
 pub const LOW_DISCREPANCY_ALGORITHM_ID: &str = "halton-primes/v1";

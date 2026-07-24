@@ -8,21 +8,39 @@ use std::path::Path;
 use serde_json::Value;
 use trajecta_case::model::output::{PARTICLE_STATE_PRODUCT_ID, PARTICLE_STATE_SQLITE_SINK_ID};
 use trajecta_core::rng::{
-    COUNTER_RNG_ALGORITHM_ID, RELEASE_BIRTH_TIME_DIMENSION, RELEASE_HORIZONTAL_COMPONENT_DIMENSION,
-    RELEASE_HORIZONTAL_U_DIMENSION, RELEASE_HORIZONTAL_V_DIMENSION, RELEASE_VERTICAL_DIMENSION,
+    COUNTER_RNG_ALGORITHM_ID, DOMAIN_FILL_BOUNDARY_TANGENTIAL_DIMENSION,
+    DOMAIN_FILL_BOUNDARY_VERTICAL_DIMENSION, DOMAIN_FILL_LATITUDE_DIMENSION,
+    DOMAIN_FILL_LONGITUDE_DIMENSION, DOMAIN_FILL_MASS_STRATUM_DIMENSION,
+    DOMAIN_FILL_PRESSURE_DIMENSION, RELEASE_BIRTH_TIME_DIMENSION,
+    RELEASE_HORIZONTAL_COMPONENT_DIMENSION, RELEASE_HORIZONTAL_U_DIMENSION,
+    RELEASE_HORIZONTAL_V_DIMENSION, RELEASE_VERTICAL_DIMENSION,
 };
 use trajecta_core::science::{
-    DOMAIN_FILL_MASS_LEDGER_ID, DRY_AIR_DOMAIN_FILL_ID, DRY_AIR_MOLAR_MASS_G_MOL,
+    DOMAIN_FILL_MASS_LEDGER_ID, DRY_AIR_BOUNDARY_BIRTH_ID, DRY_AIR_DOMAIN_FILL_ID,
+    DRY_AIR_FLUX_TIME_ID, DRY_AIR_INITIAL_SAMPLING_ID, DRY_AIR_MOLAR_MASS_G_MOL,
+    DRY_AIR_TRANSPORT_FLOOR_FOLLOWING_RELOCATION_ID, DRY_AIR_TRANSPORT_FLOOR_PRESSURE_ID,
     ERTEL_PV_SPHERICAL_ID, FLEXPART_PV60_OZONE_ID, GEOMETRY_AREA_RELATIVE_TOLERANCE,
-    GLOBAL_PERIODIC_ID, LIMITED_DOMAIN_TERMINATE_ID, M4_CONSTANTS, M4_PARTICLE_LOOP_CONTRACT_ID,
-    MASS_BALANCE_FINAL_RELATIVE_TOLERANCE, MASS_BALANCE_STEP_RELATIVE_TOLERANCE,
-    MASS_BALANCE_ULP_FLOOR, MODEL_TOP_TERMINATE_ID, OZONE_DOMAIN_FILL_ID, OZONE_MOLAR_MASS_G_MOL,
-    OZONE_RULE_MINIMUM_HEIGHT_ASL_M, OZONE_RULE_MINIMUM_PV_PVU, OZONE_RULE_PPBV_PER_PVU,
-    PRESSURE_LOG_INTERFACE_ID, PROVENANCE_BUNDLE_FILE_NAME, PROVENANCE_BUNDLE_SCHEMA_ID,
-    PROVENANCE_RECORD_HASH_ALGORITHM, RELEASE_BIRTH_STRATA_ID, RELEASE_DRIVEN_POPULATION_ID,
+    GLOBAL_PERIODIC_ID, GREAT_CIRCLE_PATH_BASIS_ID, LIMITED_DOMAIN_TERMINATE_ID, M4_CONSTANTS,
+    M4_PARTICLE_LOOP_CONTRACT_ID, MASS_BALANCE_FINAL_RELATIVE_TOLERANCE,
+    MASS_BALANCE_STEP_RELATIVE_TOLERANCE, MASS_BALANCE_ULP_FLOOR, MODEL_TOP_TERMINATE_ID,
+    OZONE_DOMAIN_FILL_ID, OZONE_MOLAR_MASS_G_MOL, OZONE_RULE_MINIMUM_HEIGHT_ASL_M,
+    OZONE_RULE_MINIMUM_PV_PVU, OZONE_RULE_PPBV_PER_PVU, PRESSURE_LOG_INTERFACE_ID,
+    PROVENANCE_BUNDLE_FILE_NAME, PROVENANCE_BUNDLE_SCHEMA_ID, PROVENANCE_RECORD_HASH_ALGORITHM,
+    RELEASE_BIRTH_STRATA_ID, RELEASE_DRIVEN_POPULATION_ID, RK2_DOMAIN_EXIT_BRIDGE_ID,
     RK2_MINIMUM_CONVERGENCE_ORDER, RK2_SPHERICAL_ID, RUN_MANIFEST_SCHEMA_ID,
     SPHERICAL_CELL_AREA_ID, SQLITE_SCHEMA_VERSION, SURFACE_REFLECT_ID,
 };
+use trajecta_met::derive::domain_fill::{
+    AIR_MASS_GRID_ALGORITHM_ID, BOUNDARY_MASS_FLUX_ALGORITHM_ID,
+};
+use trajecta_met::science::{
+    AERODYNAMIC_ROUGHNESS_ZERO_PROJECTION_ALGORITHM_ID,
+    LOWEST_COMPLETE_TRANSPORT_ANCHOR_ALGORITHM_ID,
+    SPECIFIC_HUMIDITY_NONNEGATIVE_PROJECTION_ALGORITHM_ID,
+    TEN_METRE_ANCHORED_SURFACE_WIND_ALGORITHM_ID, TWO_METRE_ANCHORED_SURFACE_SCALAR_ALGORITHM_ID,
+    ZERO_AERODYNAMIC_ROUGHNESS_REPLACEMENT_M,
+};
+use trajecta_met::surface_layer::MoninObukhovBusingerDyer;
 
 fn workspace() -> &'static Path {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -43,6 +61,8 @@ fn numerical_contract_json_matches_compiled_science_contract() {
     let expected_algorithms = [
         ("counter_rng", COUNTER_RNG_ALGORITHM_ID),
         ("integrator", RK2_SPHERICAL_ID),
+        ("great_circle_path_basis", GREAT_CIRCLE_PATH_BASIS_ID),
+        ("limited_domain_exit_bridge", RK2_DOMAIN_EXIT_BRIDGE_ID),
         ("surface_boundary", SURFACE_REFLECT_ID),
         ("model_top_boundary", MODEL_TOP_TERMINATE_ID),
         ("limited_domain_boundary", LIMITED_DOMAIN_TERMINATE_ID),
@@ -53,6 +73,40 @@ fn numerical_contract_json_matches_compiled_science_contract() {
         ("ozone_population", OZONE_DOMAIN_FILL_ID),
         ("cell_area", SPHERICAL_CELL_AREA_ID),
         ("pressure_interfaces", PRESSURE_LOG_INTERFACE_ID),
+        ("air_mass_grid", AIR_MASS_GRID_ALGORITHM_ID),
+        (
+            "specific_humidity_nonnegative_projection",
+            SPECIFIC_HUMIDITY_NONNEGATIVE_PROJECTION_ALGORITHM_ID,
+        ),
+        (
+            "aerodynamic_roughness_zero_projection",
+            AERODYNAMIC_ROUGHNESS_ZERO_PROJECTION_ALGORITHM_ID,
+        ),
+        ("surface_layer_model", MoninObukhovBusingerDyer::MODEL_ID),
+        (
+            "surface_layer_wind",
+            TEN_METRE_ANCHORED_SURFACE_WIND_ALGORITHM_ID,
+        ),
+        (
+            "surface_layer_scalar",
+            TWO_METRE_ANCHORED_SURFACE_SCALAR_ALGORITHM_ID,
+        ),
+        (
+            "lowest_complete_transport_anchor",
+            LOWEST_COMPLETE_TRANSPORT_ANCHOR_ALGORITHM_ID,
+        ),
+        ("air_mass_initial_sampling", DRY_AIR_INITIAL_SAMPLING_ID),
+        (
+            "air_mass_transport_floor_relocation",
+            DRY_AIR_TRANSPORT_FLOOR_FOLLOWING_RELOCATION_ID,
+        ),
+        (
+            "air_mass_transport_floor_pressure",
+            DRY_AIR_TRANSPORT_FLOOR_PRESSURE_ID,
+        ),
+        ("boundary_mass_flux", BOUNDARY_MASS_FLUX_ALGORITHM_ID),
+        ("boundary_flux_time", DRY_AIR_FLUX_TIME_ID),
+        ("boundary_birth_time", DRY_AIR_BOUNDARY_BIRTH_ID),
         ("mass_ledger", DOMAIN_FILL_MASS_LEDGER_ID),
         ("potential_vorticity", ERTEL_PV_SPHERICAL_ID),
         ("ozone_rule", FLEXPART_PV60_OZONE_ID),
@@ -89,6 +143,10 @@ fn numerical_contract_json_matches_compiled_science_contract() {
             M4_CONSTANTS.potential_temperature_reference_pressure_pa,
         ),
         (
+            "zero_aerodynamic_roughness_replacement_m",
+            ZERO_AERODYNAMIC_ROUGHNESS_REPLACEMENT_M,
+        ),
+        (
             "surface_clearance_min_m",
             M4_CONSTANTS.surface_clearance_min_m,
         ),
@@ -123,6 +181,30 @@ fn numerical_contract_json_matches_compiled_science_contract() {
         (
             "release_vertical_random_dimension",
             f64::from(RELEASE_VERTICAL_DIMENSION),
+        ),
+        (
+            "domain_fill_mass_stratum_random_dimension",
+            f64::from(DOMAIN_FILL_MASS_STRATUM_DIMENSION),
+        ),
+        (
+            "domain_fill_longitude_random_dimension",
+            f64::from(DOMAIN_FILL_LONGITUDE_DIMENSION),
+        ),
+        (
+            "domain_fill_latitude_random_dimension",
+            f64::from(DOMAIN_FILL_LATITUDE_DIMENSION),
+        ),
+        (
+            "domain_fill_pressure_random_dimension",
+            f64::from(DOMAIN_FILL_PRESSURE_DIMENSION),
+        ),
+        (
+            "domain_fill_boundary_tangential_random_dimension",
+            f64::from(DOMAIN_FILL_BOUNDARY_TANGENTIAL_DIMENSION),
+        ),
+        (
+            "domain_fill_boundary_vertical_random_dimension",
+            f64::from(DOMAIN_FILL_BOUNDARY_VERTICAL_DIMENSION),
         ),
         (
             "ozone_minimum_height_asl_m_strict",

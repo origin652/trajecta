@@ -6,6 +6,33 @@
 use super::{DeriveError, DeriveRequest, DerivedField, FieldDeriver};
 use crate::science::{M3_CONSTANTS, virtual_temperature_humidity_factor};
 
+/// Projects a finite source specific humidity into the physical half-open range `[0, 1)`.
+///
+/// Negative source values are retained by raw query fields; this projection is only for
+/// physical consumers such as density, hydrostatic geometry, surface similarity, and M4
+/// domain-fill mass.
+pub fn project_specific_humidity_nonnegative(
+    specific_humidity: f64,
+) -> Result<f64, ThermodynamicError> {
+    if !specific_humidity.is_finite() || specific_humidity >= 1.0 {
+        return Err(ThermodynamicError::InvalidSpecificHumidity);
+    }
+    Ok(specific_humidity.max(0.0))
+}
+
+/// Computes moist-air density after the frozen non-negative source-humidity projection.
+pub fn moist_air_density_from_source_humidity_kg_m3(
+    pressure_pa: f64,
+    air_temperature_k: f64,
+    source_specific_humidity: f64,
+) -> Result<f64, ThermodynamicError> {
+    moist_air_density_kg_m3(
+        pressure_pa,
+        air_temperature_k,
+        project_specific_humidity_nonnegative(source_specific_humidity)?,
+    )
+}
+
 /// Computes moist-air virtual temperature from temperature and specific humidity.
 pub fn virtual_temperature_k(
     air_temperature_k: f64,
@@ -89,6 +116,20 @@ mod tests {
         );
         assert_eq!(
             virtual_temperature_k(300.0, 1.0),
+            Err(ThermodynamicError::InvalidSpecificHumidity)
+        );
+    }
+
+    #[test]
+    fn source_humidity_projection_preserves_raw_semantics_for_physical_consumers() {
+        assert_eq!(project_specific_humidity_nonnegative(-1.0e-9), Ok(0.0));
+        assert_eq!(project_specific_humidity_nonnegative(0.01), Ok(0.01));
+        assert_eq!(
+            moist_air_density_from_source_humidity_kg_m3(100_000.0, 300.0, -1.0e-9),
+            moist_air_density_kg_m3(100_000.0, 300.0, 0.0)
+        );
+        assert_eq!(
+            project_specific_humidity_nonnegative(1.0),
             Err(ThermodynamicError::InvalidSpecificHumidity)
         );
     }

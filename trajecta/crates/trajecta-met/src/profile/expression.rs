@@ -13,9 +13,9 @@ use std::fmt;
 use crate::field::{CanonicalField, FieldKey, FieldShape};
 use crate::profile::document::{DatasetProfileDocument, ExtensionFieldDescriptor, FieldReference};
 use crate::profile::graph::{
-    ComputationGraph, DimensionVector, ExecutionPlan, ExecutionStage, GraphCompiler, GraphError,
-    GraphNode, GraphNodeId, GraphOp, GraphUnit, ThermodynamicOp, UnitParseError, ValueType,
-    VerticalOp,
+    ComputationGraph, DiagnosticOp, DimensionVector, ExecutionPlan, ExecutionStage, GraphCompiler,
+    GraphError, GraphNode, GraphNodeId, GraphOp, GraphUnit, ThermodynamicOp, UnitParseError,
+    ValueType, VerticalOp,
 };
 use crate::vertical::VerticalStagger;
 
@@ -556,8 +556,38 @@ impl GraphBuilder {
                 FieldShape::Full3D,
                 VerticalStagger::Full,
             ),
+            "ertel_potential_vorticity" => self.ertel_potential_vorticity(function, arguments),
             _ => Err(ExpressionError::UnknownFunction(function.into())),
         }
+    }
+
+    fn ertel_potential_vorticity(
+        &mut self,
+        function: &str,
+        arguments: Vec<Binding>,
+    ) -> Result<Binding, ExpressionError> {
+        expect_function_arity(function, &arguments, 4)?;
+        let output_type = ValueType::new(
+            GraphUnit::parse("PVU").map_err(ExpressionError::Unit)?,
+            FieldShape::Full3D,
+            Some(VerticalStagger::Full),
+        )
+        .map_err(ExpressionError::Internal)?;
+        let stage = arguments
+            .iter()
+            .map(|argument| argument.stage)
+            .chain(std::iter::once(ExecutionStage::Tile))
+            .max()
+            .unwrap_or(ExecutionStage::Tile);
+        self.push(
+            GraphOp::Diagnostic(DiagnosticOp::ErtelPotentialVorticity),
+            arguments
+                .into_iter()
+                .map(|argument| argument.node)
+                .collect(),
+            output_type,
+            stage,
+        )
     }
 
     fn thermodynamic(

@@ -182,6 +182,21 @@ z1 = z0 + w_half * dt
 
 运算顺序与 `trajecta_core::reference::spherical_rk2_step` 一致。W 必须是 geometric `m s-1`。精确极点因 local east 不唯一而产生 typed invalid sample；不得任意选择方向。若 signed `dt` 为奇数纳秒，无法表示的半纳秒按整数除法朝步首取整；正反向都使用同一“朝步首”规则。输出时气象必须在 `(r1,z1,t1)` 重新查询，midpoint 值不可冒充。
 
+有限域有一个受限例外 `rk2_domain_exit_euler_bridge/v1`：若步首正式查询为 `Ok`，而 RK2 中点唯一失败原因是水平 `OutOfDomain`，积分器不得先记 `invalid_meteorology`。它使用步首速度构造完整单侧退出 proposal，仅供连续 limited-domain path solver bracket 最早出口；最终粒子位置仍由边界交点决定，不把 Euler endpoint 当作轨迹结果。中点的任何其它 status 仍是异常气象终止。
+
+连续边界路径使用 `great_circle_atan2_oriented_basis/v1`。给定两个单位球端点 `a,b`：
+
+~~~text
+omega = atan2(norm(cross(a,b)), clamp(dot(a,b), -1, 1))
+n     = normalize(cross(a,b))
+t     = normalize(cross(n,a))
+r(f)  = normalize(cos(f*omega) * a + sin(f*omega) * t)
+~~~
+
+`omega <= 1e-15` 的退化短段直接返回步首；其它段必须使用有向法向量构造切向量。禁止改回
+`acos(dot(a,b))` 或 `(b-cos(omega)*a)/sin(omega)`，因为米级路径会分别丢失弧长有效位和发生灾难性相消；
+正对跖等无法定义唯一短弧基底的输入仍是 typed failure。
+
 解析夹具的观测二阶收敛率必须不低于 1.9。
 
 ## 6. 边界
@@ -198,7 +213,7 @@ clearance 为 `particle ASL - terrain ASL`。策略必须拥有完整 start/prop
 - 无法 bracket/converge 或超过四次时，该粒子异常 `reflection_limit`；
 - 禁止把 endpoint 直接 clamp 到 terrain。
 
-A1 的生产 path sampler 必须按穿越的插值网格单元提供有序区间，并在 clearance/model-top 标量极值或 inside/outside 转换处继续切段，使每段至多包含一个 down-crossing/出域转换。root solver 只按段端点 bracket，再固定二分 64 次；B 不得自行改成固定采样点近似。
+A1 的生产 path sampler 必须按穿越的插值网格单元提供有序区间，并在 clearance/model-top 标量极值或 inside/outside 转换处继续切段，使每段至多包含一个 down-crossing/出域转换。若 outward-rounded 的整段 clearance/model-top-gap 值区间严格不含零，可直接证明该段无对应边界 crossing，不必为与 crossing 无关的内部极值继续切段；这不是采样或容差放行。root solver 只按段端点 bracket，再固定二分 64 次；B 不得自行改成固定采样点近似。
 
 `BoundaryPathSampler::ordered_segments` 必须返回从 0 到 1 连续、无重叠、无空洞的 certified 区间；`validate_ordered_path_segments` 是公共形状校验器。每次地面碰撞后必须调用 `retarget`，把 sampler 重绑到剩余路径并恢复局部 `[0,1]`；重用碰撞前路径属于合同错误。
 
@@ -209,6 +224,7 @@ A1 的生产 path sampler 必须按穿越的插值网格单元提供有序区间
 - 全球 longitude 周期化到 `[-180,180)`；
 - 任一非有限交点或内部 expected-valid 气象失败是异常终止；
 - 不允许水平/垂直 extrapolation 或 clamp。
+- 地面和模式顶搜索遇到同一路径更早的水平出域时必须在域出口停止，不得因出口外 surface/model-top 字段为空而抢先写 `invalid_meteorology`；随后 limited-domain 策略记录该出口。
 
 ### 6.3 Runner 生命周期
 
@@ -242,7 +258,72 @@ Hybrid interface 使用资料原生 `A + B*surface_pressure`，不重建、不�
 cell dry mass = area/g0 * Σ((1-q[k]) * effective_dp[k])
 ~~~
 
-`q` 是 `[0,1)` 的 specific humidity。缺失或非有限 q 失败，不可假设 0。
+`q` 使用显式双轨语义：
+
+- raw q 是查询与审计输出；所有有限且 `< 1` 的源值均原样保留，包括有限负值；
+- physical q 只供 density、hydrostatic geometry、surface layer 与 domain-fill 质量等物理消费者使用；
+  每个源时次先执行 `specific_humidity_nonnegative_projection/v1`，将有限负 q 投影为 0，之后才按
+  冻结权重做时间插值。
+
+raw `SpecificHumidity` provenance 不得声称该投影；`AirDensity` 以及 surface/mixed route 的物理输出
+必须记录该算法。缺失、非有限或 `q >= 1` 仍然整列/整点失败，禁止通过 valid-triangle 降级，
+也禁止在时间插值或最终质量公式之后静默 `max(q, 0)`。
+
+近地层 roughness 同样区分 source 与 physical 值。冻结的 CFSR SFCR 三个时次均无 missing，
+但以 `1e-4 m` 十进制量化步长在海洋格点编码 exact zero。raw roughness 保留 exact zero；
+对数 surface-layer 物理消费者执行 `aerodynamic_roughness_zero_projection/v1`，仅将 exact zero
+替换为 `1e-4 m`。任何正值（包括小于 `1e-4 m`）保持不变；负值和非有限值失败。
+
+近地风使用 `surface_layer/monin_obukhov_businger_dyer/v1` 与
+`ten_metre_anchored_businger_dyer_wind/v1`。在 similarity range 内，稳定度形状函数记为
+`F_m(z)`，冻结公式为 `U_vec(z) = U_vec(10 m) * F_m(z) / F_m(10 m)`；因此 10 m 向量是精确
+锚点、风向保持、风速非负。`u*` 仍参与 surface exchange scales 与 Monin-Obukhov 稳定度，
+不得再作为独立加法修正与 10 m 风重复约束，也不得在得到负风速后静默 `max(speed, 0)`。
+similarity range 以上仍以匹配该归一化剖面导数的单调桥连接最低有效三维层。
+
+温度和比湿使用 `two_metre_anchored_businger_dyer_scalar/v1`。对任一标量锚点 `S(2 m)` 与
+surface exchange scale `s*`：
+
+~~~text
+S(z) = S(2 m) + s*/k * [ln(z/2 m) - psi_h(z/L) + psi_h(2 m/L)]
+~~~
+
+这是锚点差公式；动量粗糙度 `z0` 必须严格相消，不得拿 `z0` 拒绝合法的 2 m 温湿度锚点。
+因此即使 CFSR 的动量 `z0 > 2 m`，只要查询高度满足完整 transport 下界且所有物理输入有限，
+标量剖面仍可定义。最终比湿必须在 `[0,1)`；无效值仍失败，禁止为修绿静默 clamp。
+
+surface/mixed route 的三维连接层使用 `lowest_complete_transport_anchor/v1`：从底向上寻找同一层，
+要求 U、V 和派生 geometric W 在相关时间端点及冻结时间插值上同时完整。结构上最低的 pressure/hybrid
+层若缺任一 transport 分量，不得只用其 T/q 或单独 U/V 冒充三维锚点；只有最低完整锚点以下的合法
+高度区间走 surface route，锚点及其上方走 upper-air route。provenance 必须记录所用的联合锚点算法。
+
+`dry_air_finite_volume_grid/v1` 的安全核心与几何边界冻结如下：
+
+- x/y 索引先剔除 Profile 声明的 halo；非周期方向的外边缘停在最外安全网格点，内部边缘取相邻网格点中点，禁止向可插值凸包外再外推半格；
+- 周期经度方向使用网格点两侧各半格的完整控制体；M4 v1 将 `periodic_longitude=true` 解释为无水平开放边界，因此不生成水平补充面；
+- 球面水平面积为 `R² Δλ (sin φ_n - sin φ_s)`；顺序固定为 y、x、native level；
+- full-level 几何高度必须 top-to-bottom 严格下降；内部高度界面取相邻中心算术中点，几何模式顶固定为最高有效 full level（查询引擎禁止向其上外推），最低有效界面落在本地 terrain；pressure interface 的顶端质量仍按 7.1 的半 log-spacing 定义，但其几何支撑不得越过可查询模式顶；
+- pressure-level 地下层按 surface pressure 裁剪，hybrid 只使用原生 A/B interfaces；hybrid full-level 几何高度必须用与查询引擎 `ColumnGeometry` 相同的 surface-geopotential 向上 hydrostatic recurrence 生成，不得改用旁路三维 height 字段。
+
+初始 `dry_air_equal_mass_stratified/v1` 先在固定顺序累计干空气质量上分层，再在控制体内采样：经度均匀、`sin(latitude)` 均匀、层内 pressure 均匀。粒子只保存 ASL 高度，因此 sampled pressure 用界面间 log-pressure 线性关系转换为高度；不得改成几何高度均匀后仍宣称等质量采样。
+
+每一列的干空气质量下界不是 terrain，而是查询引擎的最低完整 transport floor：
+
+~~~text
+z_floor = z_terrain + max(0.5 m, 2*z0_physical)
+f       = (z_floor - z_terrain) / (z_lowest_full - z_terrain)
+p_floor = p_surface * (p_lowest_full / p_surface)^f
+~~~
+
+`dry_air_transport_floor_log_pressure/v1` 使用压力比幂式，避免 `exp(lerp(ln p))` 在
+`p_lowest_full == p_surface` 时把结果推高约 1 ULP；结果只允许在解析舍入界内钳回
+`[p_lowest_full,p_surface]`，越界仍失败。
+
+水平位置确定后执行 `dry_air_transport_floor_following_horizontal_relocation/v1`：保持粒子相对源列
+transport floor 的高度，并把源 layer 的上下界整体平移到目标经纬度的双线性 local transport floor。
+不得只保持 terrain-relative AGL，因为 roughness 与完整 U/V/W 下界也会随位置改变；不得保持旧 ASL
+将粒子放到不可查询的近地缺口，也不得用随机重抽、地面 epsilon clamp 或改变载体质量掩盖冲突。
+固定质量模式未满一个载体的初始 residual 是独立的全域账本质量，不与任一 boundary-face residual 混合。
 
 边界 dry-air partial density：
 
@@ -259,6 +340,12 @@ rho_dry * inward_normal_velocity * geometric_face_area * abs(dt)
 ~~~
 
 只累计积分方向的正入流。face/layer residual 以稳定 ID 跨步保存。
+
+`dry_air_boundary_flux/v1` 使用边界控制体的原生层高度厚度乘球面水平边长作为 face area；密度取上下 pressure interface 的算术平均 pressure，并使用该 full level 的 T/q 与 inward-normal wind。正向 inward normal 为 west:+u、east:-u、south:+v、north:-v；反向积分整体翻转法向。
+
+一个已经被 frame/release/output/end 边界静态截断的区间内，`dry_air_static_midpoint_flux/v1` 只在区间物理中点准备一次完整 snapshot，并把每个 face/layer 的 rate 视为区间内常数。动态出生只继续切分此区间，不重新取新中点或改变原计划 rate。
+
+`dry_air_mass_threshold_birth/v1` 不随机提前出生：对每个 face/layer，累计 `opening residual + rate * elapsed` 第一次达到下一份完整 carrier mass 的物理时刻即为出生时刻；时间量化为“不早于阈值”的最小整纳秒。随机数只决定 face 内切向位置与几何高度位置。这样每个动态子步结束时 residual 始终在 `[0, carrier mass)`，且不会暂时创造载体质量。
 
 ### 7.3 Mass gate
 
@@ -310,6 +397,11 @@ ozone_mass = dry_air_carrier_mass * mole_fraction * 48/29
 ~~~
 
 3 km 和 2 PVU 均为严格大于。规则外返回 0 ozone mass，不删除 carrier。该规则是经验代理，quality 为 derived，provenance 必须写规则 ID。
+
+Eligibility 与诊断失败的顺序也冻结：先按 3 km 几何阈值裁掉无 eligible 厚度的 layer/face，
+边界再裁掉零 inward flux，最后才要求剩余 eligible 支撑存在有限 PV。完全低于 3 km 或零入流的
+face 缺 PV 不得误报 fatal；任何真正跨入 eligible 区间的质量缺 PV 仍必须硬失败，禁止静默回退或
+把缺测当作 0 PV。
 
 ## 10. Manifest 与 SQLite
 

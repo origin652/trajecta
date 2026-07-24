@@ -34,6 +34,45 @@ pub const UPWARD_HEAT_FLUX_FROM_DOWNWARD_ALGORITHM_ID: &str =
 /// Stable identifier for surface pressure from logarithmic surface pressure.
 pub const SURFACE_PRESSURE_FROM_LOG_ALGORITHM_ID: &str = "trajecta/surface_pressure_from_log/v0";
 
+/// Stable identifier for spherical pressure-coordinate Ertel potential vorticity.
+pub const ERTEL_PV_SPHERICAL_ALGORITHM_ID: &str = "ertel_pv_spherical/v1";
+
+/// Earth rotation rate used by the frozen Ertel-PV contract, in radians per second.
+pub const EARTH_ROTATION_RATE_RAD_S: f64 = 7.292_115_0e-5;
+
+/// Reference pressure used by potential temperature in the frozen Ertel-PV contract.
+pub const POTENTIAL_TEMPERATURE_REFERENCE_PRESSURE_PA: f64 = 100_000.0;
+
+/// Multiplicative conversion from one potential-vorticity unit to SI.
+pub const PVU_SCALE_TO_SI: f64 = 1.0e-6;
+
+/// Stable projection used when physical consumers receive finite negative source humidity.
+pub const SPECIFIC_HUMIDITY_NONNEGATIVE_PROJECTION_ALGORITHM_ID: &str =
+    "specific_humidity_nonnegative_projection/v1";
+
+/// Stable projection used when physical surface-layer consumers receive exact zero roughness.
+pub const AERODYNAMIC_ROUGHNESS_ZERO_PROJECTION_ALGORITHM_ID: &str =
+    "aerodynamic_roughness_zero_projection/v1";
+
+/// Stable 10 m-vector-anchored Businger-Dyer wind-profile identity.
+pub const TEN_METRE_ANCHORED_SURFACE_WIND_ALGORITHM_ID: &str =
+    "ten_metre_anchored_businger_dyer_wind/v1";
+
+/// Stable 2 m-anchored Businger-Dyer temperature/moisture profile identity.
+pub const TWO_METRE_ANCHORED_SURFACE_SCALAR_ALGORITHM_ID: &str =
+    "two_metre_anchored_businger_dyer_scalar/v1";
+
+/// Stable joint U/V/W lowest-complete transport-anchor selection identity.
+pub const LOWEST_COMPLETE_TRANSPORT_ANCHOR_ALGORITHM_ID: &str =
+    "lowest_complete_transport_anchor/v1";
+
+/// Positive replacement for exact zero source roughness in physical surface-layer consumers.
+///
+/// The frozen CFSR SFCR messages use a `1e-4 m` decimal quantum and encode open-water points as
+/// exact zero. Raw query fields preserve that zero; only logarithmic surface-layer consumers use
+/// this smallest positive source quantum.
+pub const ZERO_AERODYNAMIC_ROUGHNESS_REPLACEMENT_M: f64 = 1.0e-4;
+
 /// IFS CY41R2 water-surface saturation vapour pressure constants (Part IV eq. 7.4/7.5).
 pub const IFS_WATER_SATURATION_T0_K: f64 = 273.16;
 /// Saturation vapour pressure reference (Pa).

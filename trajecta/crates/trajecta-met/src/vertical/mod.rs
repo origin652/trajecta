@@ -13,7 +13,9 @@ use crate::derive::height::{
     geopotential_to_geometric_height_m, hydrostatic_full_level_geopotential,
 };
 use crate::derive::pressure::hybrid_pressure_column;
-use crate::derive::thermo::moist_air_density_kg_m3;
+use crate::derive::thermo::{
+    moist_air_density_from_source_humidity_kg_m3, project_specific_humidity_nonnegative,
+};
 use crate::field::{CanonicalField, FieldKey};
 use crate::frame::{ArrayLayout, RawField, RawMetFrame};
 use crate::grid::{
@@ -300,6 +302,16 @@ mod tests {
     }
 
     fn pressure_test_frame(mask_bottom_northeast: bool) -> RawMetFrame {
+        pressure_test_frame_with_humidity(
+            mask_bottom_northeast,
+            vec![0.001; 4].into_iter().chain(vec![0.005; 4]).collect(),
+        )
+    }
+
+    fn pressure_test_frame_with_humidity(
+        mask_bottom_northeast: bool,
+        humidity_values: Vec<f64>,
+    ) -> RawMetFrame {
         let metadata = metadata_for(VerticalTopology::PressureLevels(
             PressureLevels::new(Arc::from([50_000.0, 90_000.0])).unwrap(),
         ));
@@ -329,7 +341,7 @@ mod tests {
             &mut provenance,
             &metadata,
             CanonicalField::SpecificHumidity,
-            vec![0.001; 4].into_iter().chain(vec![0.005; 4]).collect(),
+            humidity_values,
             full_valid.clone(),
             "1",
             full_layout,
@@ -458,6 +470,39 @@ mod tests {
     }
 
     #[test]
+    fn pressure_builder_preserves_negative_source_humidity_and_projects_physical_humidity() {
+        let frame = pressure_test_frame_with_humidity(
+            false,
+            vec![0.001; 4].into_iter().chain(vec![-1.0e-9; 4]).collect(),
+        );
+        let column = PressureColumnBuilder
+            .build(request_for(&frame, 0.5, 0.5))
+            .unwrap();
+
+        assert_eq!(column.validity().valid.as_ref(), &[true, true]);
+        assert_eq!(column.specific_humidity().as_ref(), &[0.001, -1.0e-9]);
+        assert_eq!(column.physical_specific_humidity().as_ref(), &[0.001, 0.0]);
+        assert!(column.density_kg_m3().iter().all(|value| *value > 0.0));
+    }
+
+    #[test]
+    fn pressure_builder_rejects_q_at_or_above_one_without_triangle_fallback() {
+        for invalid_humidity in [1.0, 1.1] {
+            let mut humidity = vec![0.001; 4]
+                .into_iter()
+                .chain(vec![0.005; 4])
+                .collect::<Vec<_>>();
+            humidity[7] = invalid_humidity;
+            let frame = pressure_test_frame_with_humidity(false, humidity);
+
+            assert!(matches!(
+                PressureColumnBuilder.build(request_for(&frame, 0.25, 0.25)),
+                Err(VerticalError::NumericalFailure)
+            ));
+        }
+    }
+
+    #[test]
     fn hybrid_builder_integrates_four_corner_columns_before_interpolation() {
         let frame = hybrid_test_frame(Arc::from([1_u16, 2_u16]));
         let column = HybridColumnBuilder
@@ -496,6 +541,7 @@ pub struct ColumnGeometry {
     height_asl_m: Arc<[f64]>,
     temperature_k: Arc<[f64]>,
     specific_humidity: Arc<[f64]>,
+    physical_specific_humidity: Arc<[f64]>,
     density_kg_m3: Arc<[f64]>,
     level_horizontal_weights: Arc<[[f64; 4]]>,
     validity: VerticalValidity,
@@ -546,7 +592,7 @@ impl ColumnGeometry {
                 .any(|value| !value.is_finite() || *value <= 0.0)
             || specific_humidity
                 .iter()
-                .any(|value| !value.is_finite() || !(0.0..1.0).contains(value))
+                .any(|value| !value.is_finite() || *value >= 1.0)
             || level_horizontal_weights.iter().any(|weights| {
                 weights
                     .iter()
@@ -556,12 +602,18 @@ impl ColumnGeometry {
         {
             return Err(VerticalError::NonMonotonicColumn);
         }
+        let physical_specific_humidity = specific_humidity
+            .iter()
+            .copied()
+            .map(project_specific_humidity_nonnegative)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| VerticalError::NonMonotonicColumn)?;
         let density_kg_m3 = pressure_pa
             .iter()
             .zip(temperature_k.iter())
             .zip(specific_humidity.iter())
             .map(|((pressure, temperature), humidity)| {
-                moist_air_density_kg_m3(*pressure, *temperature, *humidity)
+                moist_air_density_from_source_humidity_kg_m3(*pressure, *temperature, *humidity)
                     .map_err(|_| VerticalError::NumericalFailure)
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -590,6 +642,7 @@ impl ColumnGeometry {
             height_asl_m,
             temperature_k,
             specific_humidity,
+            physical_specific_humidity: Arc::from(physical_specific_humidity),
             density_kg_m3: Arc::from(density_kg_m3),
             level_horizontal_weights,
             validity,
@@ -621,6 +674,12 @@ impl ColumnGeometry {
     #[must_use]
     pub const fn specific_humidity(&self) -> &Arc<[f64]> {
         &self.specific_humidity
+    }
+
+    /// Returns non-negative humidity used only by physical consumers.
+    #[must_use]
+    pub const fn physical_specific_humidity(&self) -> &Arc<[f64]> {
+        &self.physical_specific_humidity
     }
 
     /// Returns moist-air density in the same full-level order.
@@ -665,7 +724,7 @@ impl ColumnGeometry {
         let floating = self
             .pressure_pa
             .len()
-            .saturating_mul(5)
+            .saturating_mul(6)
             .saturating_mul(std::mem::size_of::<f64>());
         let validity = self
             .validity
@@ -1278,10 +1337,16 @@ impl ColumnStencil {
                 temperature_k[corner].push(field_value_3d(temperature, level, point)?);
                 specific_humidity[corner].push(field_value_3d(humidity, level, point)?);
             }
+            let physical_humidity = specific_humidity[corner]
+                .iter()
+                .copied()
+                .map(project_specific_humidity_nonnegative)
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| VerticalError::NumericalFailure)?;
             let geopotential = hydrostatic_full_level_geopotential(
                 &pressure.interface_pa,
                 &temperature_k[corner],
-                &specific_humidity[corner],
+                &physical_humidity,
                 surface_geopotential_value,
             )
             .map_err(|_| VerticalError::NumericalFailure)?;
@@ -1399,10 +1464,12 @@ impl ColumnStencil {
                 };
                 let local_temperature = field_value_3d(temperature, level, point)?;
                 let local_humidity = field_value_3d(humidity, level, point)?;
+                if !local_humidity.is_finite() || local_humidity >= 1.0 {
+                    return Err(VerticalError::NumericalFailure);
+                }
                 if topology.pressure_pa[level] <= surface_pressure_pa[corner]
                     && geometric_height > terrain_asl_m[corner]
                     && local_temperature > 0.0
-                    && (0.0..1.0).contains(&local_humidity)
                 {
                     height_asl_m[corner][level] = geometric_height;
                     temperature_k[corner][level] = local_temperature;

@@ -28,7 +28,9 @@ use trajecta_met::query::engine::{
 };
 use trajecta_met::query::request::{ExplainMode, TransportPlan, TransportPlanRequest};
 use trajecta_met::surface_layer::{MoninObukhovBusingerDyer, SurfaceLayerRegistry};
-use trajecta_met::vertical::{PressureLevels, VerticalTopology};
+use trajecta_met::vertical::{
+    HybridCoefficients, HybridPressureTopology, PressureLevels, VerticalTopology,
+};
 
 use crate::runner::RunError;
 
@@ -64,23 +66,115 @@ pub fn constant_wind_stack(
     model_top_asl_m: f64,
     periodic_longitude: bool,
 ) -> Result<SyntheticStack, RunError> {
+    constant_wind_multidomain_stack(
+        domain_id,
+        &[(domain_id, wind)],
+        times,
+        terrain_asl_m,
+        model_top_asl_m,
+        periodic_longitude,
+    )
+}
+
+/// Builds a synthetic stack containing multiple domains while selecting one
+/// explicit runtime domain. This is primarily a hard-gate harness proving that
+/// core query paths never fall back to ambiguous implicit-domain preparation.
+pub fn constant_wind_multidomain_stack(
+    selected_domain_id: &str,
+    domains: &[(&str, SyntheticWind)],
+    times: &[Timestamp],
+    terrain_asl_m: f64,
+    model_top_asl_m: f64,
+    periodic_longitude: bool,
+) -> Result<SyntheticStack, RunError> {
+    constant_wind_multidomain_stack_with_vertical(
+        selected_domain_id,
+        domains,
+        times,
+        terrain_asl_m,
+        model_top_asl_m,
+        periodic_longitude,
+        SyntheticVertical::Pressure,
+    )
+}
+
+/// Convenience hybrid-pressure stack for M4 domain-fill hard gates.
+pub fn constant_wind_hybrid_stack(
+    domain_id: &str,
+    times: &[Timestamp],
+    wind: SyntheticWind,
+    terrain_asl_m: f64,
+    model_top_asl_m: f64,
+    periodic_longitude: bool,
+) -> Result<SyntheticStack, RunError> {
+    constant_wind_multidomain_stack_with_vertical(
+        domain_id,
+        &[(domain_id, wind)],
+        times,
+        terrain_asl_m,
+        model_top_asl_m,
+        periodic_longitude,
+        SyntheticVertical::Hybrid,
+    )
+}
+
+#[derive(Clone, Copy)]
+enum SyntheticVertical {
+    Pressure,
+    Hybrid,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn constant_wind_multidomain_stack_with_vertical(
+    selected_domain_id: &str,
+    domains: &[(&str, SyntheticWind)],
+    times: &[Timestamp],
+    terrain_asl_m: f64,
+    model_top_asl_m: f64,
+    periodic_longitude: bool,
+    vertical: SyntheticVertical,
+) -> Result<SyntheticStack, RunError> {
     if times.is_empty() {
         return Err(RunError::InvalidConfiguration(
             "synthetic times empty".into(),
         ));
     }
-    let domain = DomainId(domain_id.into());
-    let domain_catalog = DomainCatalog {
-        domain: Some(domain.clone()),
-        frames: BTreeMap::new(),
-        coverage: Default::default(),
-    };
-    let _ = (times, periodic_longitude);
+    if domains.is_empty() {
+        return Err(RunError::InvalidConfiguration(
+            "synthetic domains empty".into(),
+        ));
+    }
+    let domain = DomainId(selected_domain_id.into());
     let mut catalog = MetCatalog::default();
-    catalog.domains.insert(domain.clone(), domain_catalog);
+    for (domain_id, _) in domains {
+        let id = DomainId((*domain_id).into());
+        if catalog
+            .domains
+            .insert(
+                id.clone(),
+                DomainCatalog {
+                    domain: Some(id),
+                    frames: BTreeMap::new(),
+                    coverage: Default::default(),
+                },
+            )
+            .is_some()
+        {
+            return Err(RunError::InvalidConfiguration(
+                "duplicate synthetic domain".into(),
+            ));
+        }
+    }
+    if !catalog.domains.contains_key(&domain) {
+        return Err(RunError::InvalidConfiguration(
+            "selected synthetic domain is absent".into(),
+        ));
+    }
     catalog.capabilities = CapabilitySet::new()
         .with(Capability::Transport)
-        .with(Capability::NearSurfaceTransport);
+        .with(Capability::NearSurfaceTransport)
+        .with(Capability::DomainFill)
+        .with(Capability::Diagnostics);
 
     let fields = transport_field_registry()?;
     let mut surface_layers = SurfaceLayerRegistry::new();
@@ -99,18 +193,22 @@ pub fn constant_wind_stack(
         memory_budget,
     });
 
-    for time in times {
-        let frame = constant_frame(
-            &domain,
-            *time,
-            wind,
-            terrain_asl_m,
-            model_top_asl_m,
-            periodic_longitude,
-        )?;
-        engine
-            .cache_frame(frame)
-            .map_err(|error| RunError::Meteorology(format!("{error:?}")))?;
+    for (domain_id, wind) in domains {
+        let frame_domain = DomainId((*domain_id).into());
+        for time in times {
+            let frame = constant_frame(
+                &frame_domain,
+                *time,
+                *wind,
+                terrain_asl_m,
+                model_top_asl_m,
+                periodic_longitude,
+                vertical,
+            )?;
+            engine
+                .cache_frame(frame)
+                .map_err(|error| RunError::Meteorology(format!("{error:?}")))?;
+        }
     }
 
     let transport_plan = engine
@@ -157,13 +255,19 @@ fn transport_field_registry() -> Result<FieldRegistry, RunError> {
         CanonicalField::NorthwardSurfaceStress,
         CanonicalField::SensibleHeatFlux,
         CanonicalField::LatentHeatFlux,
+        CanonicalField::PotentialVorticity,
     ] {
         let semantics = canonical.semantics();
         registry
             .register(FieldDescriptor {
                 key: FieldKey::Canonical(canonical),
-                unit: Unit::new(semantics.unit, semantics.dimension, 1.0, 0.0)
-                    .map_err(|error| RunError::InvalidConfiguration(format!("unit: {error:?}")))?,
+                unit: Unit::new(
+                    semantics.unit,
+                    semantics.dimension,
+                    canonical.unit_scale_to_si(),
+                    0.0,
+                )
+                .map_err(|error| RunError::InvalidConfiguration(format!("unit: {error:?}")))?,
                 shape: semantics.shape,
                 vertical_stagger: semantics.vertical_stagger,
                 quality: FieldQuality::Source,
@@ -182,6 +286,7 @@ fn constant_frame(
     terrain_asl_m: f64,
     model_top_asl_m: f64,
     periodic_longitude: bool,
+    vertical: SyntheticVertical,
 ) -> Result<Arc<RawMetFrame>, RunError> {
     let ny = 5_usize;
     let nx = 8_usize;
@@ -277,6 +382,25 @@ fn constant_frame(
         "1",
         Dimension::DIMENSIONLESS,
     )?;
+    let mut potential_vorticity = Vec::with_capacity(levels * ny * nx);
+    for _level in 0..levels {
+        for y in 0..ny {
+            let latitude = grid.latitude_origin_degrees + grid.latitude_spacing_degrees * y as f64;
+            let value = if latitude < 0.0 { -3.0 } else { 3.0 };
+            potential_vorticity.extend(std::iter::repeat_n(value, nx));
+        }
+    }
+    insert_field(
+        &mut fields,
+        &mut provenance,
+        &id,
+        CanonicalField::PotentialVorticity,
+        potential_vorticity,
+        full,
+        time,
+        "PVU",
+        CanonicalField::PotentialVorticity.dimension(),
+    )?;
     insert_field(
         &mut fields,
         &mut provenance,
@@ -326,7 +450,7 @@ fn constant_frame(
         &mut provenance,
         &id,
         CanonicalField::TenMetreEastwardWind,
-        vec![0.0; ny * nx],
+        vec![wind.eastward_m_s; ny * nx],
         horizontal,
         time,
         "m/s",
@@ -337,7 +461,7 @@ fn constant_frame(
         &mut provenance,
         &id,
         CanonicalField::TenMetreNorthwardWind,
-        vec![0.0; ny * nx],
+        vec![wind.northward_m_s; ny * nx],
         horizontal,
         time,
         "m/s",
@@ -437,10 +561,20 @@ fn constant_frame(
         domain: domain.clone(),
         valid_time: time,
         grid,
-        vertical: VerticalTopology::PressureLevels(
-            PressureLevels::new(Arc::from([10_000.0_f64, 50_000.0, 90_000.0]))
-                .map_err(|error| RunError::Meteorology(format!("pressure levels: {error:?}")))?,
-        ),
+        vertical: match vertical {
+            SyntheticVertical::Pressure => VerticalTopology::PressureLevels(
+                PressureLevels::new(Arc::from([10_000.0_f64, 50_000.0, 90_000.0])).map_err(
+                    |error| RunError::Meteorology(format!("pressure levels: {error:?}")),
+                )?,
+            ),
+            SyntheticVertical::Hybrid => VerticalTopology::HybridPressure(HybridPressureTopology {
+                coefficients: HybridCoefficients {
+                    a_half_pa: Arc::from([5_000.0_f64, 30_000.0, 70_000.0, 0.0]),
+                    b_half: Arc::from([0.0_f64, 0.0, 0.0, 1.0]),
+                },
+                active_full_levels: Arc::from([1_u16, 2, 3]),
+            }),
+        },
     };
     RawMetFrame::publish(metadata, fields, Arc::new(provenance))
         .map(Arc::new)

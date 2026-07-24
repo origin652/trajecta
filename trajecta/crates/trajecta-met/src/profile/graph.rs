@@ -152,6 +152,13 @@ pub enum VerticalOp {
     HybridFullPressure,
 }
 
+/// Whitelisted native-grid diagnostic operation.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum DiagnosticOp {
+    /// Spherical pressure-coordinate Ertel potential vorticity in PVU.
+    ErtelPotentialVorticity,
+}
+
 /// Whitelisted computation operation.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
@@ -182,6 +189,8 @@ pub enum GraphOp {
     Thermodynamic(ThermodynamicOp),
     /// Named, built-in vertical-coordinate operation.
     Vertical(VerticalOp),
+    /// Named diagnostic requiring native horizontal-neighborhood support.
+    Diagnostic(DiagnosticOp),
 }
 
 /// Static value type flowing through a graph edge.
@@ -526,12 +535,14 @@ fn validate_node(
             validate_thermodynamic(node, &inputs, *operation)?;
         }
         GraphOp::Vertical(operation) => validate_vertical(node, &inputs, *operation)?,
+        GraphOp::Diagnostic(operation) => validate_diagnostic(node, &inputs, *operation)?,
     }
     Ok(())
 }
 
 fn operation_stage(operation: &GraphOp) -> ExecutionStage {
     match operation {
+        GraphOp::Diagnostic(_) => ExecutionStage::Tile,
         GraphOp::Vertical(_) => ExecutionStage::Column,
         _ => ExecutionStage::Frame,
     }
@@ -673,6 +684,59 @@ fn validate_vertical(
             node,
             "hybrid pressure output type is inconsistent",
         ));
+    }
+    Ok(())
+}
+
+fn validate_diagnostic(
+    node: &GraphNode,
+    inputs: &[&GraphNode],
+    operation: DiagnosticOp,
+) -> Result<(), GraphError> {
+    match operation {
+        DiagnosticOp::ErtelPotentialVorticity => {
+            expect_arity(node, inputs, 4)?;
+            let velocity = DimensionVector::VELOCITY;
+            let temperature = DimensionVector::TEMPERATURE;
+            let pressure = DimensionVector::PRESSURE;
+            let expected = [velocity, velocity, temperature, pressure];
+            for (input, dimension) in inputs.iter().zip(expected) {
+                if input.output_type.dimension != dimension {
+                    return Err(type_mismatch(node, "Ertel-PV input dimension mismatch"));
+                }
+            }
+            for input in &inputs[..3] {
+                if input.output_type.shape != FieldShape::Full3D
+                    || input.output_type.vertical_stagger != Some(VerticalStagger::Full)
+                {
+                    return Err(type_mismatch(
+                        node,
+                        "Ertel-PV winds and temperature must be full-level three-dimensional fields",
+                    ));
+                }
+            }
+            if inputs[3].output_type.shape != FieldShape::Horizontal2D
+                || inputs[3].output_type.vertical_stagger.is_some()
+            {
+                return Err(type_mismatch(
+                    node,
+                    "Ertel-PV surface pressure must be a two-dimensional field",
+                ));
+            }
+            let pvu = GraphUnit::parse("PVU").map_err(|error| GraphError::InvalidUnit {
+                node: node.id.clone(),
+                message: error.to_string(),
+            })?;
+            if node.output_type.shape != FieldShape::Full3D
+                || node.output_type.vertical_stagger != Some(VerticalStagger::Full)
+                || !node.output_type.unit.same_conversion(&pvu)
+            {
+                return Err(type_mismatch(
+                    node,
+                    "Ertel-PV output must be a full-level PVU field",
+                ));
+            }
+        }
     }
     Ok(())
 }
@@ -900,6 +964,12 @@ fn base_unit(symbol: &str) -> Option<BaseUnit> {
         "J" => BaseUnit {
             dimension: DimensionVector::new(1, 2, -2, 0),
             scale_to_si: 1.0,
+            offset_to_si: 0.0,
+        },
+        // Potential-vorticity unit: 1 PVU = 1e-6 K m2 kg-1 s-1.
+        "PVU" => BaseUnit {
+            dimension: DimensionVector::new(-1, 2, -1, 1),
+            scale_to_si: crate::science::PVU_SCALE_TO_SI,
             offset_to_si: 0.0,
         },
         _ => return None,
@@ -1155,6 +1225,12 @@ mod tests {
         }
         assert!(GraphUnit::parse("Q").is_err());
         assert!(GraphUnit::parse("W K").is_ok());
+        let pvu = GraphUnit::parse("PVU").unwrap();
+        let pv_si = GraphUnit::parse("K m2 kg-1 s-1").unwrap();
+        assert_eq!(pvu.dimension(), pv_si.dimension());
+        assert_eq!(pvu.scale_to_si(), crate::science::PVU_SCALE_TO_SI);
+        assert_eq!(pvu.convert_value_to(2.0, &pv_si).unwrap(), 2.0e-6);
+        assert_eq!(pv_si.convert_value_to(2.0e-6, &pvu).unwrap(), 2.0);
     }
 
     #[test]

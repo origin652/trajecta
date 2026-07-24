@@ -12,6 +12,7 @@
     dead_code
 )]
 
+use trajecta_case::model::meteorology::DomainId;
 use trajecta_case::model::time::Timestamp;
 use trajecta_met::grid::DomainGeometry;
 use trajecta_met::profile::graph::ExecutionPlan;
@@ -38,12 +39,8 @@ impl BoundaryPathSamplerFactory for MetBoundaryPathSamplerFactory {
         query_plan: &'a TransportPlan,
         execution: &'a dyn ExecutionContext,
     ) -> Result<Box<dyn BoundaryPathSampler + 'a>, BoundaryError> {
-        Ok(Box::new(MetBoundaryPathSampler::new(
-            request,
-            meteorology,
-            query_plan,
-            execution,
-        )?))
+        let sampler = MetBoundaryPathSampler::new(request, meteorology, query_plan, execution);
+        Ok(Box::new(sampler?))
     }
 }
 
@@ -55,6 +52,7 @@ struct MetBoundaryPathSampler<'a> {
     /// Global full-step fraction corresponding to local sample fraction 0.
     local_zero_global_fraction: f64,
     segments: Vec<BoundaryPathSegment>,
+    domain: DomainId,
     grid: DomainGeometry,
     meteorology: &'a mut MetEngine,
     query_plan: &'a TransportPlan,
@@ -69,7 +67,11 @@ impl<'a> MetBoundaryPathSampler<'a> {
         query_plan: &'a TransportPlan,
         execution: &'a dyn ExecutionContext,
     ) -> Result<Self, BoundaryError> {
-        let grid = domain_geometry(meteorology, request.start_time)?;
+        let domain = request
+            .domain
+            .cloned()
+            .ok_or(BoundaryError::MissingContext)?;
+        let grid = domain_geometry(meteorology, request.start_time, &domain)?;
         let mut sampler = Self {
             start: request.start.clone(),
             proposed: request.proposed.clone(),
@@ -77,6 +79,7 @@ impl<'a> MetBoundaryPathSampler<'a> {
             step_end_time: request.end_time,
             local_zero_global_fraction: 0.0,
             segments: Vec::new(),
+            domain,
             grid,
             meteorology,
             query_plan,
@@ -95,6 +98,7 @@ impl<'a> MetBoundaryPathSampler<'a> {
             self.step_start_time,
             self.step_end_time,
             self.local_zero_global_fraction,
+            &self.domain,
             self.meteorology,
             self.query_plan,
             self.execution,
@@ -159,7 +163,7 @@ impl<'a> MetBoundaryPathSampler<'a> {
         let time = self.physical_time(local_fraction)?;
         let window = self
             .meteorology
-            .prepare(time)
+            .prepare_for_domain(time, &self.domain)
             .map_err(|_| BoundaryError::MissingContext)?;
         let batch = window
             .prepare_transport_batch(
@@ -180,10 +184,17 @@ impl<'a> MetBoundaryPathSampler<'a> {
             .map_err(|_| BoundaryError::MissingContext)?;
         let row = output.row(0).ok_or(BoundaryError::MissingContext)?;
         let status = row.status();
-        let surface = row.terrain_height_asl_m().filter(|value| value.is_finite());
-        let model_top = row
-            .bounds()
-            .and_then(|bounds| bounds.physical_model_top_asl_m())
+        let bounds = row.bounds();
+        let surface = bounds
+            .map(|value| value.minimum_transport_asl_m())
+            .or_else(|| row.terrain_height_asl_m())
+            .filter(|value| value.is_finite());
+        let model_top = bounds
+            .map(|value| {
+                value
+                    .physical_model_top_asl_m()
+                    .unwrap_or_else(|| value.available_top_asl_m())
+            })
             .filter(|value| value.is_finite());
         Ok(BoundarySample {
             fraction: local_fraction,
@@ -241,9 +252,10 @@ impl BoundaryPathSampler for MetBoundaryPathSampler<'_> {
 fn domain_geometry(
     meteorology: &mut MetEngine,
     time: Timestamp,
+    domain: &DomainId,
 ) -> Result<DomainGeometry, BoundaryError> {
     let window = meteorology
-        .prepare(time)
+        .prepare_for_domain(time, domain)
         .map_err(|_| BoundaryError::MissingContext)?;
     Ok(window.frames.before.metadata().grid.clone())
 }
@@ -259,10 +271,11 @@ fn domain_geometry(
 ///    interior latitude extrema), not endpoint-only latitude bounds.
 /// 2. Additional cuts at GC latitude/longitude turning points so each leaf has
 ///    monotonic lon and lat.
-/// 3. Within each cell leaf, bilinear terrain / model-top along the exact GC
-///    path: isolate zeros of analytic d(clearance)/df and d(top_gap)/df by
-///    recursive subdivision certified by second-derivative sign (unique root) —
-///    not by treating cell fraction `(fx,fy)` as linear in path fraction.
+/// 3. Within each cell leaf, first exclude boundary contact with an outward-
+///    rounded residual-value interval. Otherwise isolate zeros of analytic
+///    d(clearance)/df and d(top_gap)/df by recursive subdivision certified by
+///    second-derivative sign (unique root) — not by treating cell fraction
+///    `(fx,fy)` as linear in path fraction.
 /// 4. Recursive re-check until no leaf reports a further interior extremum.
 fn certify_path_cuts(
     start: &ParticleState,
@@ -271,23 +284,27 @@ fn certify_path_cuts(
     step_start_time: Timestamp,
     step_end_time: Timestamp,
     local_zero_global: f64,
+    domain: &DomainId,
     meteorology: &mut MetEngine,
     query_plan: &TransportPlan,
     execution: &dyn ExecutionContext,
     workspace: &mut BatchWorkspace,
 ) -> Result<Vec<f64>, BoundaryError> {
     let mut cuts = vec![0.0, 1.0];
-    for fraction in grid_line_crossings(start, proposed, grid)? {
+    let grid_crossings = grid_line_crossings(start, proposed, grid);
+    for fraction in grid_crossings? {
         insert_cut(&mut cuts, fraction);
     }
-    for fraction in gc_turning_point_fractions(start, proposed)? {
+    let turning_points = gc_turning_point_fractions(start, proposed);
+    for fraction in turning_points? {
         insert_cut(&mut cuts, fraction);
     }
     finalize_cuts(&mut cuts);
 
     // Domain inside/outside: cut at exact safe-domain boundary meridians/parallels
     // (halo-aware). No midpoint heuristic on SampleStatus.
-    for fraction in domain_boundary_crossings(start, proposed, grid)? {
+    let domain_crossings = domain_boundary_crossings(start, proposed, grid);
+    for fraction in domain_crossings? {
         insert_cut(&mut cuts, fraction);
     }
     finalize_cuts(&mut cuts);
@@ -302,7 +319,7 @@ fn certify_path_cuts(
         let leaves = cuts.clone();
         let mut added = false;
         for window in leaves.windows(2) {
-            for f in scalar_field_extremum_cuts(
+            let extrema = scalar_field_extremum_cuts(
                 window[0],
                 window[1],
                 start,
@@ -310,12 +327,14 @@ fn certify_path_cuts(
                 step_start_time,
                 step_end_time,
                 local_zero_global,
+                domain,
                 meteorology,
                 query_plan,
                 execution,
                 workspace,
                 grid,
-            )? {
+            );
+            for f in extrema? {
                 if f > window[0] + 1.0e-14 && f < window[1] - 1.0e-14 {
                     insert_cut(&mut cuts, f);
                     added = true;
@@ -355,8 +374,7 @@ fn grid_line_crossings(
 ) -> Result<Vec<f64>, BoundaryError> {
     let a = unit_vector(start.longitude_degrees, start.latitude_degrees)?;
     let b = unit_vector(proposed.longitude_degrees, proposed.latitude_degrees)?;
-    let cos_omega = dot(a, b).clamp(-1.0, 1.0);
-    let omega = cos_omega.acos();
+    let omega = great_circle_angle(a, b)?;
     if omega <= 1.0e-15 {
         return Ok(Vec::new());
     }
@@ -442,8 +460,7 @@ fn gc_turning_point_fractions(
 ) -> Result<Vec<f64>, BoundaryError> {
     let a = unit_vector(start.longitude_degrees, start.latitude_degrees)?;
     let b = unit_vector(proposed.longitude_degrees, proposed.latitude_degrees)?;
-    let cos_omega = dot(a, b).clamp(-1.0, 1.0);
-    let omega = cos_omega.acos();
+    let omega = great_circle_angle(a, b)?;
     if omega <= 1.0e-15 {
         return Ok(Vec::new());
     }
@@ -703,22 +720,12 @@ fn slerp_unit_and_deriv(
     Ok((p, dp))
 }
 
-fn great_circle_tangent(a: [f64; 3], b: [f64; 3], omega: f64) -> Result<[f64; 3], BoundaryError> {
-    let sin_omega = omega.sin();
-    if sin_omega.abs() <= 1.0e-18 {
-        return Err(BoundaryError::InvalidParticleState);
-    }
-    let cos_omega = omega.cos();
-    let tangent = [
-        (b[0] - cos_omega * a[0]) / sin_omega,
-        (b[1] - cos_omega * a[1]) / sin_omega,
-        (b[2] - cos_omega * a[2]) / sin_omega,
-    ];
-    if tangent.into_iter().all(f64::is_finite) {
-        Ok(tangent)
-    } else {
-        Err(BoundaryError::InvalidParticleState)
-    }
+fn great_circle_tangent(a: [f64; 3], b: [f64; 3], _omega: f64) -> Result<[f64; 3], BoundaryError> {
+    // Construct the tangent from the oriented great-circle normal.  The usual
+    // `(b - cos(omega) * a) / sin(omega)` form catastrophically cancels for
+    // metre-scale paths because `cos(omega)` rounds extremely close to one.
+    let normal = normalize(cross(a, b))?;
+    normalize(cross(normal, a))
 }
 
 fn slerp_lonlat(a: [f64; 3], b: [f64; 3], omega: f64, f: f64) -> Result<(f64, f64), BoundaryError> {
@@ -752,6 +759,8 @@ fn slerp_lonlat_and_deriv(
 /// Isolate interior extrema of surface clearance and model-top gap on `(f0,f1)`.
 ///
 /// Certificate rules (no fixed-N probe lattice, no endpoint-same-sign sophistry):
+/// - residual-value enclosure over the whole interval excludes 0 ⇒ no boundary
+///   crossing, so internal extrema do not need to be isolated;
 /// - residual' enclosure over the whole interval excludes 0 ⇒ no extremum;
 /// - residual'' enclosure strictly excludes 0 AND residual' brackets 0 ⇒ unique
 ///   root, then exactly 64 bisections on residual';
@@ -765,6 +774,7 @@ fn scalar_field_extremum_cuts(
     step_start_time: Timestamp,
     step_end_time: Timestamp,
     local_zero_global: f64,
+    domain: &DomainId,
     meteorology: &mut MetEngine,
     query_plan: &TransportPlan,
     execution: &dyn ExecutionContext,
@@ -776,8 +786,7 @@ fn scalar_field_extremum_cuts(
     }
     let a = unit_vector(start.longitude_degrees, start.latitude_degrees)?;
     let b = unit_vector(proposed.longitude_degrees, proposed.latitude_degrees)?;
-    let cos_omega = dot(a, b).clamp(-1.0, 1.0);
-    let omega = cos_omega.acos();
+    let omega = great_circle_angle(a, b)?;
 
     let s0 = sample_at_fraction(
         f0,
@@ -786,6 +795,7 @@ fn scalar_field_extremum_cuts(
         step_start_time,
         step_end_time,
         local_zero_global,
+        domain,
         meteorology,
         query_plan,
         execution,
@@ -798,6 +808,7 @@ fn scalar_field_extremum_cuts(
         step_start_time,
         step_end_time,
         local_zero_global,
+        domain,
         meteorology,
         query_plan,
         execution,
@@ -835,6 +846,7 @@ fn scalar_field_extremum_cuts(
     // bracket is constant on the leaf; otherwise cut at the bracket change.
     let bracket0 = met_bracket_times(
         meteorology,
+        domain,
         f0,
         step_start_time,
         step_end_time,
@@ -842,6 +854,7 @@ fn scalar_field_extremum_cuts(
     )?;
     let bracket1 = met_bracket_times(
         meteorology,
+        domain,
         f1,
         step_start_time,
         step_end_time,
@@ -874,6 +887,7 @@ fn scalar_field_extremum_cuts(
         step_start_time,
         step_end_time,
         local_zero_global,
+        domain,
         meteorology,
         query_plan,
         execution,
@@ -893,6 +907,7 @@ fn scalar_field_extremum_cuts(
         step_start_time,
         step_end_time,
         local_zero_global,
+        domain,
         meteorology,
         query_plan,
         execution,
@@ -912,6 +927,7 @@ fn scalar_field_extremum_cuts(
         step_start_time,
         step_end_time,
         local_zero_global,
+        domain,
         meteorology,
         query_plan,
         execution,
@@ -928,6 +944,7 @@ fn scalar_field_extremum_cuts(
         step_start_time,
         step_end_time,
         local_zero_global,
+        domain,
         meteorology,
         query_plan,
         execution,
@@ -939,7 +956,7 @@ fn scalar_field_extremum_cuts(
     let dh = proposed.height_asl_m - start.height_asl_m;
     let mut cuts = Vec::new();
     // clearance c = h - T  ⇒ c' = dh - T'
-    cuts.extend(isolate_residual_roots_interval(
+    let clearance_roots = isolate_residual_roots_interval(
         f0,
         f1,
         a,
@@ -950,12 +967,14 @@ fn scalar_field_extremum_cuts(
         j0,
         corners_t0,
         corners_t1,
+        start.height_asl_m,
         dh,
         ResidualKind::Clearance,
-    )?);
+    );
+    cuts.extend(clearance_roots?);
     if let (Some(m0), Some(m1)) = (corners_m0, corners_m1) {
         // top gap g = M - h ⇒ g' = M' - dh
-        cuts.extend(isolate_residual_roots_interval(
+        let top_roots = isolate_residual_roots_interval(
             f0,
             f1,
             a,
@@ -966,9 +985,11 @@ fn scalar_field_extremum_cuts(
             j0,
             m0,
             m1,
+            start.height_asl_m,
             dh,
             ResidualKind::TopGap,
-        )?);
+        );
+        cuts.extend(top_roots?);
     }
     cuts.retain(|f| *f > f0 + 1.0e-14 && *f < f1 - 1.0e-14);
     cuts.sort_by(|x, y| x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal));
@@ -982,7 +1003,7 @@ enum FieldKind {
     ModelTop,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum ResidualKind {
     /// c = h - F, c' = dh - F'
     Clearance,
@@ -1302,6 +1323,7 @@ struct ResidualContext<'a> {
     leaf_f1: f64,
     corners0: [f64; 4],
     corners1: [f64; 4],
+    h0: f64,
     dh: f64,
     kind: ResidualKind,
 }
@@ -1337,6 +1359,27 @@ impl ResidualContext<'_> {
         Ok(match self.kind {
             ResidualKind::Clearance => self.dh - d_field,
             ResidualKind::TopGap => d_field - self.dh,
+        })
+    }
+
+    fn value_enclosure(&self, f0: f64, f1: f64) -> Result<Iv, BoundaryError> {
+        let (x, y, _, _, _, _) = coordinate_jet_enclosures(
+            f0, f1, self.a, self.b, self.omega, self.grid, self.i, self.j,
+        )?;
+        let coefficients0 = bilinear_coefficients(self.corners_at(f0));
+        let coefficients1 = bilinear_coefficients(self.corners_at(f1));
+        let [base, alpha, beta, gamma] = std::array::from_fn(|index| {
+            Iv::outward_hull(coefficients0[index], coefficients1[index])
+        });
+        let field = base
+            .add(alpha.mul(x))
+            .add(beta.mul(y))
+            .add(gamma.mul(x).mul(y));
+        let height = Iv::outward_point(self.h0)
+            .add(Iv::outward_hull(f0, f1).mul(Iv::outward_point(self.dh)));
+        Ok(match self.kind {
+            ResidualKind::Clearance => height.sub(field),
+            ResidualKind::TopGap => field.sub(height),
         })
     }
 
@@ -1402,6 +1445,7 @@ fn isolate_residual_roots_interval(
     j: i64,
     corners0: [f64; 4],
     corners1: [f64; 4],
+    h0: f64,
     dh: f64,
     kind: ResidualKind,
 ) -> Result<Vec<f64>, BoundaryError> {
@@ -1422,6 +1466,7 @@ fn isolate_residual_roots_interval(
         leaf_f1: f1,
         corners0,
         corners1,
+        h0,
         dh,
         kind,
     };
@@ -1456,6 +1501,10 @@ fn isolate_residual_rec(
         .ok_or(BoundaryError::RootFindingFailed)?;
     if *visited > MAX_VISITED || !f0.is_finite() || !f1.is_finite() || f1 <= f0 {
         return Err(BoundaryError::RootFindingFailed);
+    }
+    let value_enclosure = context.value_enclosure(f0, f1)?;
+    if value_enclosure.strictly_excludes_zero() {
+        return Ok(());
     }
     let (d1_enclosure, d2_enclosure) = context.derivative_enclosures(f0, f1)?;
     if d1_enclosure.strictly_excludes_zero() {
@@ -1767,8 +1816,7 @@ fn domain_boundary_crossings(
 ) -> Result<Vec<f64>, BoundaryError> {
     let a = unit_vector(start.longitude_degrees, start.latitude_degrees)?;
     let b = unit_vector(proposed.longitude_degrees, proposed.latitude_degrees)?;
-    let cos_omega = dot(a, b).clamp(-1.0, 1.0);
-    let omega = cos_omega.acos();
+    let omega = great_circle_angle(a, b)?;
     if omega <= 1.0e-15 {
         return Ok(Vec::new());
     }
@@ -1808,6 +1856,7 @@ fn domain_boundary_crossings(
 
 fn met_bracket_times(
     meteorology: &mut MetEngine,
+    domain: &DomainId,
     local_fraction: f64,
     step_start_time: Timestamp,
     step_end_time: Timestamp,
@@ -1816,7 +1865,7 @@ fn met_bracket_times(
     let global = local_zero_global + (1.0 - local_zero_global) * local_fraction;
     let time = lerp_timestamp(step_start_time, step_end_time, global)?;
     let window = meteorology
-        .prepare(time)
+        .prepare_for_domain(time, domain)
         .map_err(|_| BoundaryError::MissingContext)?;
     let before = window
         .frames
@@ -1908,6 +1957,7 @@ fn sample_cell_corner_field(
     step_start_time: Timestamp,
     step_end_time: Timestamp,
     local_zero_global: f64,
+    domain: &DomainId,
     meteorology: &mut MetEngine,
     query_plan: &TransportPlan,
     execution: &dyn ExecutionContext,
@@ -1922,6 +1972,7 @@ fn sample_cell_corner_field(
         step_start_time,
         step_end_time,
         local_zero_global,
+        domain,
         meteorology,
         query_plan,
         execution,
@@ -1947,6 +1998,7 @@ fn sample_cell_corner_field(
             step_start_time,
             step_end_time,
             local_zero_global,
+            domain,
             meteorology,
             query_plan,
             execution,
@@ -1970,6 +2022,7 @@ fn sample_state_at_time(
     step_start_time: Timestamp,
     step_end_time: Timestamp,
     local_zero_global: f64,
+    domain: &DomainId,
     meteorology: &mut MetEngine,
     query_plan: &TransportPlan,
     execution: &dyn ExecutionContext,
@@ -1978,7 +2031,7 @@ fn sample_state_at_time(
     let global = local_zero_global + (1.0 - local_zero_global) * local_fraction;
     let time = lerp_timestamp(step_start_time, step_end_time, global)?;
     let window = meteorology
-        .prepare(time)
+        .prepare_for_domain(time, domain)
         .map_err(|_| BoundaryError::MissingContext)?;
     let batch = window
         .prepare_transport_batch(
@@ -2017,6 +2070,7 @@ fn sample_at_fraction(
     step_start_time: Timestamp,
     step_end_time: Timestamp,
     local_zero_global: f64,
+    domain: &DomainId,
     meteorology: &mut MetEngine,
     query_plan: &TransportPlan,
     execution: &dyn ExecutionContext,
@@ -2036,7 +2090,7 @@ fn sample_at_fraction(
     let global = local_zero_global + (1.0 - local_zero_global) * local_fraction;
     let time = lerp_timestamp(step_start_time, step_end_time, global)?;
     let window = meteorology
-        .prepare(time)
+        .prepare_for_domain(time, domain)
         .map_err(|_| BoundaryError::MissingContext)?;
     let batch = window
         .prepare_transport_batch(
@@ -2077,8 +2131,7 @@ fn interpolate_great_circle(
 ) -> Result<(f64, f64), BoundaryError> {
     let a = unit_vector(lon0, lat0)?;
     let b = unit_vector(lon1, lat1)?;
-    let cos_omega = dot(a, b).clamp(-1.0, 1.0);
-    let omega = cos_omega.acos();
+    let omega = great_circle_angle(a, b)?;
     lon_lat_from_unit(slerp_unit(a, b, omega, fraction)?)
 }
 
@@ -2122,6 +2175,27 @@ fn normalize(vector: [f64; 3]) -> Result<[f64; 3], BoundaryError> {
         return Err(BoundaryError::InvalidParticleState);
     }
     Ok([vector[0] / norm, vector[1] / norm, vector[2] / norm])
+}
+
+fn great_circle_angle(a: [f64; 3], b: [f64; 3]) -> Result<f64, BoundaryError> {
+    let sine = norm(cross(a, b));
+    let cosine = dot(a, b).clamp(-1.0, 1.0);
+    if !sine.is_finite() || !cosine.is_finite() {
+        return Err(BoundaryError::InvalidParticleState);
+    }
+    Ok(sine.atan2(cosine))
+}
+
+fn norm(vector: [f64; 3]) -> f64 {
+    (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt()
+}
+
+fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
 }
 
 fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
@@ -2220,6 +2294,34 @@ mod tests {
             sensitivity_weight: None,
             status: ParticleStatus::Alive,
         }
+    }
+
+    #[test]
+    fn metre_scale_great_circle_uses_stable_angle_and_tangent() {
+        // Frozen ERA5-hybrid boundary replay.  acos(dot) rounds this arc to
+        // 1.4901e-8 rad while |cross| gives the physical 8.3060e-9 rad arc;
+        // the subtractive tangent then has norm ~0.557 and breaks interval
+        // certification.
+        let a = unit_vector(6.657_371_397_113_28, 46.309_587_272_666_5).unwrap();
+        let b = unit_vector(6.657_371_451_187_67, 46.309_587_747_098_45).unwrap();
+        let omega = great_circle_angle(a, b).unwrap();
+        assert!((omega - 8.306_023_181_126_191e-9).abs() < 1.0e-15);
+
+        let tangent = great_circle_tangent(a, b, omega).unwrap();
+        assert!((norm(tangent) - 1.0).abs() < 1.0e-15);
+        assert!(dot(a, tangent).abs() < 1.0e-15);
+        normalized_slerp_jets(0.0, 1.0, a, b, omega).unwrap();
+
+        let (lon, lat) = interpolate_great_circle(
+            6.657_371_397_113_28,
+            46.309_587_272_666_5,
+            6.657_371_451_187_67,
+            46.309_587_747_098_45,
+            1.0,
+        )
+        .unwrap();
+        assert!((lon - 6.657_371_451_187_67).abs() < 1.0e-12);
+        assert!((lat - 46.309_587_747_098_45).abs() < 1.0e-12);
     }
 
     #[test]
@@ -2478,6 +2580,7 @@ mod tests {
             -750.674_011_133_5,
             -576.775_893_587_677_7,
         ];
+        let h0 = -625.0;
         let dh = 271.859_551_152_672_57;
         let context = ResidualContext {
             a,
@@ -2490,6 +2593,7 @@ mod tests {
             leaf_f1: 1.0,
             corners0,
             corners1,
+            h0,
             dh,
             kind: ResidualKind::Clearance,
         };
@@ -2508,6 +2612,7 @@ mod tests {
             0,
             corners0,
             corners1,
+            h0,
             dh,
             ResidualKind::Clearance,
         )
@@ -2524,6 +2629,51 @@ mod tests {
         for root in roots {
             assert!(context.derivative_point(root).unwrap().abs() < 1.0e-8);
         }
+    }
+
+    #[test]
+    fn residual_value_certificate_skips_far_from_surface_stationary_point() {
+        // Frozen ERA5-pressure backward-path failure. The terrain derivative has
+        // an interior stationary point, but the complete path remains about
+        // 1.9 km above terrain. Re-isolating the endpoint-adjacent stationary
+        // point used to exhaust MIN_WIDTH and fail boundary-path construction.
+        let grid = DomainGeometry {
+            domain: trajecta_case::model::meteorology::DomainId("era5-pressure".into()),
+            longitude_origin_degrees: 0.0,
+            latitude_origin_degrees: 53.0,
+            longitude_spacing_degrees: 0.25,
+            latitude_spacing_degrees: -0.25,
+            nx: 41,
+            ny: 33,
+            periodic_longitude: false,
+            halo_cells: 1,
+        };
+        let a = unit_vector(3.457_800_670_189_243_4, 48.642_204_532_153_904).unwrap();
+        let b = unit_vector(3.417_904_527_745_162, 48.636_341_538_684_09).unwrap();
+        let omega = dot(a, b).clamp(-1.0, 1.0).acos();
+        let terrain = [
+            144.846_661_741_968_75,
+            156.534_516_709_651_4,
+            112.129_978_125_825_72,
+            118.685_477_218_716_68,
+        ];
+        let roots = isolate_residual_roots_interval(
+            0.0,
+            1.0,
+            a,
+            b,
+            omega,
+            &grid,
+            13,
+            17,
+            terrain,
+            terrain,
+            2_074.993_414_032_762_3,
+            -2.369_873_736_646_241,
+            ResidualKind::Clearance,
+        )
+        .unwrap();
+        assert!(roots.is_empty(), "far-from-surface path cuts={roots:?}");
     }
 
     #[test]

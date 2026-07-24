@@ -609,6 +609,12 @@ fn evaluate_frame_node(
                 stage: ExecutionStage::Column,
             });
         }
+        GraphOp::Diagnostic(_) => {
+            return Err(FrameGraphExecutionError::UnsupportedStage {
+                node: node.id.clone(),
+                stage: ExecutionStage::Tile,
+            });
+        }
     };
     validate_node_value(node, value)
 }

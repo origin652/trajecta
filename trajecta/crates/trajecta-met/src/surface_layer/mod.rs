@@ -1,7 +1,7 @@
 //! # Contract: near-surface similarity models
 //!
 //! Surface-layer models are pure deterministic batch functions with explicit
-//! local status. M3 exposes one modern Monin-Obukhov/Businger-Dyer model. It
+//! local status. Trajecta exposes one modern Monin-Obukhov/Businger-Dyer model. It
 //! uses 10 m wind, 2 m thermodynamic anchors, surface scales, PBL height, and
 //! the lowest three-dimensional level; it never silently clamps a query to an
 //! anchor or substitutes a FLEXPART-compatible empirical profile.
@@ -12,7 +12,9 @@ use std::sync::Arc;
 use trajecta_case::model::physics::ModelId;
 
 use crate::field::FieldQuality;
-use crate::science::M3_CONSTANTS;
+use crate::science::{M3_CONSTANTS, ZERO_AERODYNAMIC_ROUGHNESS_REPLACEMENT_M};
+
+const TEN_METRE_WIND_REFERENCE_HEIGHT_M: f64 = 10.0;
 
 /// Structure-of-arrays inputs for one near-surface query batch.
 #[derive(Clone, Copy, Debug)]
@@ -143,8 +145,8 @@ pub struct MoninObukhovBusingerDyer {
 }
 
 impl MoninObukhovBusingerDyer {
-    /// Stable public algorithm identifier frozen for M3.
-    pub const MODEL_ID: &'static str = "surface_layer/monin_obukhov_businger_dyer/v0";
+    /// Stable public algorithm identifier.
+    pub const MODEL_ID: &'static str = "surface_layer/monin_obukhov_businger_dyer/v1";
 }
 
 impl Default for MoninObukhovBusingerDyer {
@@ -258,7 +260,11 @@ fn evaluate_point(
         return Err(SurfaceLayerStatus::Undefined);
     }
 
-    let similarity_top = lowest.min(0.1 * pbl);
+    // The momentum profile is normalized to the observed 10 m wind.  Its
+    // similarity segment therefore cannot end below that exact anchor when a
+    // shallow PBL makes `0.1 * pbl` smaller than 10 m.  Above this bounded
+    // segment the existing monotone bridge connects to the lowest 3-D level.
+    let similarity_top = lowest.min((0.1 * pbl).max(TEN_METRE_WIND_REFERENCE_HEIGHT_M));
     if similarity_top <= z0 {
         return Err(SurfaceLayerStatus::InvalidPhysicalState);
     }
@@ -270,7 +276,6 @@ fn evaluate_point(
         query.min(similarity_top),
         z0,
         stability,
-        ustar,
         input.ten_metre_eastward_wind_m_s[index],
         input.ten_metre_northward_wind_m_s[index],
     )?;
@@ -279,7 +284,6 @@ fn evaluate_point(
         2.0,
         input.two_metre_air_temperature_k[index],
         temperature_scale,
-        z0,
         stability,
     )?;
     let humidity = similarity_scalar(
@@ -287,7 +291,6 @@ fn evaluate_point(
         2.0,
         input.two_metre_specific_humidity[index],
         humidity_scale,
-        z0,
         stability,
     )?;
 
@@ -309,8 +312,8 @@ fn evaluate_point(
     } else {
         let wind_derivative = similarity_wind_derivative(
             similarity_top,
+            z0,
             stability,
-            ustar,
             input.ten_metre_eastward_wind_m_s[index],
             input.ten_metre_northward_wind_m_s[index],
         )?;
@@ -382,14 +385,29 @@ fn evaluate_point(
 /// ground, while `2*z0` keeps the first accepted point strictly above the
 /// aerodynamic roughness sublayer.
 pub fn minimum_transport_height_agl_m(roughness_length_m: f64) -> Result<f64, SurfaceLayerStatus> {
-    if !roughness_length_m.is_finite() || roughness_length_m <= 0.0 {
-        return Err(SurfaceLayerStatus::InvalidPhysicalState);
-    }
+    let roughness_length_m = project_aerodynamic_roughness_for_physics(roughness_length_m)?;
     let minimum = 0.5_f64.max(2.0 * roughness_length_m);
     minimum
         .is_finite()
         .then_some(minimum)
         .ok_or(SurfaceLayerStatus::NumericalFailure)
+}
+
+/// Projects exact zero source roughness to the frozen positive physical replacement.
+///
+/// Raw meteorological fields are not changed. Positive values, including values below the
+/// replacement, remain bit-for-bit unchanged; negative and non-finite values are hard failures.
+pub fn project_aerodynamic_roughness_for_physics(
+    roughness_length_m: f64,
+) -> Result<f64, SurfaceLayerStatus> {
+    if !roughness_length_m.is_finite() || roughness_length_m < 0.0 {
+        return Err(SurfaceLayerStatus::InvalidPhysicalState);
+    }
+    if roughness_length_m == 0.0 {
+        Ok(ZERO_AERODYNAMIC_ROUGHNESS_REPLACEMENT_M)
+    } else {
+        Ok(roughness_length_m)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -408,25 +426,27 @@ fn similarity_wind(
     height_m: f64,
     z0_m: f64,
     stability: Stability,
-    friction_velocity_m_s: f64,
     reference_eastward_m_s: f64,
     reference_northward_m_s: f64,
 ) -> Result<(f64, f64), SurfaceLayerStatus> {
     let reference_speed = reference_eastward_m_s.hypot(reference_northward_m_s);
     if reference_speed == 0.0 {
-        if friction_velocity_m_s == 0.0 {
-            return Ok((0.0, 0.0));
-        }
-        return Err(SurfaceLayerStatus::InvalidPhysicalState);
+        return Ok((0.0, 0.0));
     }
     let shape = stability_profile(height_m, z0_m, stability, StabilityFunction::Momentum)?;
-    let reference_shape = stability_profile(10.0, z0_m, stability, StabilityFunction::Momentum)?;
-    let speed = reference_speed
-        + friction_velocity_m_s / M3_CONSTANTS.von_karman * (shape - reference_shape);
-    if !speed.is_finite() || speed < 0.0 {
+    let reference_shape = stability_profile(
+        TEN_METRE_WIND_REFERENCE_HEIGHT_M,
+        z0_m,
+        stability,
+        StabilityFunction::Momentum,
+    )?;
+    if reference_shape <= 0.0 || shape < 0.0 {
+        return Err(SurfaceLayerStatus::InvalidPhysicalState);
+    }
+    let scale = shape / reference_shape;
+    if !scale.is_finite() || scale < 0.0 {
         return Err(SurfaceLayerStatus::NumericalFailure);
     }
-    let scale = speed / reference_speed;
     Ok((
         reference_eastward_m_s * scale,
         reference_northward_m_s * scale,
@@ -435,8 +455,8 @@ fn similarity_wind(
 
 fn similarity_wind_derivative(
     height_m: f64,
+    z0_m: f64,
     stability: Stability,
-    friction_velocity_m_s: f64,
     reference_eastward_m_s: f64,
     reference_northward_m_s: f64,
 ) -> Result<(f64, f64), SurfaceLayerStatus> {
@@ -444,11 +464,24 @@ fn similarity_wind_derivative(
     if speed == 0.0 {
         return Ok((0.0, 0.0));
     }
-    let speed_derivative = friction_velocity_m_s / M3_CONSTANTS.von_karman
-        * stability_function_derivative(height_m, stability, StabilityFunction::Momentum)?;
+    let reference_shape = stability_profile(
+        TEN_METRE_WIND_REFERENCE_HEIGHT_M,
+        z0_m,
+        stability,
+        StabilityFunction::Momentum,
+    )?;
+    if reference_shape <= 0.0 {
+        return Err(SurfaceLayerStatus::InvalidPhysicalState);
+    }
+    let scale_derivative =
+        stability_function_derivative(height_m, stability, StabilityFunction::Momentum)?
+            / reference_shape;
+    if !scale_derivative.is_finite() {
+        return Err(SurfaceLayerStatus::NumericalFailure);
+    }
     Ok((
-        speed_derivative * reference_eastward_m_s / speed,
-        speed_derivative * reference_northward_m_s / speed,
+        reference_eastward_m_s * scale_derivative,
+        reference_northward_m_s * scale_derivative,
     ))
 }
 
@@ -457,19 +490,55 @@ fn similarity_scalar(
     reference_height_m: f64,
     reference_value: f64,
     scale: f64,
-    z0_m: f64,
     stability: Stability,
 ) -> Result<f64, SurfaceLayerStatus> {
-    if reference_height_m <= z0_m {
-        return Err(SurfaceLayerStatus::InvalidPhysicalState);
-    }
-    let shape = stability_profile(height_m, z0_m, stability, StabilityFunction::Heat)?;
-    let reference_shape =
-        stability_profile(reference_height_m, z0_m, stability, StabilityFunction::Heat)?;
-    let value = reference_value + scale / M3_CONSTANTS.von_karman * (shape - reference_shape);
+    let profile_difference = stability_profile_difference(
+        height_m,
+        reference_height_m,
+        stability,
+        StabilityFunction::Heat,
+    )?;
+    let value = reference_value + scale / M3_CONSTANTS.von_karman * profile_difference;
     value
         .is_finite()
         .then_some(value)
+        .ok_or(SurfaceLayerStatus::NumericalFailure)
+}
+
+fn stability_profile_difference(
+    height_m: f64,
+    reference_height_m: f64,
+    stability: Stability,
+    function: StabilityFunction,
+) -> Result<f64, SurfaceLayerStatus> {
+    if !height_m.is_finite()
+        || height_m <= 0.0
+        || !reference_height_m.is_finite()
+        || reference_height_m <= 0.0
+    {
+        return Err(SurfaceLayerStatus::InvalidPhysicalState);
+    }
+    if stability.neutral {
+        return Ok((height_m / reference_height_m).ln());
+    }
+    let length = stability.monin_obukhov_length_m;
+    if !length.is_finite() || length == 0.0 {
+        return Err(SurfaceLayerStatus::InvalidPhysicalState);
+    }
+    let zeta = height_m / length;
+    let reference_zeta = reference_height_m / length;
+    let psi = match function {
+        StabilityFunction::Momentum => businger_dyer_psi_m(zeta),
+        StabilityFunction::Heat => businger_dyer_psi_h(zeta),
+    }?;
+    let reference_psi = match function {
+        StabilityFunction::Momentum => businger_dyer_psi_m(reference_zeta),
+        StabilityFunction::Heat => businger_dyer_psi_h(reference_zeta),
+    }?;
+    let difference = (height_m / reference_height_m).ln() - psi + reference_psi;
+    difference
+        .is_finite()
+        .then_some(difference)
         .ok_or(SurfaceLayerStatus::NumericalFailure)
 }
 
@@ -679,6 +748,177 @@ mod tests {
         assert_eq!(businger_dyer_psi_h(0.2), Ok(-1.0));
         assert!(businger_dyer_psi_m(-0.5).unwrap() > 0.0);
         assert!(businger_dyer_psi_h(-0.5).unwrap() > 0.0);
+    }
+
+    #[test]
+    fn ten_metre_anchored_wind_stays_nonnegative_in_strong_stability() {
+        let stability = Stability {
+            neutral: false,
+            monin_obukhov_length_m: 0.802_345_961_618_767,
+        };
+        let z0 = 0.917_314_525_882_300_4;
+        let eastward_10m = -0.048_093_374_098_296_17;
+        let northward_10m = -0.119_759_350_742_011_67;
+        assert_eq!(
+            similarity_wind(10.0, z0, stability, eastward_10m, northward_10m),
+            Ok((eastward_10m, northward_10m))
+        );
+        let below = similarity_wind(
+            1.569_561_225_112_732,
+            z0,
+            stability,
+            eastward_10m,
+            northward_10m,
+        )
+        .unwrap();
+        assert!(below.0.hypot(below.1) > 0.0);
+        assert!(below.0.hypot(below.1) < eastward_10m.hypot(northward_10m));
+    }
+
+    #[test]
+    fn strong_stable_mountain_surface_bridge_remains_valid() {
+        let model = MoninObukhovBusingerDyer::default();
+        let output = model
+            .evaluate(SurfaceLayerInput {
+                query_height_agl_m: &[211.643_867_149_630_4],
+                minimum_height_agl_m: &[1.834_629_051_764_601],
+                ten_metre_eastward_wind_m_s: &[-0.048_093_374_098_296_17],
+                ten_metre_northward_wind_m_s: &[-0.119_759_350_742_011_67],
+                two_metre_air_temperature_k: &[277.634_060_190_836_86],
+                two_metre_specific_humidity: &[0.005_382_408_914_324_999],
+                roughness_length_m: &[0.917_314_525_882_300_4],
+                monin_obukhov_length_m: &[0.802_345_961_618_767],
+                neutral_stability: &[false],
+                friction_velocity_m_s: &[0.019_429_000_892_465_04],
+                temperature_scale_k: &[0.031_466_151_720_934_664],
+                humidity_scale: &[1.089_749_918_694_238e-5],
+                boundary_layer_height_m: &[15.695_612_251_127_319],
+                lowest_model_height_agl_m: &[313.616_890_016_591_6],
+                lowest_model_eastward_wind_m_s: &[-0.130_366_372_066_054_23],
+                lowest_model_northward_wind_m_s: &[-0.902_327_125_680_365_5],
+                lowest_model_air_temperature_k: &[275.560_144_957_120_8],
+                lowest_model_specific_humidity: &[0.004_762_384_073_312_432],
+                terrain_vertical_velocity_m_s: &[-0.000_817_293_713_033_731_4],
+                lowest_model_geometric_vertical_velocity_m_s: &[-0.021_531_434_269_043_137],
+            })
+            .unwrap();
+        assert_eq!(output.status, vec![SurfaceLayerStatus::Ok]);
+        assert!(output.valid[0]);
+        assert!(output.eastward_wind_m_s[0].is_finite());
+        assert!(output.northward_wind_m_s[0].is_finite());
+        assert!((0.0..1.0).contains(&output.specific_humidity[0]));
+    }
+
+    #[test]
+    fn shallow_pbl_keeps_the_ten_metre_wind_anchor_and_monotone_bridge() {
+        let query = [10.0, 290.825_040, 476.720_258];
+        let len = query.len();
+        let model = MoninObukhovBusingerDyer::default();
+        let output = model
+            .evaluate(SurfaceLayerInput {
+                query_height_agl_m: &query,
+                minimum_height_agl_m: &repeated(2.850_584, len),
+                ten_metre_eastward_wind_m_s: &repeated(5.0, len),
+                ten_metre_northward_wind_m_s: &repeated(1.0, len),
+                two_metre_air_temperature_k: &repeated(290.0, len),
+                two_metre_specific_humidity: &repeated(0.005, len),
+                roughness_length_m: &repeated(1.425_292, len),
+                monin_obukhov_length_m: &repeated(2.326_820, len),
+                neutral_stability: &vec![true; len],
+                friction_velocity_m_s: &repeated(0.3, len),
+                temperature_scale_k: &repeated(0.0, len),
+                humidity_scale: &repeated(0.0, len),
+                boundary_layer_height_m: &repeated(13.263_737, len),
+                lowest_model_height_agl_m: &repeated(476.720_258, len),
+                lowest_model_eastward_wind_m_s: &repeated(8.0, len),
+                lowest_model_northward_wind_m_s: &repeated(2.0, len),
+                lowest_model_air_temperature_k: &repeated(292.0, len),
+                lowest_model_specific_humidity: &repeated(0.006, len),
+                terrain_vertical_velocity_m_s: &repeated(0.0, len),
+                lowest_model_geometric_vertical_velocity_m_s: &repeated(0.2, len),
+            })
+            .unwrap();
+
+        assert_eq!(output.status, vec![SurfaceLayerStatus::Ok; len]);
+        assert!(output.valid.iter().all(|valid| *valid));
+        assert_eq!(output.eastward_wind_m_s[0], 5.0);
+        assert_eq!(output.northward_wind_m_s[0], 1.0);
+        assert!(output.eastward_wind_m_s[1] > 5.0);
+        assert!(output.eastward_wind_m_s[1] < 8.0);
+        assert!(output.northward_wind_m_s[1] > 1.0);
+        assert!(output.northward_wind_m_s[1] < 2.0);
+        assert_eq!(output.eastward_wind_m_s[2], 8.0);
+        assert_eq!(output.northward_wind_m_s[2], 2.0);
+        assert!(
+            output
+                .air_temperature_k
+                .iter()
+                .all(|value| value.is_finite() && *value > 0.0)
+        );
+        assert!(
+            output
+                .specific_humidity
+                .iter()
+                .all(|value| (0.0..1.0).contains(value))
+        );
+    }
+
+    #[test]
+    fn two_metre_scalar_anchor_is_valid_below_momentum_roughness() {
+        let model = MoninObukhovBusingerDyer::default();
+        let output = model
+            .evaluate(SurfaceLayerInput {
+                query_height_agl_m: &[20.0],
+                minimum_height_agl_m: &[5.4],
+                ten_metre_eastward_wind_m_s: &[5.0],
+                ten_metre_northward_wind_m_s: &[1.0],
+                two_metre_air_temperature_k: &[296.0],
+                two_metre_specific_humidity: &[0.016],
+                roughness_length_m: &[2.7],
+                monin_obukhov_length_m: &[100.0],
+                neutral_stability: &[true],
+                friction_velocity_m_s: &[0.4],
+                temperature_scale_k: &[0.1],
+                humidity_scale: &[0.0002],
+                boundary_layer_height_m: &[100.0],
+                lowest_model_height_agl_m: &[100.0],
+                lowest_model_eastward_wind_m_s: &[8.0],
+                lowest_model_northward_wind_m_s: &[2.0],
+                lowest_model_air_temperature_k: &[292.0],
+                lowest_model_specific_humidity: &[0.013],
+                terrain_vertical_velocity_m_s: &[0.0],
+                lowest_model_geometric_vertical_velocity_m_s: &[0.01],
+            })
+            .unwrap();
+        assert_eq!(output.status, vec![SurfaceLayerStatus::Ok]);
+        assert_eq!(output.valid, vec![true]);
+        assert!(output.air_temperature_k[0].is_finite());
+        assert!((0.0..1.0).contains(&output.specific_humidity[0]));
+    }
+
+    #[test]
+    fn exact_zero_source_roughness_is_projected_only_for_physical_consumers() {
+        assert_eq!(
+            project_aerodynamic_roughness_for_physics(0.0),
+            Ok(ZERO_AERODYNAMIC_ROUGHNESS_REPLACEMENT_M)
+        );
+        assert_eq!(
+            project_aerodynamic_roughness_for_physics(5.0e-5),
+            Ok(5.0e-5)
+        );
+        assert_eq!(minimum_transport_height_agl_m(0.0), Ok(0.5));
+        assert_eq!(
+            project_aerodynamic_roughness_for_physics(-0.0),
+            Ok(ZERO_AERODYNAMIC_ROUGHNESS_REPLACEMENT_M)
+        );
+        assert_eq!(
+            project_aerodynamic_roughness_for_physics(-1.0e-6),
+            Err(SurfaceLayerStatus::InvalidPhysicalState)
+        );
+        assert_eq!(
+            project_aerodynamic_roughness_for_physics(f64::NAN),
+            Err(SurfaceLayerStatus::InvalidPhysicalState)
+        );
     }
 
     #[test]

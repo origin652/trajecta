@@ -1,7 +1,7 @@
 # Trajecta M4：最小粒子闭环实施与验收计划
 
-状态：M4-A0 已完成；M4-A1 的 A 级数值与生命周期核心已完成，B/C 工程闭环尚未完成；M4-A2–A4 尚未开始。本文不代表 M4 已完成。
-日期：2026-07-21
+状态：M4-A0、M4-A1、M4-A2、M4-A3 已完成；M4-A4 尚未完成。本文不代表 M4 已完成。
+日期：2026-07-24
 上游基线：M3 已完成并提交，气象查询引擎、三套真实资料与 Windows/WSL 验收可供 M4 复用。
 模型分工：见 `TRAJECTA_M4_MODEL_ASSIGNMENT.md`。
 M4-A0 冻结公式、常量、错误码与机器 schema：见 `TRAJECTA_M4_A0_SCIENCE_CONTRACT.md`。
@@ -343,6 +343,8 @@ M4 不加入 CFL、自适应误差或自动子步。精度通过多步长二阶�
 
 - 模式顶以上逐粒子终止并记录交点；
 - 有限域出界逐粒子终止并记录交点；
+- RK2 中点仅因水平出域而无值时，用步首速度构造只供出口 bracket 的单侧 proposal；不得先写 invalid meteorology，也不得把该 Euler endpoint 当作最终轨迹；
+- surface/model-top 搜索在更早的水平域出口停止，域外缺字段不得抢先污染终止原因；
 - domain-fill 的正常出流使用 `population_outflow`；
 - 全球域经度周期处理；
 - 不夹值、不外推、不让单粒子拖垮整场。
@@ -353,10 +355,15 @@ M4 不加入 CFL、自适应误差或自动子步。精度通过多步长二阶�
 
 - 水平网格面积使用球面经纬单元精确面积；
 - hybrid 使用原生 A/B interface pressure；
+- hybrid 几何高度复用查询引擎相同的 surface-geopotential hydrostatic recurrence，不读取旁路三维 height 冒充 native column；
 - pressure-level 使用冻结的对数中点 interface 构造；
 - 地下层不计入；
 - 模式顶只计算资料实际覆盖的空气柱；
 - q 缺失或非有限时不得假设干空气。
+- 安全核心先剔除 halo；非周期外边缘停在最外安全网格点，内部取相邻中点，禁止向插值凸包外外推半格；
+- 周期经度使用完整半格控制体，并在 M4 v1 视为无水平开放边界；
+- full-level 高度界面使用内部算术中点、顶部最高有效 full level、底部 terrain；pressure 顶界质量不得导致粒子落到查询模式顶以上；
+- 算法身份冻结为 `dry_air_finite_volume_grid/v1`。
 
 层干空气质量按以下物理量计算：
 
@@ -373,6 +380,8 @@ cell_area / g0 * integral((1 - q) dp)
 - 固定质量模式生成完整质量粒子；
 - 不足一个粒子质量的余数保存在初始化残余账本；
 - 网格、层和单元内位置按等质量分层随机采样；
+- 层内随机量是 pressure，不是几何高度；sampled pressure 通过界面间 log-pressure 映射成 ASL；
+- 固定质量模式的初始 residual 独立留在全域账本，不并入任一边界面；
 - 分布不依赖线程和 chunk。
 
 ### 7.3 有限域入流
@@ -386,7 +395,9 @@ dry_air_density * normal_wind * face_area * abs(dt)
 - 只累计积分方向对应的入流；
 - 残余质量按稳定 boundary-face/layer ID 跨步保存；
 - `residual + inflow` 每积满一个载体质量生成一个粒子；
-- 新粒子的空间和出生时刻按入流质量分层随机；
+- 每个静态截断区间只在物理中点计算一次 face/layer rate，并在动态子步中保持不变；
+- 出生时刻是累计质量达到下一份完整载体的阈值时刻，向上量化到最小整纳秒，禁止随机提前创造质量；
+- 新粒子的切向位置和层内几何高度按面通量分布随机；
 - 出流粒子正常删除；
 - 正反向使用对应的入流边界。
 
@@ -564,13 +575,12 @@ RunManifest 必须 serde 化并拥有稳定 schema/version，至少记录：
 
 ### M4-A1：普通粒子闭环
 
-- A 已完成：ParticleBatch/typed origin、Philox、exact birth/质量分配、StepPlanner、spherical RK2、连续 boundary policies、ReleaseDriven lifecycle、SimulationRunner、exact-time output query 接口和解析 hard gate；
-- B 待完成：GeoJSON 解析/日期线切分/球面采样、AGL/pressure release resolver、生产 boundary path sampler、RunnerBuilder/registry、manifest 原子 I/O、SQLite typed sink 和合成端到端文件闭环；
-- C 待完成：golden、错误文本、SQL/manifest 文档和 schema 示例；
-- 在 B/C 交付经 A 验收前，M4-A1 不得标记完成。
+- 已完成并由 A 验收：ParticleBatch/typed origin、Philox、exact birth/质量分配、StepPlanner、spherical RK2、连续 boundary policies、ReleaseDriven lifecycle、SimulationRunner、GeoJSON 日期线自动切分与球面采样、生产 RunnerBuilder、manifest/provenance bundle、SQLite typed sink、真实 CFSR E2E 和确定性 digest 矩阵。
+- 阶段提交：`18664f112d7d7cd3155dd10c71b7fecdc7d4ca17`。
 
 ### M4-A2：Air-mass domain-fill
 
+- 状态：已完成并由 A 裁决；该阶段实现、诊断、平台实跑、artifact 汇总和报告均由 A 独立完成；当前 B 使用规则见模型职责文档；
 - AirMassDeriver；
 - pressure/hybrid 干空气网格质量；
 - 初始化质量分层；
@@ -579,20 +589,25 @@ RunManifest 必须 serde 化并拥有稳定 schema/version，至少记录：
 - 出流删除；
 - 每步/最终守恒账本；
 - 三套真实资料主矩阵。
+- 正式证据：Windows 6/6、WSL Ubuntu-24.04 6/6，共 12/12；每格 10,000 粒子、正反向、600 秒、2 个数值步、`Complete`、abnormal=0；见 `TRAJECTA_M4_A2_A_COMPLETION_REPORT.md`。
+- 边界：Windows/WSL normalized output digest 尚不相同；A2 退出条件不要求 bitwise 跨平台一致，差异量化保留给 M4-A4。
 
 ### M4-A3：Ozone domain-fill
 
+- 状态：已完成并由 A 裁决；B 仅可由用户通过 A 编写的书面 Prompt 另行启动，A 不调用子代理；本阶段实现、真实资料、oracle、native 差异和报告均由 A 完成；
 - Ertel PV；
 - `OzoneAssignmentRule` 注册表；
 - PV60 legacy 规则；
 - 三套真实资料；
 - 公开公式与 GPL oracle；
 - 现代算法与 FLEXPART 差异报告。
+- 正式证据：Windows 6/6、WSL Ubuntu-24.04 6/6，共 12/12；每格 1,000 粒子、正反向、600 秒、2 个数值步、`Complete`、abnormal=0；GPL PV60 scalar oracle 10/10；Windows Rust/native 6/6 pair、0 blockers；见 `TRAJECTA_M4_A3_A_COMPLETION_REPORT.md`。
 
 ### M4-A4：平台、性能与终审
 
+- 状态：尚未开始；中难/高难与最终签署由 A 完成，若有合同已冻结的中等及以下机械任务，只通过书面 Prompt 由用户另行交给 B；
 - Windows/WSL 完整门禁；
-- Rust/native 轨迹差分；
+- Rust/native 轨迹差分（A3 已提前取得三族双方向 1,000 粒子 evidence，A4 可复用并做终审）；
 - WSL 10 万粒子长测；
 - SQLite 并发读取、完整性与体积；
 - 确定性和无执行期 I/O；
@@ -707,5 +722,5 @@ M4 最终至少交付：
 - 合成解析测试与真实资料矩阵；
 - Windows/WSL/native/10 万性能 artifact；
 - FLEXPART 差异报告；
-- A/B/C 分阶段交付报告；
+- A 分阶段实现、执行与验收报告；历史 B/C 报告只保留为既有证据；
 - 最终 A 科学验收结论。

@@ -27,7 +27,8 @@ use trajecta_met::query::engine::{
 };
 use trajecta_met::query::output::{SampleStatus, TransportOutput};
 use trajecta_met::query::request::{
-    ExplainMode, QueryBatch, QueryPointArrays, TransportPlanRequest, VerticalQuery,
+    ExplainMode, QueryBatch, QueryPlanRequest, QueryPointArrays, TransportPlanRequest,
+    VerticalQuery,
 };
 use trajecta_met::surface_layer::{MoninObukhovBusingerDyer, SurfaceLayerRegistry};
 
@@ -78,6 +79,22 @@ fn load_era5_ready_frames(
     end: Timestamp,
     dataset_id: &str,
 ) -> Option<(ProfileCatalog, MetCatalog, Vec<Arc<RawMetFrame>>)> {
+    load_era5_ready_frames_with_capabilities(
+        directory,
+        start,
+        end,
+        dataset_id,
+        transport_capabilities(),
+    )
+}
+
+fn load_era5_ready_frames_with_capabilities(
+    directory: &Path,
+    start: Timestamp,
+    end: Timestamp,
+    dataset_id: &str,
+    capabilities: CapabilitySet,
+) -> Option<(ProfileCatalog, MetCatalog, Vec<Arc<RawMetFrame>>)> {
     if !directory.is_dir() {
         skip_or_fail(&directory.display().to_string());
         return None;
@@ -99,7 +116,6 @@ fn load_era5_ready_frames(
     let profiles = ProfileCatalog::load(&[]).expect("profiles");
     let inspector = ReaderMetadataInspector::new(MeteorologyReaderBackend::Rust);
     let mut hash_cache = FileHashCache::new();
-    let capabilities = transport_capabilities();
     let request = DatasetLockRequest {
         identity: DatasetIdentity {
             id: DatasetRef(dataset_id.into()),
@@ -398,6 +414,157 @@ fn era5_pressure_transport_full_query_chain() {
 }
 
 #[test]
+fn era5_pressure_pv_is_derived_on_native_grid_and_queryable() {
+    let start = Timestamp::new(1_543_622_400, 0).unwrap();
+    let end = Timestamp::new(1_543_665_600, 0).unwrap();
+    let capabilities = transport_capabilities().with(Capability::Diagnostics);
+    let Some((profiles, catalog, frames)) = load_era5_ready_frames_with_capabilities(
+        &era5_pressure_ready_dir(),
+        start,
+        end,
+        "era5-pressure-pv",
+        capabilities,
+    ) else {
+        return;
+    };
+    let key = FieldKey::Canonical(CanonicalField::PotentialVorticity);
+    for frame in &frames {
+        let field = frame.fields().get(&key).expect("native PV field");
+        assert_eq!(field.unit().symbol(), "PVU");
+        assert!(field.validity().as_arc().iter().any(|valid| *valid));
+        let provenance = frame
+            .provenance()
+            .get(field.provenance())
+            .expect("PV provenance");
+        assert_eq!(provenance.quality, FieldQuality::Derived);
+        assert_eq!(
+            provenance.transforms[0].operation,
+            trajecta_met::science::ERTEL_PV_SPHERICAL_ALGORITHM_ID
+        );
+    }
+
+    let mut engine = engine_from_frames(profiles, catalog, &frames);
+    let plan = engine
+        .compile_plan(
+            QueryPlanRequest {
+                fields: vec![key.clone()],
+                allow_estimated: false,
+                surface_layer_model: None,
+                explain: ExplainMode::Full,
+            },
+            &ExecutionPlan::default(),
+        )
+        .expect("PV query plan");
+    let time = Timestamp::new(1_543_644_000, 0).unwrap();
+    let window = engine.prepare(time).expect("PV window");
+    let batch = QueryBatch {
+        vertical_coordinate: VerticalQuery::Pressure,
+        points: QueryPointArrays {
+            longitude_degrees: vec![3.0],
+            latitude_degrees: vec![50.0],
+            vertical: vec![50_000.0],
+        },
+    };
+    let mut workspace = BatchWorkspace::default();
+    let output = window
+        .prepare_batch(&plan, batch, &mut workspace)
+        .expect("prepare PV")
+        .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+        .expect("execute PV");
+    assert_eq!(output.status().get(0), Some(SampleStatus::Ok));
+    assert_eq!(output.fields()[0].field(), &key);
+    let value = output.fields()[0]
+        .samples()
+        .value(0)
+        .expect("valid PV sample");
+    assert!(value.is_finite());
+}
+
+#[test]
+fn era5_pressure_domain_fill_near_surface_regression_points_are_queryable() {
+    let start = Timestamp::new(1_543_622_400, 0).unwrap();
+    let end = Timestamp::new(1_543_665_600, 0).unwrap();
+    let Some((profiles, catalog, frames)) = load_era5_ready_frames(
+        &era5_pressure_ready_dir(),
+        start,
+        end,
+        "era5-pressure-domain-fill-regression",
+    ) else {
+        return;
+    };
+    let mut engine = engine_from_frames(profiles, catalog, &frames);
+    let plan = engine
+        .compile_transport_plan(
+            TransportPlanRequest {
+                allow_estimated: false,
+                explain: ExplainMode::Full,
+                ..TransportPlanRequest::default()
+            },
+            &ExecutionPlan::default(),
+        )
+        .expect("transport plan");
+    let batch = QueryBatch {
+        vertical_coordinate: VerticalQuery::AboveSeaLevel,
+        points: QueryPointArrays {
+            longitude_degrees: vec![
+                0.503_033_295_250_958_2,
+                8.615_817_243_742_356,
+                2.109_849_269_612_766_4,
+                2.339_464_211_510_659,
+                3.592_709_924_227_676_8,
+                3.692_983_853_866_224,
+                5.991_245_800_531_573,
+                2.184_299_538_785_296_6,
+                3.094_950_047_221_857_4,
+                1.705_172_610_897_818_7,
+                1.914_798_820_381_463_4,
+                0.444_934_999_270_316_2,
+            ],
+            latitude_degrees: vec![
+                52.158_498_863_914_54,
+                51.549_357_639_749_786,
+                50.044_131_498_953_5,
+                50.093_443_395_463_204,
+                49.808_618_045_483_69,
+                49.629_766_653_290_01,
+                49.619_117_586_767_59,
+                49.329_472_636_058_52,
+                48.212_502_923_446_77,
+                48.049_774_824_904_304,
+                47.110_300_130_727_85,
+                45.962_435_376_104_29,
+            ],
+            vertical: vec![
+                83.322_426_018_263_43,
+                460.319_085_093_236_1,
+                307.870_985_646_545_14,
+                190.924_137_780_773_38,
+                250.657_353_174_446_03,
+                284.102_025_293_671_5,
+                431.148_343_563_938_2,
+                301.990_136_254_386_36,
+                346.590_377_071_931_2,
+                273.297_217_734_817_4,
+                237.526_250_021_116_88,
+                287.482_046_322_894,
+            ],
+        },
+    };
+    let window = engine
+        .prepare(Timestamp::new(1_543_633_200, 0).unwrap())
+        .expect("prepare 03 UTC");
+    let mut workspace = BatchWorkspace::default();
+    let output = window
+        .prepare_transport_batch(&plan, batch, &mut workspace)
+        .expect("prepare transport regression batch")
+        .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+        .expect("execute transport regression batch");
+    for index in 0..12 {
+        assert_transport_row_complete(&output, index);
+    }
+}
+
+#[test]
 fn era5_hybrid137_transport_full_query_chain() {
     let start = Timestamp::new(1_543_622_400, 0).unwrap();
     let end = Timestamp::new(1_543_644_000, 0).unwrap();
@@ -447,6 +614,74 @@ fn era5_hybrid137_transport_full_query_chain() {
             assert_transport_row_complete(&output, index);
         }
     }
+}
+
+#[test]
+fn era5_hybrid137_pv_uses_native_pressure_remap_and_is_queryable() {
+    let start = Timestamp::new(1_543_622_400, 0).unwrap();
+    let end = Timestamp::new(1_543_644_000, 0).unwrap();
+    let capabilities = transport_capabilities().with(Capability::Diagnostics);
+    let Some((profiles, catalog, frames)) = load_era5_ready_frames_with_capabilities(
+        &era5_hybrid_ready_dir(),
+        start,
+        end,
+        "era5-hybrid-pv",
+        capabilities,
+    ) else {
+        return;
+    };
+    let key = FieldKey::Canonical(CanonicalField::PotentialVorticity);
+    for frame in &frames {
+        let field = frame.fields().get(&key).expect("hybrid native PV");
+        assert_eq!(field.unit().symbol(), "PVU");
+        assert!(field.validity().as_arc().iter().any(|valid| *valid));
+        let record = frame
+            .provenance()
+            .get(field.provenance())
+            .expect("hybrid PV provenance");
+        assert!(
+            record.transforms[0]
+                .parameters
+                .iter()
+                .any(|(key, value)| { key == "vertical_coordinate" && value == "hybrid_pressure" })
+        );
+        assert!(record.transforms[0].parameters.iter().any(|(key, value)| {
+            key == "hybrid_horizontal_remap"
+                && value == "centre_pressure_three_point_lagrange_no_extrapolation"
+        }));
+    }
+
+    let mut engine = engine_from_frames(profiles, catalog, &frames);
+    let plan = engine
+        .compile_plan(
+            QueryPlanRequest {
+                fields: vec![key.clone()],
+                allow_estimated: false,
+                surface_layer_model: None,
+                explain: ExplainMode::Full,
+            },
+            &ExecutionPlan::default(),
+        )
+        .expect("hybrid PV plan");
+    let window = engine
+        .prepare(Timestamp::new(1_543_633_200, 0).unwrap())
+        .expect("hybrid PV window");
+    let batch = QueryBatch {
+        vertical_coordinate: VerticalQuery::Pressure,
+        points: QueryPointArrays {
+            longitude_degrees: vec![3.0],
+            latitude_degrees: vec![50.0],
+            vertical: vec![50_000.0],
+        },
+    };
+    let mut workspace = BatchWorkspace::default();
+    let output = window
+        .prepare_batch(&plan, batch, &mut workspace)
+        .expect("prepare hybrid PV")
+        .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+        .expect("execute hybrid PV");
+    assert_eq!(output.status().get(0), Some(SampleStatus::Ok));
+    assert!(output.fields()[0].samples().value(0).is_some());
 }
 
 /// Expanded acceptance matrix for pressure: bounds, mountain/plain, repeat window, provenance IDs.

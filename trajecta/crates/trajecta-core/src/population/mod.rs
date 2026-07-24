@@ -5,22 +5,33 @@
 //! filling preserves residual boundary mass across steps and chooses inflow
 //! according to integration direction.
 
+mod air_mass;
 mod vertical_resolve;
+pub use air_mass::{
+    AirMassPopulationError, DomainFillMassLedger, InitialAirMassSeeding, InitialOzoneSeeding,
+    MassLedgerInput, active_carrier_mass_kg, residual_mass_kg, seed_initial_air_mass,
+    seed_initial_stratospheric_ozone,
+};
 pub use vertical_resolve::MetReleaseVerticalResolver;
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use trajecta_case::model::meteorology::DomainId;
 use trajecta_case::model::population::{
     DomainFillAirMassSpec, DomainFillStratosphericOzoneSpec, ReleaseDrivenSpec, ReleaseVerticalSpec,
 };
 use trajecta_case::model::time::{Direction, Timestamp};
+use trajecta_met::derive::domain_fill::AirMassDeriver;
 use trajecta_met::field::{CanonicalField, FieldQuality};
 use trajecta_met::query::engine::{ExecutionContext, MetEngine};
 
 use crate::clock::{SignedDuration, SimulationClock, StepBoundary, add_timestamp};
-use crate::particle::ParticleBatch;
-use crate::reference::{ReferenceError, flexpart_pv60_ozone_mass_kg};
+use crate::manifest::MassLedgerRecord;
+use crate::particle::{ParticleBatch, ParticleId, ParticleStatus, TerminationReason};
+use crate::reference::{
+    ReferenceError, flexpart_pv60_ozone_mass_kg, mass_balance_tolerance_kg, neumaier_sum,
+};
 use crate::release::{
     GeometrySampler, ReleaseAllocationRequest, ReleaseAllocator, ReleaseError, ReleaseEvent,
     ReleaseSamplingRequest, ReleaseSchedule, VerticalSampler, release_birth_time,
@@ -61,8 +72,14 @@ pub enum PopulationState {
     DomainFill {
         /// Boundary-face residual mass accumulator.
         residual_mass: BoundaryMassAccumulator,
+        /// Initialization mass below one complete carrier.
+        initial_residual_mass_kg: f64,
+        /// Equal carrier mass represented by every domain-fill particle.
+        carrier_mass_per_particle_kg: f64,
         /// Number of particles seeded so far.
         seeded_particles: u64,
+        /// Adjudicated per-step mass records.
+        mass_ledger: Vec<MassLedgerRecord>,
     },
 }
 
@@ -71,17 +88,6 @@ pub enum PopulationState {
 pub struct BoundaryMassAccumulator {
     /// Residual kilograms below one particle threshold.
     pub residual_mass_kg: BTreeMap<u64, f64>,
-}
-
-/// Converts a declared mass budget into deterministic particle seeds.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct ParticleSeeder;
-
-impl ParticleSeeder {
-    /// Seeds a particle batch without depending on worker or iteration order.
-    pub fn seed(_target_count: usize) -> Result<ParticleBatch, PopulationError> {
-        Err(PopulationError::NotImplemented)
-    }
 }
 
 /// Full lifecycle interface for one particle-population strategy.
@@ -102,6 +108,22 @@ pub trait PopulationStrategy: Send {
         _requested: SignedDuration,
     ) -> Result<Vec<StepBoundary>, PopulationError> {
         Ok(Vec::new())
+    }
+
+    /// Plans meteorology-dependent dynamic boundaries inside one already
+    /// statically capped step. Implementations must be idempotent for repeated
+    /// calls at the same physical time.
+    fn dynamic_step_boundaries(
+        &mut self,
+        _context: &mut PopulationContext<'_>,
+        _requested: SignedDuration,
+    ) -> Result<Vec<StepBoundary>, PopulationError> {
+        Ok(Vec::new())
+    }
+
+    /// Returns manifest-ready domain-fill mass records, if any.
+    fn mass_ledger_records(&self) -> Vec<MassLedgerRecord> {
+        Vec::new()
     }
 
     /// Initializes persistent strategy state and optional initial particles.
@@ -239,83 +261,695 @@ pub struct DomainFillAirMass {
     pub specification: DomainFillAirMassSpec,
     /// Persistent runtime state.
     pub state: PopulationState,
+    ledger: DomainFillMassLedger,
+    carrier_mass_per_particle_kg: Option<f64>,
+    initial_residual_mass_kg: f64,
+    residual_mass: BoundaryMassAccumulator,
+    finite_domain: bool,
+    active_inflow_plan: Option<air_mass::BoundaryInflowPlan>,
+    next_boundary_lifecycle_event_index: u64,
+    opening_step: Option<DomainFillStepOpening>,
+    pending_emissions: ParticleBatch,
+}
+
+#[derive(Clone, Debug)]
+struct DomainFillStepOpening {
+    step_index: u64,
+    end_time: Timestamp,
+    opening_active_kg: f64,
+    opening_residual_kg: f64,
+    incoming_by_face_kg: BTreeMap<u64, f64>,
+    incoming_kg: f64,
+    particle_status: BTreeMap<ParticleId, ParticleStatus>,
+}
+
+impl DomainFillAirMass {
+    /// Constructs an uninitialized dry-air domain-fill lifecycle.
+    #[must_use]
+    pub fn new(specification: DomainFillAirMassSpec) -> Self {
+        Self {
+            specification,
+            state: PopulationState::Uninitialized,
+            ledger: DomainFillMassLedger::default(),
+            carrier_mass_per_particle_kg: None,
+            initial_residual_mass_kg: 0.0,
+            residual_mass: BoundaryMassAccumulator::default(),
+            finite_domain: false,
+            active_inflow_plan: None,
+            next_boundary_lifecycle_event_index: 0,
+            opening_step: None,
+            pending_emissions: ParticleBatch::default(),
+        }
+    }
+
+    fn sync_state(&mut self, seeded_particles: u64) {
+        self.state = PopulationState::DomainFill {
+            residual_mass: self.residual_mass.clone(),
+            initial_residual_mass_kg: self.initial_residual_mass_kg,
+            carrier_mass_per_particle_kg: self.carrier_mass_per_particle_kg.unwrap_or(0.0),
+            seeded_particles,
+            mass_ledger: self.ledger.records().to_vec(),
+        };
+    }
+
+    fn seeded_particles(&self) -> Result<u64, PopulationError> {
+        match &self.state {
+            PopulationState::DomainFill {
+                seeded_particles, ..
+            } => Ok(*seeded_particles),
+            PopulationState::Uninitialized | PopulationState::ReleaseDriven { .. } => {
+                Err(PopulationError::InvalidConfiguration)
+            }
+        }
+    }
 }
 
 /// Stratospheric-ozone domain-filling population.
-#[derive(Clone, Debug)]
 pub struct DomainFillStratosphericOzone {
     /// Portable Case configuration.
     pub specification: DomainFillStratosphericOzoneSpec,
     /// Persistent runtime state.
     pub state: PopulationState,
+    inner: DomainFillAirMass,
+    rule: Arc<dyn OzoneAssignmentRule>,
 }
 
-macro_rules! unimplemented_population {
-    ($type_name:ty, $model_id:expr) => {
-        impl PopulationStrategy for $type_name {
-            fn model_id(&self) -> &'static str {
-                $model_id
-            }
+impl DomainFillStratosphericOzone {
+    /// Constructs an uninitialized ozone lifecycle with one resolved rule.
+    pub fn new(
+        specification: DomainFillStratosphericOzoneSpec,
+        rule: Arc<dyn OzoneAssignmentRule>,
+    ) -> Result<Self, PopulationError> {
+        if specification.ozone_rule != rule.model_id()
+            || specification.ozone_substance.0.trim().is_empty()
+        {
+            return Err(PopulationError::InvalidConfiguration);
+        }
+        let inner = DomainFillAirMass::new(specification.air_mass.clone());
+        Ok(Self {
+            specification,
+            state: PopulationState::Uninitialized,
+            inner,
+            rule,
+        })
+    }
 
-            fn snapshot_state(&self) -> PopulationState {
-                self.state.clone()
-            }
+    fn sync_state(&mut self) {
+        self.state = self.inner.snapshot_state();
+    }
+}
 
-            fn initialize(
-                &mut self,
-                _context: &mut PopulationContext<'_>,
-                _particles: &mut ParticleBatch,
-            ) -> Result<(), PopulationError> {
-                Err(PopulationError::NotImplemented)
-            }
+impl PopulationStrategy for DomainFillStratosphericOzone {
+    fn model_id(&self) -> &'static str {
+        crate::science::OZONE_DOMAIN_FILL_ID
+    }
 
-            fn before_step(
-                &mut self,
-                _context: &mut PopulationContext<'_>,
-                _particles: &ParticleBatch,
-            ) -> Result<(), PopulationError> {
-                Err(PopulationError::NotImplemented)
-            }
+    fn snapshot_state(&self) -> PopulationState {
+        self.state.clone()
+    }
 
-            fn emit_particles(
-                &mut self,
-                _context: &mut PopulationContext<'_>,
-            ) -> Result<ParticleBatch, PopulationError> {
-                Err(PopulationError::NotImplemented)
+    fn dynamic_step_boundaries(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        requested: SignedDuration,
+    ) -> Result<Vec<StepBoundary>, PopulationError> {
+        if !matches!(self.state, PopulationState::DomainFill { .. })
+            || context.step != Some(requested)
+            || context.step_index.is_none()
+            || requested.0 == 0
+            || context.domain.as_ref() != Some(&self.specification.air_mass.domain_id)
+        {
+            return Err(PopulationError::InvalidConfiguration);
+        }
+        if !self.inner.finite_domain {
+            return Ok(Vec::new());
+        }
+        if self
+            .inner
+            .active_inflow_plan
+            .as_ref()
+            .is_some_and(|plan| plan.end_time == context.time)
+        {
+            self.inner.active_inflow_plan = None;
+        }
+        if let Some(plan) = &self.inner.active_inflow_plan {
+            if !plan
+                .contains_interval(context.time, requested)
+                .map_err(map_air_mass_error)?
+            {
+                return Err(PopulationError::InvalidConfiguration);
             }
+            return Ok(plan
+                .remaining_birth_times(context.time)
+                .into_iter()
+                .map(|time| StepBoundary::Population {
+                    time,
+                    event_id: format!("domain-fill-boundary/{}", plan.lifecycle_event_index),
+                })
+                .collect());
+        }
+        let midpoint = add_timestamp(context.time, SignedDuration(requested.0 / 2))
+            .map_err(|_| PopulationError::TimeOverflow)?;
+        let window = context
+            .meteorology
+            .prepare_for_domain(midpoint, &self.specification.air_mass.domain_id)
+            .map_err(|_| PopulationError::MissingMeteorology)?;
+        let snapshot = AirMassDeriver
+            .derive_window(&window)
+            .map_err(|error| PopulationError::AirMassDerivation(error.code().into()))?;
+        let carrier_mass = self
+            .inner
+            .carrier_mass_per_particle_kg
+            .ok_or(PopulationError::InvalidConfiguration)?;
+        let plan = air_mass::plan_ozone_boundary_inflow(
+            &self.specification,
+            &snapshot,
+            self.rule.as_ref(),
+            carrier_mass,
+            &self.inner.residual_mass.residual_mass_kg,
+            context.direction,
+            context.time,
+            requested,
+            self.inner.next_boundary_lifecycle_event_index,
+            context.random_seed,
+        )?;
+        self.inner.next_boundary_lifecycle_event_index = self
+            .inner
+            .next_boundary_lifecycle_event_index
+            .checked_add(1)
+            .ok_or(PopulationError::ResourceLimit)?;
+        let boundaries = plan
+            .remaining_birth_times(context.time)
+            .into_iter()
+            .map(|time| StepBoundary::Population {
+                time,
+                event_id: format!("domain-fill-boundary/{}", plan.lifecycle_event_index),
+            })
+            .collect();
+        self.inner.active_inflow_plan = Some(plan);
+        Ok(boundaries)
+    }
 
-            fn after_advection(
-                &mut self,
-                _context: &mut PopulationContext<'_>,
-                _particles: &ParticleBatch,
-            ) -> Result<(), PopulationError> {
-                Err(PopulationError::NotImplemented)
+    fn mass_ledger_records(&self) -> Vec<MassLedgerRecord> {
+        self.inner.mass_ledger_records()
+    }
+
+    fn initialize(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        particles: &mut ParticleBatch,
+    ) -> Result<(), PopulationError> {
+        particles
+            .validate()
+            .map_err(|_| PopulationError::InvalidParticleBatch)?;
+        if self.state != PopulationState::Uninitialized
+            || self.inner.state != PopulationState::Uninitialized
+            || !particles.is_empty()
+            || context.step.is_some()
+            || context.step_index.is_some()
+            || context.domain.as_ref() != Some(&self.specification.air_mass.domain_id)
+        {
+            return Err(PopulationError::InvalidConfiguration);
+        }
+        let window = context
+            .meteorology
+            .prepare_for_domain(context.time, &self.specification.air_mass.domain_id)
+            .map_err(|_| PopulationError::MissingMeteorology)?;
+        let snapshot = AirMassDeriver
+            .derive_window(&window)
+            .map_err(|error| PopulationError::AirMassDerivation(error.code().into()))?;
+        let seeded = seed_initial_stratospheric_ozone(
+            &self.specification,
+            &snapshot,
+            self.rule.as_ref(),
+            context.random_seed,
+        )?;
+        let seeded_particles = u64::try_from(
+            seeded
+                .particles
+                .len()
+                .map_err(|_| PopulationError::InvalidParticleBatch)?,
+        )
+        .map_err(|_| PopulationError::ResourceLimit)?;
+        self.inner.carrier_mass_per_particle_kg = Some(seeded.carrier_mass_per_particle_kg);
+        self.inner.initial_residual_mass_kg = seeded.residual_mass_kg;
+        self.inner.finite_domain = !snapshot.boundary_faces.is_empty();
+        particles
+            .append(seeded.particles)
+            .map_err(|_| PopulationError::InvalidParticleBatch)?;
+        self.inner.sync_state(seeded_particles);
+        self.sync_state();
+        Ok(())
+    }
+
+    fn before_step(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        particles: &ParticleBatch,
+    ) -> Result<(), PopulationError> {
+        self.inner.before_step(context, particles)
+    }
+
+    fn emit_particles(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+    ) -> Result<ParticleBatch, PopulationError> {
+        self.inner.emit_particles(context)
+    }
+
+    fn after_advection(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        particles: &ParticleBatch,
+    ) -> Result<(), PopulationError> {
+        self.inner.after_advection(context, particles)
+    }
+
+    fn apply_boundary_maintenance(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        particles: &mut ParticleBatch,
+    ) -> Result<(), PopulationError> {
+        self.inner.apply_boundary_maintenance(context, particles)?;
+        self.sync_state();
+        Ok(())
+    }
+
+    fn finalize(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        particles: &ParticleBatch,
+    ) -> Result<(), PopulationError> {
+        self.inner.finalize(context, particles)?;
+        self.sync_state();
+        Ok(())
+    }
+}
+
+impl PopulationStrategy for DomainFillAirMass {
+    fn model_id(&self) -> &'static str {
+        crate::science::DRY_AIR_DOMAIN_FILL_ID
+    }
+
+    fn snapshot_state(&self) -> PopulationState {
+        self.state.clone()
+    }
+
+    fn dynamic_step_boundaries(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        requested: SignedDuration,
+    ) -> Result<Vec<StepBoundary>, PopulationError> {
+        if !matches!(self.state, PopulationState::DomainFill { .. })
+            || context.step != Some(requested)
+            || context.step_index.is_none()
+            || requested.0 == 0
+            || context.domain.as_ref() != Some(&self.specification.domain_id)
+        {
+            return Err(PopulationError::InvalidConfiguration);
+        }
+        if !self.finite_domain {
+            return Ok(Vec::new());
+        }
+        if self
+            .active_inflow_plan
+            .as_ref()
+            .is_some_and(|plan| plan.end_time == context.time)
+        {
+            self.active_inflow_plan = None;
+        }
+        if let Some(plan) = &self.active_inflow_plan {
+            if !plan
+                .contains_interval(context.time, requested)
+                .map_err(map_air_mass_error)?
+            {
+                return Err(PopulationError::InvalidConfiguration);
             }
+            return Ok(plan
+                .remaining_birth_times(context.time)
+                .into_iter()
+                .map(|time| StepBoundary::Population {
+                    time,
+                    event_id: format!("domain-fill-boundary/{}", plan.lifecycle_event_index),
+                })
+                .collect());
+        }
 
-            fn apply_boundary_maintenance(
-                &mut self,
-                _context: &mut PopulationContext<'_>,
-                _particles: &mut ParticleBatch,
-            ) -> Result<(), PopulationError> {
-                Err(PopulationError::NotImplemented)
+        let midpoint = add_timestamp(context.time, SignedDuration(requested.0 / 2))
+            .map_err(|_| PopulationError::TimeOverflow)?;
+        let window = context
+            .meteorology
+            .prepare_for_domain(midpoint, &self.specification.domain_id)
+            .map_err(|_| PopulationError::MissingMeteorology)?;
+        let snapshot = AirMassDeriver
+            .derive_window(&window)
+            .map_err(|error| PopulationError::AirMassDerivation(error.code().into()))?;
+        let carrier_mass = self
+            .carrier_mass_per_particle_kg
+            .ok_or(PopulationError::InvalidConfiguration)?;
+        let plan = air_mass::plan_boundary_inflow(
+            &self.specification,
+            &snapshot,
+            carrier_mass,
+            &self.residual_mass.residual_mass_kg,
+            context.direction,
+            context.time,
+            requested,
+            self.next_boundary_lifecycle_event_index,
+            context.random_seed,
+        )
+        .map_err(map_air_mass_error)?;
+        self.next_boundary_lifecycle_event_index = self
+            .next_boundary_lifecycle_event_index
+            .checked_add(1)
+            .ok_or(PopulationError::ResourceLimit)?;
+        let boundaries = plan
+            .remaining_birth_times(context.time)
+            .into_iter()
+            .map(|time| StepBoundary::Population {
+                time,
+                event_id: format!("domain-fill-boundary/{}", plan.lifecycle_event_index),
+            })
+            .collect();
+        self.active_inflow_plan = Some(plan);
+        Ok(boundaries)
+    }
+
+    fn mass_ledger_records(&self) -> Vec<MassLedgerRecord> {
+        self.ledger.records().to_vec()
+    }
+
+    fn initialize(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        particles: &mut ParticleBatch,
+    ) -> Result<(), PopulationError> {
+        particles
+            .validate()
+            .map_err(|_| PopulationError::InvalidParticleBatch)?;
+        if self.state != PopulationState::Uninitialized
+            || !particles.is_empty()
+            || context.step.is_some()
+            || context.step_index.is_some()
+            || context.domain.as_ref() != Some(&self.specification.domain_id)
+        {
+            return Err(PopulationError::InvalidConfiguration);
+        }
+        let window = context
+            .meteorology
+            .prepare_for_domain(context.time, &self.specification.domain_id)
+            .map_err(|_| PopulationError::MissingMeteorology)?;
+        let snapshot = AirMassDeriver
+            .derive_window(&window)
+            .map_err(|error| PopulationError::AirMassDerivation(error.code().into()))?;
+        let seeded = seed_initial_air_mass(&self.specification, &snapshot, context.random_seed)
+            .map_err(map_air_mass_error)?;
+        let seeded_particles = u64::try_from(
+            seeded
+                .particles
+                .len()
+                .map_err(|_| PopulationError::InvalidParticleBatch)?,
+        )
+        .map_err(|_| PopulationError::ResourceLimit)?;
+        self.carrier_mass_per_particle_kg = Some(seeded.carrier_mass_per_particle_kg);
+        self.initial_residual_mass_kg = seeded.residual_mass_kg;
+        self.finite_domain = !snapshot.boundary_faces.is_empty();
+        particles
+            .append(seeded.particles)
+            .map_err(|_| PopulationError::InvalidParticleBatch)?;
+        self.sync_state(seeded_particles);
+        Ok(())
+    }
+
+    fn before_step(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        particles: &ParticleBatch,
+    ) -> Result<(), PopulationError> {
+        let step = context.step.ok_or(PopulationError::InvalidConfiguration)?;
+        let step_index = context
+            .step_index
+            .ok_or(PopulationError::InvalidConfiguration)?;
+        if self.opening_step.is_some() || !self.pending_emissions.is_empty() {
+            return Err(PopulationError::InvalidConfiguration);
+        }
+        let end_time =
+            add_timestamp(context.time, step).map_err(|_| PopulationError::TimeOverflow)?;
+        let incoming_by_face_kg = if self.finite_domain {
+            let plan = self
+                .active_inflow_plan
+                .as_ref()
+                .ok_or(PopulationError::InvalidConfiguration)?;
+            if !plan
+                .contains_interval(context.time, step)
+                .map_err(map_air_mass_error)?
+            {
+                return Err(PopulationError::InvalidConfiguration);
             }
+            plan.incoming_by_face(step).map_err(map_air_mass_error)?
+        } else {
+            BTreeMap::new()
+        };
+        let incoming_values = incoming_by_face_kg.values().copied().collect::<Vec<_>>();
+        let incoming_kg = neumaier_sum(&incoming_values)
+            .map_err(|error| PopulationError::AirMassReference(error.code().into()))?;
+        let opening_active_kg = active_carrier_mass_kg(particles, &self.specification.id)
+            .map_err(map_air_mass_error)?;
+        let opening_residual_kg = residual_mass_kg(
+            self.initial_residual_mass_kg,
+            &self.residual_mass.residual_mass_kg,
+        )
+        .map_err(map_air_mass_error)?;
+        let len = particles
+            .validate()
+            .map_err(|_| PopulationError::InvalidParticleBatch)?;
+        let particle_status = (0..len)
+            .filter(|index| particles.population_id[*index] == self.specification.id)
+            .map(|index| (particles.id[index], particles.status[index].clone()))
+            .collect();
+        self.opening_step = Some(DomainFillStepOpening {
+            step_index,
+            end_time,
+            opening_active_kg,
+            opening_residual_kg,
+            incoming_by_face_kg,
+            incoming_kg,
+            particle_status,
+        });
+        Ok(())
+    }
 
-            fn finalize(
-                &mut self,
-                _context: &mut PopulationContext<'_>,
-                _particles: &ParticleBatch,
-            ) -> Result<(), PopulationError> {
-                Err(PopulationError::NotImplemented)
+    fn emit_particles(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+    ) -> Result<ParticleBatch, PopulationError> {
+        let emitted = std::mem::take(&mut self.pending_emissions);
+        if emitted
+            .birth_time
+            .iter()
+            .any(|birth_time| *birth_time != context.time)
+        {
+            return Err(PopulationError::InvalidConfiguration);
+        }
+        Ok(emitted)
+    }
+
+    fn after_advection(
+        &mut self,
+        _context: &mut PopulationContext<'_>,
+        particles: &ParticleBatch,
+    ) -> Result<(), PopulationError> {
+        particles
+            .validate()
+            .map(|_| ())
+            .map_err(|_| PopulationError::InvalidParticleBatch)
+    }
+
+    fn apply_boundary_maintenance(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        particles: &mut ParticleBatch,
+    ) -> Result<(), PopulationError> {
+        let opening = self
+            .opening_step
+            .take()
+            .ok_or(PopulationError::InvalidConfiguration)?;
+        if opening.end_time != context.time || context.step_index != Some(opening.step_index) {
+            return Err(PopulationError::InvalidConfiguration);
+        }
+        let mut outgoing = Vec::new();
+        let mut normal_terminated = Vec::new();
+        let mut abnormal_terminated = Vec::new();
+        let len = particles
+            .validate()
+            .map_err(|_| PopulationError::InvalidParticleBatch)?;
+        for index in 0..len {
+            if particles.population_id[index] != self.specification.id
+                || opening.particle_status.get(&particles.id[index]) != Some(&ParticleStatus::Alive)
+            {
+                continue;
+            }
+            if matches!(
+                particles.status[index],
+                ParticleStatus::Terminated {
+                    reason: TerminationReason::OutsideDomain
+                }
+            ) {
+                particles.status[index] = ParticleStatus::Terminated {
+                    reason: TerminationReason::PopulationOutflow,
+                };
+            }
+            let ParticleStatus::Terminated { reason } = &particles.status[index] else {
+                continue;
+            };
+            match reason {
+                TerminationReason::PopulationOutflow => {
+                    outgoing.push(particles.dry_air_mass_kg[index]);
+                }
+                reason if reason.class() == crate::particle::TerminationClass::Normal => {
+                    normal_terminated.push(particles.dry_air_mass_kg[index]);
+                }
+                _ => abnormal_terminated.push(particles.dry_air_mass_kg[index]),
             }
         }
-    };
+        particles
+            .validate()
+            .map_err(|_| PopulationError::InvalidParticleBatch)?;
+
+        for (face_id, incoming) in &opening.incoming_by_face_kg {
+            let residual = self
+                .residual_mass
+                .residual_mass_kg
+                .entry(*face_id)
+                .or_insert(0.0);
+            *residual += incoming;
+            if !residual.is_finite() || *residual < 0.0 {
+                return Err(PopulationError::InvalidConfiguration);
+            }
+        }
+        let births = self
+            .active_inflow_plan
+            .as_ref()
+            .map(|plan| plan.births_at(context.time))
+            .unwrap_or_default();
+        let carrier_mass = self
+            .carrier_mass_per_particle_kg
+            .ok_or(PopulationError::InvalidConfiguration)?;
+        for birth in &births {
+            let residual = self
+                .residual_mass
+                .residual_mass_kg
+                .get_mut(&birth.face_id)
+                .ok_or(PopulationError::InvalidConfiguration)?;
+            *residual -= carrier_mass;
+            let tolerance = mass_balance_tolerance_kg(carrier_mass, false)
+                .map_err(|error| PopulationError::AirMassReference(error.code().into()))?;
+            if *residual < -tolerance {
+                return Err(PopulationError::MassImbalance);
+            }
+            if *residual < 0.0 {
+                *residual = 0.0;
+            }
+        }
+        for residual in self.residual_mass.residual_mass_kg.values() {
+            let tolerance = mass_balance_tolerance_kg(carrier_mass, false)
+                .map_err(|error| PopulationError::AirMassReference(error.code().into()))?;
+            if !residual.is_finite() || *residual < 0.0 || *residual >= carrier_mass + tolerance {
+                return Err(PopulationError::MassImbalance);
+            }
+        }
+        self.pending_emissions = air_mass::particle_batch_from_states(
+            births.into_iter().map(|birth| birth.particle).collect(),
+        )
+        .map_err(map_air_mass_error)?;
+
+        let outgoing_kg = neumaier_sum(&outgoing)
+            .map_err(|error| PopulationError::AirMassReference(error.code().into()))?;
+        let normal_terminated_kg = neumaier_sum(&normal_terminated)
+            .map_err(|error| PopulationError::AirMassReference(error.code().into()))?;
+        let abnormal_terminated_kg = neumaier_sum(&abnormal_terminated)
+            .map_err(|error| PopulationError::AirMassReference(error.code().into()))?;
+        let existing_active_kg = active_carrier_mass_kg(particles, &self.specification.id)
+            .map_err(map_air_mass_error)?;
+        let pending_active_kg = neumaier_sum(&self.pending_emissions.dry_air_mass_kg)
+            .map_err(|error| PopulationError::AirMassReference(error.code().into()))?;
+        let closing_active_kg = neumaier_sum(&[existing_active_kg, pending_active_kg])
+            .map_err(|error| PopulationError::AirMassReference(error.code().into()))?;
+        let closing_residual_kg = residual_mass_kg(
+            self.initial_residual_mass_kg,
+            &self.residual_mass.residual_mass_kg,
+        )
+        .map_err(map_air_mass_error)?;
+        self.ledger
+            .record_step(MassLedgerInput {
+                step_index: opening.step_index,
+                time: context.time,
+                opening_active_kg: opening.opening_active_kg,
+                opening_residual_kg: opening.opening_residual_kg,
+                incoming_kg: opening.incoming_kg,
+                outgoing_kg,
+                normal_terminated_kg,
+                abnormal_terminated_kg,
+                closing_active_kg,
+                closing_residual_kg,
+            })
+            .map_err(map_air_mass_error)?;
+        let emitted_count = u64::try_from(
+            self.pending_emissions
+                .len()
+                .map_err(|_| PopulationError::InvalidParticleBatch)?,
+        )
+        .map_err(|_| PopulationError::ResourceLimit)?;
+        let seeded_particles = self
+            .seeded_particles()?
+            .checked_add(emitted_count)
+            .ok_or(PopulationError::ResourceLimit)?;
+        if self
+            .active_inflow_plan
+            .as_ref()
+            .is_some_and(|plan| plan.end_time == context.time)
+        {
+            self.active_inflow_plan = None;
+        }
+        self.sync_state(seeded_particles);
+        Ok(())
+    }
+
+    fn finalize(
+        &mut self,
+        _context: &mut PopulationContext<'_>,
+        particles: &ParticleBatch,
+    ) -> Result<(), PopulationError> {
+        if self.opening_step.is_some()
+            || self.active_inflow_plan.is_some()
+            || !self.pending_emissions.is_empty()
+        {
+            return Err(PopulationError::InvalidConfiguration);
+        }
+        particles
+            .validate()
+            .map_err(|_| PopulationError::InvalidParticleBatch)?;
+        self.ledger.finalize().map_err(map_air_mass_error)?;
+        let carrier_mass = self
+            .carrier_mass_per_particle_kg
+            .ok_or(PopulationError::InvalidConfiguration)?;
+        if self.initial_residual_mass_kg >= carrier_mass {
+            return Err(PopulationError::MassImbalance);
+        }
+        let seeded_particles = self.seeded_particles()?;
+        self.sync_state(seeded_particles);
+        Ok(())
+    }
 }
 
-unimplemented_population!(DomainFillAirMass, crate::science::DRY_AIR_DOMAIN_FILL_ID);
-unimplemented_population!(
-    DomainFillStratosphericOzone,
-    crate::science::OZONE_DOMAIN_FILL_ID
-);
+fn map_air_mass_error(error: AirMassPopulationError) -> PopulationError {
+    match error {
+        AirMassPopulationError::MassImbalance => PopulationError::MassImbalance,
+        AirMassPopulationError::ResourceLimit => PopulationError::ResourceLimit,
+        AirMassPopulationError::TimeOverflow => PopulationError::TimeOverflow,
+        other => PopulationError::AirMass(other),
+    }
+}
 
 impl PopulationStrategy for ReleaseDrivenPopulation {
     fn model_id(&self) -> &'static str {
@@ -617,7 +1251,7 @@ pub struct OzoneAssignment {
 }
 
 /// Extensible named ozone-mass assignment rule.
-pub trait OzoneAssignmentRule: Send + Sync {
+pub trait OzoneAssignmentRule: Send + Sync + 'static {
     /// Returns the stable rule identifier.
     fn model_id(&self) -> &'static str;
 
@@ -626,6 +1260,46 @@ pub trait OzoneAssignmentRule: Send + Sync {
 
     /// Assigns ozone mass without mutating carrier mass.
     fn assign(&self, input: OzoneAssignmentInput) -> Result<OzoneAssignment, PopulationError>;
+}
+
+/// Stable registry of named ozone assignment rules.
+#[derive(Clone, Default)]
+pub struct OzoneAssignmentRuleRegistry {
+    rules: BTreeMap<String, Arc<dyn OzoneAssignmentRule>>,
+}
+
+impl OzoneAssignmentRuleRegistry {
+    /// Constructs the production registry with all M4-supported rules.
+    #[must_use]
+    pub fn builtins() -> Self {
+        let mut registry = Self::default();
+        registry.rules.insert(
+            crate::science::FLEXPART_PV60_OZONE_ID.into(),
+            Arc::new(FlexpartPv60OzoneRule),
+        );
+        registry
+    }
+
+    /// Registers one rule and rejects empty or duplicate identities.
+    pub fn register(&mut self, rule: Arc<dyn OzoneAssignmentRule>) -> Result<(), PopulationError> {
+        let id = rule.model_id();
+        if id.trim().is_empty() || self.rules.contains_key(id) {
+            return Err(PopulationError::InvalidConfiguration);
+        }
+        self.rules.insert(id.into(), rule);
+        Ok(())
+    }
+
+    /// Resolves one exact rule identity.
+    #[must_use]
+    pub fn resolve(&self, id: &str) -> Option<Arc<dyn OzoneAssignmentRule>> {
+        self.rules.get(id).cloned()
+    }
+
+    /// Returns stable sorted rule identities for diagnostics.
+    pub fn model_ids(&self) -> impl Iterator<Item = &str> {
+        self.rules.keys().map(String::as_str)
+    }
 }
 
 /// Frozen empirical FLEXPART PV60 ozone proxy.
@@ -666,6 +1340,12 @@ pub enum PopulationError {
     NotImplemented,
     /// Configuration does not define a usable target mass or count.
     InvalidConfiguration,
+    /// Deterministic dry-air seeding or accounting failed.
+    AirMass(AirMassPopulationError),
+    /// Meteorological dry-air finite-volume derivation failed.
+    AirMassDerivation(String),
+    /// Independent dry-air scalar reference formula failed.
+    AirMassReference(String),
     /// Required domain-fill meteorology is unavailable.
     MissingMeteorology,
     /// Mass conservation exceeds the declared tolerance.
@@ -674,6 +1354,12 @@ pub enum PopulationError {
     InvalidParticleBatch,
     /// A named ozone rule received invalid physical input.
     OzoneReference(ReferenceError),
+    /// Required native-grid PV support is absent or invalid.
+    MissingOzoneDiagnostic,
+    /// No dry-air control-volume mass satisfies the strict ozone mask.
+    NoEligibleOzoneMass,
+    /// A sample selected from eligible mass failed the same assignment mask.
+    OzoneEligibilityMismatch,
     /// Deterministic release scheduling, sampling, or allocation failed.
     Release(ReleaseError),
     /// Physical timestamp arithmetic overflowed.
@@ -689,10 +1375,16 @@ impl PopulationError {
         match self {
             Self::NotImplemented => "population.not_implemented",
             Self::InvalidConfiguration => "population.invalid_configuration",
+            Self::AirMass(error) => error.code(),
+            Self::AirMassDerivation(_) => "population.air_mass.derivation",
+            Self::AirMassReference(_) => "population.air_mass.reference",
             Self::MissingMeteorology => "population.missing_meteorology",
             Self::MassImbalance => "population.mass_imbalance",
             Self::InvalidParticleBatch => "population.invalid_particle_batch",
             Self::OzoneReference(_) => "population.ozone_reference",
+            Self::MissingOzoneDiagnostic => "population.ozone_missing_diagnostic",
+            Self::NoEligibleOzoneMass => "population.ozone_no_eligible_mass",
+            Self::OzoneEligibilityMismatch => "population.ozone_eligibility_mismatch",
             Self::Release(_) => "population.release",
             Self::TimeOverflow => "population.time_overflow",
             Self::ResourceLimit => "population.resource_limit",
@@ -707,7 +1399,8 @@ mod tests {
     use std::collections::BTreeMap;
 
     use trajecta_case::model::population::{
-        GeoJsonGeometry, GeoJsonSource, PopulationId, ReleaseEventId, ReleaseEventSpec,
+        DomainFillAirMassSpec, DomainFillStratosphericOzoneSpec, GeoJsonGeometry, GeoJsonSource,
+        PopulationId, ReleaseEventId, ReleaseEventSpec,
     };
     use trajecta_case::model::substance::SubstanceId;
     use trajecta_case::quantity::{Dimension, Length, Mass, Quantity, Unit};
@@ -719,6 +1412,8 @@ mod tests {
     use trajecta_met::surface_layer::SurfaceLayerRegistry;
 
     use super::*;
+    use crate::clock::signed_duration_between;
+    use crate::synthetic::{SyntheticWind, constant_wind_stack};
 
     struct OrdinalGeometry;
 
@@ -935,6 +1630,410 @@ mod tests {
                 .map(StepBoundary::time)
                 .collect::<Vec<_>>(),
             expected.into_iter().rev().collect::<Vec<_>>()
+        );
+    }
+
+    fn domain_fill_spec(domain: &str, count: u64) -> DomainFillAirMassSpec {
+        DomainFillAirMassSpec {
+            id: PopulationId("air".into()),
+            domain_id: DomainId(domain.into()),
+            target_dry_air_mass_per_particle: None,
+            target_particle_count: Some(count),
+        }
+    }
+
+    fn ozone_domain_fill_spec(domain: &str, count: u64) -> DomainFillStratosphericOzoneSpec {
+        DomainFillStratosphericOzoneSpec {
+            air_mass: domain_fill_spec(domain, count),
+            ozone_rule: crate::science::FLEXPART_PV60_OZONE_ID.into(),
+            ozone_substance: SubstanceId("ozone".into()),
+        }
+    }
+
+    #[test]
+    fn global_domain_fill_initializes_and_records_closed_mass_step() {
+        let times = [
+            Timestamp::new(-10, 0).unwrap(),
+            Timestamp::UNIX_EPOCH,
+            Timestamp::new(10, 0).unwrap(),
+            Timestamp::new(20, 0).unwrap(),
+        ];
+        let mut stack = constant_wind_stack(
+            "global",
+            &times,
+            SyntheticWind {
+                eastward_m_s: 0.0,
+                northward_m_s: 0.0,
+                vertical_m_s: 0.0,
+            },
+            0.0,
+            20_000.0,
+            true,
+        )
+        .unwrap();
+        let mut population = DomainFillAirMass::new(domain_fill_spec("global", 8));
+        let mut particles = ParticleBatch::default();
+        {
+            let mut context = PopulationContext {
+                time: Timestamp::UNIX_EPOCH,
+                direction: Direction::Forward,
+                step: None,
+                step_index: None,
+                random_seed: 17,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            population.initialize(&mut context, &mut particles).unwrap();
+            assert!(population.emit_particles(&mut context).unwrap().is_empty());
+        }
+        assert_eq!(particles.len().unwrap(), 8);
+        let step = SignedDuration(10_000_000_000);
+        {
+            let mut context = PopulationContext {
+                time: Timestamp::UNIX_EPOCH,
+                direction: Direction::Forward,
+                step: Some(step),
+                step_index: Some(0),
+                random_seed: 17,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            assert!(
+                population
+                    .dynamic_step_boundaries(&mut context, step)
+                    .unwrap()
+                    .is_empty()
+            );
+            population.before_step(&mut context, &particles).unwrap();
+        }
+        {
+            let mut context = PopulationContext {
+                time: Timestamp::new(10, 0).unwrap(),
+                direction: Direction::Forward,
+                step: Some(step),
+                step_index: Some(0),
+                random_seed: 17,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            population
+                .after_advection(&mut context, &particles)
+                .unwrap();
+            population
+                .apply_boundary_maintenance(&mut context, &mut particles)
+                .unwrap();
+            assert!(population.emit_particles(&mut context).unwrap().is_empty());
+        }
+        {
+            let mut context = PopulationContext {
+                time: Timestamp::new(10, 0).unwrap(),
+                direction: Direction::Forward,
+                step: None,
+                step_index: None,
+                random_seed: 17,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            population.finalize(&mut context, &particles).unwrap();
+        }
+        assert_eq!(population.mass_ledger_records().len(), 1);
+        assert_eq!(population.mass_ledger_records()[0].imbalance_kg, 0.0);
+    }
+
+    #[test]
+    fn global_ozone_domain_fill_keeps_exact_count_and_persistent_ozone_mass() {
+        let times = [
+            Timestamp::new(-10, 0).unwrap(),
+            Timestamp::UNIX_EPOCH,
+            Timestamp::new(10, 0).unwrap(),
+        ];
+        let mut stack = constant_wind_stack(
+            "global-ozone",
+            &times,
+            SyntheticWind {
+                eastward_m_s: 0.0,
+                northward_m_s: 0.0,
+                vertical_m_s: 0.0,
+            },
+            0.0,
+            20_000.0,
+            true,
+        )
+        .unwrap();
+        let specification = ozone_domain_fill_spec("global-ozone", 16);
+        let rule = OzoneAssignmentRuleRegistry::builtins()
+            .resolve(&specification.ozone_rule)
+            .unwrap();
+        let mut population = DomainFillStratosphericOzone::new(specification, rule).unwrap();
+        let mut particles = ParticleBatch::default();
+        {
+            let mut context = PopulationContext {
+                time: Timestamp::UNIX_EPOCH,
+                direction: Direction::Forward,
+                step: None,
+                step_index: None,
+                random_seed: 29,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            population.initialize(&mut context, &mut particles).unwrap();
+        }
+        assert_eq!(particles.len().unwrap(), 16);
+        assert!(
+            particles
+                .height_asl_m
+                .iter()
+                .all(|height| *height > 3_000.0)
+        );
+        let ozone_before = particles
+            .mass
+            .mass_kg
+            .get(&SubstanceId("ozone".into()))
+            .unwrap()
+            .clone();
+        assert!(ozone_before.iter().all(|mass| *mass > 0.0));
+
+        // Ozone is assigned at birth and remains a carried substance if a
+        // particle later moves below the initialization mask.
+        particles.height_asl_m[0] = 1_000.0;
+        let step = SignedDuration(10_000_000_000);
+        {
+            let mut context = PopulationContext {
+                time: Timestamp::UNIX_EPOCH,
+                direction: Direction::Forward,
+                step: Some(step),
+                step_index: Some(0),
+                random_seed: 29,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            assert!(
+                population
+                    .dynamic_step_boundaries(&mut context, step)
+                    .unwrap()
+                    .is_empty()
+            );
+            population.before_step(&mut context, &particles).unwrap();
+        }
+        {
+            let mut context = PopulationContext {
+                time: Timestamp::new(10, 0).unwrap(),
+                direction: Direction::Forward,
+                step: Some(step),
+                step_index: Some(0),
+                random_seed: 29,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            population
+                .after_advection(&mut context, &particles)
+                .unwrap();
+            population
+                .apply_boundary_maintenance(&mut context, &mut particles)
+                .unwrap();
+        }
+        assert_eq!(
+            particles
+                .mass
+                .mass_kg
+                .get(&SubstanceId("ozone".into()))
+                .unwrap(),
+            &ozone_before
+        );
+        {
+            let mut context = PopulationContext {
+                time: Timestamp::new(10, 0).unwrap(),
+                direction: Direction::Forward,
+                step: None,
+                step_index: None,
+                random_seed: 29,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            population.finalize(&mut context, &particles).unwrap();
+        }
+        assert_eq!(population.mass_ledger_records().len(), 1);
+    }
+
+    #[test]
+    fn finite_domain_birth_is_split_at_mass_threshold_and_conserves_each_substep() {
+        let times = [
+            Timestamp::new(-10, 0).unwrap(),
+            Timestamp::UNIX_EPOCH,
+            Timestamp::new(10, 0).unwrap(),
+            Timestamp::new(20, 0).unwrap(),
+        ];
+        let mut stack = constant_wind_stack(
+            "finite",
+            &times,
+            SyntheticWind {
+                eastward_m_s: 100.0,
+                northward_m_s: 0.0,
+                vertical_m_s: 0.0,
+            },
+            0.0,
+            20_000.0,
+            false,
+        )
+        .unwrap();
+        let mut population = DomainFillAirMass::new(domain_fill_spec("finite", 4));
+        let mut particles = ParticleBatch::default();
+        {
+            let mut context = PopulationContext {
+                time: Timestamp::UNIX_EPOCH,
+                direction: Direction::Forward,
+                step: None,
+                step_index: None,
+                random_seed: 23,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            population.initialize(&mut context, &mut particles).unwrap();
+        }
+        let midpoint = Timestamp::new(5, 0).unwrap();
+        let window = stack
+            .engine
+            .prepare_for_domain(midpoint, &stack.domain)
+            .unwrap();
+        let snapshot = AirMassDeriver.derive_window(&window).unwrap();
+        let west = snapshot
+            .boundary_faces
+            .iter()
+            .find(|face| {
+                face.side == trajecta_met::derive::domain_fill::BoundarySide::West
+                    && face.inflow_rate_kg_s(Direction::Forward).unwrap() > 0.0
+            })
+            .unwrap();
+        let rate = west.inflow_rate_kg_s(Direction::Forward).unwrap();
+        let carrier = population.carrier_mass_per_particle_kg.unwrap();
+        let required = (rate * 5.0).min(carrier * 0.5);
+        population
+            .residual_mass
+            .residual_mass_kg
+            .insert(west.face_id, carrier - required);
+        population.sync_state(4);
+
+        let base_step = SignedDuration(10_000_000_000);
+        let birth_time = {
+            let mut context = PopulationContext {
+                time: Timestamp::UNIX_EPOCH,
+                direction: Direction::Forward,
+                step: Some(base_step),
+                step_index: Some(0),
+                random_seed: 23,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            let boundaries = population
+                .dynamic_step_boundaries(&mut context, base_step)
+                .unwrap();
+            assert!(!boundaries.is_empty());
+            boundaries[0].time()
+        };
+        let first_step = signed_duration_between(Timestamp::UNIX_EPOCH, birth_time).unwrap();
+        {
+            let mut context = PopulationContext {
+                time: Timestamp::UNIX_EPOCH,
+                direction: Direction::Forward,
+                step: Some(first_step),
+                step_index: Some(0),
+                random_seed: 23,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            population.before_step(&mut context, &particles).unwrap();
+        }
+        {
+            let mut context = PopulationContext {
+                time: birth_time,
+                direction: Direction::Forward,
+                step: Some(first_step),
+                step_index: Some(0),
+                random_seed: 23,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            population
+                .after_advection(&mut context, &particles)
+                .unwrap();
+            population
+                .apply_boundary_maintenance(&mut context, &mut particles)
+                .unwrap();
+            let emitted = population.emit_particles(&mut context).unwrap();
+            assert_eq!(emitted.len().unwrap(), 1);
+            assert_eq!(emitted.birth_time, vec![birth_time]);
+            particles.append(emitted).unwrap();
+        }
+        let end = Timestamp::new(10, 0).unwrap();
+        let second_step = signed_duration_between(birth_time, end).unwrap();
+        {
+            let mut context = PopulationContext {
+                time: birth_time,
+                direction: Direction::Forward,
+                step: Some(second_step),
+                step_index: Some(1),
+                random_seed: 23,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            let remaining = population
+                .dynamic_step_boundaries(&mut context, second_step)
+                .unwrap();
+            assert!(remaining.is_empty());
+            population.before_step(&mut context, &particles).unwrap();
+        }
+        {
+            let mut context = PopulationContext {
+                time: end,
+                direction: Direction::Forward,
+                step: Some(second_step),
+                step_index: Some(1),
+                random_seed: 23,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            population
+                .after_advection(&mut context, &particles)
+                .unwrap();
+            population
+                .apply_boundary_maintenance(&mut context, &mut particles)
+                .unwrap();
+            assert!(population.emit_particles(&mut context).unwrap().is_empty());
+        }
+        {
+            let mut context = PopulationContext {
+                time: end,
+                direction: Direction::Forward,
+                step: None,
+                step_index: None,
+                random_seed: 23,
+                meteorology: &mut stack.engine,
+                execution: stack.execution.as_ref(),
+                domain: Some(stack.domain.clone()),
+            };
+            population.finalize(&mut context, &particles).unwrap();
+        }
+        assert_eq!(particles.len().unwrap(), 5);
+        assert_eq!(population.mass_ledger_records().len(), 2);
+        assert!(
+            population
+                .mass_ledger_records()
+                .iter()
+                .all(|record| record.imbalance_kg.abs() <= record.tolerance_kg)
         );
     }
 }
