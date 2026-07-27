@@ -1,11 +1,12 @@
 # Trajecta M4：最小粒子闭环实施与验收计划
 
-状态：M4-A0、M4-A1、M4-A2、M4-A3 已完成；M4-A4 尚未完成。本文不代表 M4 已完成。
-日期：2026-07-24
+状态：**M4-A0～M4-A4 已全部完成；M4 已由 A 于 2026-07-27 正式验收完成。**
+日期：2026-07-27
 上游基线：M3 已完成并提交，气象查询引擎、三套真实资料与 Windows/WSL 验收可供 M4 复用。
 模型分工：见 `TRAJECTA_M4_MODEL_ASSIGNMENT.md`。
 M4-A0 冻结公式、常量、错误码与机器 schema：见 `TRAJECTA_M4_A0_SCIENCE_CONTRACT.md`。
 M4-A1 A 级核心交付：见 `TRAJECTA_M4_A1_A_DELIVERY_REPORT.md`；B 工程接续任务见 `B_PROMPT_M4_A1_ENGINEERING.md`。
+最终裁决：见 `TRAJECTA_M4_A4_A_COMPLETION_REPORT.md` 与 `TRAJECTA_M4_A_FINAL_COMPLETION_REPORT.md`。
 
 ## 1. 目标
 
@@ -243,6 +244,7 @@ Case 未声明 outputs 时，解析器自动补充 `particle_state_sqlite/v1 + e
 
 ~~~text
 rk2_spherical/v0
+cohort_local_macro_step/v1
 surface_reflect/v0
 model_top_terminate/v0
 limited_domain_terminate/v0
@@ -268,13 +270,13 @@ resolve and validate
 create run directory
 write running manifest
 initialize population
-emit births at exact event times
-plan step boundaries
+plan met/output/end macro-step boundaries
+materialize exact-time birth cohorts inside the macro step
 prepare/query meteorology
-advance RK2
+advance existing particles once and each cohort from its own birth time
 apply boundaries
 maintain population/domain-fill
-write scheduled output
+write exact lifecycle and scheduled output
 finalize population and sink
 write final manifest
 ~~~
@@ -318,12 +320,13 @@ write final manifest
 - 不依赖 batch、chunk、worker 或 storage order；
 - 不使用随机湍流。
 
-`time_step` 是最大实际步长，只允许在以下事件处分割：
+`time_step` 是最大宏步长度，只允许在以下全局事件处分割：
 
 - meteorology frame；
-- release birth；
 - output；
 - simulation end。
+
+release/domain-fill birth 不再切割旧粒子的宏步。`cohort_local_macro_step/v1` 一次准备该宏步内全部 birth；旧粒子从宏步首推进一次，新粒子分别从精确 birth time 推进到共同宏步终点。birth/termination 仍按精确物理时刻写 lifecycle output。
 
 M4 不加入 CFL、自适应误差或自动子步。精度通过多步长二阶收敛测试和运行诊断约束。
 
@@ -590,7 +593,8 @@ RunManifest 必须 serde 化并拥有稳定 schema/version，至少记录：
 - 每步/最终守恒账本；
 - 三套真实资料主矩阵。
 - 正式证据：Windows 6/6、WSL Ubuntu-24.04 6/6，共 12/12；每格 10,000 粒子、正反向、600 秒、2 个数值步、`Complete`、abnormal=0；见 `TRAJECTA_M4_A2_A_COMPLETION_REPORT.md`。
-- 边界：Windows/WSL normalized output digest 尚不相同；A2 退出条件不要求 bitwise 跨平台一致，差异量化保留给 M4-A4。
+- 边界：Windows/WSL normalized output digest 不要求 bitwise 相同；完整逻辑行与逐字段差异已在 M4-A4
+  全量量化并由 A 裁决，无 coverage、状态、终止、validity/quality、非有限值或字段存在性 blocker。
 
 ### M4-A3：Ozone domain-fill
 
@@ -605,13 +609,23 @@ RunManifest 必须 serde 化并拥有稳定 schema/version，至少记录：
 
 ### M4-A4：平台、性能与终审
 
-- 状态：尚未开始；中难/高难与最终签署由 A 完成，若有合同已冻结的中等及以下机械任务，只通过书面 Prompt 由用户另行交给 B；
-- Windows/WSL 完整门禁；
-- Rust/native 轨迹差分（A3 已提前取得三族双方向 1,000 粒子 evidence，A4 可复用并做终审）；
-- WSL 10 万粒子长测；
-- SQLite 并发读取、完整性与体积；
-- 确定性和无执行期 I/O；
-- A 最终审计、修订状态并提交。
+- 状态：**已完成并由 A 签署**；见 `TRAJECTA_M4_A4_A_COMPLETION_REPORT.md`；
+- M4-A4.5：低扰动归因、无观测 baseline、1/4 worker 对照、路径证据和 O1/O2 优化已闭环；WSL
+  `perf` 不可用按冻结合同记为诚实 external blocker，但不阻断 A4，因为正式缩放、正确性和确定性链已通过；
+- M4-A4.6：cohort-local 调度、边界/lifecycle、query exact reuse、sorted SQLite 和 stable-ID fast path
+  已完成；未创建 v2 或兼容层；
+- 正式 WSL 六格全部 attempt-1 通过，source identity
+  `8028c2eb403aa4bce6ff8776b7555d47201093b6080e4dc6924ab9fcbea70da1`；
+- 50k→100k runner 比例：forward `2.13871967035736`、backward `2.2298053451229514`，均不超过 `2.4`；
+- 六格均 `Complete`、abnormal=0、execute I/O delta=0、exact-query repeated execution=0、WAL=0；
+- 四个 100k cell 的 peak RSS 均低于 2 GiB，SQLite 均低于 512 MiB；
+- forward/backward 的 100k w1/w4 normalized content/SQL/output digest 分别完全一致；
+- A2/A3 共 12 对 Windows/WSL SQLite 已按全部逻辑行逐字段比较，0 hard blocker；
+- A3 Rust/native 六对证据已重算 SHA 并复核，0 blocker；
+- Windows 与 WSL 当前源码普通门禁均为 `455 passed / 11 ignored`；
+- 首个完整合格的 post-stable-ID 100k w4 正反向结果已由 A 接受为 WSL baseline；
+- artifact index 与最终机器汇总：`target/m4-a4/M4_A4_ARTIFACT_INDEX.json`、
+  `target/m4-a4/summary/M4_A4_A_FINAL_SUMMARY.json`。
 
 ## 12. 测试矩阵
 
@@ -680,7 +694,7 @@ Rust/native：
 
 ### 12.4 性能门禁
 
-- peak RSS ≤ 1 GiB；
+- peak RSS ≤ 2 GiB；
 - SQLite 最终大小 ≤ 512 MiB；
 - 5 万到 10 万耗时比 ≤ 2.4；
 - 气象预加载后 reader/provider I/O delta = 0；

@@ -5,14 +5,20 @@
 //! geometric vertical velocity, supports signed time, and applies boundary
 //! policies after proposing the full step.
 
+use std::collections::BTreeMap;
+
 use trajecta_case::model::meteorology::DomainId;
 use trajecta_case::model::time::Timestamp;
 use trajecta_met::query::engine::{BatchWorkspace, ExecutionContext, MetEngine};
+use trajecta_met::query::metrics::{QueryOrigin, QueryOriginScope};
 use trajecta_met::query::output::SampleStatus;
 use trajecta_met::query::request::{QueryBatch, QueryPointArrays, TransportPlan, VerticalQuery};
+use trajecta_met::vertical::VerticalBounds;
 
-use crate::clock::SignedDuration;
-use crate::particle::{ParticleBatch, ParticleState, ParticleStatus, TerminationReason};
+use crate::clock::{SignedDuration, add_timestamp, signed_duration_between};
+use crate::particle::{
+    ParticleBatch, ParticleState, ParticleStatus, ParticleTermination, TerminationReason,
+};
 use crate::science::M4_CONSTANTS;
 
 /// Immutable particle state and signed step presented to an integrator.
@@ -24,6 +30,18 @@ pub struct IntegratorInput<'a> {
     pub time: Timestamp,
     /// Signed step duration.
     pub step: SignedDuration,
+}
+
+/// Particle batch whose rows may start at different exact physical instants
+/// but share one macro-step endpoint.
+#[derive(Clone, Copy, Debug)]
+pub struct TimedIntegratorInput<'a> {
+    /// Current particles in stable runner order.
+    pub particles: &'a ParticleBatch,
+    /// One exact integration start per particle row.
+    pub start_times: &'a [Timestamp],
+    /// Common physical endpoint of the runner macro step.
+    pub end_time: Timestamp,
 }
 
 /// Mutable meteorology access and immutable execution policy for one step.
@@ -61,6 +79,63 @@ pub trait IntegratorModel: Send + Sync {
         input: IntegratorInput<'_>,
         context: &mut IntegratorContext<'_>,
     ) -> Result<StepResult, IntegratorError>;
+
+    /// Advances rows with distinct exact start times to one common endpoint.
+    ///
+    /// The default implementation groups equal `(start, step)` rows and never
+    /// re-advances a row because another cohort was born. Integrators may
+    /// override this to execute true heterogeneous-time vector batches.
+    fn advance_timed(
+        &self,
+        input: TimedIntegratorInput<'_>,
+        context: &mut IntegratorContext<'_>,
+    ) -> Result<StepResult, IntegratorError> {
+        let count = input
+            .particles
+            .validate()
+            .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+        if input.start_times.len() != count {
+            return Err(IntegratorError::InvalidParticleBatch);
+        }
+        let mut groups = BTreeMap::<(Timestamp, i64), Vec<usize>>::new();
+        for (index, start) in input.start_times.iter().copied().enumerate() {
+            let step = signed_duration_between(start, input.end_time)
+                .map_err(|_| IntegratorError::NumericalInvariant("timestamp overflow".into()))?;
+            groups.entry((start, step.0)).or_default().push(index);
+        }
+        let mut particles = input.particles.clone();
+        let mut abnormal_terminated_count = 0_usize;
+        for ((time, step_ns), indices) in groups {
+            let subset = input
+                .particles
+                .select_indices(&indices)
+                .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+            let result = self.advance(
+                IntegratorInput {
+                    particles: &subset,
+                    time,
+                    step: SignedDuration(step_ns),
+                },
+                context,
+            )?;
+            abnormal_terminated_count = abnormal_terminated_count
+                .checked_add(result.abnormal_terminated_count)
+                .ok_or_else(|| IntegratorError::NumericalInvariant("termination count".into()))?;
+            for (local, global) in indices.into_iter().enumerate() {
+                let state = result
+                    .particles
+                    .state(local)
+                    .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+                particles
+                    .set_state(global, state)
+                    .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+            }
+        }
+        Ok(StepResult {
+            particles,
+            abnormal_terminated_count,
+        })
+    }
 }
 
 /// v0 spherical midpoint integrator without random turbulence.
@@ -77,8 +152,31 @@ impl IntegratorModel for Rk2Spherical {
         input: IntegratorInput<'_>,
         context: &mut IntegratorContext<'_>,
     ) -> Result<StepResult, IntegratorError> {
-        advance_with_transport_query(input, |time, particles| {
-            query_transport(context, time, particles)
+        let count = input
+            .particles
+            .len()
+            .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+        let end_time = add_timestamp(input.time, input.step)
+            .map_err(|_| IntegratorError::NumericalInvariant("timestamp overflow".into()))?;
+        let start_times = vec![input.time; count];
+        self.advance_timed(
+            TimedIntegratorInput {
+                particles: input.particles,
+                start_times: &start_times,
+                end_time,
+            },
+            context,
+        )
+    }
+
+    fn advance_timed(
+        &self,
+        input: TimedIntegratorInput<'_>,
+        context: &mut IntegratorContext<'_>,
+    ) -> Result<StepResult, IntegratorError> {
+        let end_time = input.end_time;
+        advance_with_timed_transport_query(input, |times, particles| {
+            query_transport_at_times(context, times, particles, end_time)
         })
     }
 }
@@ -106,6 +204,7 @@ fn query_transport(
     time: Timestamp,
     particles: &[ParticleState],
 ) -> Result<Vec<VelocitySample>, IntegratorError> {
+    let _query_origin = QueryOriginScope::enter(QueryOrigin::Integrator);
     if particles.is_empty() {
         return Ok(Vec::new());
     }
@@ -155,29 +254,107 @@ fn query_transport(
                 eastward_m_s: row.eastward_wind_m_s(),
                 northward_m_s: row.northward_wind_m_s(),
                 vertical_m_s: row.geometric_vertical_velocity_m_s(),
-                boundary_bridge: match row.status() {
-                    SampleStatus::OutOfDomain => true,
-                    SampleStatus::BelowGround => row.bounds().is_some_and(|bounds| {
-                        particles[index].height_asl_m <= bounds.terrain_asl_m()
-                    }),
-                    SampleStatus::SurfaceLayerUndefined => row.bounds().is_some_and(|bounds| {
-                        particles[index].height_asl_m < bounds.minimum_transport_asl_m()
-                    }),
-                    SampleStatus::AboveAvailableTop => row.bounds().is_some_and(|bounds| {
-                        particles[index].height_asl_m > bounds.available_top_asl_m()
-                    }),
-                    SampleStatus::AboveModelTop => row.bounds().is_some_and(|bounds| {
-                        bounds
-                            .physical_model_top_asl_m()
-                            .is_some_and(|top| particles[index].height_asl_m > top)
-                    }),
-                    _ => false,
-                },
+                boundary_bridge: is_boundary_bridge_status(
+                    row.status(),
+                    row.bounds(),
+                    particles[index].height_asl_m,
+                ),
             })
         })
         .collect()
 }
 
+fn is_boundary_bridge_status(
+    status: SampleStatus,
+    bounds: Option<VerticalBounds>,
+    height_asl_m: f64,
+) -> bool {
+    match status {
+        SampleStatus::OutOfDomain => true,
+        SampleStatus::BelowGround => {
+            bounds.is_some_and(|bounds| height_asl_m <= bounds.terrain_asl_m())
+        }
+        SampleStatus::SurfaceLayerUndefined => {
+            bounds.is_some_and(|bounds| height_asl_m < bounds.minimum_transport_asl_m())
+        }
+        // Between-frame sampling can report a bracketing endpoint top exit
+        // even while the target-time blended top still contains the RK2
+        // predictor. The typed status plus bounds is sufficient to defer the
+        // proposal to the continuous boundary path; rechecking against
+        // different target-time bounds incorrectly converts it to invalid met.
+        SampleStatus::AboveAvailableTop | SampleStatus::AboveModelTop => bounds.is_some(),
+        _ => false,
+    }
+}
+
+fn query_transport_at_times(
+    context: &mut IntegratorContext<'_>,
+    times: &[Timestamp],
+    particles: &[ParticleState],
+    end_time: Timestamp,
+) -> Result<Vec<VelocitySample>, IntegratorError> {
+    if times.len() != particles.len() {
+        return Err(IntegratorError::InvalidParticleBatch);
+    }
+    let groups = ordered_transport_time_groups(times, end_time)?;
+    let mut output = vec![None; particles.len()];
+    for (time, indices) in groups {
+        let states = indices
+            .iter()
+            .map(|index| particles[*index].clone())
+            .collect::<Vec<_>>();
+        let samples = query_transport(context, time, &states)?;
+        if samples.len() != indices.len() {
+            return Err(IntegratorError::NumericalInvariant(
+                "transport output returned the wrong row count".into(),
+            ));
+        }
+        for (index, sample) in indices.into_iter().zip(samples) {
+            output[index] = Some(sample);
+        }
+    }
+    output
+        .into_iter()
+        .map(|sample| {
+            sample.ok_or_else(|| {
+                IntegratorError::NumericalInvariant("missing timed transport row".into())
+            })
+        })
+        .collect()
+}
+
+fn ordered_transport_time_groups(
+    times: &[Timestamp],
+    end_time: Timestamp,
+) -> Result<Vec<(Timestamp, Vec<usize>)>, IntegratorError> {
+    let mut direction_sign = 0_i8;
+    let mut groups = BTreeMap::<Timestamp, Vec<usize>>::new();
+    for (index, time) in times.iter().copied().enumerate() {
+        let sign = if time < end_time {
+            1
+        } else if time > end_time {
+            -1
+        } else {
+            0
+        };
+        if sign != 0 {
+            if direction_sign != 0 && direction_sign != sign {
+                return Err(IntegratorError::NumericalInvariant(
+                    "timed transport groups mix integration directions".into(),
+                ));
+            }
+            direction_sign = sign;
+        }
+        groups.entry(time).or_default().push(index);
+    }
+    let mut groups = groups.into_iter().collect::<Vec<_>>();
+    if direction_sign < 0 {
+        groups.reverse();
+    }
+    Ok(groups)
+}
+
+#[cfg(test)]
 fn advance_with_transport_query<F>(
     input: IntegratorInput<'_>,
     mut query: F,
@@ -240,6 +417,27 @@ where
         .zip(&active_states)
         .zip(start_samples)
     {
+        if sample.boundary_bridge {
+            let Some(advanced) = complete_advanced_state(
+                start.clone(),
+                start.longitude_degrees,
+                start.latitude_degrees,
+                start.height_asl_m,
+                input.step,
+            ) else {
+                terminate_particle(
+                    &mut proposal,
+                    batch_index,
+                    TerminationReason::NumericalFailure,
+                )?;
+                abnormal_terminated_count += 1;
+                continue;
+            };
+            proposal
+                .set_state(batch_index, advanced)
+                .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+            continue;
+        }
         let Some([eastward, northward, vertical]) = sample.velocity() else {
             terminate_particle(
                 &mut proposal,
@@ -375,6 +573,275 @@ where
     })
 }
 
+fn advance_with_timed_transport_query<F>(
+    input: TimedIntegratorInput<'_>,
+    mut query: F,
+) -> Result<StepResult, IntegratorError>
+where
+    F: FnMut(&[Timestamp], &[ParticleState]) -> Result<Vec<VelocitySample>, IntegratorError>,
+{
+    let count = input
+        .particles
+        .validate()
+        .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+    if input.start_times.len() != count {
+        return Err(IntegratorError::InvalidParticleBatch);
+    }
+
+    let mut proposal = input.particles.clone();
+    let mut active_indices = Vec::new();
+    let mut active_states = Vec::new();
+    let mut active_start_times = Vec::new();
+    let mut active_steps = Vec::new();
+    let mut active_seconds = Vec::new();
+    let mut direction_sign = 0_i8;
+    for (index, start_time) in input.start_times.iter().copied().enumerate() {
+        let state = input
+            .particles
+            .state(index)
+            .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+        if state.status != ParticleStatus::Alive {
+            continue;
+        }
+        let step = signed_duration_between(start_time, input.end_time)
+            .map_err(|_| IntegratorError::NumericalInvariant("timestamp overflow".into()))?;
+        if step == SignedDuration::ZERO {
+            continue;
+        }
+        let sign = if step.0 < 0 { -1 } else { 1 };
+        if direction_sign != 0 && direction_sign != sign {
+            return Err(IntegratorError::NumericalInvariant(
+                "timed batch mixes integration directions".into(),
+            ));
+        }
+        direction_sign = sign;
+        let seconds = step.0 as f64 * 1.0e-9;
+        if !seconds.is_finite() {
+            return Err(IntegratorError::NumericalInvariant(
+                "signed step cannot be represented in seconds".into(),
+            ));
+        }
+        active_indices.push(index);
+        active_states.push(state);
+        active_start_times.push(start_time);
+        active_steps.push(step);
+        active_seconds.push(seconds);
+    }
+    if active_indices.is_empty() {
+        return Ok(StepResult {
+            particles: proposal,
+            abnormal_terminated_count: 0,
+        });
+    }
+
+    let start_samples = query(&active_start_times, &active_states)?;
+    if start_samples.len() != active_states.len() {
+        return Err(IntegratorError::NumericalInvariant(
+            "start transport query returned the wrong row count".into(),
+        ));
+    }
+
+    let mut midpoint_states = Vec::new();
+    let mut midpoint_indices = Vec::new();
+    let mut midpoint_times = Vec::new();
+    let mut midpoint_steps = Vec::new();
+    let mut midpoint_seconds = Vec::new();
+    let mut midpoint_start_velocities = Vec::new();
+    let mut abnormal_terminated_count = 0;
+    for (((((batch_index, start), start_time), step), seconds), sample) in active_indices
+        .iter()
+        .copied()
+        .zip(&active_states)
+        .zip(active_start_times.iter().copied())
+        .zip(active_steps.iter().copied())
+        .zip(active_seconds.iter().copied())
+        .zip(start_samples)
+    {
+        if sample.boundary_bridge {
+            let Some(advanced) = complete_advanced_state(
+                start.clone(),
+                start.longitude_degrees,
+                start.latitude_degrees,
+                start.height_asl_m,
+                step,
+            ) else {
+                terminate_particle_at(
+                    &mut proposal,
+                    batch_index,
+                    TerminationReason::NumericalFailure,
+                    start_time,
+                )?;
+                abnormal_terminated_count += 1;
+                continue;
+            };
+            proposal
+                .set_state(batch_index, advanced)
+                .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+            continue;
+        }
+        let Some([eastward, northward, vertical]) = sample.velocity() else {
+            terminate_particle_at(
+                &mut proposal,
+                batch_index,
+                TerminationReason::InvalidMeteorology,
+                start_time,
+            )?;
+            abnormal_terminated_count += 1;
+            continue;
+        };
+        let Some((longitude, latitude)) = spherical_displacement(
+            start.longitude_degrees,
+            start.latitude_degrees,
+            eastward,
+            northward,
+            0.5 * seconds,
+        ) else {
+            terminate_particle_at(
+                &mut proposal,
+                batch_index,
+                TerminationReason::NumericalFailure,
+                start_time,
+            )?;
+            abnormal_terminated_count += 1;
+            continue;
+        };
+        let height = start.height_asl_m + 0.5 * seconds * vertical;
+        if !height.is_finite() {
+            terminate_particle_at(
+                &mut proposal,
+                batch_index,
+                TerminationReason::NumericalFailure,
+                start_time,
+            )?;
+            abnormal_terminated_count += 1;
+            continue;
+        }
+        let midpoint_step = SignedDuration(step.0 / 2);
+        let midpoint_time = checked_add_timestamp(start_time, midpoint_step.0)?;
+        let Some(midpoint) =
+            complete_advanced_state(start.clone(), longitude, latitude, height, midpoint_step)
+        else {
+            terminate_particle_at(
+                &mut proposal,
+                batch_index,
+                TerminationReason::NumericalFailure,
+                start_time,
+            )?;
+            abnormal_terminated_count += 1;
+            continue;
+        };
+        midpoint_states.push(midpoint);
+        midpoint_indices.push(batch_index);
+        midpoint_times.push(midpoint_time);
+        midpoint_steps.push(step);
+        midpoint_seconds.push(seconds);
+        midpoint_start_velocities.push([eastward, northward, vertical]);
+    }
+
+    let midpoint_samples = query(&midpoint_times, &midpoint_states)?;
+    if midpoint_samples.len() != midpoint_states.len() {
+        return Err(IntegratorError::NumericalInvariant(
+            "midpoint transport query returned the wrong row count".into(),
+        ));
+    }
+    for ((((((batch_index, midpoint), midpoint_time), step), seconds), start_velocity), sample) in
+        midpoint_indices
+            .into_iter()
+            .zip(midpoint_states)
+            .zip(midpoint_times)
+            .zip(midpoint_steps)
+            .zip(midpoint_seconds)
+            .zip(midpoint_start_velocities)
+            .zip(midpoint_samples)
+    {
+        let start = input
+            .particles
+            .state(batch_index)
+            .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+        if sample.boundary_bridge {
+            let Some((longitude, latitude)) = spherical_displacement(
+                start.longitude_degrees,
+                start.latitude_degrees,
+                start_velocity[0],
+                start_velocity[1],
+                seconds,
+            ) else {
+                terminate_particle_state_at(
+                    &mut proposal,
+                    batch_index,
+                    midpoint,
+                    TerminationReason::NumericalFailure,
+                    midpoint_time,
+                )?;
+                abnormal_terminated_count += 1;
+                continue;
+            };
+            let height = start.height_asl_m + seconds * start_velocity[2];
+            let Some(advanced) = complete_advanced_state(start, longitude, latitude, height, step)
+            else {
+                terminate_particle_state_at(
+                    &mut proposal,
+                    batch_index,
+                    midpoint,
+                    TerminationReason::NumericalFailure,
+                    midpoint_time,
+                )?;
+                abnormal_terminated_count += 1;
+                continue;
+            };
+            proposal
+                .set_state(batch_index, advanced)
+                .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+            continue;
+        }
+        let Some([eastward, northward, vertical]) = sample.velocity() else {
+            terminate_particle_state_at(
+                &mut proposal,
+                batch_index,
+                midpoint,
+                TerminationReason::InvalidMeteorology,
+                midpoint_time,
+            )?;
+            abnormal_terminated_count += 1;
+            continue;
+        };
+        let Some((longitude, latitude)) = spherical_displacement_from_midpoint_velocity(
+            &start, &midpoint, eastward, northward, seconds,
+        ) else {
+            terminate_particle_state_at(
+                &mut proposal,
+                batch_index,
+                midpoint,
+                TerminationReason::NumericalFailure,
+                midpoint_time,
+            )?;
+            abnormal_terminated_count += 1;
+            continue;
+        };
+        let height = start.height_asl_m + seconds * vertical;
+        let Some(advanced) = complete_advanced_state(start, longitude, latitude, height, step)
+        else {
+            terminate_particle_state_at(
+                &mut proposal,
+                batch_index,
+                midpoint,
+                TerminationReason::NumericalFailure,
+                midpoint_time,
+            )?;
+            abnormal_terminated_count += 1;
+            continue;
+        };
+        proposal
+            .set_state(batch_index, advanced)
+            .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+    }
+
+    Ok(StepResult {
+        particles: proposal,
+        abnormal_terminated_count,
+    })
+}
+
 fn complete_advanced_state(
     mut start: ParticleState,
     longitude_degrees: f64,
@@ -398,6 +865,7 @@ fn complete_advanced_state(
     Some(start)
 }
 
+#[cfg(test)]
 fn terminate_particle(
     particles: &mut ParticleBatch,
     index: usize,
@@ -407,6 +875,35 @@ fn terminate_particle(
         .state(index)
         .map_err(|_| IntegratorError::InvalidParticleBatch)?;
     state.status = ParticleStatus::Terminated { reason };
+    particles
+        .set_state(index, state)
+        .map_err(|_| IntegratorError::InvalidParticleBatch)
+}
+
+fn terminate_particle_at(
+    particles: &mut ParticleBatch,
+    index: usize,
+    reason: TerminationReason,
+    time: Timestamp,
+) -> Result<(), IntegratorError> {
+    let state = particles
+        .state(index)
+        .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+    terminate_particle_state_at(particles, index, state, reason, time)
+}
+
+fn terminate_particle_state_at(
+    particles: &mut ParticleBatch,
+    index: usize,
+    mut state: ParticleState,
+    reason: TerminationReason,
+    time: Timestamp,
+) -> Result<(), IntegratorError> {
+    state.status = ParticleStatus::Terminated { reason };
+    state.termination = Some(ParticleTermination {
+        time,
+        intersection_fraction: None,
+    });
     particles
         .set_state(index, state)
         .map_err(|_| IntegratorError::InvalidParticleBatch)
@@ -590,6 +1087,7 @@ mod tests {
             mass_kg: BTreeMap::new(),
             sensitivity_weight: None,
             status: ParticleStatus::Alive,
+            termination: None,
         }
     }
 
@@ -616,6 +1114,10 @@ mod tests {
                 .map(|state| state.sensitivity_weight)
                 .collect(),
             status: states.iter().map(|state| state.status.clone()).collect(),
+            termination: states
+                .iter()
+                .map(|state| state.termination.clone())
+                .collect(),
             mass: SubstanceMassStore::default(),
         }
     }
@@ -628,6 +1130,51 @@ mod tests {
             vertical_m_s: Some(vertical),
             boundary_bridge: false,
         }
+    }
+
+    #[test]
+    fn transport_time_groups_follow_forward_direction_and_preserve_row_order() {
+        let groups = ordered_transport_time_groups(
+            &[timestamp(7), timestamp(5), timestamp(7), timestamp(6)],
+            timestamp(10),
+        )
+        .unwrap();
+
+        assert_eq!(
+            groups,
+            vec![
+                (timestamp(5), vec![1]),
+                (timestamp(6), vec![3]),
+                (timestamp(7), vec![0, 2]),
+            ]
+        );
+    }
+
+    #[test]
+    fn transport_time_groups_follow_backward_direction_and_preserve_row_order() {
+        let groups = ordered_transport_time_groups(
+            &[timestamp(13), timestamp(15), timestamp(13), timestamp(14)],
+            timestamp(10),
+        )
+        .unwrap();
+
+        assert_eq!(
+            groups,
+            vec![
+                (timestamp(15), vec![1]),
+                (timestamp(14), vec![3]),
+                (timestamp(13), vec![0, 2]),
+            ]
+        );
+    }
+
+    #[test]
+    fn transport_time_groups_reject_mixed_directions() {
+        assert!(matches!(
+            ordered_transport_time_groups(&[timestamp(9), timestamp(11)], timestamp(10)),
+            Err(IntegratorError::NumericalInvariant(message))
+                if message == "timed transport groups mix integration directions"
+        ));
     }
 
     #[test]
@@ -664,6 +1211,175 @@ mod tests {
             assert_eq!(state.integration_offset_ns, expected_offset);
             assert_eq!(state.elapsed_age_ns, 10_000_000_000);
         }
+    }
+
+    #[test]
+    fn timed_cohorts_match_independent_exact_time_integrations_in_both_directions() {
+        for (starts, end) in [
+            (
+                [
+                    Timestamp::UNIX_EPOCH,
+                    Timestamp::new(0, 250_000_000).unwrap(),
+                ],
+                Timestamp::new(2, 0).unwrap(),
+            ),
+            (
+                [
+                    Timestamp::new(2, 0).unwrap(),
+                    Timestamp::new(1, 750_000_000).unwrap(),
+                ],
+                Timestamp::UNIX_EPOCH,
+            ),
+        ] {
+            let mut states = [
+                particle(1, -20.0, 30.0, 1_000.0),
+                particle(2, 40.0, -10.0, 2_000.0),
+            ];
+            states[0].birth_time = starts[0];
+            states[1].birth_time = starts[1];
+            let input_batch = batch(&states);
+            let velocity = |time: Timestamp| {
+                let seconds =
+                    time.seconds_since_unix_epoch() as f64 + f64::from(time.nanosecond()) * 1.0e-9;
+                ok(3.0 + seconds, -2.0 + 0.5 * seconds, 0.25 + seconds)
+            };
+            let timed = advance_with_timed_transport_query(
+                TimedIntegratorInput {
+                    particles: &input_batch,
+                    start_times: &starts,
+                    end_time: end,
+                },
+                |times, points| {
+                    assert_eq!(times.len(), points.len());
+                    Ok(times.iter().copied().map(velocity).collect())
+                },
+            )
+            .unwrap();
+
+            for index in 0..states.len() {
+                let step = signed_duration_between(starts[index], end).unwrap();
+                let independent = advance_with_transport_query(
+                    IntegratorInput {
+                        particles: &batch(&[states[index].clone()]),
+                        time: starts[index],
+                        step,
+                    },
+                    |time, points| Ok(vec![velocity(time); points.len()]),
+                )
+                .unwrap();
+                assert_eq!(
+                    timed.particles.state(index).unwrap(),
+                    independent.particles.state(0).unwrap()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn midpoint_failure_terminates_at_the_matching_position_time_age_and_offset() {
+        for (start, end, expected_offset, expected_height) in [
+            (
+                Timestamp::new(10, 0).unwrap(),
+                Timestamp::new(20, 0).unwrap(),
+                5_000_000_000,
+                1_010.0,
+            ),
+            (
+                Timestamp::new(20, 0).unwrap(),
+                Timestamp::new(10, 0).unwrap(),
+                -5_000_000_000,
+                990.0,
+            ),
+        ] {
+            let mut initial = particle(1, 30.0, 45.0, 1_000.0);
+            initial.birth_time = start;
+            let input_batch = batch(&[initial]);
+            let mut call = 0_u8;
+            let result = advance_with_timed_transport_query(
+                TimedIntegratorInput {
+                    particles: &input_batch,
+                    start_times: &[start],
+                    end_time: end,
+                },
+                |_times, points| {
+                    call += 1;
+                    if call == 1 {
+                        Ok(vec![ok(0.0, 0.0, 2.0); points.len()])
+                    } else {
+                        Ok(vec![
+                            VelocitySample {
+                                status: SampleStatus::NumericalFailure,
+                                eastward_m_s: None,
+                                northward_m_s: None,
+                                vertical_m_s: None,
+                                boundary_bridge: false,
+                            };
+                            points.len()
+                        ])
+                    }
+                },
+            )
+            .unwrap();
+            assert_eq!(result.abnormal_terminated_count, 1);
+            let terminated = result.particles.state(0).unwrap();
+            assert_eq!(terminated.integration_offset_ns, expected_offset);
+            assert_eq!(terminated.elapsed_age_ns, 5_000_000_000);
+            assert_eq!(terminated.height_asl_m, expected_height);
+            assert_eq!(
+                terminated.status,
+                ParticleStatus::Terminated {
+                    reason: TerminationReason::InvalidMeteorology
+                }
+            );
+            assert_eq!(
+                terminated.termination,
+                Some(ParticleTermination {
+                    time: Timestamp::new(15, 0).unwrap(),
+                    intersection_fraction: None,
+                })
+            );
+        }
+    }
+
+    #[test]
+    fn typed_start_boundary_bridge_preserves_an_alive_stationary_proposal() {
+        let start_time = Timestamp::new(10, 0).unwrap();
+        let end_time = Timestamp::new(20, 0).unwrap();
+        let mut initial = particle(1, 30.0, 45.0, 1_000.0);
+        initial.birth_time = start_time;
+        let input_batch = batch(&[initial.clone()]);
+        let mut call = 0_u8;
+        let result = advance_with_timed_transport_query(
+            TimedIntegratorInput {
+                particles: &input_batch,
+                start_times: &[start_time],
+                end_time,
+            },
+            |_times, points| {
+                call += 1;
+                if call == 1 {
+                    Ok(vec![VelocitySample {
+                        status: SampleStatus::AboveAvailableTop,
+                        eastward_m_s: None,
+                        northward_m_s: None,
+                        vertical_m_s: None,
+                        boundary_bridge: true,
+                    }])
+                } else {
+                    assert!(points.is_empty());
+                    Ok(Vec::new())
+                }
+            },
+        )
+        .unwrap();
+        assert_eq!(result.abnormal_terminated_count, 0);
+        let advanced = result.particles.state(0).unwrap();
+        assert_eq!(advanced.status, ParticleStatus::Alive);
+        assert_eq!(advanced.longitude_degrees, initial.longitude_degrees);
+        assert_eq!(advanced.latitude_degrees, initial.latitude_degrees);
+        assert_eq!(advanced.height_asl_m, initial.height_asl_m);
+        assert_eq!(advanced.integration_offset_ns, 10_000_000_000);
+        assert_eq!(advanced.elapsed_age_ns, 10_000_000_000);
     }
 
     #[test]
@@ -881,6 +1597,19 @@ mod tests {
             assert_eq!(proposed.integration_offset_ns, 10_000_000_000);
             assert_eq!(proposed.elapsed_age_ns, 10_000_000_000);
         }
+    }
+
+    #[test]
+    fn bracketing_endpoint_top_exit_is_a_boundary_bridge_inside_target_top() {
+        let bounds = VerticalBounds::new(0.0, 1.0, 1.0, 100.0, Some(100.0), 10.0, 1_000.0).unwrap();
+        for status in [SampleStatus::AboveAvailableTop, SampleStatus::AboveModelTop] {
+            assert!(is_boundary_bridge_status(status, Some(bounds), 99.0));
+        }
+        assert!(!is_boundary_bridge_status(
+            SampleStatus::NumericalFailure,
+            Some(bounds),
+            99.0
+        ));
     }
 
     fn angular_distance_degrees(left: f64, right: f64) -> f64 {

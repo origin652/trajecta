@@ -434,17 +434,59 @@ fn real_air_mass_domain_fill_three_families_forward_backward() {
 }
 
 fn run_release_replay(family: Family, case_name: &str, points: &[(f64, f64, f64)]) {
-    let fixture = fixture_directory(family);
-    let control = tempdir().unwrap();
-    let output = tempdir().unwrap();
-    let (dataset, lock_path) = build_lock(family, &fixture, control.path());
-    let domain = DomainId(family.id.into());
     let start = Timestamp::new(family.run_start, 0).unwrap();
     let horizontal_policy = if family.periodic_longitude {
         GLOBAL_PERIODIC_ID
     } else {
         LIMITED_DOMAIN_TERMINATE_ID
     };
+    run_release_replay_window(
+        family,
+        case_name,
+        start,
+        Timestamp::new(family.run_start + 1, 0).unwrap(),
+        points,
+        &[
+            SURFACE_REFLECT_ID,
+            MODEL_TOP_TERMINATE_ID,
+            horizontal_policy,
+        ],
+    );
+}
+
+fn run_release_replay_window(
+    family: Family,
+    case_name: &str,
+    start: Timestamp,
+    end: Timestamp,
+    points: &[(f64, f64, f64)],
+    boundary_policies: &[&str],
+) {
+    run_release_replay_window_with_step(
+        family,
+        case_name,
+        start,
+        end,
+        points,
+        boundary_policies,
+        300.0,
+    );
+}
+
+fn run_release_replay_window_with_step(
+    family: Family,
+    case_name: &str,
+    start: Timestamp,
+    end: Timestamp,
+    points: &[(f64, f64, f64)],
+    boundary_policies: &[&str],
+    time_step_seconds: f64,
+) {
+    let fixture = fixture_directory(family);
+    let control = tempdir().unwrap();
+    let output = tempdir().unwrap();
+    let (dataset, lock_path) = build_lock(family, &fixture, control.path());
+    let domain = DomainId(family.id.into());
     let case = ResolvedCase {
         metadata: Metadata {
             name: case_name.into(),
@@ -452,7 +494,7 @@ fn run_release_replay(family: Family, case_name: &str, points: &[(f64, f64, f64)
         },
         time: Some(TimeSpec {
             start,
-            end: Timestamp::new(family.run_start + 1, 0).unwrap(),
+            end,
             direction: Direction::Forward,
         }),
         meteorology: Some(MeteorologySpec {
@@ -495,17 +537,16 @@ fn run_release_replay(family: Family, case_name: &str, points: &[(f64, f64, f64)
         })),
         substances: Vec::new(),
         numerics: Some(NumericsSpec {
-            time_step: seconds(300.0),
+            time_step: seconds(time_step_seconds),
             integrator: IntegratorSpec {
                 model: ModelId(RK2_SPHERICAL_ID.into()),
                 parameters: BTreeMap::new(),
             },
             boundaries: BoundarySpec {
-                policies: vec![
-                    ModelId(SURFACE_REFLECT_ID.into()),
-                    ModelId(MODEL_TOP_TERMINATE_ID.into()),
-                    ModelId(horizontal_policy.into()),
-                ],
+                policies: boundary_policies
+                    .iter()
+                    .map(|policy| ModelId((*policy).into()))
+                    .collect(),
             },
             random_seed: Some(4_202),
         }),
@@ -546,6 +587,24 @@ fn run_release_replay(family: Family, case_name: &str, points: &[(f64, f64, f64)
 }
 
 #[test]
+#[ignore = "explicit real hybrid exact north-face inflow regression"]
+fn real_hybrid_north_face_inflow_boundary_replay() {
+    let policies = [
+        SURFACE_REFLECT_ID,
+        MODEL_TOP_TERMINATE_ID,
+        LIMITED_DOMAIN_TERMINATE_ID,
+    ];
+    run_release_replay_window(
+        FAMILIES[1],
+        "m4-a4-real-hybrid-north-face-inflow-replay",
+        Timestamp::new(1_543_635_969, 366_288_501).unwrap(),
+        Timestamp::new(1_543_636_200, 0).unwrap(),
+        &[(6.689_985_288_179_23, 52.75, 8_698.570_218_278_745)],
+        &policies,
+    );
+}
+
+#[test]
 #[ignore = "explicit real hybrid boundary replay"]
 fn real_hybrid_short_path_boundary_replay() {
     run_release_replay(
@@ -556,6 +615,79 @@ fn real_hybrid_short_path_boundary_replay() {
             46.309_587_272_666_5,
             1_389.278_980_462_048_1,
         )],
+    );
+}
+
+#[test]
+#[ignore = "explicit real hybrid model-top midpoint regression"]
+fn real_hybrid_model_top_midpoint_replay() {
+    run_release_replay(
+        FAMILIES[1],
+        "m4-a4-real-hybrid-model-top-midpoint-replay",
+        &[(
+            8.172_331_144_480_552,
+            51.730_204_091_220_08,
+            76_556.556_188_116_42,
+        )],
+    );
+}
+
+#[test]
+#[ignore = "explicit real hybrid restrictive transport-top start regression"]
+fn real_hybrid_restrictive_transport_top_start_replay() {
+    let policies = [
+        SURFACE_REFLECT_ID,
+        MODEL_TOP_TERMINATE_ID,
+        LIMITED_DOMAIN_TERMINATE_ID,
+    ];
+    run_release_replay_window_with_step(
+        FAMILIES[1],
+        "m4-a4-real-hybrid-restrictive-transport-top-start-replay",
+        Timestamp::new(1_543_633_800, 0).unwrap(),
+        Timestamp::new(1_543_634_400, 0).unwrap(),
+        &[(
+            8.372_693_431_490_719,
+            51.813_940_208_945_48,
+            76_533.075_598_577_81,
+        )],
+        &policies,
+        600.0,
+    );
+}
+
+#[test]
+#[ignore = "explicit real hybrid 600-second surface-reflection regressions"]
+fn real_hybrid_surface_reflection_limit_replays() {
+    let policies = [
+        SURFACE_REFLECT_ID,
+        MODEL_TOP_TERMINATE_ID,
+        LIMITED_DOMAIN_TERMINATE_ID,
+    ];
+    run_release_replay_window_with_step(
+        FAMILIES[1],
+        "m4-a4-real-hybrid-reflection-limit-replay-a",
+        Timestamp::new(1_543_635_600, 0).unwrap(),
+        Timestamp::new(1_543_636_200, 0).unwrap(),
+        &[(
+            9.297_368_921_901_256,
+            46.574_202_780_531_856,
+            1_941.573_705_363_294_5,
+        )],
+        &policies,
+        600.0,
+    );
+    run_release_replay_window_with_step(
+        FAMILIES[1],
+        "m4-a4-real-hybrid-reflection-limit-replay-b",
+        Timestamp::new(1_543_636_200, 0).unwrap(),
+        Timestamp::new(1_543_636_800, 0).unwrap(),
+        &[(
+            8.072_447_568_337_507,
+            45.529_387_782_268_62,
+            561.271_757_090_619_6,
+        )],
+        &policies,
+        600.0,
     );
 }
 

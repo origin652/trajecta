@@ -5,14 +5,132 @@
 //! cannot change LRU order, evict pinned entries, or exceed the hard budget.
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use trajecta_case::model::meteorology::DomainId;
+use trajecta_case::model::time::Timestamp;
 
 use crate::field::CapabilitySet;
 use crate::grid::CellId;
 use crate::io::inventory::LogicalFrameId;
+use crate::query::output::TransportOutput;
+use crate::query::request::{QueryBatch, TransportPlan, VerticalQuery};
 use crate::vertical::ColumnStencil;
+
+/// One-entry exact transport cache shared by windows from a live engine.
+pub(crate) type LastTransportQueryCache = Arc<Mutex<Option<CachedTransportQuery>>>;
+
+/// Pinned frame-window identity for exact transport reuse.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ExactTransportWindowKey {
+    /// Exact physical query time.
+    pub(crate) query_time: Timestamp,
+    /// Selected meteorology domain.
+    pub(crate) domain: DomainId,
+    /// Earlier pinned frame identity.
+    pub(crate) before_frame: LogicalFrameId,
+    /// Later pinned frame identity.
+    pub(crate) after_frame: LogicalFrameId,
+    /// Previous derivative-support frame identity on an exact-frame query.
+    pub(crate) previous_frame: Option<LogicalFrameId>,
+    /// Next derivative-support frame identity on an exact-frame query.
+    pub(crate) next_frame: Option<LogicalFrameId>,
+    /// IEEE-754 bits of the earlier-frame temporal weight.
+    pub(crate) before_weight_bits: u64,
+    /// IEEE-754 bits of the later-frame temporal weight.
+    pub(crate) after_weight_bits: u64,
+}
+
+/// Bit-exact request identity. Coordinates use IEEE-754 bits so `-0.0` is not
+/// silently merged with `+0.0`.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct ExactTransportCacheKey {
+    window: ExactTransportWindowKey,
+    plan: TransportPlan,
+    vertical_coordinate: VerticalQuery,
+    longitude_bits: Vec<u64>,
+    latitude_bits: Vec<u64>,
+    vertical_bits: Vec<u64>,
+}
+
+impl ExactTransportCacheKey {
+    pub(crate) fn new(
+        window: ExactTransportWindowKey,
+        plan: TransportPlan,
+        batch: &QueryBatch,
+    ) -> Self {
+        Self {
+            window,
+            plan,
+            vertical_coordinate: batch.vertical_coordinate,
+            longitude_bits: batch
+                .points
+                .longitude_degrees
+                .iter()
+                .map(|value| value.to_bits())
+                .collect(),
+            latitude_bits: batch
+                .points
+                .latitude_degrees
+                .iter()
+                .map(|value| value.to_bits())
+                .collect(),
+            vertical_bits: batch
+                .points
+                .vertical
+                .iter()
+                .map(|value| value.to_bits())
+                .collect(),
+        }
+    }
+
+    /// Returns the cached row indices when this request is an exact ordered
+    /// subset of a previous request with the same physical/plan identity.
+    pub(crate) fn selection_from_cached(&self, cached: &Self) -> Option<Vec<usize>> {
+        if self.window != cached.window
+            || self.plan != cached.plan
+            || self.vertical_coordinate != cached.vertical_coordinate
+        {
+            return None;
+        }
+        let requested_len = self.longitude_bits.len();
+        if self.latitude_bits.len() != requested_len || self.vertical_bits.len() != requested_len {
+            return None;
+        }
+        let cached_len = cached.longitude_bits.len();
+        if cached.latitude_bits.len() != cached_len
+            || cached.vertical_bits.len() != cached_len
+            || requested_len > cached_len
+        {
+            return None;
+        }
+        let mut selection = Vec::with_capacity(requested_len);
+        let mut cursor = 0;
+        for requested in 0..requested_len {
+            let mut found = None;
+            while cursor < cached_len {
+                if self.longitude_bits[requested] == cached.longitude_bits[cursor]
+                    && self.latitude_bits[requested] == cached.latitude_bits[cursor]
+                    && self.vertical_bits[requested] == cached.vertical_bits[cursor]
+                {
+                    found = Some(cursor);
+                    cursor += 1;
+                    break;
+                }
+                cursor += 1;
+            }
+            selection.push(found?);
+        }
+        Some(selection)
+    }
+}
+
+/// Cached result for the immediately preceding exact transport request.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct CachedTransportQuery {
+    pub(crate) key: ExactTransportCacheKey,
+    pub(crate) output: TransportOutput,
+}
 
 /// Hard byte budget and fixed reserved resources.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -220,35 +338,37 @@ impl ColumnCache {
                 budget_bytes: self.budget_bytes,
             },
         )?;
-        let mut candidates = self
-            .entries
-            .iter()
-            .filter(|(_, record)| Arc::strong_count(&record.entry) == 1)
-            .map(|(key, record)| (record.last_access, key.clone(), record.entry.size_bytes))
-            .collect::<Vec<_>>();
-        candidates.sort_by(|left, right| (left.0, &left.1).cmp(&(right.0, &right.1)));
-        let mut projected = required;
-        let mut evict = Vec::new();
-        for (_, candidate, bytes) in candidates {
-            if projected <= self.budget_bytes {
-                break;
+        if required > self.budget_bytes {
+            let mut candidates = self
+                .entries
+                .iter()
+                .filter(|(_, record)| Arc::strong_count(&record.entry) == 1)
+                .map(|(key, record)| (record.last_access, key.clone(), record.entry.size_bytes))
+                .collect::<Vec<_>>();
+            candidates.sort_by(|left, right| (left.0, &left.1).cmp(&(right.0, &right.1)));
+            let mut projected = required;
+            let mut evict = Vec::new();
+            for (_, candidate, bytes) in candidates {
+                if projected <= self.budget_bytes {
+                    break;
+                }
+                projected = projected.saturating_sub(bytes);
+                evict.push(candidate);
             }
-            projected = projected.saturating_sub(bytes);
-            evict.push(candidate);
-        }
-        if projected > self.budget_bytes {
-            return Err(CacheError::InsufficientBudget {
-                required_bytes: required,
-                budget_bytes: self.budget_bytes,
-            });
-        }
-        for candidate in evict {
-            if let Some(record) = self.entries.remove(&candidate) {
-                self.metrics.resident_bytes = self
-                    .metrics
-                    .resident_bytes
-                    .saturating_sub(record.entry.size_bytes);
-                self.metrics.evictions = self.metrics.evictions.saturating_add(1);
+            if projected > self.budget_bytes {
+                return Err(CacheError::InsufficientBudget {
+                    required_bytes: required,
+                    budget_bytes: self.budget_bytes,
+                });
+            }
+            for candidate in evict {
+                if let Some(record) = self.entries.remove(&candidate) {
+                    self.metrics.resident_bytes = self
+                        .metrics
+                        .resident_bytes
+                        .saturating_sub(record.entry.size_bytes);
+                    self.metrics.evictions = self.metrics.evictions.saturating_add(1);
+                }
             }
         }
         self.access_clock = self.access_clock.saturating_add(1);
@@ -457,6 +577,19 @@ mod tests {
         drop(pin0);
         assert_eq!(cache.invalidate_frame(&frame_id()), Ok(2));
         assert_eq!(cache.metrics().resident_bytes, 0);
+    }
+
+    #[test]
+    fn column_cache_grows_without_eviction_below_budget() {
+        let size = column(0.0).resident_bytes();
+        let mut cache = ColumnCache::new(size * 4);
+        for cell in 0..3 {
+            drop(cache.insert(key(cell), column(cell as f64)).unwrap());
+        }
+
+        assert_eq!(cache.len(), 3);
+        assert_eq!(cache.metrics().resident_bytes, size * 3);
+        assert_eq!(cache.metrics().evictions, 0);
     }
 
     #[test]

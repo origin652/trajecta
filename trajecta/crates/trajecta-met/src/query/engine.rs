@@ -5,7 +5,10 @@
 //! readers or providers. Callers own the parallel execution policy.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
+
+use rayon::prelude::*;
+use rayon::{ThreadPool, ThreadPoolBuilder};
 
 use trajecta_case::model::meteorology::DomainId;
 use trajecta_case::model::time::Timestamp;
@@ -23,22 +26,29 @@ use crate::frame::{
     ArrayLayout, FrameCache, FrameError, PreparedWindow, RawField, RawMetFrame, WindowManager,
 };
 use crate::grid::{
-    GridBackend, GridError, GridPoint, RegularLatLonGrid, interpolate_spherical_vector,
+    GridBackend, GridError, GridPoint, HorizontalWeights, RegularLatLonGrid,
+    interpolate_spherical_vector,
 };
 use crate::io::inventory::MetCatalog;
+use crate::performance::{PerformanceScope, PerformanceStage};
 use crate::profile::document::ProfileCatalog;
 use crate::profile::graph::ExecutionPlan;
 use crate::provenance::{
     ProvenanceError, ProvenanceId, ProvenanceRecord, ProvenanceTable, TransformRecord,
 };
 use crate::query::cache::{
-    CacheError, CacheKey, CacheMetrics, ColumnCache, MemoryBudget, PinGuard, TileCache,
+    CacheError, CacheKey, CacheMetrics, CachedTransportQuery, ColumnCache, ExactTransportCacheKey,
+    ExactTransportWindowKey, LastTransportQueryCache, MemoryBudget, PinGuard, TileCache,
 };
 use crate::query::layout::{BatchLayout, ChunkMemoryModel, LayoutError, PointPlacement};
+use crate::query::metrics::{
+    ExactQueryKey, QueryCallCounters, active_query_counters, active_query_origin,
+};
 use crate::query::output::{
-    BoundsColumn, ExplainField, ExplainHorizontalMethod, ExplainHorizontalSupport, ExplainRecord,
-    ExplainVerticalPath, ExplainVerticalSupport, FieldColumn, OutputError, QueryOutput,
-    SampleStatus, StatusColumn, TransportColumns, TransportOutput, ValidityMask, ValueColumn,
+    BoundaryQueryOutput, BoundsColumn, ExplainField, ExplainHorizontalMethod,
+    ExplainHorizontalSupport, ExplainRecord, ExplainVerticalPath, ExplainVerticalSupport,
+    FieldColumn, OutputError, QueryOutput, SampleStatus, StatusColumn, TransportColumns,
+    TransportOutput, ValidityMask, ValueColumn,
 };
 use crate::query::request::{
     ExplainMode, QueryBatch, QueryPlan, QueryPlanBuilder, QueryPlanError, QueryPlanRequest,
@@ -55,8 +65,8 @@ use crate::surface_layer::{
     project_aerodynamic_roughness_for_physics,
 };
 use crate::vertical::{
-    ColumnGeometry, ColumnRequest, ColumnStencil, NativeCoordinateKind, VerticalBounds,
-    VerticalBracket, VerticalError, VerticalTopology,
+    BoundaryColumnGeometry, ColumnGeometry, ColumnRequest, ColumnStencil, NativeCoordinateKind,
+    VerticalBounds, VerticalBracket, VerticalError, VerticalTopology,
 };
 
 /// Caller-provided parallel execution policy.
@@ -78,6 +88,38 @@ impl ExecutionContext for RayonExecutionContext {
     }
 }
 
+const PARALLEL_TRANSPORT_MIN_POINTS: usize = 256;
+
+fn execution_pool(worker_count: usize) -> Result<Arc<ThreadPool>, EngineError> {
+    static POOLS: OnceLock<Mutex<BTreeMap<usize, Arc<ThreadPool>>>> = OnceLock::new();
+
+    let pools = POOLS.get_or_init(|| Mutex::new(BTreeMap::new()));
+    if let Some(pool) = pools
+        .lock()
+        .map_err(|_| EngineError::ExecutionPoolUnavailable)?
+        .get(&worker_count)
+        .cloned()
+    {
+        return Ok(pool);
+    }
+
+    let pool = Arc::new(
+        ThreadPoolBuilder::new()
+            .num_threads(worker_count)
+            .thread_name(move |index| format!("trajecta-met-{worker_count}-{index}"))
+            .build()
+            .map_err(|_| EngineError::ExecutionPoolUnavailable)?,
+    );
+    let mut guard = pools
+        .lock()
+        .map_err(|_| EngineError::ExecutionPoolUnavailable)?;
+    Ok(Arc::clone(
+        guard
+            .entry(worker_count)
+            .or_insert_with(|| Arc::clone(&pool)),
+    ))
+}
+
 /// Reusable caller-owned scratch buffers.
 #[derive(Clone, Debug, Default)]
 pub struct BatchWorkspace {
@@ -85,6 +127,28 @@ pub struct BatchWorkspace {
     pub floating: Vec<f64>,
     /// Reusable integer scratch.
     pub indices: Vec<usize>,
+    boundary_stencils: BoundaryStencilSession,
+}
+
+#[derive(Clone, Debug, Default)]
+struct BoundaryStencilSession {
+    entries: BTreeMap<CacheKey, PinGuard<ColumnStencil>>,
+    resident_bytes: u64,
+}
+
+impl BoundaryStencilSession {
+    fn insert(&mut self, key: CacheKey, pin: PinGuard<ColumnStencil>) {
+        if self.entries.contains_key(&key) {
+            return;
+        }
+        self.resident_bytes = self.resident_bytes.saturating_add(pin.size_bytes());
+        self.entries.insert(key, pin);
+    }
+
+    fn clear(&mut self) {
+        self.entries.clear();
+        self.resident_bytes = 0;
+    }
 }
 
 /// Immutable configuration required to construct a meteorology engine.
@@ -111,6 +175,7 @@ pub struct MetEngine {
     frame_cache: FrameCache,
     column_cache: Arc<Mutex<ColumnCache>>,
     tile_cache: TileCache,
+    last_transport_query: LastTransportQueryCache,
     memory_budget: MemoryBudget,
 }
 
@@ -129,6 +194,7 @@ impl MetEngine {
                 config.memory_budget.dynamic_bytes(),
             ))),
             tile_cache: TileCache::default(),
+            last_transport_query: Arc::new(Mutex::new(None)),
             memory_budget: config.memory_budget,
         }
     }
@@ -149,17 +215,23 @@ impl MetEngine {
         time: Timestamp,
         domain: &DomainId,
     ) -> Result<PreparedWindow, EngineError> {
+        let _performance = PerformanceScope::enter(PerformanceStage::MetWindowPrepare);
         let frames = self.frame_cache.frames_for_domain(domain);
         let mut window = self
             .window_manager
             .prepare_from_sorted_frames(time, &frames, self.memory_budget.dynamic_bytes())
             .map_err(EngineError::Frame)?;
         window.attach_column_cache(&self.column_cache);
+        window.attach_transport_cache(&self.last_transport_query);
         Ok(window)
     }
 
     /// Publishes one already-loaded immutable frame into the engine cache.
     pub fn cache_frame(&mut self, frame: Arc<RawMetFrame>) -> Result<(), EngineError> {
+        *self
+            .last_transport_query
+            .lock()
+            .map_err(|_| EngineError::TransportCachePoisoned)? = None;
         self.frame_cache
             .insert(frame)
             .map(|_| ())
@@ -281,7 +353,19 @@ impl PreparedWindow {
             initial_status.len(),
             plan,
             stencils.resident_bytes,
+            0,
         )?;
+        let query_counter = active_query_counters();
+        let query_origin = active_query_origin();
+        let exact_query_key = query_counter.as_ref().map(|counter| {
+            counter.record_logical_request(
+                query_origin,
+                self.query_time,
+                &self.frames.before.metadata().domain,
+                plan,
+                &batch,
+            )
+        });
         Ok(PreparedBatch {
             plan: plan.clone(),
             window: self.clone(),
@@ -289,6 +373,8 @@ impl PreparedWindow {
             layout,
             initial_status,
             stencils,
+            query_counter,
+            exact_query_key,
         })
     }
 
@@ -316,7 +402,37 @@ impl PreparedWindow {
             initial_status.len(),
             plan.query_plan(),
             stencils.resident_bytes,
+            u64::try_from(std::mem::size_of::<Result<TransportPointResult, EngineError>>())
+                .map_err(|_| EngineError::MemoryEstimateOverflow)?,
         )?;
+        let query_counter = active_query_counters();
+        let query_origin = active_query_origin();
+        let exact_query_key = query_counter.as_ref().map(|counter| {
+            counter.record_logical_request(
+                query_origin,
+                self.query_time,
+                &self.frames.before.metadata().domain,
+                plan.query_plan(),
+                &batch,
+            )
+        });
+        let transport_cache_key = ExactTransportCacheKey::new(
+            ExactTransportWindowKey {
+                query_time: self.query_time,
+                domain: self.frames.before.metadata().domain.clone(),
+                before_frame: self.frames.before.metadata().id.clone(),
+                after_frame: self.frames.after.metadata().id.clone(),
+                previous_frame: self
+                    .previous
+                    .as_ref()
+                    .map(|frame| frame.metadata().id.clone()),
+                next_frame: self.next.as_ref().map(|frame| frame.metadata().id.clone()),
+                before_weight_bits: self.before_weight.to_bits(),
+                after_weight_bits: self.after_weight.to_bits(),
+            },
+            plan.clone(),
+            &batch,
+        );
         Ok(PreparedTransportBatch {
             plan: plan.clone(),
             window: self.clone(),
@@ -324,7 +440,174 @@ impl PreparedWindow {
             layout,
             initial_status,
             stencils,
+            query_counter,
+            exact_query_key,
+            transport_cache: self.transport_cache(),
+            transport_cache_key,
+            populate_transport_cache: query_origin.populates_transport_cache(),
         })
+    }
+
+    /// Pins the minimal I/O-free geometry required by continuous boundaries.
+    ///
+    /// Unlike complete transport preparation, this does not pin derivative
+    /// frames used only by geometric vertical velocity.
+    pub fn prepare_boundary_batch(
+        &self,
+        plan: &TransportPlan,
+        batch: QueryBatch,
+        workspace: &mut BatchWorkspace,
+    ) -> Result<PreparedBoundaryBatch, EngineError> {
+        batch.validate().map_err(EngineError::QueryPlan)?;
+        let (placements, initial_status) = locate_points(self, &batch)?;
+        let stencils = prepare_boundary_stencils(
+            self,
+            &batch,
+            &placements,
+            plan.query_plan().capabilities(),
+            workspace,
+        )?;
+        let layout = prepare_layout(
+            self,
+            placements,
+            initial_status.len(),
+            plan.query_plan(),
+            stencils.resident_bytes,
+            0,
+        )?;
+        let non_cache_execution_bytes = layout
+            .chunks
+            .maximum_chunk_bytes
+            .saturating_sub(stencils.resident_bytes);
+        finalize_boundary_stencil_session(self, workspace, &stencils, non_cache_execution_bytes)?;
+        let query_counter = active_query_counters();
+        let query_origin = active_query_origin();
+        let exact_query_key = query_counter.as_ref().map(|counter| {
+            counter.record_logical_request(
+                query_origin,
+                self.query_time,
+                &self.frames.before.metadata().domain,
+                plan.query_plan(),
+                &batch,
+            )
+        });
+        Ok(PreparedBoundaryBatch {
+            plan: plan.clone(),
+            window: self.clone(),
+            batch,
+            layout,
+            initial_status,
+            stencils,
+            query_counter,
+            exact_query_key,
+        })
+    }
+
+    /// Executes one minimal boundary batch directly from this pinned window.
+    ///
+    /// This is the scalar/small-batch production path used by continuous
+    /// boundary root finding. It preserves the prepared-query I/O boundary but
+    /// avoids constructing a general grouped `BatchLayout` for one or four
+    /// points.
+    pub fn query_boundary_batch(
+        &self,
+        plan: &TransportPlan,
+        batch: QueryBatch,
+        context: &dyn ExecutionContext,
+        workspace: &mut BatchWorkspace,
+    ) -> Result<BoundaryQueryOutput, EngineError> {
+        let _query_performance = PerformanceScope::enter(PerformanceStage::BoundaryQueryTotal);
+        batch.validate().map_err(EngineError::QueryPlan)?;
+        if context.worker_count() == 0 {
+            return Err(EngineError::InvalidExecutionContext);
+        }
+        let (placements, mut status, horizontal_support) = {
+            let _performance = PerformanceScope::enter(PerformanceStage::BoundaryGridLocate);
+            locate_boundary_points(self, &batch)?
+        };
+        let stencils = {
+            let _performance = PerformanceScope::enter(PerformanceStage::BoundaryStencilPrepare);
+            prepare_boundary_stencils(
+                self,
+                &batch,
+                &placements,
+                plan.query_plan().capabilities(),
+                workspace,
+            )?
+        };
+        let non_cache_execution_bytes = boundary_direct_execution_bytes(&stencils, status.len())?;
+        if stencils
+            .resident_bytes
+            .checked_add(non_cache_execution_bytes)
+            .is_none_or(|required| required > self.execution_budget_bytes)
+        {
+            return Err(EngineError::Layout(LayoutError::InsufficientMemory {
+                required_bytes: stencils
+                    .resident_bytes
+                    .saturating_add(non_cache_execution_bytes),
+                budget_bytes: self.execution_budget_bytes,
+            }));
+        }
+        {
+            let _performance = PerformanceScope::enter(PerformanceStage::BoundaryStencilPrepare);
+            finalize_boundary_stencil_session(
+                self,
+                workspace,
+                &stencils,
+                non_cache_execution_bytes,
+            )?;
+        }
+        let query_counter = active_query_counters();
+        let query_origin = active_query_origin();
+        let exact_query_key = query_counter.as_ref().map(|counter| {
+            counter.record_logical_request(
+                query_origin,
+                self.query_time,
+                &self.frames.before.metadata().domain,
+                plan.query_plan(),
+                &batch,
+            )
+        });
+        if let (Some(counter), Some(key)) = (&query_counter, exact_query_key) {
+            counter.record_execution(key);
+        }
+        let point_count = status.len();
+        let mut bounds = vec![None; point_count];
+        let mut terrain_height_asl_m = vec![None; point_count];
+        for placement in placements {
+            let weights = horizontal_support
+                .get(placement.original_index)
+                .copied()
+                .flatten()
+                .ok_or(EngineError::InvalidPreparedState)?;
+            match sample_boundary_point_with_weights(
+                self,
+                &stencils,
+                &batch,
+                placement.cell,
+                placement.original_index,
+                weights,
+            ) {
+                Ok(point) => {
+                    status[placement.original_index] = point.status;
+                    bounds[placement.original_index] = Some(point.bounds);
+                    terrain_height_asl_m[placement.original_index] = point.terrain_height_asl_m;
+                }
+                Err(error) => {
+                    if let Some(local_status) = local_status_for_error(&error) {
+                        status[placement.original_index] = local_status;
+                    } else {
+                        return Err(error);
+                    }
+                }
+            }
+        }
+        BoundaryQueryOutput::new(
+            StatusColumn::new(status),
+            BoundsColumn::new(bounds),
+            terrain_height_asl_m,
+        )
+        .map_err(EngineError::Output)
     }
 }
 
@@ -357,12 +640,52 @@ fn locate_points(
     Ok((placements, initial_status))
 }
 
+type BoundaryPointLocations = (
+    Vec<PointPlacement>,
+    Vec<SampleStatus>,
+    Vec<Option<HorizontalWeights>>,
+);
+
+fn locate_boundary_points(
+    window: &PreparedWindow,
+    batch: &QueryBatch,
+) -> Result<BoundaryPointLocations, EngineError> {
+    let point_count = batch.points.len().map_err(EngineError::QueryPlan)?;
+    let grid = RegularLatLonGrid::new(window.frames.before.metadata().grid.clone())
+        .map_err(EngineError::Grid)?;
+    let mut placements = Vec::with_capacity(point_count);
+    let mut initial_status = vec![SampleStatus::Ok; point_count];
+    let mut horizontal_support = vec![None; point_count];
+    for (index, status) in initial_status.iter_mut().enumerate() {
+        let longitude = batch.points.longitude_degrees[index];
+        let latitude = batch.points.latitude_degrees[index];
+        match grid.locate_cell_and_weights(longitude, latitude) {
+            Ok((cell, weights)) => {
+                placements.push(PointPlacement {
+                    original_index: index,
+                    domain: window.frames.before.metadata().domain.clone(),
+                    cell,
+                    tile_id: cell.0,
+                });
+                horizontal_support[index] = Some(weights);
+            }
+            Err(GridError::OutOfDomain) => *status = SampleStatus::OutOfDomain,
+            Err(GridError::PolarSingularity) => {
+                *status = SampleStatus::PolarSingularity;
+            }
+            Err(error) => return Err(EngineError::Grid(error)),
+        }
+    }
+    Ok((placements, initial_status, horizontal_support))
+}
+
 fn prepare_layout(
     window: &PreparedWindow,
     placements: Vec<PointPlacement>,
     point_count: usize,
     plan: &QueryPlan,
     fixed_bytes: u64,
+    execution_scratch_bytes_per_point: u64,
 ) -> Result<BatchLayout, EngineError> {
     let field_count = plan.fields().len();
     let field_bytes = u64::try_from(field_count)
@@ -399,6 +722,7 @@ fn prepare_layout(
     let bytes_per_point = 96_u64
         .checked_add(field_bytes)
         .and_then(|value| value.checked_add(explain_bytes))
+        .and_then(|value| value.checked_add(execution_scratch_bytes_per_point))
         .ok_or(EngineError::MemoryEstimateOverflow)?;
     let layout = BatchLayout::build(
         point_count,
@@ -446,56 +770,17 @@ fn prepare_stencils(
         .column_cache()
         .ok_or(EngineError::ColumnCacheUnavailable)?;
     let mut cache = cache.lock().map_err(|_| EngineError::ColumnCachePoisoned)?;
-    let representatives = placements.iter().fold(
-        BTreeMap::<crate::grid::CellId, usize>::new(),
-        |mut values, placement| {
-            values
-                .entry(placement.cell)
-                .or_insert(placement.original_index);
-            values
-        },
-    );
-    let mut frames = vec![window.frames.before.clone()];
-    if window.frames.after.metadata().id != window.frames.before.metadata().id {
-        frames.push(window.frames.after.clone());
-    }
-    if include_derivative_frames {
-        if let Some(frame) = &window.previous {
-            frames.push(frame.clone());
-        }
-        if let Some(frame) = &window.next {
-            frames.push(frame.clone());
-        }
-    }
-    let mut seen = BTreeSet::new();
-    frames.retain(|frame| seen.insert(frame.metadata().id.clone()));
+    let representatives = stencil_representatives(placements);
+    let frames = stencil_frames(window, include_derivative_frames);
     let mut prepared = PreparedStencils::default();
     for frame in frames {
         let mut by_cell = BTreeMap::new();
-        let topology = match &frame.metadata().vertical {
-            VerticalTopology::HybridPressure(_) => "hybrid",
-            VerticalTopology::PressureLevels(_) => "pressure",
-        };
         for (cell, original_index) in &representatives {
-            let key = CacheKey {
-                frame: frame.metadata().id.clone(),
-                domain: frame.metadata().domain.clone(),
-                cell: *cell,
-                capabilities,
-                algorithm: format!("{M3_MET_QUERY_ALGORITHM_ID}/column_stencil/{topology}"),
-            };
+            let key = stencil_cache_key(&frame, *cell, capabilities);
             let pin = if let Some(pin) = cache.get(&key) {
                 pin
             } else {
-                let stencil = Arc::new(
-                    ColumnStencil::build(ColumnRequest {
-                        frame: &frame,
-                        cell: *cell,
-                        longitude_degrees: batch.points.longitude_degrees[*original_index],
-                        latitude_degrees: batch.points.latitude_degrees[*original_index],
-                    })
-                    .map_err(EngineError::Vertical)?,
-                );
+                let stencil = build_column_stencil(&frame, *cell, *original_index, batch)?;
                 cache.insert(key, stencil).map_err(EngineError::Cache)?
             };
             prepared.resident_bytes = prepared
@@ -513,6 +798,232 @@ fn prepare_stencils(
         .trim_unpinned_to(prepared.resident_bytes)
         .map_err(EngineError::Cache)?;
     Ok(prepared)
+}
+
+fn stencil_representatives(placements: &[PointPlacement]) -> BTreeMap<crate::grid::CellId, usize> {
+    placements.iter().fold(
+        BTreeMap::<crate::grid::CellId, usize>::new(),
+        |mut values, placement| {
+            values
+                .entry(placement.cell)
+                .or_insert(placement.original_index);
+            values
+        },
+    )
+}
+
+fn stencil_frames(
+    window: &PreparedWindow,
+    include_derivative_frames: bool,
+) -> Vec<Arc<RawMetFrame>> {
+    let mut frames = vec![window.frames.before.clone()];
+    if window.frames.after.metadata().id != window.frames.before.metadata().id {
+        frames.push(window.frames.after.clone());
+    }
+    if include_derivative_frames {
+        if let Some(frame) = &window.previous {
+            frames.push(frame.clone());
+        }
+        if let Some(frame) = &window.next {
+            frames.push(frame.clone());
+        }
+    }
+    let mut seen = BTreeSet::new();
+    frames.retain(|frame| seen.insert(frame.metadata().id.clone()));
+    frames
+}
+
+fn stencil_cache_key(
+    frame: &RawMetFrame,
+    cell: crate::grid::CellId,
+    capabilities: crate::field::CapabilitySet,
+) -> CacheKey {
+    let topology = match &frame.metadata().vertical {
+        VerticalTopology::HybridPressure(_) => "hybrid",
+        VerticalTopology::PressureLevels(_) => "pressure",
+    };
+    CacheKey {
+        frame: frame.metadata().id.clone(),
+        domain: frame.metadata().domain.clone(),
+        cell,
+        capabilities,
+        algorithm: format!("{M3_MET_QUERY_ALGORITHM_ID}/column_stencil/{topology}"),
+    }
+}
+
+fn build_column_stencil(
+    frame: &RawMetFrame,
+    cell: crate::grid::CellId,
+    original_index: usize,
+    batch: &QueryBatch,
+) -> Result<Arc<ColumnStencil>, EngineError> {
+    let _performance = PerformanceScope::enter(PerformanceStage::ColumnStencilBuild);
+    ColumnStencil::build(ColumnRequest {
+        frame,
+        cell,
+        longitude_degrees: batch.points.longitude_degrees[original_index],
+        latitude_degrees: batch.points.latitude_degrees[original_index],
+    })
+    .map(Arc::new)
+    .map_err(EngineError::Vertical)
+}
+
+fn prepare_boundary_stencils(
+    window: &PreparedWindow,
+    batch: &QueryBatch,
+    placements: &[PointPlacement],
+    capabilities: crate::field::CapabilitySet,
+    workspace: &mut BatchWorkspace,
+) -> Result<PreparedStencils, EngineError> {
+    match prepare_boundary_stencils_once(window, batch, placements, capabilities, workspace) {
+        Err(EngineError::Cache(CacheError::InsufficientBudget { .. })) => {
+            workspace.boundary_stencils.clear();
+            prepare_boundary_stencils_once(window, batch, placements, capabilities, workspace)
+        }
+        result => result,
+    }
+}
+
+fn prepare_boundary_stencils_once(
+    window: &PreparedWindow,
+    batch: &QueryBatch,
+    placements: &[PointPlacement],
+    capabilities: crate::field::CapabilitySet,
+    workspace: &mut BatchWorkspace,
+) -> Result<PreparedStencils, EngineError> {
+    let representatives = stencil_representatives(placements);
+    let requirements = stencil_frames(window, false)
+        .into_iter()
+        .flat_map(|frame| {
+            representatives.iter().map(move |(cell, original_index)| {
+                let key = stencil_cache_key(&frame, *cell, capabilities);
+                (frame.clone(), *cell, *original_index, key)
+            })
+        })
+        .collect::<Vec<_>>();
+    if requirements
+        .iter()
+        .any(|(_, _, _, key)| !workspace.boundary_stencils.entries.contains_key(key))
+    {
+        let cache = window
+            .column_cache()
+            .ok_or(EngineError::ColumnCacheUnavailable)?;
+        let wait = PerformanceScope::enter(PerformanceStage::ColumnCacheLockWait);
+        let mut cache = cache.lock().map_err(|_| EngineError::ColumnCachePoisoned)?;
+        drop(wait);
+        let _hold = PerformanceScope::enter(PerformanceStage::ColumnCacheLockHold);
+        for (frame, cell, original_index, key) in &requirements {
+            if workspace.boundary_stencils.entries.contains_key(key) {
+                continue;
+            }
+            let pin = if let Some(pin) = cache.get(key) {
+                pin
+            } else {
+                let stencil = build_column_stencil(frame, *cell, *original_index, batch)?;
+                cache
+                    .insert(key.clone(), stencil)
+                    .map_err(EngineError::Cache)?
+            };
+            workspace.boundary_stencils.insert(key.clone(), pin);
+        }
+    }
+    let mut prepared = PreparedStencils::default();
+    for (frame, cell, _, key) in requirements {
+        let pin = workspace
+            .boundary_stencils
+            .entries
+            .get(&key)
+            .cloned()
+            .ok_or(EngineError::InvalidPreparedState)?;
+        prepared.resident_bytes = prepared
+            .resident_bytes
+            .checked_add(pin.size_bytes())
+            .ok_or(EngineError::MemoryEstimateOverflow)?;
+        prepared
+            .by_frame
+            .entry(frame.metadata().id.clone())
+            .or_insert_with(|| PreparedFrameStencils {
+                frame: frame.clone(),
+                by_cell: BTreeMap::new(),
+            })
+            .by_cell
+            .insert(cell, pin);
+    }
+    Ok(prepared)
+}
+
+fn finalize_boundary_stencil_session(
+    window: &PreparedWindow,
+    workspace: &mut BatchWorkspace,
+    stencils: &PreparedStencils,
+    non_cache_execution_bytes: u64,
+) -> Result<(), EngineError> {
+    let required_bytes = stencils
+        .resident_bytes
+        .checked_add(non_cache_execution_bytes)
+        .ok_or(EngineError::MemoryEstimateOverflow)?;
+    if required_bytes > window.execution_budget_bytes {
+        return Err(EngineError::Layout(LayoutError::InsufficientMemory {
+            required_bytes,
+            budget_bytes: window.execution_budget_bytes,
+        }));
+    }
+    let allowed_cache_bytes = window
+        .execution_budget_bytes
+        .saturating_sub(non_cache_execution_bytes);
+    if workspace.boundary_stencils.resident_bytes > allowed_cache_bytes {
+        workspace.boundary_stencils.clear();
+    }
+    // Retain exact-key stencils from earlier boundary paths whenever the
+    // current execution scratch leaves room for them. The cache itself owns
+    // these bytes, so trimming it to the full remaining execution allowance
+    // preserves the hard budget without discarding reusable unpinned entries.
+    let target_bytes = allowed_cache_bytes;
+    let cache = window
+        .column_cache()
+        .ok_or(EngineError::ColumnCacheUnavailable)?;
+    let wait = PerformanceScope::enter(PerformanceStage::ColumnCacheLockWait);
+    let mut cache = cache.lock().map_err(|_| EngineError::ColumnCachePoisoned)?;
+    drop(wait);
+    let _hold = PerformanceScope::enter(PerformanceStage::ColumnCacheLockHold);
+    cache
+        .trim_unpinned_to(target_bytes)
+        .map(|_| ())
+        .map_err(EngineError::Cache)
+}
+
+fn boundary_direct_execution_bytes(
+    stencils: &PreparedStencils,
+    point_count: usize,
+) -> Result<u64, EngineError> {
+    let maximum_levels = stencils
+        .by_frame
+        .values()
+        .flat_map(|frame| frame.by_cell.values())
+        .map(|pin| pin.value().level_count())
+        .max()
+        .unwrap_or(0);
+    // At most before, after, and blended boundary columns coexist. Each level
+    // carries two f64 values plus one validity byte; 64 bytes/level is a
+    // conservative allocation/accounting ceiling including Vec capacity.
+    let column_scratch = u64::try_from(maximum_levels)
+        .ok()
+        .and_then(|levels| levels.checked_mul(64))
+        .ok_or(EngineError::MemoryEstimateOverflow)?;
+    let point_bytes = std::mem::size_of::<PointPlacement>()
+        .saturating_add(std::mem::size_of::<Option<HorizontalWeights>>())
+        .saturating_add(std::mem::size_of::<SampleStatus>() * 2)
+        .saturating_add(std::mem::size_of::<Option<VerticalBounds>>())
+        .saturating_add(std::mem::size_of::<Option<f64>>())
+        .saturating_add(64);
+    let output_scratch = u64::try_from(point_count)
+        .ok()
+        .and_then(|points| points.checked_mul(u64::try_from(point_bytes).ok()?))
+        .ok_or(EngineError::MemoryEstimateOverflow)?;
+    4_096_u64
+        .checked_add(column_scratch)
+        .and_then(|bytes| bytes.checked_add(output_scratch))
+        .ok_or(EngineError::MemoryEstimateOverflow)
 }
 
 const TRANSPORT_FIELD_COUNT: usize = 8;
@@ -578,6 +1089,13 @@ struct TransportPointResult {
     bounds: Option<VerticalBounds>,
 }
 
+#[derive(Clone, Copy, Debug)]
+struct BoundaryPointResult {
+    status: SampleStatus,
+    bounds: VerticalBounds,
+    terrain_height_asl_m: Option<f64>,
+}
+
 impl TransportPointResult {
     fn invalid(
         status: SampleStatus,
@@ -616,6 +1134,32 @@ impl PreparedFrameStencils {
                 longitude_degrees,
                 latitude_degrees,
             })
+            .map_err(EngineError::Vertical)
+    }
+
+    fn boundary_column(
+        &self,
+        cell: crate::grid::CellId,
+        longitude_degrees: f64,
+        latitude_degrees: f64,
+    ) -> Result<BoundaryColumnGeometry, EngineError> {
+        self.stencil(cell)?
+            .sample_boundary(ColumnRequest {
+                frame: &self.frame,
+                cell,
+                longitude_degrees,
+                latitude_degrees,
+            })
+            .map_err(EngineError::Vertical)
+    }
+
+    fn boundary_column_with_weights(
+        &self,
+        cell: crate::grid::CellId,
+        weights: HorizontalWeights,
+    ) -> Result<BoundaryColumnGeometry, EngineError> {
+        self.stencil(cell)?
+            .sample_boundary_with_weights(&self.frame.metadata().id, cell, weights)
             .map_err(EngineError::Vertical)
     }
 }
@@ -728,27 +1272,172 @@ fn blend_columns(
     .map_err(EngineError::Vertical)
 }
 
+struct TargetColumnGeometry {
+    geometry: ColumnGeometry,
+    restrictive_transport_top_asl_m: f64,
+    restrictive_transport_top_pressure_pa: f64,
+}
+
 fn target_column(
     window: &PreparedWindow,
     stencils: &PreparedStencils,
     cell: crate::grid::CellId,
     longitude_degrees: f64,
     latitude_degrees: f64,
-) -> Result<ColumnGeometry, EngineError> {
+) -> Result<TargetColumnGeometry, EngineError> {
     let before = frame_stencils(stencils, &window.frames.before)?.column(
         cell,
         longitude_degrees,
         latitude_degrees,
     )?;
     if window.is_exact_frame() {
-        return Ok(before);
+        let top = before
+            .available_top_index()
+            .map_err(EngineError::Vertical)?;
+        return Ok(TargetColumnGeometry {
+            restrictive_transport_top_asl_m: before.height_asl_m()[top],
+            restrictive_transport_top_pressure_pa: before.pressure_pa()[top],
+            geometry: before,
+        });
     }
     let after = frame_stencils(stencils, &window.frames.after)?.column(
         cell,
         longitude_degrees,
         latitude_degrees,
     )?;
-    blend_columns(&before, &after, window)
+    let geometry = blend_columns(&before, &after, window)?;
+    let top = geometry
+        .available_top_index()
+        .map_err(EngineError::Vertical)?;
+    Ok(TargetColumnGeometry {
+        restrictive_transport_top_asl_m: before.height_asl_m()[top].min(after.height_asl_m()[top]),
+        restrictive_transport_top_pressure_pa: before.pressure_pa()[top]
+            .max(after.pressure_pa()[top]),
+        geometry,
+    })
+}
+
+fn blend_boundary_columns(
+    before: &BoundaryColumnGeometry,
+    after: &BoundaryColumnGeometry,
+    window: &PreparedWindow,
+) -> Result<BoundaryColumnGeometry, EngineError> {
+    if before.pressure_pa().len() != after.pressure_pa().len() {
+        return Err(EngineError::InvalidPreparedState);
+    }
+    if window.is_exact_frame() {
+        return Ok(before.clone());
+    }
+    let levels = before.pressure_pa().len();
+    let mut pressure_pa = Vec::with_capacity(levels);
+    let mut height_asl_m = Vec::with_capacity(levels);
+    let mut valid = Vec::with_capacity(levels);
+    for level in 0..levels {
+        pressure_pa.push(blend_value(
+            before.pressure_pa()[level],
+            after.pressure_pa()[level],
+            window,
+        )?);
+        height_asl_m.push(blend_value(
+            before.height_asl_m()[level],
+            after.height_asl_m()[level],
+            window,
+        )?);
+        valid.push(before.validity()[level] && after.validity()[level]);
+    }
+    let physical_top = match (
+        before.physical_model_top_asl_m(),
+        after.physical_model_top_asl_m(),
+    ) {
+        (Some(left), Some(right)) => Some(blend_value(left, right, window)?),
+        _ => None,
+    };
+    BoundaryColumnGeometry::new(
+        pressure_pa,
+        height_asl_m,
+        valid,
+        blend_value(before.terrain_asl_m(), after.terrain_asl_m(), window)?,
+        blend_value(
+            before.surface_pressure_pa(),
+            after.surface_pressure_pa(),
+            window,
+        )?,
+        physical_top,
+    )
+    .map_err(EngineError::Vertical)
+}
+
+struct TargetBoundaryColumnGeometry {
+    geometry: BoundaryColumnGeometry,
+    restrictive_transport_top_asl_m: f64,
+    restrictive_transport_top_pressure_pa: f64,
+}
+
+fn target_boundary_column(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+) -> Result<TargetBoundaryColumnGeometry, EngineError> {
+    let before = frame_stencils(stencils, &window.frames.before)?.boundary_column(
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    if window.is_exact_frame() {
+        let top = before.first_valid_index().map_err(EngineError::Vertical)?;
+        return Ok(TargetBoundaryColumnGeometry {
+            restrictive_transport_top_asl_m: before.height_asl_m()[top],
+            restrictive_transport_top_pressure_pa: before.pressure_pa()[top],
+            geometry: before,
+        });
+    }
+    let after = frame_stencils(stencils, &window.frames.after)?.boundary_column(
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    let geometry = blend_boundary_columns(&before, &after, window)?;
+    let top = geometry
+        .first_valid_index()
+        .map_err(EngineError::Vertical)?;
+    Ok(TargetBoundaryColumnGeometry {
+        restrictive_transport_top_asl_m: before.height_asl_m()[top].min(after.height_asl_m()[top]),
+        restrictive_transport_top_pressure_pa: before.pressure_pa()[top]
+            .max(after.pressure_pa()[top]),
+        geometry,
+    })
+}
+
+fn target_boundary_column_with_weights(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    cell: crate::grid::CellId,
+    weights: HorizontalWeights,
+) -> Result<TargetBoundaryColumnGeometry, EngineError> {
+    let before = frame_stencils(stencils, &window.frames.before)?
+        .boundary_column_with_weights(cell, weights)?;
+    if window.is_exact_frame() {
+        let top = before.first_valid_index().map_err(EngineError::Vertical)?;
+        return Ok(TargetBoundaryColumnGeometry {
+            restrictive_transport_top_asl_m: before.height_asl_m()[top],
+            restrictive_transport_top_pressure_pa: before.pressure_pa()[top],
+            geometry: before,
+        });
+    }
+    let after = frame_stencils(stencils, &window.frames.after)?
+        .boundary_column_with_weights(cell, weights)?;
+    let geometry = blend_boundary_columns(&before, &after, window)?;
+    let top = geometry
+        .first_valid_index()
+        .map_err(EngineError::Vertical)?;
+    Ok(TargetBoundaryColumnGeometry {
+        restrictive_transport_top_asl_m: before.height_asl_m()[top].min(after.height_asl_m()[top]),
+        restrictive_transport_top_pressure_pa: before.pressure_pa()[top]
+            .max(after.pressure_pa()[top]),
+        geometry,
+    })
 }
 
 fn vertical_bracket(
@@ -997,11 +1686,6 @@ fn sample_surface_scalar_frame(
     latitude_degrees: f64,
     field: CanonicalField,
 ) -> Result<f64, EngineError> {
-    let source = frame_stencils
-        .frame
-        .fields()
-        .get(&FieldKey::Canonical(field))
-        .ok_or(EngineError::MissingField(FieldKey::Canonical(field)))?;
     let grid = RegularLatLonGrid::new(frame_stencils.frame.metadata().grid.clone())
         .map_err(EngineError::Grid)?;
     let weights = grid
@@ -1011,10 +1695,26 @@ fn sample_surface_scalar_frame(
         .locate_cell(longitude_degrees, latitude_degrees)
         .map_err(EngineError::Grid)?
         != cell
-        || weights.points != *frame_stencils.stencil(cell)?.points()
     {
         return Err(EngineError::InvalidPreparedState);
     }
+    sample_surface_scalar_frame_with_weights(frame_stencils, cell, weights, field)
+}
+
+fn sample_surface_scalar_frame_with_weights(
+    frame_stencils: &PreparedFrameStencils,
+    cell: crate::grid::CellId,
+    weights: HorizontalWeights,
+    field: CanonicalField,
+) -> Result<f64, EngineError> {
+    if weights.points != *frame_stencils.stencil(cell)?.points() {
+        return Err(EngineError::InvalidPreparedState);
+    }
+    let source = frame_stencils
+        .frame
+        .fields()
+        .get(&FieldKey::Canonical(field))
+        .ok_or(EngineError::MissingField(FieldKey::Canonical(field)))?;
     let mut value = 0.0;
     for (corner, point) in weights.points.iter().copied().enumerate() {
         let (corner_value, valid) = field_2d_value(source, point)?;
@@ -1115,6 +1815,31 @@ fn sample_surface_scalar_time(
         cell,
         longitude_degrees,
         latitude_degrees,
+        field,
+    )?;
+    blend_value(before, after, window)
+}
+
+fn sample_surface_scalar_time_with_weights(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    cell: crate::grid::CellId,
+    weights: HorizontalWeights,
+    field: CanonicalField,
+) -> Result<f64, EngineError> {
+    let before = sample_surface_scalar_frame_with_weights(
+        frame_stencils(stencils, &window.frames.before)?,
+        cell,
+        weights,
+        field,
+    )?;
+    if window.is_exact_frame() {
+        return Ok(before);
+    }
+    let after = sample_surface_scalar_frame_with_weights(
+        frame_stencils(stencils, &window.frames.after)?,
+        cell,
+        weights,
         field,
     )?;
     blend_value(before, after, window)
@@ -2356,6 +3081,70 @@ fn vertical_bounds_for_point(
     longitude_degrees: f64,
     latitude_degrees: f64,
 ) -> Result<VerticalBounds, EngineError> {
+    let minimum = minimum_transport_agl_for_point(
+        window,
+        stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    column
+        .vertical_bounds(minimum)
+        .map_err(|_| EngineError::Vertical(VerticalError::InvalidVerticalColumn))
+}
+
+fn complete_transport_bounds_for_point(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    column: &TargetColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+) -> Result<VerticalBounds, EngineError> {
+    let bounds = vertical_bounds_for_point(
+        window,
+        stencils,
+        &column.geometry,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    restrict_vertical_bounds_to_complete_transport(
+        bounds,
+        column.restrictive_transport_top_asl_m,
+        column.restrictive_transport_top_pressure_pa,
+    )
+}
+
+fn restrict_vertical_bounds_to_complete_transport(
+    bounds: VerticalBounds,
+    restrictive_top_asl_m: f64,
+    restrictive_top_pressure_pa: f64,
+) -> Result<VerticalBounds, EngineError> {
+    let effective_top_asl_m = restrictive_top_asl_m.min(
+        bounds
+            .physical_model_top_asl_m()
+            .unwrap_or(restrictive_top_asl_m),
+    );
+    VerticalBounds::new(
+        bounds.terrain_asl_m(),
+        bounds.minimum_transport_agl_m(),
+        bounds.minimum_transport_asl_m(),
+        effective_top_asl_m,
+        bounds.physical_model_top_asl_m(),
+        restrictive_top_pressure_pa,
+        bounds.maximum_pressure_pa(),
+    )
+    .map_err(|_| EngineError::Vertical(VerticalError::InvalidVerticalColumn))
+}
+
+fn minimum_transport_agl_for_point(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+) -> Result<f64, EngineError> {
     let roughness = sample_surface_scalar_time(
         window,
         stencils,
@@ -2364,11 +3153,23 @@ fn vertical_bounds_for_point(
         latitude_degrees,
         CanonicalField::AerodynamicRoughnessLength,
     )?;
-    let minimum =
-        minimum_transport_height_agl_m(roughness).map_err(|_| EngineError::NumericalFailure)?;
-    column
-        .vertical_bounds(minimum)
-        .map_err(|_| EngineError::Vertical(VerticalError::InvalidVerticalColumn))
+    minimum_transport_height_agl_m(roughness).map_err(|_| EngineError::NumericalFailure)
+}
+
+fn minimum_transport_agl_for_boundary_point(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    cell: crate::grid::CellId,
+    weights: HorizontalWeights,
+) -> Result<f64, EngineError> {
+    let roughness = sample_surface_scalar_time_with_weights(
+        window,
+        stencils,
+        cell,
+        weights,
+        CanonicalField::AerodynamicRoughnessLength,
+    )?;
+    minimum_transport_height_agl_m(roughness).map_err(|_| EngineError::NumericalFailure)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3256,7 +4057,7 @@ fn sample_transport_point(
     let latitude_degrees = batch.points.latitude_degrees[original_index];
     let vertical_value = batch.points.vertical[original_index];
     let column = target_column(window, stencils, cell, longitude_degrees, latitude_degrees)?;
-    let bounds = vertical_bounds_for_point(
+    let bounds = complete_transport_bounds_for_point(
         window,
         stencils,
         &column,
@@ -3264,7 +4065,8 @@ fn sample_transport_point(
         longitude_degrees,
         latitude_degrees,
     )?;
-    let target_bracket = vertical_bracket(&column, batch.vertical_coordinate, vertical_value);
+    let target_bracket =
+        vertical_bracket(&column.geometry, batch.vertical_coordinate, vertical_value);
     let mixed_columns = temporal_mixed_columns(
         window,
         stencils,
@@ -3280,7 +4082,7 @@ fn sample_transport_point(
             plan,
             window,
             stencils,
-            &column,
+            &column.geometry,
             &before_column,
             &after_column,
             cell,
@@ -3296,7 +4098,7 @@ fn sample_transport_point(
             Ok(bracket) => sample_upper_transport(
                 window,
                 stencils,
-                &column,
+                &column.geometry,
                 cell,
                 longitude_degrees,
                 latitude_degrees,
@@ -3310,7 +4112,7 @@ fn sample_transport_point(
                 plan,
                 window,
                 stencils,
-                &column,
+                &column.geometry,
                 cell,
                 longitude_degrees,
                 latitude_degrees,
@@ -3336,6 +4138,132 @@ fn sample_transport_point(
         }
         other => other,
     }
+}
+
+fn sample_boundary_point(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    batch: &QueryBatch,
+    cell: crate::grid::CellId,
+    original_index: usize,
+) -> Result<BoundaryPointResult, EngineError> {
+    let longitude_degrees = batch.points.longitude_degrees[original_index];
+    let latitude_degrees = batch.points.latitude_degrees[original_index];
+    let vertical_value = batch.points.vertical[original_index];
+    let column =
+        target_boundary_column(window, stencils, cell, longitude_degrees, latitude_degrees)?;
+    let minimum = minimum_transport_agl_for_point(
+        window,
+        stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    finish_boundary_point(column, minimum, batch.vertical_coordinate, vertical_value)
+}
+
+fn sample_boundary_point_with_weights(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    batch: &QueryBatch,
+    cell: crate::grid::CellId,
+    original_index: usize,
+    weights: HorizontalWeights,
+) -> Result<BoundaryPointResult, EngineError> {
+    let vertical_value = batch.points.vertical[original_index];
+    let column = {
+        let _performance = PerformanceScope::enter(PerformanceStage::BoundaryColumnSample);
+        target_boundary_column_with_weights(window, stencils, cell, weights)?
+    };
+    let _performance = PerformanceScope::enter(PerformanceStage::BoundarySurfaceBounds);
+    let minimum = minimum_transport_agl_for_boundary_point(window, stencils, cell, weights)?;
+    finish_boundary_point(column, minimum, batch.vertical_coordinate, vertical_value)
+}
+
+fn finish_boundary_point(
+    column: TargetBoundaryColumnGeometry,
+    minimum_transport_agl_m: f64,
+    vertical_coordinate: VerticalQuery,
+    vertical_value: f64,
+) -> Result<BoundaryPointResult, EngineError> {
+    let bounds = column
+        .geometry
+        .vertical_bounds(minimum_transport_agl_m)
+        .map_err(|_| EngineError::Vertical(VerticalError::InvalidVerticalColumn))?;
+    let bounds = restrict_vertical_bounds_to_complete_transport(
+        bounds,
+        column.restrictive_transport_top_asl_m,
+        column.restrictive_transport_top_pressure_pa,
+    )?;
+    let location = match vertical_coordinate {
+        VerticalQuery::AboveSeaLevel => column.geometry.locate_height_asl_m(vertical_value),
+        VerticalQuery::AboveGround => column.geometry.locate_height_agl_m(vertical_value),
+        VerticalQuery::Pressure => column.geometry.locate_pressure_pa(vertical_value),
+    };
+    let above_restrictive_transport_top = match vertical_coordinate {
+        VerticalQuery::AboveSeaLevel => vertical_value > bounds.available_top_asl_m(),
+        VerticalQuery::AboveGround => {
+            column.geometry.terrain_asl_m() + vertical_value > bounds.available_top_asl_m()
+        }
+        VerticalQuery::Pressure => vertical_value < bounds.minimum_pressure_pa(),
+    };
+    let status = match location {
+        Ok(_) if above_restrictive_transport_top => SampleStatus::AboveAvailableTop,
+        Ok(_) => SampleStatus::Ok,
+        Err(VerticalError::SurfaceLayerRequired) => {
+            let lowest = column
+                .geometry
+                .last_valid_index()
+                .map_err(EngineError::Vertical)?;
+            let lowest_height_agl_m =
+                column.geometry.height_asl_m()[lowest] - column.geometry.terrain_asl_m();
+            let query_height_agl_m = boundary_surface_query_height_agl_m(
+                &column.geometry,
+                vertical_coordinate,
+                vertical_value,
+                lowest,
+            )?;
+            if query_height_agl_m < bounds.minimum_transport_agl_m()
+                || query_height_agl_m > lowest_height_agl_m
+            {
+                SampleStatus::SurfaceLayerUndefined
+            } else {
+                SampleStatus::Ok
+            }
+        }
+        Err(error) => sample_status_for_vertical_error(&error),
+    };
+    Ok(BoundaryPointResult {
+        status,
+        bounds,
+        terrain_height_asl_m: (status == SampleStatus::Ok)
+            .then_some(column.geometry.terrain_asl_m()),
+    })
+}
+
+fn boundary_surface_query_height_agl_m(
+    column: &BoundaryColumnGeometry,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+    lowest: usize,
+) -> Result<f64, EngineError> {
+    let lowest_height_agl_m = column.height_asl_m()[lowest] - column.terrain_asl_m();
+    let value = match coordinate {
+        VerticalQuery::AboveGround => vertical_value,
+        VerticalQuery::AboveSeaLevel => vertical_value - column.terrain_asl_m(),
+        VerticalQuery::Pressure => {
+            let denominator = column.surface_pressure_pa().ln() - column.pressure_pa()[lowest].ln();
+            if !denominator.is_finite() || denominator <= 0.0 {
+                return Err(EngineError::NumericalFailure);
+            }
+            lowest_height_agl_m * (column.surface_pressure_pa().ln() - vertical_value.ln())
+                / denominator
+        }
+    };
+    value
+        .is_finite()
+        .then_some(value)
+        .ok_or(EngineError::NumericalFailure)
 }
 
 fn sample_status_for_vertical_error(error: &VerticalError) -> SampleStatus {
@@ -3406,7 +4334,8 @@ fn explain_record_for_point(
         return Err(EngineError::InvalidPreparedState);
     }
     let column = target_column(window, stencils, cell, longitude_degrees, latitude_degrees)?;
-    let target_bracket = vertical_bracket(&column, batch.vertical_coordinate, vertical_value);
+    let target_bracket =
+        vertical_bracket(&column.geometry, batch.vertical_coordinate, vertical_value);
     let mixed_route = generic_needs_surface_model(plan)
         && plan.surface_layer_model().is_some()
         && temporal_mixed_columns(
@@ -3439,12 +4368,12 @@ fn explain_record_for_point(
     } else {
         match target_bracket {
             Ok(bracket) => {
-                let first_weights = column.level_horizontal_weights()[bracket.first];
+                let first_weights = column.geometry.level_horizontal_weights()[bracket.first];
                 let (second_level_weights, second_level_method) = if bracket.second == bracket.first
                 {
                     (None, None)
                 } else {
-                    let weights = column.level_horizontal_weights()[bracket.second];
+                    let weights = column.geometry.level_horizontal_weights()[bracket.second];
                     (
                         Some(weights),
                         Some(explain_horizontal_method(weights, base.weights)),
@@ -3865,12 +4794,13 @@ fn sample_generic_point(
         plan,
         window,
         stencils,
-        &column,
+        &column.geometry,
         cell,
         longitude_degrees,
         latitude_degrees,
     )?;
-    let target_bracket = vertical_bracket(&column, batch.vertical_coordinate, vertical_value);
+    let target_bracket =
+        vertical_bracket(&column.geometry, batch.vertical_coordinate, vertical_value);
     if generic_needs_surface_model(plan) && plan.surface_layer_model().is_some() {
         if let Some((before_column, after_column)) = temporal_mixed_columns(
             window,
@@ -3886,7 +4816,7 @@ fn sample_generic_point(
                 plan,
                 window,
                 stencils,
-                &column,
+                &column.geometry,
                 &before_column,
                 &after_column,
                 cell,
@@ -3906,7 +4836,7 @@ fn sample_generic_point(
                 plan,
                 window,
                 stencils,
-                &column,
+                &column.geometry,
                 cell,
                 longitude_degrees,
                 latitude_degrees,
@@ -3958,7 +4888,7 @@ fn sample_generic_point(
         let (profile, valid) = geometric_w_profile(
             window,
             stencils,
-            &column,
+            &column.geometry,
             cell,
             longitude_degrees,
             latitude_degrees,
@@ -3976,9 +4906,9 @@ fn sample_generic_point(
     };
     let geometric_height = match batch.vertical_coordinate {
         VerticalQuery::AboveSeaLevel => vertical_value,
-        VerticalQuery::AboveGround => column.terrain_asl_m() + vertical_value,
+        VerticalQuery::AboveGround => column.geometry.terrain_asl_m() + vertical_value,
         VerticalQuery::Pressure => bracket
-            .interpolate(column.height_asl_m())
+            .interpolate(column.geometry.height_asl_m())
             .map_err(EngineError::Vertical)?,
     };
     let mut result = GenericPointResult {
@@ -4007,7 +4937,7 @@ fn sample_generic_point(
                 4 => state.temperature_k,
                 5 => state.specific_humidity,
                 6 => density,
-                7 => column.terrain_asl_m(),
+                7 => column.geometry.terrain_asl_m(),
                 _ => return Err(EngineError::InvalidPreparedState),
             };
             continue;
@@ -4017,7 +4947,7 @@ fn sample_generic_point(
         };
         let value = match canonical {
             CanonicalField::GeometricHeight => geometric_height,
-            CanonicalField::SurfacePressure => column.surface_pressure_pa(),
+            CanonicalField::SurfacePressure => column.geometry.surface_pressure_pa(),
             CanonicalField::PressureVerticalVelocity
             | CanonicalField::HybridVerticalVelocity
             | CanonicalField::PotentialVorticity => sample_scalar_query_time(
@@ -4096,6 +5026,107 @@ fn validate_execution_state(
     Ok(())
 }
 
+fn sample_transport_chunk(
+    prepared: &PreparedTransportBatch,
+    metadata: &ExecutionMetadata,
+    start: usize,
+    end: usize,
+    worker_count: usize,
+) -> Result<Vec<Result<TransportPointResult, EngineError>>, EngineError> {
+    let sample = |internal_index: usize| {
+        let original_index = prepared.layout.permutation.forward[internal_index];
+        let cell = prepared.layout.cell_ids[internal_index];
+        sample_transport_point(
+            prepared.plan.query_plan(),
+            &prepared.window,
+            &prepared.stencils,
+            &prepared.batch,
+            cell,
+            original_index,
+            metadata,
+        )
+    };
+    let point_count = end.saturating_sub(start);
+    if worker_count == 1 || point_count < PARALLEL_TRANSPORT_MIN_POINTS {
+        return Ok((start..end).map(sample).collect());
+    }
+
+    let pool = execution_pool(worker_count)?;
+    Ok(pool.install(|| (start..end).into_par_iter().map(sample).collect()))
+}
+
+/// Fully pinned, I/O-free geometry for continuous boundary policies.
+#[derive(Clone, Debug)]
+pub struct PreparedBoundaryBatch {
+    /// Immutable complete-transport identity supplying capabilities and floor policy.
+    pub plan: TransportPlan,
+    /// Immutable pinned time window.
+    pub window: PreparedWindow,
+    /// Original query batch.
+    pub batch: QueryBatch,
+    /// Backend-neutral deterministic layout.
+    pub layout: BatchLayout,
+    /// Preparation-time local statuses; executable points remain `Ok`.
+    pub initial_status: Vec<SampleStatus>,
+    stencils: PreparedStencils,
+    query_counter: Option<Arc<QueryCallCounters>>,
+    exact_query_key: Option<ExactQueryKey>,
+}
+
+impl PreparedBoundaryBatch {
+    /// Executes only domain, terrain, transport-floor, and vertical-top geometry.
+    ///
+    /// No wind, thermodynamic, vertical-velocity, surface-layer, provenance, or
+    /// explain columns are evaluated. Reader/provider I/O and cache mutation are
+    /// forbidden, matching the other prepared execution paths.
+    pub fn execute(
+        &self,
+        context: &dyn ExecutionContext,
+        _workspace: &mut BatchWorkspace,
+    ) -> Result<BoundaryQueryOutput, EngineError> {
+        validate_execution_state(context, &self.layout, self.initial_status.len())?;
+        if let (Some(counter), Some(key)) = (&self.query_counter, &self.exact_query_key) {
+            counter.record_execution(*key);
+        }
+        let point_count = self.initial_status.len();
+        let mut status = self.initial_status.clone();
+        let mut bounds = vec![None; point_count];
+        let mut terrain_height_asl_m = vec![None; point_count];
+        for boundaries in self.layout.chunks.boundaries.windows(2) {
+            for internal_index in boundaries[0]..boundaries[1] {
+                let original_index = self.layout.permutation.forward[internal_index];
+                let cell = self.layout.cell_ids[internal_index];
+                match sample_boundary_point(
+                    &self.window,
+                    &self.stencils,
+                    &self.batch,
+                    cell,
+                    original_index,
+                ) {
+                    Ok(point) => {
+                        status[original_index] = point.status;
+                        bounds[original_index] = Some(point.bounds);
+                        terrain_height_asl_m[original_index] = point.terrain_height_asl_m;
+                    }
+                    Err(error) => {
+                        if let Some(local_status) = local_status_for_error(&error) {
+                            status[original_index] = local_status;
+                        } else {
+                            return Err(error);
+                        }
+                    }
+                }
+            }
+        }
+        BoundaryQueryOutput::new(
+            StatusColumn::new(status),
+            BoundsColumn::new(bounds),
+            terrain_height_asl_m,
+        )
+        .map_err(EngineError::Output)
+    }
+}
+
 /// Fully pinned, I/O-free batch execution state.
 #[derive(Clone, Debug)]
 pub struct PreparedBatch {
@@ -4110,6 +5141,8 @@ pub struct PreparedBatch {
     /// Preparation-time local statuses; executable points remain `Ok`.
     pub initial_status: Vec<SampleStatus>,
     stencils: PreparedStencils,
+    query_counter: Option<Arc<QueryCallCounters>>,
+    exact_query_key: Option<ExactQueryKey>,
 }
 
 impl PreparedBatch {
@@ -4120,6 +5153,9 @@ impl PreparedBatch {
         _workspace: &mut BatchWorkspace,
     ) -> Result<QueryOutput, EngineError> {
         validate_execution_state(context, &self.layout, self.initial_status.len())?;
+        if let (Some(counter), Some(key)) = (&self.query_counter, &self.exact_query_key) {
+            counter.record_execution(*key);
+        }
         let metadata = build_execution_metadata(&self.plan, &self.window)?;
         let point_count = self.initial_status.len();
         let field_count = self.plan.fields().len();
@@ -4238,6 +5274,11 @@ pub struct PreparedTransportBatch {
     /// Preparation-time local statuses; executable points remain `Ok`.
     pub initial_status: Vec<SampleStatus>,
     stencils: PreparedStencils,
+    query_counter: Option<Arc<QueryCallCounters>>,
+    exact_query_key: Option<ExactQueryKey>,
+    transport_cache: Option<LastTransportQueryCache>,
+    transport_cache_key: ExactTransportCacheKey,
+    populate_transport_cache: bool,
 }
 
 impl PreparedTransportBatch {
@@ -4248,6 +5289,30 @@ impl PreparedTransportBatch {
         _workspace: &mut BatchWorkspace,
     ) -> Result<TransportOutput, EngineError> {
         validate_execution_state(context, &self.layout, self.initial_status.len())?;
+        if let Some(cache) = &self.transport_cache {
+            let cached = cache
+                .lock()
+                .map_err(|_| EngineError::TransportCachePoisoned)?;
+            let output = cached
+                .as_ref()
+                .and_then(|cached| {
+                    self.transport_cache_key
+                        .selection_from_cached(&cached.key)
+                        .map(|selection| (cached, selection))
+                })
+                .map(|(cached, selection)| cached.output.select_rows(&selection))
+                .transpose()
+                .map_err(EngineError::Output)?;
+            if let Some(output) = output {
+                if let (Some(counter), Some(key)) = (&self.query_counter, self.exact_query_key) {
+                    counter.record_exact_key_reuse(key);
+                }
+                return Ok(output);
+            }
+        }
+        if let (Some(counter), Some(key)) = (&self.query_counter, &self.exact_query_key) {
+            counter.record_execution(*key);
+        }
         let metadata = build_execution_metadata(self.plan.query_plan(), &self.window)?;
         let point_count = self.initial_status.len();
         let mut values: [Vec<f64>; TRANSPORT_FIELD_COUNT] =
@@ -4265,18 +5330,17 @@ impl PreparedTransportBatch {
         let mut explain = (self.plan.query_plan().explain_mode() == ExplainMode::Full)
             .then(|| vec![None; point_count]);
         for boundaries in self.layout.chunks.boundaries.windows(2) {
-            for internal_index in boundaries[0]..boundaries[1] {
+            let sampled = sample_transport_chunk(
+                self,
+                &metadata,
+                boundaries[0],
+                boundaries[1],
+                context.worker_count(),
+            )?;
+            for (internal_index, point) in (boundaries[0]..boundaries[1]).zip(sampled) {
                 let original_index = self.layout.permutation.forward[internal_index];
                 let cell = self.layout.cell_ids[internal_index];
-                match sample_transport_point(
-                    self.plan.query_plan(),
-                    &self.window,
-                    &self.stencils,
-                    &self.batch,
-                    cell,
-                    original_index,
-                    &metadata,
-                ) {
+                match point {
                     Ok(point) => {
                         status[original_index] = point.status;
                         bounds[original_index] = point.bounds;
@@ -4324,7 +5388,7 @@ impl PreparedTransportBatch {
             )
             .map_err(EngineError::Output)
         };
-        TransportOutput::new(
+        let output = TransportOutput::new(
             TransportColumns {
                 eastward_wind_m_s: build_column(0)?,
                 northward_wind_m_s: build_column(1)?,
@@ -4340,7 +5404,18 @@ impl PreparedTransportBatch {
             metadata.table,
             explain,
         )
-        .map_err(EngineError::Output)
+        .map_err(EngineError::Output)?;
+        if self.populate_transport_cache
+            && let Some(cache) = &self.transport_cache
+        {
+            *cache
+                .lock()
+                .map_err(|_| EngineError::TransportCachePoisoned)? = Some(CachedTransportQuery {
+                key: self.transport_cache_key.clone(),
+                output: output.clone(),
+            });
+        }
+        Ok(output)
     }
 }
 
@@ -4361,6 +5436,8 @@ pub enum EngineError {
     ColumnCacheUnavailable,
     /// The engine-owned preparation cache lock was poisoned.
     ColumnCachePoisoned,
+    /// The engine-owned exact transport cache lock was poisoned.
+    TransportCachePoisoned,
     /// Column-cache budget or identity handling failed.
     Cache(CacheError),
     /// A field promised by the compiled capability is absent from a pinned frame.
@@ -4387,6 +5464,8 @@ pub enum EngineError {
     NumericalFailure,
     /// Execution context reports zero workers.
     InvalidExecutionContext,
+    /// The bounded parallel execution pool could not be constructed or accessed.
+    ExecutionPoolUnavailable,
     /// Prepared layout or output columns are inconsistent.
     InvalidPreparedState,
 }
@@ -4402,10 +5481,15 @@ mod tests {
     use trajecta_case::quantity::Unit;
 
     use crate::frame::{FrameMetadata, RawFieldStore, TemporalSupport};
-    use crate::grid::DomainGeometry;
-    use crate::io::inventory::LogicalFrameId;
+    use crate::grid::{CellId, DomainGeometry};
+    use crate::io::inventory::{DomainCatalog, LogicalFrameId, MetCatalog};
     use crate::profile::graph::{ExecutionPlan, GraphUnit};
     use crate::provenance::{ProvenanceRecord, ProvenanceTable};
+    use crate::query::metrics::{
+        QueryCallCounters, QueryOrigin, QueryOriginScope, clear_query_counters,
+        install_query_counters,
+    };
+    use crate::query::request::QueryPointArrays;
     use crate::science::M3_CONSTANTS;
     use crate::surface_layer::MoninObukhovBusingerDyer;
     use crate::vertical::{
@@ -4849,6 +5933,72 @@ mod tests {
         (window, cache)
     }
 
+    fn attached_exact_window_with_transport_cache() -> (
+        PreparedWindow,
+        Arc<Mutex<ColumnCache>>,
+        LastTransportQueryCache,
+    ) {
+        let (mut window, column_cache) = attached_exact_window();
+        let transport_cache = Arc::new(Mutex::new(None));
+        window.attach_transport_cache(&transport_cache);
+        (window, column_cache, transport_cache)
+    }
+
+    fn pressure_batch(longitude_degrees: Vec<f64>) -> QueryBatch {
+        let len = longitude_degrees.len();
+        QueryBatch {
+            vertical_coordinate: VerticalQuery::Pressure,
+            points: crate::query::request::QueryPointArrays {
+                longitude_degrees,
+                latitude_degrees: (0..len).map(|index| 0.2 + index as f64 * 0.2).collect(),
+                vertical: vec![70_000.0; len],
+            },
+        }
+    }
+
+    struct InstalledQueryCounters;
+
+    impl InstalledQueryCounters {
+        fn install() -> (Arc<QueryCallCounters>, Self) {
+            clear_query_counters();
+            let counters = QueryCallCounters::new();
+            install_query_counters(Arc::clone(&counters));
+            (counters, Self)
+        }
+    }
+
+    impl Drop for InstalledQueryCounters {
+        fn drop(&mut self) {
+            clear_query_counters();
+        }
+    }
+
+    fn engine_with_pressure_frames() -> MetEngine {
+        let domain = DomainId("analytic".into());
+        let mut catalog = MetCatalog::default();
+        catalog.domains.insert(
+            domain.clone(),
+            DomainCatalog {
+                domain: Some(domain),
+                frames: BTreeMap::new(),
+                coverage: Default::default(),
+            },
+        );
+        let mut engine = MetEngine::new(MetEngineConfig {
+            catalog,
+            profiles: ProfileCatalog::default(),
+            fields: FieldRegistry::new(),
+            surface_layers: SurfaceLayerRegistry::new(),
+            memory_budget: MemoryBudget::new(16 * 1024 * 1024, 8 * 1024 * 1024).unwrap(),
+        });
+        for seconds in [0, 3_600, 7_200] {
+            engine
+                .cache_frame(analytic_pressure_frame(seconds))
+                .unwrap();
+        }
+        engine
+    }
+
     fn attached_exact_window_without_surface_layer_inputs()
     -> (PreparedWindow, Arc<Mutex<ColumnCache>>) {
         let mut window = PreparedWindow::at_frame(
@@ -4861,6 +6011,35 @@ mod tests {
         let cache = Arc::new(Mutex::new(ColumnCache::new(8 * 1024 * 1024)));
         window.attach_column_cache(&cache);
         (window, cache)
+    }
+
+    fn assert_boundary_geometry_matches_transport(
+        window: &PreparedWindow,
+        plan: &TransportPlan,
+        batch: QueryBatch,
+    ) {
+        let context = RayonExecutionContext { worker_threads: 1 };
+        let mut workspace = BatchWorkspace::default();
+        let boundary = window
+            .query_boundary_batch(plan, batch.clone(), &context, &mut workspace)
+            .unwrap();
+        let transport = window
+            .prepare_transport_batch(plan, batch, &mut workspace)
+            .unwrap()
+            .execute(&context, &mut workspace)
+            .unwrap();
+        assert_eq!(boundary.status(), transport.status());
+        assert_eq!(boundary.bounds(), transport.bounds());
+        for index in 0..transport.status().len() {
+            let boundary_row = boundary.row(index).unwrap();
+            let transport_row = transport.row(index).unwrap();
+            assert_eq!(
+                boundary_row.terrain_height_asl_m(),
+                transport_row.terrain_height_asl_m(),
+                "terrain mismatch at point {index} with status {:?}",
+                transport_row.status()
+            );
+        }
     }
 
     #[test]
@@ -4926,6 +6105,381 @@ mod tests {
             .execute(&RayonExecutionContext { worker_threads: 4 }, &mut workspace)
             .unwrap();
         assert_eq!(output, replay);
+    }
+
+    #[test]
+    fn parallel_transport_matches_serial_output_exactly() {
+        let (window, _cache) = attached_exact_window();
+        let plan = transport_plan();
+        let point_count = PARALLEL_TRANSPORT_MIN_POINTS * 4;
+        let batch = QueryBatch {
+            vertical_coordinate: VerticalQuery::Pressure,
+            points: QueryPointArrays {
+                longitude_degrees: (0..point_count)
+                    .map(|index| 0.05 + (index % 89) as f64 * 0.01)
+                    .collect(),
+                latitude_degrees: (0..point_count)
+                    .map(|index| 0.05 + (index % 83) as f64 * 0.01)
+                    .collect(),
+                vertical: (0..point_count)
+                    .map(|index| 60_000.0 + (index % 101) as f64 * 250.0)
+                    .collect(),
+            },
+        };
+        let mut workspace = BatchWorkspace::default();
+        let serial = window
+            .prepare_transport_batch(&plan, batch.clone(), &mut workspace)
+            .unwrap()
+            .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+            .unwrap();
+        let parallel = window
+            .prepare_transport_batch(&plan, batch, &mut workspace)
+            .unwrap()
+            .execute(&RayonExecutionContext { worker_threads: 4 }, &mut workspace)
+            .unwrap();
+
+        assert_eq!(parallel, serial);
+    }
+
+    #[test]
+    fn boundary_geometry_matches_complete_transport_for_pressure_and_hybrid_windows() {
+        let plan = transport_plan();
+        let (exact_pressure, _cache) = attached_exact_window();
+        assert_boundary_geometry_matches_transport(
+            &exact_pressure,
+            &plan,
+            QueryBatch {
+                vertical_coordinate: VerticalQuery::AboveSeaLevel,
+                points: QueryPointArrays {
+                    longitude_degrees: vec![0.5, 0.5, 0.5, 2.0, 0.5],
+                    latitude_degrees: vec![0.5, 0.5, 0.5, 0.5, 90.0],
+                    vertical: vec![5_000.0, 500.0, 400.0, 5_000.0, 5_000.0],
+                },
+            },
+        );
+
+        let mut between_pressure = PreparedWindow::between(
+            analytic_pressure_frame(0),
+            analytic_pressure_frame(3_600),
+            Timestamp::new(1_800, 0).unwrap(),
+            8 * 1024 * 1024,
+        )
+        .unwrap();
+        let pressure_cache = Arc::new(Mutex::new(ColumnCache::new(8 * 1024 * 1024)));
+        between_pressure.attach_column_cache(&pressure_cache);
+        assert_boundary_geometry_matches_transport(
+            &between_pressure,
+            &plan,
+            QueryBatch {
+                vertical_coordinate: VerticalQuery::AboveSeaLevel,
+                points: QueryPointArrays {
+                    longitude_degrees: vec![0.5, 0.5, 0.5],
+                    latitude_degrees: vec![0.5; 3],
+                    vertical: vec![5_000.0, 500.0, 10_000.0],
+                },
+            },
+        );
+
+        let mut between_hybrid = PreparedWindow::between(
+            analytic_hybrid_frame(0, true),
+            analytic_hybrid_frame(3_600, true),
+            Timestamp::new(1_800, 0).unwrap(),
+            8 * 1024 * 1024,
+        )
+        .unwrap();
+        let hybrid_cache = Arc::new(Mutex::new(ColumnCache::new(8 * 1024 * 1024)));
+        between_hybrid.attach_column_cache(&hybrid_cache);
+        assert_boundary_geometry_matches_transport(
+            &between_hybrid,
+            &plan,
+            QueryBatch {
+                vertical_coordinate: VerticalQuery::AboveSeaLevel,
+                points: QueryPointArrays {
+                    longitude_degrees: vec![0.5, 0.5, 0.5],
+                    latitude_degrees: vec![0.5; 3],
+                    vertical: vec![5_000.0, 10.0, 100_000.0],
+                },
+            },
+        );
+    }
+
+    #[test]
+    fn boundary_finalize_retains_prior_stencils_within_execution_budget() {
+        let (mut window, cache) = attached_exact_window();
+        let frame = window.frames.before.clone();
+        let capabilities = transport_plan().query_plan().capabilities();
+        let first_key = stencil_cache_key(&frame, CellId(0), capabilities);
+        let second_key = stencil_cache_key(&frame, CellId(1), capabilities);
+        let first_value = Arc::new(ColumnStencil::synthetic_for_cache(0.0));
+        let second_value = Arc::new(ColumnStencil::synthetic_for_cache(1.0));
+        let stencil_bytes = first_value.resident_bytes();
+        assert_eq!(second_value.resident_bytes(), stencil_bytes);
+
+        let (first_pin, second_pin) = {
+            let mut cache = cache.lock().unwrap();
+            (
+                cache.insert(first_key.clone(), first_value).unwrap(),
+                cache.insert(second_key.clone(), second_value).unwrap(),
+            )
+        };
+        drop(second_pin);
+
+        let stencils = PreparedStencils {
+            by_frame: BTreeMap::from([(
+                frame.metadata().id.clone(),
+                PreparedFrameStencils {
+                    frame,
+                    by_cell: BTreeMap::from([(CellId(0), first_pin)]),
+                },
+            )]),
+            resident_bytes: stencil_bytes,
+        };
+        let mut workspace = BatchWorkspace::default();
+        let scratch_bytes = 4_096;
+
+        finalize_boundary_stencil_session(&window, &mut workspace, &stencils, scratch_bytes)
+            .unwrap();
+        assert_eq!(cache.lock().unwrap().len(), 2);
+        assert_eq!(cache.lock().unwrap().metrics().evictions, 0);
+
+        window.execution_budget_bytes = stencil_bytes + scratch_bytes;
+        finalize_boundary_stencil_session(&window, &mut workspace, &stencils, scratch_bytes)
+            .unwrap();
+        let mut cache = cache.lock().unwrap();
+        assert_eq!(cache.len(), 1);
+        assert!(cache.get(&first_key).is_some());
+        assert!(cache.get(&second_key).is_none());
+        assert_eq!(cache.metrics().resident_bytes, stencil_bytes);
+        drop(cache);
+
+        window.execution_budget_bytes = stencil_bytes + scratch_bytes - 1;
+        assert!(matches!(
+            finalize_boundary_stencil_session(
+                &window,
+                &mut workspace,
+                &stencils,
+                scratch_bytes
+            ),
+            Err(EngineError::Layout(LayoutError::InsufficientMemory {
+                required_bytes,
+                budget_bytes,
+            })) if required_bytes == stencil_bytes + scratch_bytes
+                && budget_bytes == window.execution_budget_bytes
+        ));
+    }
+
+    #[test]
+    fn exact_transport_cache_reuses_full_batch_and_ordered_subset_exactly() {
+        let (window, _column_cache, transport_cache) = attached_exact_window_with_transport_cache();
+        let plan = transport_plan_with_options(false, ExplainMode::Full);
+        let full_batch = pressure_batch(vec![0.1, 0.3, 0.5]);
+        let (counters, _installed) = InstalledQueryCounters::install();
+        let context = RayonExecutionContext { worker_threads: 1 };
+        let mut workspace = BatchWorkspace::default();
+
+        let full = {
+            let _origin = QueryOriginScope::enter(QueryOrigin::Output);
+            window
+                .prepare_transport_batch(&plan, full_batch.clone(), &mut workspace)
+                .unwrap()
+                .execute(&context, &mut workspace)
+                .unwrap()
+        };
+        assert!(transport_cache.lock().unwrap().is_some());
+
+        let replay = {
+            let _origin = QueryOriginScope::enter(QueryOrigin::Integrator);
+            window
+                .prepare_transport_batch(&plan, full_batch.clone(), &mut workspace)
+                .unwrap()
+                .execute(&context, &mut workspace)
+                .unwrap()
+        };
+        assert_eq!(replay, full);
+
+        let subset_batch = QueryBatch {
+            vertical_coordinate: full_batch.vertical_coordinate,
+            points: crate::query::request::QueryPointArrays {
+                longitude_degrees: vec![
+                    full_batch.points.longitude_degrees[0],
+                    full_batch.points.longitude_degrees[2],
+                ],
+                latitude_degrees: vec![
+                    full_batch.points.latitude_degrees[0],
+                    full_batch.points.latitude_degrees[2],
+                ],
+                vertical: vec![full_batch.points.vertical[0], full_batch.points.vertical[2]],
+            },
+        };
+        let subset = {
+            let _origin = QueryOriginScope::enter(QueryOrigin::Integrator);
+            window
+                .prepare_transport_batch(&plan, subset_batch, &mut workspace)
+                .unwrap()
+                .execute(&context, &mut workspace)
+                .unwrap()
+        };
+        assert_eq!(subset, full.select_rows(&[0, 2]).unwrap());
+
+        let snapshot = counters.snapshot();
+        assert_eq!(snapshot.logical_requests, 3);
+        assert_eq!(snapshot.executed_batches, 1);
+        assert_eq!(snapshot.exact_key_reuses, 2);
+        assert_eq!(snapshot.particle_loop_exact.unique_exact_keys, 1);
+        assert_eq!(snapshot.particle_loop_exact.repeated_exact_executions, 0);
+    }
+
+    #[test]
+    fn lifecycle_query_does_not_displace_bulk_transport_cache() {
+        let (window, _column_cache, _transport_cache) =
+            attached_exact_window_with_transport_cache();
+        let plan = transport_plan();
+        let full_batch = pressure_batch(vec![0.1, 0.3, 0.5]);
+        let lifecycle_batch = pressure_batch(vec![0.9]);
+        let (counters, _installed) = InstalledQueryCounters::install();
+        let context = RayonExecutionContext { worker_threads: 1 };
+        let mut workspace = BatchWorkspace::default();
+
+        {
+            let _origin = QueryOriginScope::enter(QueryOrigin::Output);
+            window
+                .prepare_transport_batch(&plan, full_batch.clone(), &mut workspace)
+                .unwrap()
+                .execute(&context, &mut workspace)
+                .unwrap();
+        }
+        {
+            let _origin = QueryOriginScope::enter(QueryOrigin::OutputLifecycle);
+            window
+                .prepare_transport_batch(&plan, lifecycle_batch, &mut workspace)
+                .unwrap()
+                .execute(&context, &mut workspace)
+                .unwrap();
+        }
+        {
+            let _origin = QueryOriginScope::enter(QueryOrigin::Integrator);
+            window
+                .prepare_transport_batch(&plan, full_batch, &mut workspace)
+                .unwrap()
+                .execute(&context, &mut workspace)
+                .unwrap();
+        }
+
+        let snapshot = counters.snapshot();
+        assert_eq!(snapshot.logical_requests, 3);
+        assert_eq!(snapshot.executed_batches, 2);
+        assert_eq!(snapshot.exact_key_reuses, 1);
+        assert_eq!(
+            snapshot.by_origin[&QueryOrigin::OutputLifecycle].executed_batches,
+            1
+        );
+        assert_eq!(
+            snapshot.by_origin[&QueryOrigin::Integrator].exact_key_reuses,
+            1
+        );
+        assert_eq!(snapshot.particle_loop_exact.unique_exact_keys, 1);
+        assert_eq!(snapshot.particle_loop_exact.repeated_exact_executions, 0);
+    }
+
+    #[test]
+    fn exact_transport_cache_keeps_signed_zero_distinct() {
+        let (window, _column_cache, _transport_cache) =
+            attached_exact_window_with_transport_cache();
+        let plan = transport_plan();
+        let (counters, _installed) = InstalledQueryCounters::install();
+        let context = RayonExecutionContext { worker_threads: 1 };
+        let mut workspace = BatchWorkspace::default();
+
+        for (origin, longitude) in [
+            (QueryOrigin::Output, 0.0_f64),
+            (QueryOrigin::Integrator, -0.0_f64),
+        ] {
+            let _origin = QueryOriginScope::enter(origin);
+            window
+                .prepare_transport_batch(&plan, pressure_batch(vec![longitude]), &mut workspace)
+                .unwrap()
+                .execute(&context, &mut workspace)
+                .unwrap();
+        }
+
+        let snapshot = counters.snapshot();
+        assert_eq!(snapshot.logical_requests, 2);
+        assert_eq!(snapshot.executed_batches, 2);
+        assert_eq!(snapshot.exact_key_reuses, 0);
+        assert_eq!(snapshot.particle_loop_exact.unique_exact_keys, 2);
+    }
+
+    #[test]
+    fn frame_publish_invalidates_exact_transport_cache() {
+        let mut engine = engine_with_pressure_frames();
+        let domain = DomainId("analytic".into());
+        let window = engine
+            .prepare_for_domain(Timestamp::new(3_600, 0).unwrap(), &domain)
+            .unwrap();
+        let mut workspace = BatchWorkspace::default();
+        window
+            .prepare_transport_batch(
+                &transport_plan(),
+                pressure_batch(vec![0.25]),
+                &mut workspace,
+            )
+            .unwrap()
+            .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+            .unwrap();
+        assert!(engine.last_transport_query.lock().unwrap().is_some());
+
+        engine.cache_frame(analytic_pressure_frame(10_800)).unwrap();
+        assert!(engine.last_transport_query.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn exact_transport_cache_key_includes_pinned_window_identity() {
+        let (window, _column_cache) = attached_exact_window();
+        let plan = transport_plan();
+        let batch = pressure_batch(vec![0.25]);
+        let original = ExactTransportCacheKey::new(
+            ExactTransportWindowKey {
+                query_time: window.query_time,
+                domain: window.frames.before.metadata().domain.clone(),
+                before_frame: window.frames.before.metadata().id.clone(),
+                after_frame: window.frames.after.metadata().id.clone(),
+                previous_frame: window
+                    .previous
+                    .as_ref()
+                    .map(|frame| frame.metadata().id.clone()),
+                next_frame: window
+                    .next
+                    .as_ref()
+                    .map(|frame| frame.metadata().id.clone()),
+                before_weight_bits: window.before_weight.to_bits(),
+                after_weight_bits: window.after_weight.to_bits(),
+            },
+            plan.clone(),
+            &batch,
+        );
+        let mut replaced_current = window.frames.before.metadata().id.clone();
+        replaced_current.content_sha256.push_str("-replacement");
+        let changed = ExactTransportCacheKey::new(
+            ExactTransportWindowKey {
+                query_time: window.query_time,
+                domain: window.frames.before.metadata().domain.clone(),
+                before_frame: replaced_current,
+                after_frame: window.frames.after.metadata().id.clone(),
+                previous_frame: window
+                    .previous
+                    .as_ref()
+                    .map(|frame| frame.metadata().id.clone()),
+                next_frame: window
+                    .next
+                    .as_ref()
+                    .map(|frame| frame.metadata().id.clone()),
+                before_weight_bits: window.before_weight.to_bits(),
+                after_weight_bits: window.after_weight.to_bits(),
+            },
+            plan,
+            &batch,
+        );
+        assert_eq!(changed.selection_from_cached(&original), None);
     }
 
     #[test]
@@ -5536,6 +7090,59 @@ mod tests {
         assert_eq!(
             above_model.status().values(),
             &[SampleStatus::AboveModelTop]
+        );
+    }
+
+    #[test]
+    fn temporal_bounds_use_the_restrictive_complete_transport_top() {
+        let mut window = PreparedWindow::between(
+            analytic_pressure_frame(0),
+            analytic_pressure_frame(3_600),
+            Timestamp::new(1_800, 0).unwrap(),
+            8 * 1024 * 1024,
+        )
+        .unwrap();
+        let cache = Arc::new(Mutex::new(ColumnCache::new(8 * 1024 * 1024)));
+        window.attach_column_cache(&cache);
+        let plan = transport_plan();
+        let batch = QueryBatch {
+            vertical_coordinate: VerticalQuery::AboveSeaLevel,
+            points: crate::query::request::QueryPointArrays {
+                longitude_degrees: vec![0.0],
+                latitude_degrees: vec![0.0],
+                vertical: vec![6_200.0],
+            },
+        };
+        let mut workspace = BatchWorkspace::default();
+        let transport = window
+            .prepare_transport_batch(&plan, batch.clone(), &mut workspace)
+            .unwrap()
+            .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+            .unwrap();
+        assert_eq!(
+            transport.status().values(),
+            &[SampleStatus::AboveAvailableTop]
+        );
+        assert_eq!(
+            transport.bounds().get(0).unwrap().available_top_asl_m(),
+            6_000.0
+        );
+
+        let boundary = window
+            .query_boundary_batch(
+                &plan,
+                batch,
+                &RayonExecutionContext { worker_threads: 1 },
+                &mut workspace,
+            )
+            .unwrap();
+        assert_eq!(
+            boundary.status().values(),
+            &[SampleStatus::AboveAvailableTop]
+        );
+        assert_eq!(
+            boundary.bounds().get(0).unwrap().available_top_asl_m(),
+            6_000.0
         );
     }
 

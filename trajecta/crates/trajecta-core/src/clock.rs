@@ -177,6 +177,77 @@ pub fn signed_duration_between(
     duration_between(timestamp_nanoseconds(start), timestamp_nanoseconds(end))
 }
 
+/// Scales a signed duration by an IEEE-754 binary64 fraction using exact
+/// integer arithmetic and round-to-nearest, ties-to-even nanosecond rounding.
+///
+/// This is used to turn a located boundary-path fraction into a deterministic
+/// particle-local termination instant on every supported platform.
+pub fn scale_duration_by_fraction(
+    duration: SignedDuration,
+    fraction: f64,
+) -> Result<SignedDuration, ClockError> {
+    if !fraction.is_finite() || !(0.0..=1.0).contains(&fraction) {
+        return Err(ClockError::InvalidFraction);
+    }
+    if duration == SignedDuration::ZERO || fraction == 0.0 {
+        return Ok(SignedDuration::ZERO);
+    }
+    if fraction == 1.0 {
+        return Ok(duration);
+    }
+
+    let bits = fraction.to_bits();
+    let exponent_bits = ((bits >> 52) & 0x7ff) as i32;
+    let mantissa = bits & ((1_u64 << 52) - 1);
+    let (significand, binary_exponent) = if exponent_bits == 0 {
+        (u128::from(mantissa), -1074_i32)
+    } else {
+        (
+            u128::from((1_u64 << 52) | mantissa),
+            exponent_bits - 1023 - 52,
+        )
+    };
+    let magnitude = u128::from(duration.0.unsigned_abs());
+    let product = magnitude
+        .checked_mul(significand)
+        .ok_or(ClockError::Overflow)?;
+    let rounded = if binary_exponent >= 0 {
+        product
+            .checked_shl(binary_exponent as u32)
+            .ok_or(ClockError::Overflow)?
+    } else {
+        round_shift_right_ties_even(product, binary_exponent.unsigned_abs())
+    };
+    let rounded = i64::try_from(rounded).map_err(|_| ClockError::Overflow)?;
+    Ok(SignedDuration(if duration.0 < 0 {
+        -rounded
+    } else {
+        rounded
+    }))
+}
+
+fn round_shift_right_ties_even(value: u128, shift: u32) -> u128 {
+    if shift == 0 {
+        return value;
+    }
+    if shift > 128 {
+        return 0;
+    }
+    if shift == 128 {
+        let half = 1_u128 << 127;
+        return u128::from(value > half);
+    }
+    let quotient = value >> shift;
+    let mask = (1_u128 << shift) - 1;
+    let remainder = value & mask;
+    let half = 1_u128 << (shift - 1);
+    if remainder > half || (remainder == half && quotient & 1 == 1) {
+        quotient + 1
+    } else {
+        quotient
+    }
+}
+
 fn timestamp_nanoseconds(timestamp: Timestamp) -> i128 {
     i128::from(timestamp.seconds_since_unix_epoch()) * 1_000_000_000
         + i128::from(timestamp.nanosecond())
@@ -205,6 +276,8 @@ pub enum ClockError {
     UnorderedBoundaries,
     /// Timestamp arithmetic would overflow the contract representation.
     Overflow,
+    /// A normalized step fraction is non-finite or outside `[0, 1]`.
+    InvalidFraction,
 }
 
 impl ClockError {
@@ -215,6 +288,7 @@ impl ClockError {
             Self::DirectionMismatch => "clock.direction_mismatch",
             Self::UnorderedBoundaries => "clock.unordered_boundaries",
             Self::Overflow => "clock.overflow",
+            Self::InvalidFraction => "clock.invalid_fraction",
         }
     }
 }
@@ -341,6 +415,30 @@ mod tests {
                 ],
             ),
             Err(ClockError::UnorderedBoundaries)
+        );
+    }
+
+    #[test]
+    fn duration_fraction_scaling_is_directional_and_ties_to_even() {
+        assert_eq!(
+            scale_duration_by_fraction(SignedDuration(10), 0.25).unwrap(),
+            SignedDuration(2)
+        );
+        assert_eq!(
+            scale_duration_by_fraction(SignedDuration(14), 0.25).unwrap(),
+            SignedDuration(4)
+        );
+        assert_eq!(
+            scale_duration_by_fraction(SignedDuration(-14), 0.25).unwrap(),
+            SignedDuration(-4)
+        );
+        assert_eq!(
+            scale_duration_by_fraction(SignedDuration(i64::MAX), 1.0).unwrap(),
+            SignedDuration(i64::MAX)
+        );
+        assert_eq!(
+            scale_duration_by_fraction(SignedDuration(1), f64::NAN),
+            Err(ClockError::InvalidFraction)
         );
     }
 }

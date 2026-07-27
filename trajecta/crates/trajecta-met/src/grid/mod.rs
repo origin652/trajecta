@@ -139,6 +139,20 @@ impl RegularLatLonGrid {
         Ok(Self { geometry })
     }
 
+    /// Locates a point and computes its interpolation support in one pass.
+    ///
+    /// Small boundary batches need both values for every probe. Returning them
+    /// together avoids repeating coordinate normalization and halo checks.
+    pub fn locate_cell_and_weights(
+        &self,
+        longitude_degrees: f64,
+        latitude_degrees: f64,
+    ) -> Result<(CellId, HorizontalWeights), GridError> {
+        let cell = self.locate_fractional(longitude_degrees, latitude_degrees)?;
+        let cell_id = encode_cell(cell.x0, cell.y0, self.geometry.nx)?;
+        Ok((cell_id, horizontal_weights(cell)))
+    }
+
     fn locate_fractional(
         &self,
         longitude_degrees: f64,
@@ -164,22 +178,19 @@ impl RegularLatLonGrid {
         } else {
             let fractional = (longitude_degrees - self.geometry.longitude_origin_degrees)
                 / self.geometry.longitude_spacing_degrees;
-            let (x0, fx) = bounded_cell_fraction(fractional, self.geometry.nx)?;
+            let (x0, fx) =
+                safe_cell_fraction(fractional, self.geometry.nx, self.geometry.halo_cells)?;
             (x0, x0 + 1, fx)
         };
 
         let latitude_fractional = (latitude_degrees - self.geometry.latitude_origin_degrees)
             / self.geometry.latitude_spacing_degrees;
-        let (y0, fy) = bounded_cell_fraction(latitude_fractional, self.geometry.ny)?;
+        let (y0, fy) = safe_cell_fraction(
+            latitude_fractional,
+            self.geometry.ny,
+            self.geometry.halo_cells,
+        )?;
         let y1 = y0 + 1;
-
-        let halo = self.geometry.halo_cells;
-        if y0 < halo || y1 >= self.geometry.ny - halo {
-            return Err(GridError::OutOfDomain);
-        }
-        if !self.geometry.periodic_longitude && (x0 < halo || x1 >= self.geometry.nx - halo) {
-            return Err(GridError::OutOfDomain);
-        }
         Ok(FractionalCell {
             x0,
             x1,
@@ -211,35 +222,7 @@ impl GridBackend for RegularLatLonGrid {
         latitude_degrees: f64,
     ) -> Result<HorizontalWeights, GridError> {
         let cell = self.locate_fractional(longitude_degrees, latitude_degrees)?;
-        let one_minus_x = 1.0 - cell.fx;
-        let one_minus_y = 1.0 - cell.fy;
-        Ok(HorizontalWeights {
-            points: [
-                GridPoint {
-                    x: cell.x0,
-                    y: cell.y0,
-                },
-                GridPoint {
-                    x: cell.x1,
-                    y: cell.y0,
-                },
-                GridPoint {
-                    x: cell.x0,
-                    y: cell.y1,
-                },
-                GridPoint {
-                    x: cell.x1,
-                    y: cell.y1,
-                },
-            ],
-            weights: [
-                one_minus_x * one_minus_y,
-                cell.fx * one_minus_y,
-                one_minus_x * cell.fy,
-                cell.fx * cell.fy,
-            ],
-            valid: [true; 4],
-        })
+        Ok(horizontal_weights(cell))
     }
 }
 
@@ -253,18 +236,64 @@ struct FractionalCell {
     fy: f64,
 }
 
-fn bounded_cell_fraction(fractional: f64, point_count: usize) -> Result<(usize, f64), GridError> {
+fn horizontal_weights(cell: FractionalCell) -> HorizontalWeights {
+    let one_minus_x = 1.0 - cell.fx;
+    let one_minus_y = 1.0 - cell.fy;
+    HorizontalWeights {
+        points: [
+            GridPoint {
+                x: cell.x0,
+                y: cell.y0,
+            },
+            GridPoint {
+                x: cell.x1,
+                y: cell.y0,
+            },
+            GridPoint {
+                x: cell.x0,
+                y: cell.y1,
+            },
+            GridPoint {
+                x: cell.x1,
+                y: cell.y1,
+            },
+        ],
+        weights: [
+            one_minus_x * one_minus_y,
+            cell.fx * one_minus_y,
+            one_minus_x * cell.fy,
+            cell.fx * cell.fy,
+        ],
+        valid: [true; 4],
+    }
+}
+
+fn safe_cell_fraction(
+    fractional: f64,
+    point_count: usize,
+    halo_cells: usize,
+) -> Result<(usize, f64), GridError> {
     if !fractional.is_finite() {
         return Err(GridError::InvalidCoordinate);
     }
-    let last = point_count.saturating_sub(1) as f64;
-    let tolerance = 32.0 * f64::EPSILON * last.max(1.0);
-    if fractional < -tolerance || fractional > last + tolerance {
+    let first = halo_cells as f64;
+    let last_index = point_count
+        .checked_sub(halo_cells)
+        .and_then(|value| value.checked_sub(1))
+        .ok_or_else(|| GridError::InvalidGeometry("halo exceeds grid bounds".into()))?;
+    if last_index <= halo_cells {
+        return Err(GridError::InvalidGeometry(
+            "safe interpolation region requires two points".into(),
+        ));
+    }
+    let last = last_index as f64;
+    let tolerance = 32.0 * f64::EPSILON * (point_count.saturating_sub(1) as f64).max(1.0);
+    if fractional < first - tolerance || fractional > last + tolerance {
         return Err(GridError::OutOfDomain);
     }
-    let clamped = fractional.clamp(0.0, last);
+    let clamped = fractional.clamp(first, last);
     if clamped == last {
-        return Ok((point_count - 2, 1.0));
+        return Ok((last_index - 1, 1.0));
     }
     let lower = clamped.floor() as usize;
     Ok((lower, clamped - lower as f64))
@@ -477,6 +506,42 @@ mod tests {
         let fractional_y = 20.75 - (-89.0);
         let expected = 2.0 * 12.25 + 3.0 * fractional_y + 5.0;
         assert!((interpolated - expected).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn exact_high_safe_boundary_uses_the_interior_cell() {
+        let grid = RegularLatLonGrid::new(DomainGeometry {
+            domain: DomainId("limited".into()),
+            longitude_origin_degrees: 0.0,
+            latitude_origin_degrees: 5.0,
+            longitude_spacing_degrees: 1.0,
+            latitude_spacing_degrees: -1.0,
+            nx: 6,
+            ny: 6,
+            periodic_longitude: false,
+            halo_cells: 1,
+        })
+        .unwrap();
+
+        let weights = grid.horizontal_weights(4.0, 1.0).unwrap();
+        assert_eq!(
+            weights.points,
+            [
+                GridPoint { x: 3, y: 3 },
+                GridPoint { x: 4, y: 3 },
+                GridPoint { x: 3, y: 4 },
+                GridPoint { x: 4, y: 4 },
+            ]
+        );
+        assert_eq!(weights.weights, [0.0, 0.0, 0.0, 1.0]);
+        assert_eq!(
+            grid.horizontal_weights(4.000_001, 1.0),
+            Err(GridError::OutOfDomain)
+        );
+        assert_eq!(
+            grid.horizontal_weights(4.0, 0.999_999),
+            Err(GridError::OutOfDomain)
+        );
     }
 
     #[test]

@@ -17,6 +17,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use sha2::{Digest, Sha256};
 use std::fmt;
 use trajecta_met::field::{CanonicalField, FieldKey, FieldQuality};
+use trajecta_met::performance::{PerformanceScope, PerformanceStage};
 use trajecta_met::provenance::{ProvenanceRecord, TransformRecord};
 
 use crate::output::OutputError;
@@ -25,8 +26,12 @@ use crate::science::{
     SQLITE_SCHEMA_VERSION,
 };
 
-/// Explicit in-memory caps for dedup dictionaries (samples spool to disk).
-pub const MAX_UNIQUE_RECORDS: usize = 64_000;
+/// Explicit in-memory cap for unique provenance records (samples spool to disk).
+///
+/// A five-field set can introduce up to five distinct records. The previous
+/// 64k record cap contradicted the independently allowed 64k field sets and
+/// failed the frozen 100k matrix before the field-set cap was approached.
+pub const MAX_UNIQUE_RECORDS: usize = 128_000;
 /// Cap on unique five-field sets retained in memory.
 pub const MAX_UNIQUE_FIELD_SETS: usize = 64_000;
 /// Production sample-spool sort chunk (lines per sorted run).
@@ -41,6 +46,19 @@ pub const TEST_MERGE_FAN_IN: usize = 2;
 pub const PROVENANCE_CONTENT_DIGEST_ID: &str = "trajecta.provenance-content/v1";
 /// Canonical output digest algorithm id.
 pub const CANONICAL_OUTPUT_DIGEST_ID: &str = "trajecta.canonical-output/v1";
+
+const PROVENANCE_BUNDLE_WRITE_BUFFER_BYTES: usize = 128 * 1024;
+
+const LOCKSTEP_PARTICLE_STATE_SQL: &str = "SELECT particle_id, sample_sequence,
+            eastward_wind_m_s IS NOT NULL,
+            northward_wind_m_s IS NOT NULL,
+            geometric_vertical_velocity_m_s IS NOT NULL,
+            air_pressure_pa IS NOT NULL,
+            air_temperature_k IS NOT NULL,
+            wind_quality, pressure_quality, temperature_quality
+     FROM particle_state
+     WHERE run_id = ?1
+     ORDER BY particle_id, sample_sequence";
 
 const SLOT_EASTWARD: &str = "eastward_wind";
 const SLOT_NORTHWARD: &str = "northward_wind";
@@ -236,14 +254,33 @@ pub struct FiveFieldRecords {
     pub air_temperature: Option<ProvenanceRecord>,
 }
 
+/// Borrowed five-field provenance records for allocation-free hot-path interning.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct FiveFieldRecordRefs<'a> {
+    /// Eastward wind.
+    pub eastward_wind: Option<&'a ProvenanceRecord>,
+    /// Northward wind.
+    pub northward_wind: Option<&'a ProvenanceRecord>,
+    /// Geometric vertical velocity.
+    pub geometric_vertical_velocity: Option<&'a ProvenanceRecord>,
+    /// Air pressure.
+    pub air_pressure: Option<&'a ProvenanceRecord>,
+    /// Air temperature.
+    pub air_temperature: Option<&'a ProvenanceRecord>,
+}
+
 /// Streaming builder: records/field-sets interned in memory; samples spooled.
 pub struct ProvenanceBundleBuilder {
     run_id: String,
     run_dir: PathBuf,
     records_by_sha: BTreeMap<String, BundleRecordEntry>,
+    /// Runtime-record memoization avoids repeated RFC 8785 conversion and hashing.
+    record_sha_by_runtime: BTreeMap<ProvenanceRecord, String>,
     /// Detect sha collision against different canonical bytes.
     record_canonical_by_sha: BTreeMap<String, String>,
     field_sets_by_sha: BTreeMap<String, BundleFieldSetEntry>,
+    /// Five-slot memoization avoids hashing the same field set for every particle row.
+    field_set_sha_by_slots: BTreeMap<[Option<String>; 5], String>,
     field_set_canonical_by_sha: BTreeMap<String, String>,
     sample_spool_path: PathBuf,
     sample_spool: Option<BufWriter<File>>,
@@ -334,8 +371,10 @@ impl ProvenanceBundleBuilder {
             run_id: run_id.to_owned(),
             run_dir: run_dir.to_path_buf(),
             records_by_sha: BTreeMap::new(),
+            record_sha_by_runtime: BTreeMap::new(),
             record_canonical_by_sha: BTreeMap::new(),
             field_sets_by_sha: BTreeMap::new(),
+            field_set_sha_by_slots: BTreeMap::new(),
             field_set_canonical_by_sha: BTreeMap::new(),
             sample_spool_path: spool_path,
             sample_spool: Some(spool),
@@ -414,28 +453,53 @@ impl ProvenanceBundleBuilder {
         sample_sequence: i64,
         fields: &FiveFieldRecords,
     ) -> Result<(), OutputError> {
+        self.push_sample_refs(
+            particle_id,
+            sample_sequence,
+            &FiveFieldRecordRefs {
+                eastward_wind: fields.eastward_wind.as_ref(),
+                northward_wind: fields.northward_wind.as_ref(),
+                geometric_vertical_velocity: fields.geometric_vertical_velocity.as_ref(),
+                air_pressure: fields.air_pressure.as_ref(),
+                air_temperature: fields.air_temperature.as_ref(),
+            },
+        )
+    }
+
+    /// Interns borrowed records and appends one sample assignment to the spool.
+    pub fn push_sample_refs(
+        &mut self,
+        particle_id: i64,
+        sample_sequence: i64,
+        fields: &FiveFieldRecordRefs<'_>,
+    ) -> Result<(), OutputError> {
         let body = BundleFieldSetBody {
-            eastward_wind: self
-                .intern_optional_record(fields.eastward_wind.as_ref(), SLOT_EASTWARD)?,
-            northward_wind: self
-                .intern_optional_record(fields.northward_wind.as_ref(), SLOT_NORTHWARD)?,
-            geometric_vertical_velocity: self.intern_optional_record(
-                fields.geometric_vertical_velocity.as_ref(),
-                SLOT_VERTICAL,
-            )?,
-            air_pressure: self
-                .intern_optional_record(fields.air_pressure.as_ref(), SLOT_PRESSURE)?,
+            eastward_wind: self.intern_optional_record(fields.eastward_wind, SLOT_EASTWARD)?,
+            northward_wind: self.intern_optional_record(fields.northward_wind, SLOT_NORTHWARD)?,
+            geometric_vertical_velocity: self
+                .intern_optional_record(fields.geometric_vertical_velocity, SLOT_VERTICAL)?,
+            air_pressure: self.intern_optional_record(fields.air_pressure, SLOT_PRESSURE)?,
             air_temperature: self
-                .intern_optional_record(fields.air_temperature.as_ref(), SLOT_TEMPERATURE)?,
+                .intern_optional_record(fields.air_temperature, SLOT_TEMPERATURE)?,
         };
-        let (set_sha, set_canonical) = hash_field_set_body(&body)?;
-        if let Some(prev) = self.field_set_canonical_by_sha.get(&set_sha) {
-            if prev != &set_canonical {
-                return Err(OutputError::Encoding(format!(
-                    "field-set sha collision for {set_sha}"
-                )));
-            }
+        let slots = [
+            body.eastward_wind.clone(),
+            body.northward_wind.clone(),
+            body.geometric_vertical_velocity.clone(),
+            body.air_pressure.clone(),
+            body.air_temperature.clone(),
+        ];
+        let set_sha = if let Some(set_sha) = self.field_set_sha_by_slots.get(&slots) {
+            set_sha.clone()
         } else {
+            let (set_sha, set_canonical) = hash_field_set_body(&body)?;
+            if let Some(prev) = self.field_set_canonical_by_sha.get(&set_sha) {
+                if prev != &set_canonical {
+                    return Err(OutputError::Encoding(format!(
+                        "field-set sha collision for {set_sha}"
+                    )));
+                }
+            }
             if self.field_sets_by_sha.len() >= MAX_UNIQUE_FIELD_SETS {
                 return Err(OutputError::Encoding(format!(
                     "field-set dictionary exceeded hard cap {MAX_UNIQUE_FIELD_SETS}"
@@ -450,7 +514,9 @@ impl ProvenanceBundleBuilder {
                     fields: body,
                 },
             );
-        }
+            self.field_set_sha_by_slots.insert(slots, set_sha.clone());
+            set_sha
+        };
         let spool = self
             .sample_spool
             .as_mut()
@@ -473,6 +539,9 @@ impl ProvenanceBundleBuilder {
         let Some(record) = record else {
             return Ok(None);
         };
+        if let Some(sha) = self.record_sha_by_runtime.get(record) {
+            return Ok(Some(sha.clone()));
+        }
         let body = bundle_record_body_from_runtime(record)?;
         let token_slot = body.field.expected_slot().ok_or_else(|| {
             OutputError::Encoding(format!(
@@ -491,6 +560,8 @@ impl ProvenanceBundleBuilder {
                     "record sha collision for {sha}"
                 )));
             }
+            self.record_sha_by_runtime
+                .insert(record.clone(), sha.clone());
             return Ok(Some(sha));
         }
         if self.records_by_sha.len() >= MAX_UNIQUE_RECORDS {
@@ -506,6 +577,8 @@ impl ProvenanceBundleBuilder {
                 record: body,
             },
         );
+        self.record_sha_by_runtime
+            .insert(record.clone(), sha.clone());
         Ok(Some(sha))
     }
 
@@ -517,6 +590,7 @@ impl ProvenanceBundleBuilder {
         sqlite_sha256: &str,
         sqlite_sql_sha256: &str,
     ) -> Result<ProvenanceBundleIdentity, OutputError> {
+        let external_sort = PerformanceScope::enter(PerformanceStage::ProvenanceExternalSort);
         if let Some(mut spool) = self.sample_spool.take() {
             spool
                 .flush()
@@ -541,13 +615,20 @@ impl ProvenanceBundleBuilder {
             self.merge_fan_in,
             &mut self.temp_paths,
         )?;
+        drop(external_sort);
 
-        // 2) Sorted records / field_sets stay within hard caps (already enforced).
-        let mut records: Vec<BundleRecordEntry> = self.records_by_sha.values().cloned().collect();
-        records.sort_by(|a, b| a.sha256.cmp(&b.sha256));
-        let mut field_sets: Vec<BundleFieldSetEntry> =
-            self.field_sets_by_sha.values().cloned().collect();
-        field_sets.sort_by(|a, b| a.sha256.cmp(&b.sha256));
+        // Incremental memo/collision tables are no longer needed once the sample
+        // spool is closed. Drop them before final serialization so peak memory is
+        // bounded by the canonical dictionaries, not several duplicate copies.
+        self.record_sha_by_runtime.clear();
+        self.record_canonical_by_sha.clear();
+        self.field_set_sha_by_slots.clear();
+        self.field_set_canonical_by_sha.clear();
+
+        // 2) BTreeMap values are already sorted by their SHA keys and remain
+        // within the hard caps enforced during interning.
+        let record_count = self.records_by_sha.len() as u64;
+        let field_set_count = self.field_sets_by_sha.len() as u64;
 
         // 3) Stream write bundle while lockstep-validating against SQLite cursor.
         //    Never materialize full samples vec or full bundle bytes.
@@ -558,35 +639,40 @@ impl ProvenanceBundleBuilder {
             return Err(OutputError::Encoding("fault: BeforeTmpWrite".into()));
         }
 
-        let mut digest_writer = DigestingFile::create(&tmp)?;
-        let sample_count = stream_write_bundle(
-            &mut digest_writer,
-            &self.run_id,
-            sqlite_sha256,
-            &records,
-            &field_sets,
-            &sorted_run,
-            sqlite_path,
-            &self.field_sets_by_sha,
-            &self.records_by_sha,
-            self.sample_count,
-        )?;
-        digest_writer.sync_all()?;
-        // Exact SHA is of final on-disk bytes after rename; recompute from tmp then rename.
-        let tmp_sha = digest_writer.finalize_sha256();
+        let (sample_count, tmp_sha) = {
+            let _performance = PerformanceScope::enter(PerformanceStage::ProvenanceStreamWrite);
+            let mut digest_writer = DigestingFile::create(&tmp)?;
+            let sample_count = stream_write_bundle(
+                &mut digest_writer,
+                &self.run_id,
+                sqlite_sha256,
+                &sorted_run,
+                sqlite_path,
+                &self.field_sets_by_sha,
+                &self.records_by_sha,
+                self.sample_count,
+            )?;
+            digest_writer.sync_all()?;
+            // Exact SHA is of final on-disk bytes after rename; recompute from tmp then rename.
+            (sample_count, digest_writer.finalize_sha256())
+        };
 
         // 4) Full semantic validation on tmp via streaming re-read (no full Vec samples).
         //    Content digest is recomputed from the actual on-disk document.
-        let summary = validate_bundle_file_semantics(
-            &tmp,
-            &self.run_id,
-            sqlite_sha256,
-            sample_count,
-            records.len() as u64,
-            field_sets.len() as u64,
-            &self.records_by_sha,
-            &self.field_sets_by_sha,
-        )?;
+        let summary = {
+            let _performance =
+                PerformanceScope::enter(PerformanceStage::ProvenanceSemanticValidate);
+            validate_bundle_file_semantics(
+                &tmp,
+                &self.run_id,
+                sqlite_sha256,
+                sample_count,
+                record_count,
+                field_set_count,
+                &self.records_by_sha,
+                &self.field_sets_by_sha,
+            )?
+        };
         let content_digest = summary.content_sha256;
 
         if matches!(self.fault, Some(BundleFaultInject::BeforeRename)) {
@@ -595,23 +681,27 @@ impl ProvenanceBundleBuilder {
             return Err(OutputError::Encoding("fault: BeforeRename".into()));
         }
 
-        fs::rename(&tmp, &final_path).map_err(|error| {
-            let _ = fs::remove_file(&tmp);
-            OutputError::Io(format!("atomic replace provenance-bundle: {error}"))
-        })?;
+        let (bundle_sha, canonical_out) = {
+            let _performance = PerformanceScope::enter(PerformanceStage::ProvenanceFinalHash);
+            fs::rename(&tmp, &final_path).map_err(|error| {
+                let _ = fs::remove_file(&tmp);
+                OutputError::Io(format!("atomic replace provenance-bundle: {error}"))
+            })?;
 
-        // Re-hash final path with streaming buffer (must match tmp_sha).
-        let bundle_sha = file_sha256(&final_path)?;
-        if bundle_sha != tmp_sha {
-            let _ = fs::remove_file(&final_path);
-            self.cleanup_ephemeral();
-            return Err(OutputError::Encoding(
-                "bundle SHA changed across atomic rename".into(),
-            ));
-        }
+            // Re-hash final path with streaming buffer (must match tmp_sha).
+            let bundle_sha = file_sha256(&final_path)?;
+            if bundle_sha != tmp_sha {
+                let _ = fs::remove_file(&final_path);
+                self.cleanup_ephemeral();
+                return Err(OutputError::Encoding(
+                    "bundle SHA changed across atomic rename".into(),
+                ));
+            }
 
-        // 5) Canonical output from on-disk content digest + real SQL digest.
-        let canonical_out = canonical_output_digest(sqlite_sql_sha256, &content_digest)?;
+            // 5) Canonical output from on-disk content digest + real SQL digest.
+            let canonical_out = canonical_output_digest(sqlite_sql_sha256, &content_digest)?;
+            (bundle_sha, canonical_out)
+        };
         self.last_content_digest = Some(content_digest.clone());
         self.last_canonical_output_digest = Some(canonical_out.clone());
 
@@ -623,7 +713,10 @@ impl ProvenanceBundleBuilder {
         }
 
         // Cleanup spool + runs only after success path identity is built.
-        self.cleanup_ephemeral();
+        {
+            let _performance = PerformanceScope::enter(PerformanceStage::ProvenanceCleanup);
+            self.cleanup_ephemeral();
+        }
         self.finalized_ok = true;
 
         let identity = ProvenanceBundleIdentity {
@@ -634,8 +727,8 @@ impl ProvenanceBundleBuilder {
             content_sha256: content_digest,
             sqlite_sql_sha256: sqlite_sql_sha256.to_owned(),
             canonical_output_sha256: canonical_out,
-            record_count: records.len() as u64,
-            field_set_count: field_sets.len() as u64,
+            record_count,
+            field_set_count,
             sample_count,
         };
         self.identity = Some(identity.clone());
@@ -804,7 +897,7 @@ fn write_rfc8785(value: &serde_json::Value, out: &mut String) -> Result<(), Outp
 // ----- Bounded external sort + streaming bundle IO -----
 
 struct DigestingFile {
-    file: File,
+    writer: BufWriter<File>,
     hasher: Sha256,
 }
 
@@ -812,13 +905,13 @@ impl DigestingFile {
     fn create(path: &Path) -> Result<Self, OutputError> {
         let file = File::create(path).map_err(|error| OutputError::Io(error.to_string()))?;
         Ok(Self {
-            file,
+            writer: BufWriter::with_capacity(PROVENANCE_BUNDLE_WRITE_BUFFER_BYTES, file),
             hasher: Sha256::new(),
         })
     }
 
     fn write_all(&mut self, bytes: &[u8]) -> Result<(), OutputError> {
-        self.file
+        self.writer
             .write_all(bytes)
             .map_err(|error| OutputError::Io(error.to_string()))?;
         self.hasher.update(bytes);
@@ -826,10 +919,11 @@ impl DigestingFile {
     }
 
     fn sync_all(&mut self) -> Result<(), OutputError> {
-        self.file
+        self.writer
             .flush()
             .map_err(|error| OutputError::Io(error.to_string()))?;
-        self.file
+        self.writer
+            .get_ref()
             .sync_all()
             .map_err(|error| OutputError::Io(error.to_string()))
     }
@@ -1170,13 +1264,37 @@ fn write_json_pretty_value(
     }
 }
 
+fn write_json_pretty_array<'a, T: Serialize + 'a>(
+    w: &mut DigestingFile,
+    items: impl IntoIterator<Item = &'a T>,
+    indent: usize,
+    context: &str,
+) -> Result<(), OutputError> {
+    let pad = "  ".repeat(indent);
+    let mut items = items.into_iter().peekable();
+    if items.peek().is_none() {
+        return w.write_all(b"[]");
+    }
+    w.write_all(b"[\n")?;
+    while let Some(item) = items.next() {
+        w.write_all(format!("{pad}  ").as_bytes())?;
+        let value = serde_json::to_value(item)
+            .map_err(|error| OutputError::Encoding(format!("{context} json: {error}")))?;
+        write_json_pretty_value(w, &value, indent + 1)?;
+        if items.peek().is_some() {
+            w.write_all(b",\n")?;
+        } else {
+            w.write_all(b"\n")?;
+        }
+    }
+    w.write_all(format!("{pad}]").as_bytes())
+}
+
 #[allow(clippy::too_many_arguments)]
 fn stream_write_bundle(
     w: &mut DigestingFile,
     run_id: &str,
     sqlite_sha256: &str,
-    records: &[BundleRecordEntry],
-    field_sets: &[BundleFieldSetEntry],
     sorted_run: &Path,
     sqlite_path: &Path,
     field_sets_by_sha: &BTreeMap<String, BundleFieldSetEntry>,
@@ -1211,18 +1329,15 @@ fn stream_write_bundle(
         .as_bytes(),
     )?;
     w.write_all(b"  \"records\": ")?;
-    let rec_val = serde_json::to_value(records)
-        .map_err(|e| OutputError::Encoding(format!("records json: {e}")))?;
-    write_json_pretty_value(w, &rec_val, 1)?;
+    write_json_pretty_array(w, records_by_sha.values(), 1, "records")?;
     w.write_all(b",\n")?;
     w.write_all(b"  \"field_sets\": ")?;
-    let fs_val = serde_json::to_value(field_sets)
-        .map_err(|e| OutputError::Encoding(format!("field_sets json: {e}")))?;
-    write_json_pretty_value(w, &fs_val, 1)?;
+    write_json_pretty_array(w, field_sets_by_sha.values(), 1, "field_sets")?;
     w.write_all(b",\n")?;
     w.write_all(b"  \"samples\": [")?;
     let sample_count = lockstep_write_samples(
         w,
+        run_id,
         sorted_run,
         sqlite_path,
         field_sets_by_sha,
@@ -1235,6 +1350,7 @@ fn stream_write_bundle(
 
 fn lockstep_write_samples(
     w: &mut DigestingFile,
+    run_id: &str,
     sorted_run: &Path,
     sqlite_path: &Path,
     field_sets_by_sha: &BTreeMap<String, BundleFieldSetEntry>,
@@ -1248,20 +1364,10 @@ fn lockstep_write_samples(
     )
     .map_err(|error| OutputError::Io(error.to_string()))?;
     let mut stmt = connection
-        .prepare(
-            "SELECT particle_id, sample_sequence,
-                    eastward_wind_m_s IS NOT NULL,
-                    northward_wind_m_s IS NOT NULL,
-                    geometric_vertical_velocity_m_s IS NOT NULL,
-                    air_pressure_pa IS NOT NULL,
-                    air_temperature_k IS NOT NULL,
-                    wind_quality, pressure_quality, temperature_quality
-             FROM particle_state
-             ORDER BY particle_id, sample_sequence",
-        )
+        .prepare(LOCKSTEP_PARTICLE_STATE_SQL)
         .map_err(|error| OutputError::Io(error.to_string()))?;
     let mut rows = stmt
-        .query([])
+        .query([run_id])
         .map_err(|error| OutputError::Io(error.to_string()))?;
     let run_file = File::open(sorted_run).map_err(|e| OutputError::Io(e.to_string()))?;
     let mut run_iter = BufReader::new(run_file).lines();
@@ -1514,6 +1620,47 @@ fn validate_field_set_slots(
             OutputError::Encoding(format!("field-set {} missing record {sha}", set.sha256))
         })?;
         let got = entry.record.field.expected_slot().ok_or_else(|| {
+            OutputError::Encoding(format!("record {sha} field is not a five-field slot"))
+        })?;
+        if got != slot {
+            return Err(OutputError::Encoding(format!(
+                "field-set {} slot {slot} points to record field {got}",
+                set.sha256
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_field_set_slots_in_sorted_records(
+    set: &BundleFieldSetEntry,
+    records: &[BundleRecordEntry],
+) -> Result<(), OutputError> {
+    let pairs = [
+        (SLOT_EASTWARD, set.fields.eastward_wind.as_deref()),
+        (SLOT_NORTHWARD, set.fields.northward_wind.as_deref()),
+        (
+            SLOT_VERTICAL,
+            set.fields.geometric_vertical_velocity.as_deref(),
+        ),
+        (SLOT_PRESSURE, set.fields.air_pressure.as_deref()),
+        (SLOT_TEMPERATURE, set.fields.air_temperature.as_deref()),
+    ];
+    for (slot, sha) in pairs {
+        let Some(sha) = sha else {
+            continue;
+        };
+        if !is_sha256_hex(sha) {
+            return Err(OutputError::Encoding(format!(
+                "field-set slot {slot} sha not lowercase 64-hex"
+            )));
+        }
+        let index = records
+            .binary_search_by(|entry| entry.sha256.as_str().cmp(sha))
+            .map_err(|_| {
+                OutputError::Encoding(format!("field-set {} missing record {sha}", set.sha256))
+            })?;
+        let got = records[index].record.field.expected_slot().ok_or_else(|| {
             OutputError::Encoding(format!("record {sha} field is not a five-field slot"))
         })?;
         if got != slot {
@@ -1845,11 +1992,6 @@ impl<'de, 'a> Visitor<'de> for CappedFieldSetVecSeed<'a> {
         f.write_str("field_sets array")
     }
     fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-        let rec_map: BTreeMap<String, BundleRecordEntry> = self
-            .record_shas
-            .iter()
-            .map(|r| (r.sha256.clone(), r.clone()))
-            .collect();
         let mut out = Vec::new();
         let mut prev: Option<String> = None;
         while let Some(entry) = seq.next_element::<BundleFieldSetEntry>()? {
@@ -1876,7 +2018,7 @@ impl<'de, 'a> Visitor<'de> for CappedFieldSetVecSeed<'a> {
                     entry.sha256
                 )));
             }
-            validate_field_set_slots(&entry, &rec_map)
+            validate_field_set_slots_in_sorted_records(&entry, self.record_shas)
                 .map_err(|e| de::Error::custom(format!("{e:?}")))?;
             if !self.builder_sets.is_empty() && !self.builder_sets.contains_key(&entry.sha256) {
                 return Err(de::Error::custom("field_set not in builder dict"));
@@ -2172,6 +2314,31 @@ mod tests {
     }
 
     #[test]
+    fn digesting_file_buffer_preserves_bytes_and_sha_across_capacity_boundaries() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("digesting-buffer.bin");
+        let chunks = [
+            vec![b'a'; 17],
+            vec![b'b'; PROVENANCE_BUNDLE_WRITE_BUFFER_BYTES - 17],
+            vec![b'c'; PROVENANCE_BUNDLE_WRITE_BUFFER_BYTES + 31],
+            b"tail\n".to_vec(),
+        ];
+        let expected: Vec<u8> = chunks.iter().flatten().copied().collect();
+        let expected_sha = hex::encode(Sha256::digest(&expected));
+
+        let mut output = DigestingFile::create(&path).unwrap();
+        for chunk in &chunks {
+            output.write_all(chunk).unwrap();
+        }
+        output.sync_all().unwrap();
+        let observed_sha = output.finalize_sha256();
+
+        assert_eq!(std::fs::read(&path).unwrap(), expected);
+        assert_eq!(observed_sha, expected_sha);
+        assert_eq!(file_sha256(&path).unwrap(), expected_sha);
+    }
+
+    #[test]
     fn field_key_token_is_snake_case_not_debug() {
         let token =
             FieldKeyToken::from_field_key(&FieldKey::Canonical(CanonicalField::AirPressure))
@@ -2237,11 +2404,12 @@ mod tests {
         }
     }
 
-    fn write_mini_sqlite(path: &std::path::Path, keys: &[(i64, i64)]) {
+    fn write_mini_sqlite(path: &std::path::Path, run_id: &str, keys: &[(i64, i64)]) {
         let conn = Connection::open(path).unwrap();
         conn.execute_batch(
             "PRAGMA journal_mode=WAL;
              CREATE TABLE particle_state (
+               run_id TEXT NOT NULL,
                particle_id INTEGER NOT NULL,
                sample_sequence INTEGER NOT NULL,
                eastward_wind_m_s REAL,
@@ -2251,17 +2419,58 @@ mod tests {
                air_temperature_k REAL,
                wind_quality TEXT,
                pressure_quality TEXT,
-               temperature_quality TEXT
-             );",
+               temperature_quality TEXT,
+               PRIMARY KEY (run_id, particle_id, sample_sequence)
+             ) WITHOUT ROWID;",
         )
         .unwrap();
         for (pid, seq) in keys {
             conn.execute(
-                "INSERT INTO particle_state VALUES (?1,?2,1.0,2.0,0.0,1000.0,280.0,'source','source','source')",
-                rusqlite::params![pid, seq],
+                "INSERT INTO particle_state VALUES (?1,?2,?3,1.0,2.0,0.0,1000.0,280.0,'source','source','source')",
+                rusqlite::params![run_id, pid, seq],
             )
             .unwrap();
         }
+    }
+
+    #[test]
+    fn lockstep_scan_is_run_scoped_and_uses_primary_key_order() {
+        let dir = tempfile::tempdir().unwrap();
+        let sqlite_path = dir.path().join("particles.sqlite");
+        let mut builder =
+            ProvenanceBundleBuilder::begin(dir.path(), "018f0000-0000-7000-8000-0000000000a0")
+                .unwrap();
+        builder.push_sample(1, 0, &five_fields()).unwrap();
+        write_mini_sqlite(&sqlite_path, &builder.run_id, &[(1, 0)]);
+
+        let connection = Connection::open(&sqlite_path).unwrap();
+        connection
+            .execute(
+                "INSERT INTO particle_state VALUES
+                 ('foreign-run',2,0,1.0,2.0,0.0,1000.0,280.0,'source','source','source')",
+                [],
+            )
+            .unwrap();
+        let explain_sql = format!("EXPLAIN QUERY PLAN {LOCKSTEP_PARTICLE_STATE_SQL}");
+        let details = connection
+            .prepare(&explain_sql)
+            .unwrap()
+            .query_map([builder.run_id.as_str()], |row| row.get::<_, String>(3))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(details.iter().any(|detail| detail.contains("PRIMARY KEY")));
+        assert!(
+            details.iter().all(|detail| !detail.contains("TEMP B-TREE")),
+            "{details:?}"
+        );
+        drop(connection);
+
+        let sqlite_sha = file_sha256(&sqlite_path).unwrap();
+        let identity = builder
+            .finalize_after_sqlite(&sqlite_path, &sqlite_sha, &"ab".repeat(32))
+            .unwrap();
+        assert_eq!(identity.sample_count, 1);
     }
 
     #[test]
@@ -2280,7 +2489,7 @@ mod tests {
             keys.push((pid, 0i64));
             b.push_sample(pid, 0, &five_fields()).unwrap();
         }
-        write_mini_sqlite(&dir.path().join("particles.sqlite"), &keys);
+        write_mini_sqlite(&dir.path().join("particles.sqlite"), &b.run_id, &keys);
         let sha = file_sha256(&dir.path().join("particles.sqlite")).unwrap();
         let id = b
             .finalize_after_sqlite(&dir.path().join("particles.sqlite"), &sha, &"ab".repeat(32))
@@ -2322,7 +2531,11 @@ mod tests {
         b.push_sample(1, 0, &f).unwrap();
         b.push_sample(2, 0, &f).unwrap();
         b.push_sample(1, 0, &f).unwrap(); // dup
-        write_mini_sqlite(&dir.path().join("particles.sqlite"), &[(1, 0), (2, 0)]);
+        write_mini_sqlite(
+            &dir.path().join("particles.sqlite"),
+            &b.run_id,
+            &[(1, 0), (2, 0)],
+        );
         let sha = file_sha256(&dir.path().join("particles.sqlite")).unwrap();
         let err = b
             .finalize_after_sqlite(&dir.path().join("particles.sqlite"), &sha, &"ab".repeat(32))
@@ -2344,7 +2557,7 @@ mod tests {
         b.push_sample(1, 0, &f).unwrap();
         b.push_sample(2, 0, &f).unwrap();
         // SQLite only has one row
-        write_mini_sqlite(&dir.path().join("particles.sqlite"), &[(1, 0)]);
+        write_mini_sqlite(&dir.path().join("particles.sqlite"), &b.run_id, &[(1, 0)]);
         let sha = file_sha256(&dir.path().join("particles.sqlite")).unwrap();
         let err = b
             .finalize_after_sqlite(&dir.path().join("particles.sqlite"), &sha, &"ab".repeat(32))
@@ -2364,7 +2577,7 @@ mod tests {
                 .unwrap();
         b.inject_fault(BundleFaultInject::BeforeRename);
         b.push_sample(1, 0, &five_fields()).unwrap();
-        write_mini_sqlite(&dir.path().join("particles.sqlite"), &[(1, 0)]);
+        write_mini_sqlite(&dir.path().join("particles.sqlite"), &b.run_id, &[(1, 0)]);
         let sha = file_sha256(&dir.path().join("particles.sqlite")).unwrap();
         let err = b
             .finalize_after_sqlite(&dir.path().join("particles.sqlite"), &sha, &"ab".repeat(32))
@@ -2379,7 +2592,7 @@ mod tests {
         let mk = |run_id: &str, dir: &std::path::Path| {
             let mut b = ProvenanceBundleBuilder::begin(dir, run_id).unwrap();
             b.push_sample(1, 0, &five_fields()).unwrap();
-            write_mini_sqlite(&dir.join("particles.sqlite"), &[(1, 0)]);
+            write_mini_sqlite(&dir.join("particles.sqlite"), &b.run_id, &[(1, 0)]);
             let sha = file_sha256(&dir.join("particles.sqlite")).unwrap();
             let id = b
                 .finalize_after_sqlite(&dir.join("particles.sqlite"), &sha, &"ab".repeat(32))
@@ -2404,7 +2617,7 @@ mod tests {
         let mut b =
             ProvenanceBundleBuilder::begin(dir, "018f0000-0000-7000-8000-0000000000ff").unwrap();
         b.push_sample(1, 0, &five_fields()).unwrap();
-        write_mini_sqlite(&dir.join("particles.sqlite"), &[(1, 0)]);
+        write_mini_sqlite(&dir.join("particles.sqlite"), &b.run_id, &[(1, 0)]);
         let sha = file_sha256(&dir.join("particles.sqlite")).unwrap();
         let id = b
             .finalize_after_sqlite(&dir.join("particles.sqlite"), &sha, &"ab".repeat(32))

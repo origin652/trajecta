@@ -13,6 +13,7 @@ pub mod field;
 pub mod frame;
 pub mod grid;
 pub mod io;
+pub mod performance;
 pub mod profile;
 pub mod provenance;
 pub mod query;

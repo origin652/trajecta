@@ -550,6 +550,186 @@ pub struct ColumnGeometry {
     physical_model_top_asl_m: Option<f64>,
 }
 
+/// Minimal local vertical column used by continuous boundary geometry.
+///
+/// It preserves the pressure/height ordering and structural validity needed
+/// for the exact transport bounds, while intentionally omitting temperature,
+/// humidity, density, and horizontal-weight columns.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct BoundaryColumnGeometry {
+    pressure_pa: Vec<f64>,
+    height_asl_m: Vec<f64>,
+    valid: Vec<bool>,
+    terrain_asl_m: f64,
+    surface_pressure_pa: f64,
+    physical_model_top_asl_m: Option<f64>,
+}
+
+impl BoundaryColumnGeometry {
+    pub(crate) fn new(
+        pressure_pa: Vec<f64>,
+        height_asl_m: Vec<f64>,
+        valid: Vec<bool>,
+        terrain_asl_m: f64,
+        surface_pressure_pa: f64,
+        physical_model_top_asl_m: Option<f64>,
+    ) -> Result<Self, VerticalError> {
+        let levels = pressure_pa.len();
+        if levels == 0 || height_asl_m.len() != levels || valid.len() != levels {
+            return Err(VerticalError::InvalidTopology);
+        }
+        if !terrain_asl_m.is_finite()
+            || !surface_pressure_pa.is_finite()
+            || surface_pressure_pa <= 0.0
+            || physical_model_top_asl_m.is_some_and(|value| !value.is_finite())
+            || pressure_pa
+                .iter()
+                .any(|value| !value.is_finite() || *value <= 0.0)
+            || pressure_pa.windows(2).any(|values| values[1] <= values[0])
+            || height_asl_m.iter().any(|value| !value.is_finite())
+            || height_asl_m.windows(2).any(|values| values[1] >= values[0])
+        {
+            return Err(VerticalError::NonMonotonicColumn);
+        }
+        let first_valid = valid
+            .iter()
+            .position(|value| *value)
+            .ok_or(VerticalError::InvalidValidityMask)?;
+        for index in 0..levels {
+            if valid[index]
+                && (height_asl_m[index] <= terrain_asl_m
+                    || pressure_pa[index] > surface_pressure_pa)
+            {
+                return Err(VerticalError::InvalidValidityMask);
+            }
+        }
+        if physical_model_top_asl_m.is_some_and(|top| top < height_asl_m[first_valid]) {
+            return Err(VerticalError::InvalidPhysicalAnchor);
+        }
+        Ok(Self {
+            pressure_pa,
+            height_asl_m,
+            valid,
+            terrain_asl_m,
+            surface_pressure_pa,
+            physical_model_top_asl_m,
+        })
+    }
+
+    #[must_use]
+    pub(crate) fn pressure_pa(&self) -> &[f64] {
+        &self.pressure_pa
+    }
+
+    #[must_use]
+    pub(crate) fn height_asl_m(&self) -> &[f64] {
+        &self.height_asl_m
+    }
+
+    #[must_use]
+    pub(crate) fn validity(&self) -> &[bool] {
+        &self.valid
+    }
+
+    #[must_use]
+    pub(crate) const fn terrain_asl_m(&self) -> f64 {
+        self.terrain_asl_m
+    }
+
+    #[must_use]
+    pub(crate) const fn surface_pressure_pa(&self) -> f64 {
+        self.surface_pressure_pa
+    }
+
+    #[must_use]
+    pub(crate) const fn physical_model_top_asl_m(&self) -> Option<f64> {
+        self.physical_model_top_asl_m
+    }
+
+    pub(crate) fn first_valid_index(&self) -> Result<usize, VerticalError> {
+        self.valid
+            .iter()
+            .position(|value| *value)
+            .ok_or(VerticalError::InvalidValidityMask)
+    }
+
+    pub(crate) fn last_valid_index(&self) -> Result<usize, VerticalError> {
+        self.valid
+            .iter()
+            .rposition(|value| *value)
+            .ok_or(VerticalError::InvalidValidityMask)
+    }
+
+    pub(crate) fn vertical_bounds(
+        &self,
+        minimum_transport_agl_m: f64,
+    ) -> Result<VerticalBounds, VerticalBoundsError> {
+        let top = self
+            .valid
+            .iter()
+            .position(|value| *value)
+            .ok_or(VerticalBoundsError::TopBelowMinimum)?;
+        VerticalBounds::new(
+            self.terrain_asl_m,
+            minimum_transport_agl_m,
+            self.terrain_asl_m + minimum_transport_agl_m,
+            self.height_asl_m[top],
+            self.physical_model_top_asl_m,
+            self.pressure_pa[top],
+            self.surface_pressure_pa,
+        )
+    }
+
+    pub(crate) fn locate_height_asl_m(&self, query_asl_m: f64) -> Result<(), VerticalError> {
+        if !query_asl_m.is_finite() {
+            return Err(VerticalError::NumericalFailure);
+        }
+        if query_asl_m <= self.terrain_asl_m {
+            return Err(VerticalError::BelowGround);
+        }
+        let first = self.first_valid_index()?;
+        let last = self.last_valid_index()?;
+        if self
+            .physical_model_top_asl_m
+            .is_some_and(|top| query_asl_m > top)
+        {
+            return Err(VerticalError::AboveModelTop);
+        }
+        if query_asl_m > self.height_asl_m[first] {
+            return Err(VerticalError::AboveAvailableTop);
+        }
+        if query_asl_m < self.height_asl_m[last] {
+            return Err(VerticalError::SurfaceLayerRequired);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn locate_height_agl_m(&self, query_agl_m: f64) -> Result<(), VerticalError> {
+        if !query_agl_m.is_finite() {
+            return Err(VerticalError::NumericalFailure);
+        }
+        self.locate_height_asl_m(self.terrain_asl_m + query_agl_m)
+    }
+
+    pub(crate) fn locate_pressure_pa(&self, query_pressure_pa: f64) -> Result<(), VerticalError> {
+        if !query_pressure_pa.is_finite() || query_pressure_pa <= 0.0 {
+            return Err(VerticalError::NumericalFailure);
+        }
+        if query_pressure_pa > self.surface_pressure_pa {
+            return Err(VerticalError::BelowGround);
+        }
+        let first = self.first_valid_index()?;
+        let last = self.last_valid_index()?;
+        if query_pressure_pa < self.pressure_pa[first] {
+            return Err(VerticalError::AboveAvailableTop);
+        }
+        if query_pressure_pa > self.pressure_pa[last] {
+            return Err(VerticalError::SurfaceLayerRequired);
+        }
+        Ok(())
+    }
+}
+
 impl ColumnGeometry {
     /// Validates a top-to-surface local column and its physical anchors.
     #[allow(clippy::too_many_arguments)]
@@ -1149,6 +1329,38 @@ impl ColumnStencil {
         }
     }
 
+    /// Samples only the local vertical geometry required by boundary policies.
+    pub(crate) fn sample_boundary(
+        &self,
+        request: ColumnRequest<'_>,
+    ) -> Result<BoundaryColumnGeometry, VerticalError> {
+        let (_, weights) = self.weights_for_request(request)?;
+        self.sample_boundary_with_weights(&request.frame.metadata().id, request.cell, weights)
+    }
+
+    /// Samples boundary-only geometry from already validated horizontal support.
+    ///
+    /// Continuous-boundary probing locates each point before pinning stencils.
+    /// Reusing that support avoids rebuilding and revalidating the same grid for
+    /// the before frame, after frame, and surface scalar.
+    pub(crate) fn sample_boundary_with_weights(
+        &self,
+        frame: &LogicalFrameId,
+        cell: CellId,
+        weights: HorizontalWeights,
+    ) -> Result<BoundaryColumnGeometry, VerticalError> {
+        if frame != &self.frame {
+            return Err(VerticalError::FrameMismatch);
+        }
+        if cell != self.cell || weights.points != self.points {
+            return Err(VerticalError::CellMismatch);
+        }
+        match &self.kind {
+            ColumnStencilKind::Hybrid(stencil) => stencil.sample_boundary(weights),
+            ColumnStencilKind::Pressure(stencil) => stencil.sample_boundary(weights),
+        }
+    }
+
     /// Samples one native full-level surface and its exact horizontal slopes.
     pub fn level_geometry(
         &self,
@@ -1572,6 +1784,36 @@ impl HybridColumnStencil {
             physical_top,
         )
     }
+
+    fn sample_boundary(
+        &self,
+        weights: HorizontalWeights,
+    ) -> Result<BoundaryColumnGeometry, VerticalError> {
+        let terrain_asl_m = bilinear(&self.terrain_asl_m, &weights.weights)?;
+        let surface_pressure_pa = bilinear(&self.surface_pressure_pa, &weights.weights)?;
+        let levels = self.pressure_pa[0].len();
+        let mut pressure_pa = Vec::with_capacity(levels);
+        let mut height_asl_m = Vec::with_capacity(levels);
+        for level in 0..levels {
+            pressure_pa.push(bilinear(
+                &corners_at_level(&self.pressure_pa, level)?,
+                &weights.weights,
+            )?);
+            height_asl_m.push(bilinear(
+                &corners_at_level(&self.height_asl_m, level)?,
+                &weights.weights,
+            )?);
+        }
+        let physical_top = self.carries_physical_top.then_some(height_asl_m[0]);
+        BoundaryColumnGeometry::new(
+            pressure_pa,
+            height_asl_m,
+            vec![true; levels],
+            terrain_asl_m,
+            surface_pressure_pa,
+            physical_top,
+        )
+    }
 }
 
 impl PressureColumnStencil {
@@ -1629,6 +1871,47 @@ impl PressureColumnStencil {
             VerticalValidity {
                 valid: Arc::from(valid),
             },
+            terrain_asl_m,
+            surface_pressure_pa,
+            None,
+        )
+    }
+
+    fn sample_boundary(
+        &self,
+        weights: HorizontalWeights,
+    ) -> Result<BoundaryColumnGeometry, VerticalError> {
+        let terrain_weights = valid_triangle_weights(&weights.weights, &self.terrain_valid)
+            .ok_or(VerticalError::InvalidHorizontalSupport)?;
+        let pressure_weights =
+            valid_triangle_weights(&weights.weights, &self.surface_pressure_valid)
+                .ok_or(VerticalError::InvalidHorizontalSupport)?;
+        let terrain_asl_m = bilinear(&self.terrain_asl_m, &terrain_weights)?;
+        let surface_pressure_pa = bilinear(&self.surface_pressure_pa, &pressure_weights)?;
+        let levels = self.pressure_pa.len();
+        let mut height_options = vec![None; levels];
+        let mut valid = vec![false; levels];
+        for level in 0..levels {
+            let corner_valid = std::array::from_fn(|corner| self.level_valid[corner][level]);
+            let Some(interpolation_weights) =
+                valid_triangle_weights(&weights.weights, &corner_valid)
+            else {
+                continue;
+            };
+            let height = bilinear(
+                &corners_at_level(&self.height_asl_m, level)?,
+                &interpolation_weights,
+            )?;
+            if height <= terrain_asl_m || self.pressure_pa[level] > surface_pressure_pa {
+                continue;
+            }
+            height_options[level] = Some(height);
+            valid[level] = true;
+        }
+        BoundaryColumnGeometry::new(
+            self.pressure_pa.to_vec(),
+            fill_invalid_descending(&height_options)?,
+            valid,
             terrain_asl_m,
             surface_pressure_pa,
             None,

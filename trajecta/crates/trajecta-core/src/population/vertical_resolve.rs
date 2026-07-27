@@ -8,6 +8,7 @@ use trajecta_case::model::time::Timestamp;
 use trajecta_met::field::{CanonicalField, FieldKey};
 use trajecta_met::profile::graph::ExecutionPlan;
 use trajecta_met::query::engine::BatchWorkspace;
+use trajecta_met::query::metrics::{QueryOrigin, QueryOriginScope};
 use trajecta_met::query::output::SampleStatus;
 use trajecta_met::query::request::{
     ExplainMode, QueryBatch, QueryPlanRequest, QueryPointArrays, TransportPlanRequest,
@@ -138,6 +139,7 @@ fn transport_terrain(
     vertical: f64,
     coordinate: VerticalQuery,
 ) -> Result<(SampleStatus, Option<f64>), PopulationError> {
+    let _query_origin = QueryOriginScope::enter(QueryOrigin::PopulationVertical);
     let domain = context
         .domain
         .as_ref()
@@ -183,6 +185,7 @@ fn geometric_height_at_pressure(
     lat: f64,
     pressure_pa: f64,
 ) -> Result<(SampleStatus, Option<f64>), PopulationError> {
+    let _query_origin = QueryOriginScope::enter(QueryOrigin::PopulationVertical);
     let domain = context
         .domain
         .as_ref()

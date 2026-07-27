@@ -16,7 +16,7 @@ use crate::derive::pressure::hybrid_pressure_column;
 use crate::derive::thermo::project_specific_humidity_nonnegative;
 use crate::field::{CanonicalField, FieldKey};
 use crate::frame::{ArrayLayout, PreparedWindow};
-use crate::grid::{DomainGeometry, GridBackend, RegularLatLonGrid};
+use crate::grid::{DomainGeometry, GridBackend, HorizontalWeights, RegularLatLonGrid};
 use crate::science::M3_CONSTANTS;
 use crate::surface_layer::minimum_transport_height_agl_m;
 use crate::vertical::VerticalTopology;
@@ -216,6 +216,8 @@ pub struct AirMassSnapshot {
     pub grid: DomainGeometry,
     /// Time-interpolated geometric terrain on the complete native horizontal grid.
     pub terrain_height_grid_asl_m: Vec<f64>,
+    /// Highest full-level height available to point queries on the complete grid.
+    pub available_top_height_grid_asl_m: Vec<f64>,
     /// Time-interpolated raw aerodynamic roughness on the native horizontal grid.
     pub aerodynamic_roughness_length_grid_m: Vec<f64>,
     /// Safe-core columns in stable y/x order.
@@ -226,12 +228,33 @@ pub struct AirMassSnapshot {
     pub total_dry_air_mass_kg: f64,
 }
 
+/// Point-specific vertical support used when placing domain-fill particles.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct AirMassLocalVerticalBounds {
+    /// Bilinearly interpolated terrain height.
+    pub terrain_height_asl_m: f64,
+    /// Roughness-aware lower boundary of complete transport.
+    pub transport_floor_height_asl_m: f64,
+    /// Highest bilinearly interpolated full level available to point queries.
+    pub available_top_height_asl_m: f64,
+}
+
 impl AirMassSnapshot {
-    fn sample_horizontal_grid(
+    fn horizontal_support(
         &self,
-        values_grid: &[f64],
         longitude_degrees: f64,
         latitude_degrees: f64,
+    ) -> Result<HorizontalWeights, AirMassDerivationError> {
+        RegularLatLonGrid::new(self.grid.clone())
+            .map_err(|_| AirMassDerivationError::InvalidGeometry)?
+            .horizontal_weights(longitude_degrees, latitude_degrees)
+            .map_err(|_| AirMassDerivationError::InvalidGeometry)
+    }
+
+    fn sample_horizontal_grid_with_support(
+        &self,
+        values_grid: &[f64],
+        support: &HorizontalWeights,
     ) -> Result<f64, AirMassDerivationError> {
         let expected = self
             .grid
@@ -241,11 +264,6 @@ impl AirMassSnapshot {
         if values_grid.len() != expected {
             return Err(AirMassDerivationError::InvalidLayout);
         }
-        let grid = RegularLatLonGrid::new(self.grid.clone())
-            .map_err(|_| AirMassDerivationError::InvalidGeometry)?;
-        let support = grid
-            .horizontal_weights(longitude_degrees, latitude_degrees)
-            .map_err(|_| AirMassDerivationError::InvalidGeometry)?;
         let mut values = [0.0; 4];
         for (index, point) in support.points.into_iter().enumerate() {
             let flat = point
@@ -273,6 +291,44 @@ impl AirMassSnapshot {
             .ok_or(AirMassDerivationError::NumericalFailure)
     }
 
+    fn sample_horizontal_grid(
+        &self,
+        values_grid: &[f64],
+        longitude_degrees: f64,
+        latitude_degrees: f64,
+    ) -> Result<f64, AirMassDerivationError> {
+        let support = self.horizontal_support(longitude_degrees, latitude_degrees)?;
+        self.sample_horizontal_grid_with_support(values_grid, &support)
+    }
+
+    /// Returns all local vertical placement bounds using one interpolation support.
+    pub fn local_vertical_bounds_at(
+        &self,
+        longitude_degrees: f64,
+        latitude_degrees: f64,
+    ) -> Result<AirMassLocalVerticalBounds, AirMassDerivationError> {
+        let support = self.horizontal_support(longitude_degrees, latitude_degrees)?;
+        let terrain_height_asl_m =
+            self.sample_horizontal_grid_with_support(&self.terrain_height_grid_asl_m, &support)?;
+        let roughness_length_m = self.sample_horizontal_grid_with_support(
+            &self.aerodynamic_roughness_length_grid_m,
+            &support,
+        )?;
+        let available_top_height_asl_m = self
+            .sample_horizontal_grid_with_support(&self.available_top_height_grid_asl_m, &support)?;
+        let minimum_agl = minimum_transport_height_agl_m(roughness_length_m)
+            .map_err(|_| AirMassDerivationError::InvalidPhysicalState)?;
+        let transport_floor_height_asl_m = terrain_height_asl_m + minimum_agl;
+        if !transport_floor_height_asl_m.is_finite() {
+            return Err(AirMassDerivationError::NumericalFailure);
+        }
+        Ok(AirMassLocalVerticalBounds {
+            terrain_height_asl_m,
+            transport_floor_height_asl_m,
+            available_top_height_asl_m,
+        })
+    }
+
     /// Bilinearly samples the same local terrain surface used by point queries.
     pub fn terrain_height_asl_m_at(
         &self,
@@ -281,6 +337,19 @@ impl AirMassSnapshot {
     ) -> Result<f64, AirMassDerivationError> {
         self.sample_horizontal_grid(
             &self.terrain_height_grid_asl_m,
+            longitude_degrees,
+            latitude_degrees,
+        )
+    }
+
+    /// Bilinearly samples the local highest full level accepted by point queries.
+    pub fn available_top_height_asl_m_at(
+        &self,
+        longitude_degrees: f64,
+        latitude_degrees: f64,
+    ) -> Result<f64, AirMassDerivationError> {
+        self.sample_horizontal_grid(
+            &self.available_top_height_grid_asl_m,
             longitude_degrees,
             latitude_degrees,
         )
@@ -340,6 +409,11 @@ impl AirMassDeriver {
             grid.nx,
             grid.ny,
         )?;
+        let horizontal_point_count = grid
+            .nx
+            .checked_mul(grid.ny)
+            .ok_or(AirMassDerivationError::IndexOverflow)?;
+        let mut available_top_height_grid_asl_m = vec![None; horizontal_point_count];
 
         let mut columns = Vec::with_capacity(safe.x_indices.len() * safe.y_indices.len());
         for &y in &safe.y_indices {
@@ -374,45 +448,19 @@ impl AirMassDeriver {
                     validate_field_value(&humidity_column, level, PhysicalField::Humidity)?;
                     validate_field_value(&temperature_column, level, PhysicalField::Temperature)?;
                 }
-                let (terrain_height_asl_m, centre_heights) = match &before.metadata().vertical {
-                    VerticalTopology::PressureLevels(_) => {
-                        let heights = fields
-                            .geometric_height_asl_m
-                            .as_ref()
-                            .ok_or(AirMassDerivationError::InvalidLayout)?;
-                        (
-                            fields.terrain_height_asl_m[horizontal],
-                            field_column(heights, horizontal, level_count, grid.nx, grid.ny)?,
-                        )
-                    }
-                    VerticalTopology::HybridPressure(_) => {
-                        let surface_geopotential = fields
-                            .surface_geopotential_m2_s2
-                            .as_ref()
-                            .and_then(|values| values.get(horizontal))
-                            .copied()
-                            .ok_or(AirMassDerivationError::InvalidLayout)?;
-                        let hydrostatic = hydrostatic_full_level_geopotential(
-                            point_interfaces,
-                            &temperature_column,
-                            &humidity_column,
-                            surface_geopotential,
-                        )
-                        .map_err(|_| AirMassDerivationError::InvalidHeightColumn)?;
-                        let heights = hydrostatic
-                            .full_level_m2_s2
-                            .into_iter()
-                            .map(|value| {
-                                geopotential_to_geometric_height_m(value)
-                                    .map_err(|_| AirMassDerivationError::InvalidHeightColumn)
-                            })
-                            .collect::<Result<Vec<_>, _>>()?;
-                        let terrain = geopotential_to_geometric_height_m(surface_geopotential)
-                            .map_err(|_| AirMassDerivationError::InvalidTerrain)?;
-                        (terrain, heights)
-                    }
-                };
+                let (terrain_height_asl_m, centre_heights) = height_column_at_horizontal(
+                    &before.metadata().vertical,
+                    &fields,
+                    point_interfaces,
+                    horizontal,
+                    level_count,
+                    &grid,
+                    (&temperature_column, &humidity_column),
+                )?;
                 validate_height_column(&centre_heights, terrain_height_asl_m)?;
+                if available_top_height_grid_asl_m[horizontal].is_none() {
+                    available_top_height_grid_asl_m[horizontal] = centre_heights.first().copied();
+                }
                 let height_interfaces = height_interfaces(&centre_heights, terrain_height_asl_m)?;
                 let full_pressure_pa = match &before.metadata().vertical {
                     VerticalTopology::PressureLevels(topology) => topology.pressure_pa.to_vec(),
@@ -532,6 +580,43 @@ impl AirMassDeriver {
                 });
             }
         }
+        for (horizontal, available_top) in available_top_height_grid_asl_m.iter_mut().enumerate() {
+            if available_top.is_some() {
+                continue;
+            }
+            let point_interfaces = pressure_interfaces
+                .get(horizontal)
+                .ok_or(AirMassDerivationError::InvalidLayout)?;
+            let temperature_column = field_column(
+                &fields.air_temperature_k,
+                horizontal,
+                level_count,
+                grid.nx,
+                grid.ny,
+            )?;
+            let humidity_column = field_column(
+                &fields.specific_humidity,
+                horizontal,
+                level_count,
+                grid.nx,
+                grid.ny,
+            )?;
+            let (terrain_height_asl_m, centre_heights) = height_column_at_horizontal(
+                &before.metadata().vertical,
+                &fields,
+                point_interfaces,
+                horizontal,
+                level_count,
+                &grid,
+                (&temperature_column, &humidity_column),
+            )?;
+            validate_height_column(&centre_heights, terrain_height_asl_m)?;
+            *available_top = centre_heights.first().copied();
+        }
+        let available_top_height_grid_asl_m = available_top_height_grid_asl_m
+            .into_iter()
+            .collect::<Option<Vec<_>>>()
+            .ok_or(AirMassDerivationError::InvalidHeightColumn)?;
         let total_dry_air_mass_kg =
             neumaier_sum(columns.iter().map(|column| column.dry_air_mass_kg))?;
         let boundary_faces = if grid.periodic_longitude {
@@ -544,11 +629,64 @@ impl AirMassDeriver {
             time: window.query_time,
             grid,
             terrain_height_grid_asl_m: fields.terrain_height_asl_m,
+            available_top_height_grid_asl_m,
             aerodynamic_roughness_length_grid_m: fields.aerodynamic_roughness_length_m,
             columns,
             boundary_faces,
             total_dry_air_mass_kg,
         })
+    }
+}
+
+fn height_column_at_horizontal(
+    topology: &VerticalTopology,
+    fields: &InterpolatedFields,
+    point_interfaces: &[f64],
+    horizontal: usize,
+    level_count: usize,
+    grid: &DomainGeometry,
+    thermodynamic_columns: (&[f64], &[f64]),
+) -> Result<(f64, Vec<f64>), AirMassDerivationError> {
+    match topology {
+        VerticalTopology::PressureLevels(_) => {
+            let heights = fields
+                .geometric_height_asl_m
+                .as_ref()
+                .ok_or(AirMassDerivationError::InvalidLayout)?;
+            Ok((
+                *fields
+                    .terrain_height_asl_m
+                    .get(horizontal)
+                    .ok_or(AirMassDerivationError::InvalidLayout)?,
+                field_column(heights, horizontal, level_count, grid.nx, grid.ny)?,
+            ))
+        }
+        VerticalTopology::HybridPressure(_) => {
+            let surface_geopotential = fields
+                .surface_geopotential_m2_s2
+                .as_ref()
+                .and_then(|values| values.get(horizontal))
+                .copied()
+                .ok_or(AirMassDerivationError::InvalidLayout)?;
+            let hydrostatic = hydrostatic_full_level_geopotential(
+                point_interfaces,
+                thermodynamic_columns.0,
+                thermodynamic_columns.1,
+                surface_geopotential,
+            )
+            .map_err(|_| AirMassDerivationError::InvalidHeightColumn)?;
+            let heights = hydrostatic
+                .full_level_m2_s2
+                .into_iter()
+                .map(|value| {
+                    geopotential_to_geometric_height_m(value)
+                        .map_err(|_| AirMassDerivationError::InvalidHeightColumn)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let terrain = geopotential_to_geometric_height_m(surface_geopotential)
+                .map_err(|_| AirMassDerivationError::InvalidTerrain)?;
+            Ok((terrain, heights))
+        }
     }
 }
 

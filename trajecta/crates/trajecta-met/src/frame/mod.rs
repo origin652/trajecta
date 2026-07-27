@@ -19,7 +19,7 @@ use crate::profile::graph::{
     ThermodynamicOp,
 };
 use crate::provenance::{ProvenanceId, ProvenanceTable};
-use crate::query::cache::ColumnCache;
+use crate::query::cache::{CachedTransportQuery, ColumnCache, LastTransportQueryCache};
 use crate::science::{M3_CONSTANTS, two_metre_specific_humidity_from_dewpoint_si};
 use crate::vertical::VerticalTopology;
 
@@ -1119,6 +1119,7 @@ pub struct PreparedWindow {
     /// Weight assigned to the later frame.
     pub after_weight: f64,
     column_cache: Option<Weak<Mutex<ColumnCache>>>,
+    last_transport_query: Option<Weak<Mutex<Option<CachedTransportQuery>>>>,
 }
 
 impl PartialEq for PreparedWindow {
@@ -1167,6 +1168,7 @@ impl PreparedWindow {
             before_weight,
             after_weight,
             column_cache: None,
+            last_transport_query: None,
         })
     }
 
@@ -1202,6 +1204,7 @@ impl PreparedWindow {
             before_weight: 1.0,
             after_weight: 0.0,
             column_cache: None,
+            last_transport_query: None,
         })
     }
 
@@ -1224,9 +1227,19 @@ impl PreparedWindow {
         self.column_cache = Some(Arc::downgrade(cache));
     }
 
+    /// Attaches the engine-owned one-entry exact transport cache.
+    pub(crate) fn attach_transport_cache(&mut self, cache: &LastTransportQueryCache) {
+        self.last_transport_query = Some(Arc::downgrade(cache));
+    }
+
     /// Upgrades the engine-owned cache while preparing a batch.
     pub(crate) fn column_cache(&self) -> Option<Arc<Mutex<ColumnCache>>> {
         self.column_cache.as_ref().and_then(Weak::upgrade)
+    }
+
+    /// Upgrades the engine-owned exact transport cache.
+    pub(crate) fn transport_cache(&self) -> Option<LastTransportQueryCache> {
+        self.last_transport_query.as_ref().and_then(Weak::upgrade)
     }
 }
 

@@ -8,5 +8,6 @@ pub mod cache;
 pub mod engine;
 pub mod interpolate;
 pub mod layout;
+pub mod metrics;
 pub mod output;
 pub mod request;

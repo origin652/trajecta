@@ -67,6 +67,22 @@ impl ProvenanceTable {
         Ok(id)
     }
 
+    /// Returns an existing ID or clones one previously unseen borrowed record.
+    pub fn intern_ref(
+        &mut self,
+        record: &ProvenanceRecord,
+    ) -> Result<ProvenanceId, ProvenanceError> {
+        if let Some(id) = self.ids.get(record) {
+            return Ok(*id);
+        }
+        let raw_id = u32::try_from(self.records.len())
+            .map_err(|_| ProvenanceError::TooManyRecords(self.records.len()))?;
+        let id = ProvenanceId(raw_id);
+        self.records.push(record.clone());
+        self.ids.insert(record.clone(), id);
+        Ok(id)
+    }
+
     /// Resolves one compact identifier.
     #[must_use]
     pub fn get(&self, id: ProvenanceId) -> Option<&ProvenanceRecord> {

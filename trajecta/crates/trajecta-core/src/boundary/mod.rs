@@ -166,6 +166,7 @@ impl BoundaryPolicy for SurfaceReflect {
     ) -> Result<BoundaryDecision, BoundaryError> {
         if validate_boundary_state(start, proposed).is_err() {
             return Ok(terminate_proposal(
+                start,
                 proposed,
                 TerminationReason::NonFiniteState,
                 0.0,
@@ -175,14 +176,15 @@ impl BoundaryPolicy for SurfaceReflect {
         let mut remaining_start_fraction = 0.0;
         loop {
             let crossing = match find_first_scalar_downcrossing(context.path, |sample| {
-                let surface = sample
-                    .surface_height_asl_m
-                    .ok_or(BoundaryError::MissingContext)?;
+                let Some(surface) = sample.surface_height_asl_m else {
+                    return Err(BoundaryError::MissingContext);
+                };
                 Ok(sample.position.height_asl_m - surface)
             }) {
                 Ok(crossing) => crossing,
                 Err(BoundaryError::RootFindingFailed | BoundaryError::ReflectionLimit) => {
                     return Ok(terminate_proposal(
+                        start,
                         proposed,
                         TerminationReason::ReflectionLimit,
                         remaining_start_fraction,
@@ -190,6 +192,7 @@ impl BoundaryPolicy for SurfaceReflect {
                 }
                 Err(BoundaryError::MissingContext) => {
                     return Ok(terminate_proposal(
+                        start,
                         proposed,
                         TerminationReason::InvalidMeteorology,
                         remaining_start_fraction,
@@ -197,6 +200,7 @@ impl BoundaryPolicy for SurfaceReflect {
                 }
                 Err(BoundaryError::InvalidParticleState) => {
                     return Ok(terminate_proposal(
+                        start,
                         proposed,
                         TerminationReason::NonFiniteState,
                         remaining_start_fraction,
@@ -227,11 +231,19 @@ impl BoundaryPolicy for SurfaceReflect {
             let surface = collision
                 .surface_height_asl_m
                 .ok_or(BoundaryError::MissingContext)?;
-            let remaining_vertical_displacement = proposed.height_asl_m - surface;
+            let endpoint = sample_at(context.path, 1.0)?;
             let clearance = surface_clearance(surface);
+            let reflected_endpoint_height = endpoint.surface_height_asl_m.map_or_else(
+                || surface + (proposed.height_asl_m - surface).abs() + clearance,
+                |endpoint_surface| {
+                    endpoint_surface
+                        + (proposed.height_asl_m - endpoint_surface).abs()
+                        + surface_clearance(endpoint_surface)
+                },
+            );
             collision.position.height_asl_m = surface + clearance;
             collision.position.status = crate::particle::ParticleStatus::Alive;
-            proposed.height_asl_m = surface + remaining_vertical_displacement.abs() + clearance;
+            proposed.height_asl_m = reflected_endpoint_height;
             proposed.status = crate::particle::ParticleStatus::Alive;
             collision_count += 1;
             remaining_start_fraction = global_fraction;
@@ -241,7 +253,7 @@ impl BoundaryPolicy for SurfaceReflect {
                     .retarget(global_fraction, &collision.position, proposed)
             {
                 if let Some(reason) = particle_level_reason(&error) {
-                    return Ok(terminate_proposal(proposed, reason, global_fraction));
+                    return Ok(terminate_proposal(start, proposed, reason, global_fraction));
                 }
                 return Err(error);
             }
@@ -266,6 +278,7 @@ impl BoundaryPolicy for ModelTopTerminate {
     ) -> Result<BoundaryDecision, BoundaryError> {
         if validate_boundary_state(start, proposed).is_err() {
             return Ok(terminate_proposal(
+                start,
                 proposed,
                 TerminationReason::NonFiniteState,
                 0.0,
@@ -279,7 +292,7 @@ impl BoundaryPolicy for ModelTopTerminate {
             Ok(crossing) => crossing,
             Err(error) => {
                 if let Some(reason) = particle_level_reason(&error) {
-                    return Ok(terminate_proposal(proposed, reason, 0.0));
+                    return Ok(terminate_proposal(start, proposed, reason, 0.0));
                 }
                 return Err(error);
             }
@@ -315,6 +328,7 @@ impl BoundaryPolicy for LimitedDomainTerminate {
     ) -> Result<BoundaryDecision, BoundaryError> {
         if validate_boundary_state(start, proposed).is_err() {
             return Ok(terminate_proposal(
+                start,
                 proposed,
                 TerminationReason::NonFiniteState,
                 0.0,
@@ -324,7 +338,7 @@ impl BoundaryPolicy for LimitedDomainTerminate {
             Ok(crossing) => crossing,
             Err(error) => {
                 if let Some(reason) = particle_level_reason(&error) {
-                    return Ok(terminate_proposal(proposed, reason, 0.0));
+                    return Ok(terminate_proposal(start, proposed, reason, 0.0));
                 }
                 return Err(error);
             }
@@ -357,6 +371,7 @@ impl BoundaryPolicy for GlobalPeriodicBoundary {
     ) -> Result<BoundaryDecision, BoundaryError> {
         if validate_boundary_state(start, proposed).is_err() {
             return Ok(terminate_proposal(
+                start,
                 proposed,
                 TerminationReason::NonFiniteState,
                 0.0,
@@ -615,10 +630,14 @@ fn terminate_at_sample(
 }
 
 fn terminate_proposal(
+    start: &ParticleState,
     proposed: &mut ParticleState,
     reason: TerminationReason,
     intersection_fraction: f64,
 ) -> BoundaryDecision {
+    if intersection_fraction == 0.0 {
+        *proposed = start.clone();
+    }
     proposed.status = crate::particle::ParticleStatus::Terminated {
         reason: reason.clone(),
     };
@@ -723,6 +742,7 @@ mod tests {
             mass_kg: BTreeMap::new(),
             sensitivity_weight: None,
             status: ParticleStatus::Alive,
+            termination: None,
         }
     }
 
@@ -993,6 +1013,30 @@ mod tests {
     }
 
     #[test]
+    fn surface_reflection_uses_endpoint_clearance_over_rising_terrain() {
+        let start = particle(0.0, 10.0);
+        let mut proposed = particle(1.0, 11.0);
+        let mut path = LinearPath {
+            start: start.clone(),
+            proposed: proposed.clone(),
+            terrain: |longitude| 12.0 * longitude,
+            model_top: Some(100.0),
+            domain_max_longitude: None,
+            segments: vec![BoundaryPathSegment {
+                start_fraction: 0.0,
+                end_fraction: 1.0,
+            }],
+            retarget_count: 0,
+        };
+        let decision = SurfaceReflect
+            .apply(&start, &mut proposed, &mut context(&mut path))
+            .unwrap();
+        assert_eq!(decision, BoundaryDecision::Reflected { collision_count: 1 });
+        assert!(proposed.height_asl_m > 13.0);
+        assert_eq!(path.retarget_count, 1);
+    }
+
+    #[test]
     fn reflection_limit_is_an_abnormal_particle_termination_not_a_run_error() {
         let start = particle(0.0, 1.0);
         let mut proposed = particle(1.0, -1.0);
@@ -1021,8 +1065,12 @@ mod tests {
 
     #[test]
     fn missing_surface_context_is_particle_local_invalid_meteorology() {
-        let start = particle(0.0, 1.0);
+        let mut start = particle(0.0, 1.0);
+        start.integration_offset_ns = 17;
+        start.elapsed_age_ns = 23;
         let mut proposed = particle(1.0, -1.0);
+        proposed.integration_offset_ns = 60;
+        proposed.elapsed_age_ns = 66;
         let mut path = MissingTerrainPath {
             template: start.clone(),
         };
@@ -1033,9 +1081,14 @@ mod tests {
             decision,
             BoundaryDecision::Terminated {
                 reason: TerminationReason::InvalidMeteorology,
-                ..
+                intersection_fraction: 0.0
             }
         ));
+        assert_eq!(proposed.longitude_degrees, start.longitude_degrees);
+        assert_eq!(proposed.latitude_degrees, start.latitude_degrees);
+        assert_eq!(proposed.height_asl_m, start.height_asl_m);
+        assert_eq!(proposed.integration_offset_ns, start.integration_offset_ns);
+        assert_eq!(proposed.elapsed_age_ns, start.elapsed_age_ns);
     }
 
     #[test]

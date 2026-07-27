@@ -1,24 +1,26 @@
 //! # Contract: particle_state_sqlite/v1 typed sink
 //!
 //! Implements the public SQLite schema with WAL, NORMAL sync, foreign keys,
-//! per-event transactions, and live-read inspection.
+//! atomic events, bounded lifecycle transactions, and live-read inspection.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use rusqlite::{Connection, Transaction, params};
+use rusqlite::{CachedStatement, Connection, params};
 use sha2::{Digest, Sha256};
 use trajecta_case::model::time::Timestamp;
 use trajecta_met::field::FieldQuality;
+use trajecta_met::performance::{PerformanceScope, PerformanceStage};
 use trajecta_met::provenance::ProvenanceTable;
 use trajecta_met::query::output::{QueryOutput, SampleStatus};
 
 use crate::manifest::ProvenanceBundleIdentity;
 use crate::manifest::{RunManifest, SqliteOutputSummary};
 use crate::output::provenance_bundle::{
-    FiveFieldRecords, ProvenanceBundleBuilder, file_sha256, five_field_slot, quarantine_bundle_file,
+    FiveFieldRecordRefs, ProvenanceBundleBuilder, file_sha256, five_field_slot,
+    quarantine_bundle_file,
 };
 use crate::output::{OutputError, ParticleStateSink};
 use crate::particle::{ParticleBatch, ParticleOrigin, ParticleStatus, TerminationClass};
@@ -27,18 +29,75 @@ use crate::science::SQLITE_SCHEMA_VERSION;
 /// Embedded public schema used to initialize every particle-state database.
 pub const SQLITE_SCHEMA_SQL: &str = include_str!("../../../../testdata/M4_SQLITE_SCHEMA.v1.sql");
 
+const MAX_LIFECYCLE_EVENTS_PER_TRANSACTION: usize = 512;
+const SQLITE_PAGE_SIZE_BYTES: i64 = 32 * 1024;
+
+const CANONICAL_PARTICLE_SQL: &str = "SELECT particle_id, population_id, origin_kind,
+            origin_event_id, origin_domain_id, origin_boundary_face_id,
+            birth_seconds, birth_nanosecond, dry_air_mass_kg, sensitivity_weight
+     FROM particle
+     WHERE run_id = ?1
+     ORDER BY particle_id";
+const CANONICAL_PARTICLE_MASS_SQL: &str = "SELECT particle_id, substance_id, mass_kg
+     FROM particle_mass
+     WHERE run_id = ?1
+     ORDER BY particle_id, substance_id";
+const CANONICAL_OUTPUT_EVENT_SQL: &str =
+    "SELECT event_sequence, physical_seconds, physical_nanosecond, event_kind
+     FROM output_event
+     WHERE run_id = ?1
+     ORDER BY event_sequence";
+// Unary `+` preserves INTEGER ordering while preventing SQLite from selecting
+// the non-covering time index and randomly looking up every wide state row.
+// The run-scoped primary-key range scan plus sort is faster on mounted output
+// files and yields byte-identical canonical row order.
+const CANONICAL_PARTICLE_STATE_SQL: &str = "SELECT particle_id, sample_sequence, event_sequence,
+            physical_seconds, physical_nanosecond,
+            integration_offset_ns, elapsed_age_ns,
+            longitude_degrees, latitude_degrees, height_asl_m,
+            particle_status, termination_reason,
+            eastward_wind_m_s, northward_wind_m_s, geometric_vertical_velocity_m_s,
+            air_pressure_pa, air_temperature_k,
+            wind_validity, wind_quality,
+            pressure_validity, pressure_quality,
+            temperature_validity, temperature_quality
+     FROM particle_state
+     WHERE run_id = ?1
+     ORDER BY +physical_seconds, physical_nanosecond, particle_id, sample_sequence";
+const CANONICAL_TERMINATION_SQL: &str = "SELECT particle_id, reason, classification,
+            physical_seconds, physical_nanosecond, intersection_fraction
+     FROM termination
+     WHERE run_id = ?1
+     ORDER BY particle_id";
+
+#[derive(Clone, Debug)]
+struct WrittenEvent {
+    sequence: i64,
+    kind: String,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct WrittenSample {
+    sample_sequence: i64,
+    event_sequence: i64,
+    terminal: bool,
+}
+
 /// Production SQLite particle-state sink.
 #[derive(Default)]
 pub struct ParticleStateSqliteSink {
     path: Option<PathBuf>,
     connection: Option<Connection>,
+    transaction_open: bool,
+    pending_lifecycle_events: usize,
     run_id: String,
     event_sequence: i64,
-    sample_sequence_by_particle: BTreeMap<i64, i64>,
-    seen_event_keys: BTreeMap<(i64, u32, String), i64>,
-    particles_inserted: BTreeMap<i64, bool>,
+    sample_sequence_by_particle: HashMap<i64, i64>,
+    seen_events: HashMap<(i64, u32), WrittenEvent>,
+    written_samples: HashMap<(i64, i64, u32), WrittenSample>,
+    particles_inserted: HashSet<i64>,
     /// Particles that already received a terminal sample row.
-    terminated_written: BTreeMap<i64, bool>,
+    terminated_written: HashSet<i64>,
     run_start: Option<Timestamp>,
     run_end: Option<Timestamp>,
     row_counts: BTreeMap<String, u64>,
@@ -132,7 +191,16 @@ impl ParticleStateSqliteSink {
                 .map_err(io_err)?;
             row_counts.insert(table.to_owned(), u64::try_from(count).unwrap_or(0));
         }
-        let canonical_sql = canonical_sql_digest(&connection)?;
+        if row_counts.get("run").copied() != Some(1) {
+            return Err(OutputError::Io(format!(
+                "expected exactly one run row, found {}",
+                row_counts.get("run").copied().unwrap_or(0)
+            )));
+        }
+        let run_id: String = connection
+            .query_row("SELECT run_id FROM run", [], |row| row.get(0))
+            .map_err(io_err)?;
+        let canonical_sql = canonical_sql_digest(&connection, &run_id)?;
         Ok(SqliteInspection {
             path: path.to_path_buf(),
             size_bytes,
@@ -141,6 +209,34 @@ impl ParticleStateSqliteSink {
             row_counts,
             canonical_sql_sha256: canonical_sql,
         })
+    }
+
+    fn begin_transaction(&mut self) -> Result<(), OutputError> {
+        if self.transaction_open {
+            return Ok(());
+        }
+        self.connection
+            .as_mut()
+            .ok_or(OutputError::InvalidInput)?
+            .execute_batch("BEGIN IMMEDIATE")
+            .map_err(io_err)?;
+        self.transaction_open = true;
+        self.pending_lifecycle_events = 0;
+        Ok(())
+    }
+
+    fn commit_transaction(&mut self) -> Result<(), OutputError> {
+        if !self.transaction_open {
+            return Ok(());
+        }
+        self.connection
+            .as_mut()
+            .ok_or(OutputError::InvalidInput)?
+            .execute_batch("COMMIT")
+            .map_err(io_err)?;
+        self.transaction_open = false;
+        self.pending_lifecycle_events = 0;
+        Ok(())
     }
 }
 
@@ -196,10 +292,13 @@ impl ParticleStateSink for ParticleStateSqliteSink {
             .map_err(io_err)?;
         self.path = Some(target.to_path_buf());
         self.connection = Some(connection);
+        self.transaction_open = false;
+        self.pending_lifecycle_events = 0;
         self.run_id = manifest.run_id.0.clone();
         self.event_sequence = 0;
         self.sample_sequence_by_particle.clear();
-        self.seen_event_keys.clear();
+        self.seen_events.clear();
+        self.written_samples.clear();
         self.particles_inserted.clear();
         self.terminated_written.clear();
         self.row_counts.clear();
@@ -236,8 +335,6 @@ impl ParticleStateSink for ParticleStateSqliteSink {
         meteorology: Option<&QueryOutput>,
     ) -> Result<(), OutputError> {
         let run_id = self.run_id.clone();
-        let connection = self.connection.as_mut().ok_or(OutputError::InvalidInput)?;
-        let tx = connection.unchecked_transaction().map_err(io_err)?;
         let count = particles.len().map_err(|_| OutputError::InvalidInput)?;
         if let Some(met) = meteorology {
             if met.status().len() != count {
@@ -250,16 +347,19 @@ impl ParticleStateSink for ParticleStateSqliteSink {
         let mut newly_terminated = false;
         let count_scan = particles.len().map_err(|_| OutputError::InvalidInput)?;
         for index in 0..count_scan {
-            let state = particles
-                .state(index)
-                .map_err(|_| OutputError::InvalidInput)?;
-            if state.birth_time == time {
+            if particles.birth_time[index] == time {
                 any_birth = true;
             }
-            if matches!(state.status, ParticleStatus::Terminated { .. }) {
-                let pid = i64::try_from(state.id.0)
+            if matches!(particles.status[index], ParticleStatus::Terminated { .. }) {
+                let pid = i64::try_from(particles.id[index].0)
                     .map_err(|_| OutputError::Encoding("particle_id".into()))?;
-                if !self.terminated_written.contains_key(&pid) {
+                if !self.terminated_written.contains(&pid) {
+                    if particles.termination[index]
+                        .as_ref()
+                        .is_some_and(|termination| termination.time != time)
+                    {
+                        return Err(OutputError::InvalidInput);
+                    }
                     newly_terminated = true;
                 }
             }
@@ -272,29 +372,45 @@ impl ParticleStateSink for ParticleStateSqliteSink {
             newly_terminated,
             any_birth,
         )?;
-        let event_key = (
-            time.seconds_since_unix_epoch(),
-            time.nanosecond(),
-            event_kind.to_owned(),
-        );
-        let event_sequence = if let Some(existing) = self.seen_event_keys.get(&event_key) {
-            *existing
+        let lifecycle_event = matches!(event_kind, "birth" | "termination");
+        if !lifecycle_event {
+            self.commit_transaction()?;
+        }
+        self.begin_transaction()?;
+        let connection = self.connection.as_mut().ok_or(OutputError::InvalidInput)?;
+        let mut statements = EventStatements::prepare(connection)?;
+        let event_key = (time.seconds_since_unix_epoch(), time.nanosecond());
+        let event_sequence = if let Some(existing) = self.seen_events.get_mut(&event_key) {
+            if event_kind_priority(event_kind) > event_kind_priority(&existing.kind) {
+                let updated = statements
+                    .output_event_kind
+                    .execute(params![run_id, existing.sequence, event_kind])
+                    .map_err(io_err)?;
+                if updated != 1 {
+                    return Err(OutputError::InvalidInput);
+                }
+                existing.kind = event_kind.to_owned();
+            }
+            existing.sequence
         } else {
             let sequence = self.event_sequence;
-            tx.execute(
-                "INSERT INTO output_event (
-                    run_id, event_sequence, physical_seconds, physical_nanosecond, event_kind
-                ) VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![
+            statements
+                .output_event
+                .execute(params![
                     run_id,
                     sequence,
                     time.seconds_since_unix_epoch(),
                     time.nanosecond(),
                     event_kind,
-                ],
-            )
-            .map_err(io_err)?;
-            self.seen_event_keys.insert(event_key, sequence);
+                ])
+                .map_err(io_err)?;
+            self.seen_events.insert(
+                event_key,
+                WrittenEvent {
+                    sequence,
+                    kind: event_kind.to_owned(),
+                },
+            );
             self.event_sequence = self
                 .event_sequence
                 .checked_add(1)
@@ -303,25 +419,77 @@ impl ParticleStateSink for ParticleStateSqliteSink {
         };
 
         let mut indices: Vec<usize> = (0..count).collect();
+        indices.sort_unstable_by_key(|index| particles.id[*index]);
         if self.reverse_particle_scan {
             indices.reverse();
         }
         for index in indices {
-            let state = particles
-                .state(index)
-                .map_err(|_| OutputError::InvalidInput)?;
-            let particle_id = i64::try_from(state.id.0)
+            let particle_id = i64::try_from(particles.id[index].0)
                 .map_err(|_| OutputError::Encoding("particle_id outside i64".into()))?;
-            if matches!(state.status, ParticleStatus::Terminated { .. })
-                && self.terminated_written.contains_key(&particle_id)
+            if matches!(particles.status[index], ParticleStatus::Terminated { .. })
+                && self.terminated_written.contains(&particle_id)
             {
                 continue;
             }
-            if let std::collections::btree_map::Entry::Vacant(entry) =
-                self.particles_inserted.entry(particle_id)
-            {
-                insert_particle(&tx, &run_id, &state)?;
-                entry.insert(true);
+            if !self.particles_inserted.contains(&particle_id) {
+                insert_particle(&mut statements, &run_id, particles, index)?;
+                self.particles_inserted.insert(particle_id);
+            }
+            let sample_key = (
+                particle_id,
+                time.seconds_since_unix_epoch(),
+                time.nanosecond(),
+            );
+            if let Some(existing) = self.written_samples.get(&sample_key).copied() {
+                if existing.event_sequence != event_sequence {
+                    return Err(OutputError::InvalidInput);
+                }
+                match &particles.status[index] {
+                    ParticleStatus::Alive if existing.terminal => {
+                        return Err(OutputError::InvalidInput);
+                    }
+                    ParticleStatus::Alive => continue,
+                    ParticleStatus::Terminated { reason } => {
+                        let updated = statements
+                            .particle_state_terminal
+                            .execute(params![
+                                run_id,
+                                particle_id,
+                                existing.sample_sequence,
+                                event_sequence,
+                                time.seconds_since_unix_epoch(),
+                                time.nanosecond(),
+                                particles.integration_offset_ns[index],
+                                i64::try_from(particles.elapsed_age_ns[index])
+                                    .map_err(|_| OutputError::Encoding("elapsed_age".into()))?,
+                                particles.longitude_degrees[index],
+                                particles.latitude_degrees[index],
+                                particles.height_asl_m[index],
+                                reason.code(),
+                            ])
+                            .map_err(io_err)?;
+                        if updated != 1 {
+                            return Err(OutputError::InvalidInput);
+                        }
+                        insert_termination(
+                            &mut statements,
+                            &run_id,
+                            particle_id,
+                            particles.termination[index].as_ref(),
+                            time,
+                            reason,
+                        )?;
+                        self.terminated_written.insert(particle_id);
+                        self.written_samples.insert(
+                            sample_key,
+                            WrittenSample {
+                                terminal: true,
+                                ..existing
+                            },
+                        );
+                        continue;
+                    }
+                }
             }
             let sample_sequence = self
                 .sample_sequence_by_particle
@@ -332,11 +500,9 @@ impl ParticleStateSink for ParticleStateSqliteSink {
                 .checked_add(1)
                 .ok_or_else(|| OutputError::Io("sample sequence overflow".into()))?;
 
-            let (particle_status, termination_reason) = match &state.status {
-                ParticleStatus::Alive => ("alive".to_owned(), None),
-                ParticleStatus::Terminated { reason, .. } => {
-                    ("terminated".to_owned(), Some(reason.code()))
-                }
+            let (particle_status, termination_reason) = match &particles.status[index] {
+                ParticleStatus::Alive => ("alive", None),
+                ParticleStatus::Terminated { reason, .. } => ("terminated", Some(reason.code())),
             };
 
             let (
@@ -356,35 +522,24 @@ impl ParticleStateSink for ParticleStateSqliteSink {
             ) = meteorology_columns(meteorology, index, &mut self.provenance)?;
 
             if let Some(bundle) = self.bundle.as_mut() {
-                bundle.push_sample(particle_id, current_sample, &five_fields)?;
+                bundle.push_sample_refs(particle_id, current_sample, &five_fields)?;
             }
 
-            tx.execute(
-                "INSERT INTO particle_state (
-                    run_id, particle_id, sample_sequence, event_sequence,
-                    physical_seconds, physical_nanosecond, integration_offset_ns, elapsed_age_ns,
-                    longitude_degrees, latitude_degrees, height_asl_m,
-                    particle_status, termination_reason,
-                    eastward_wind_m_s, northward_wind_m_s, geometric_vertical_velocity_m_s,
-                    air_pressure_pa, air_temperature_k,
-                    wind_validity, wind_quality, pressure_validity, pressure_quality,
-                    temperature_validity, temperature_quality, provenance_id
-                ) VALUES (
-                    ?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25
-                )",
-                params![
+            statements
+                .particle_state
+                .execute(params![
                     run_id,
                     particle_id,
                     current_sample,
                     event_sequence,
                     time.seconds_since_unix_epoch(),
                     time.nanosecond(),
-                    state.integration_offset_ns,
-                    i64::try_from(state.elapsed_age_ns)
+                    particles.integration_offset_ns[index],
+                    i64::try_from(particles.elapsed_age_ns[index])
                         .map_err(|_| OutputError::Encoding("elapsed_age".into()))?,
-                    state.longitude_degrees,
-                    state.latitude_degrees,
-                    state.height_asl_m,
+                    particles.longitude_degrees[index],
+                    particles.latitude_degrees[index],
+                    particles.height_asl_m[index],
                     particle_status,
                     termination_reason,
                     eastward,
@@ -399,39 +554,49 @@ impl ParticleStateSink for ParticleStateSqliteSink {
                     temperature_validity,
                     temperature_quality,
                     provenance_id,
-                ],
-            )
-            .map_err(io_err)?;
-
-            if let ParticleStatus::Terminated { reason } = &state.status {
-                self.terminated_written.insert(particle_id, true);
-                let class = match reason.class() {
-                    TerminationClass::Normal => "normal",
-                    TerminationClass::Abnormal => "abnormal",
-                };
-                tx.execute(
-                    "INSERT OR IGNORE INTO termination (
-                        run_id, particle_id, reason, classification,
-                        physical_seconds, physical_nanosecond, intersection_fraction
-                    ) VALUES (?1,?2,?3,?4,?5,?6,NULL)",
-                    params![
-                        run_id,
-                        particle_id,
-                        reason.code(),
-                        class,
-                        time.seconds_since_unix_epoch(),
-                        time.nanosecond(),
-                    ],
-                )
+                ])
                 .map_err(io_err)?;
+
+            self.written_samples.insert(
+                sample_key,
+                WrittenSample {
+                    sample_sequence: current_sample,
+                    event_sequence,
+                    terminal: matches!(particles.status[index], ParticleStatus::Terminated { .. }),
+                },
+            );
+
+            if let ParticleStatus::Terminated { reason } = &particles.status[index] {
+                self.terminated_written.insert(particle_id);
+                insert_termination(
+                    &mut statements,
+                    &run_id,
+                    particle_id,
+                    particles.termination[index].as_ref(),
+                    time,
+                    reason,
+                )?;
             }
         }
-        tx.commit().map_err(io_err)?;
+        drop(statements);
+        if lifecycle_event {
+            self.pending_lifecycle_events = self
+                .pending_lifecycle_events
+                .checked_add(1)
+                .ok_or_else(|| OutputError::Io("lifecycle transaction count overflow".into()))?;
+            if self.pending_lifecycle_events >= MAX_LIFECYCLE_EVENTS_PER_TRANSACTION {
+                self.commit_transaction()?;
+            }
+        } else {
+            self.commit_transaction()?;
+        }
         Ok(())
     }
 
     fn finish(&mut self) -> Result<(), OutputError> {
+        self.commit_transaction()?;
         let connection = self.connection.as_mut().ok_or(OutputError::InvalidInput)?;
+        let sqlite_audit = PerformanceScope::enter(PerformanceStage::OutputFinishSqliteAudit);
         let now = system_timestamp()?;
         connection
             .execute(
@@ -488,8 +653,12 @@ impl ParticleStateSink for ParticleStateSqliteSink {
             row_counts.insert(table.to_owned(), u64::try_from(count).unwrap_or(0));
         }
         self.row_counts = row_counts;
+        drop(sqlite_audit);
         // Canonical SQL digest before closing the writer (no run UUID in formula).
-        let sqlite_sql_sha = canonical_sql_digest(connection)?;
+        let sqlite_sql_sha = {
+            let _performance = PerformanceScope::enter(PerformanceStage::OutputFinishSqlDigest);
+            canonical_sql_digest(connection, &self.run_id)?
+        };
         // Drop writer so readers and inspect can reopen cleanly.
         self.connection = None;
         let path = self
@@ -512,21 +681,32 @@ impl ParticleStateSink for ParticleStateSqliteSink {
             let _ = fs::remove_file(&wal_path);
         }
         let _ = fs::remove_file(&shm_path);
-        let sqlite_sha = file_sha256(&path)?;
+        let sqlite_sha = {
+            let _performance = PerformanceScope::enter(PerformanceStage::OutputFinishSqliteHash);
+            file_sha256(&path)?
+        };
+        // The legacy integer provenance table is needed only while rows are
+        // being encoded. Release its cloned records before the formal bundle
+        // performs its own bounded finalization and semantic re-read.
+        self.provenance = ProvenanceTable::new();
         let mut bundle = self
             .bundle
             .take()
             .ok_or_else(|| OutputError::Encoding("provenance bundle builder missing".into()))?;
-        let identity = match bundle.finalize_after_sqlite(&path, &sqlite_sha, &sqlite_sql_sha) {
-            Ok(identity) => identity,
-            Err(error) => {
-                // Immediate abort on bundle finalize failure (do not wait for Drop).
-                if let Err(abort_err) = bundle.abort() {
-                    return Err(OutputError::Encoding(format!(
-                        "bundle finalize failed: {error:?}; abort also failed: {abort_err:?}"
-                    )));
+        let identity = {
+            let _performance =
+                PerformanceScope::enter(PerformanceStage::OutputFinishProvenanceBundle);
+            match bundle.finalize_after_sqlite(&path, &sqlite_sha, &sqlite_sql_sha) {
+                Ok(identity) => identity,
+                Err(error) => {
+                    // Immediate abort on bundle finalize failure (do not wait for Drop).
+                    if let Err(abort_err) = bundle.abort() {
+                        return Err(OutputError::Encoding(format!(
+                            "bundle finalize failed: {error:?}; abort also failed: {abort_err:?}"
+                        )));
+                    }
+                    return Err(error);
                 }
-                return Err(error);
             }
         };
         self.bundle_identity = Some(identity);
@@ -534,11 +714,29 @@ impl ParticleStateSink for ParticleStateSqliteSink {
     }
 
     fn abort(&mut self) -> Result<(), OutputError> {
+        let rollback_result = if self.transaction_open {
+            self.connection
+                .as_mut()
+                .ok_or(OutputError::InvalidInput)?
+                .execute_batch("ROLLBACK")
+                .map_err(io_err)
+        } else {
+            Ok(())
+        };
+        self.transaction_open = false;
+        self.pending_lifecycle_events = 0;
         self.connection = None;
-        if let Some(mut bundle) = self.bundle.take() {
-            bundle.abort()?;
+        let bundle_result = self
+            .bundle
+            .take()
+            .map_or(Ok(()), |mut bundle| bundle.abort());
+        match (rollback_result, bundle_result) {
+            (Ok(()), Ok(())) => Ok(()),
+            (Err(error), Ok(())) | (Ok(()), Err(error)) => Err(error),
+            (Err(rollback), Err(bundle)) => Err(OutputError::Io(format!(
+                "rollback failed: {rollback:?}; bundle abort failed: {bundle:?}"
+            ))),
         }
-        Ok(())
     }
 
     fn quarantine_forensic(&mut self) -> Result<(), OutputError> {
@@ -571,15 +769,102 @@ impl ParticleStateSink for ParticleStateSqliteSink {
     }
 }
 
+struct EventStatements<'connection> {
+    output_event: CachedStatement<'connection>,
+    output_event_kind: CachedStatement<'connection>,
+    particle: CachedStatement<'connection>,
+    particle_mass: CachedStatement<'connection>,
+    particle_state: CachedStatement<'connection>,
+    particle_state_terminal: CachedStatement<'connection>,
+    termination: CachedStatement<'connection>,
+}
+
+impl<'connection> EventStatements<'connection> {
+    fn prepare(connection: &'connection Connection) -> Result<Self, OutputError> {
+        Ok(Self {
+            output_event: connection
+                .prepare_cached(
+                    "INSERT INTO output_event (
+                        run_id, event_sequence, physical_seconds, physical_nanosecond, event_kind
+                    ) VALUES (?1, ?2, ?3, ?4, ?5)",
+                )
+                .map_err(io_err)?,
+            output_event_kind: connection
+                .prepare_cached(
+                    "UPDATE output_event
+                     SET event_kind = ?3
+                     WHERE run_id = ?1 AND event_sequence = ?2",
+                )
+                .map_err(io_err)?,
+            particle: connection
+                .prepare_cached(
+                    "INSERT INTO particle (
+                        run_id, particle_id, population_id, origin_kind, origin_event_id,
+                        origin_domain_id, origin_boundary_face_id, birth_seconds, birth_nanosecond,
+                        dry_air_mass_kg, sensitivity_weight
+                    ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
+                )
+                .map_err(io_err)?,
+            particle_mass: connection
+                .prepare_cached(
+                    "INSERT INTO particle_mass (run_id, particle_id, substance_id, mass_kg)
+                     VALUES (?1,?2,?3,?4)",
+                )
+                .map_err(io_err)?,
+            particle_state: connection
+                .prepare_cached(
+                    "INSERT INTO particle_state (
+                        run_id, particle_id, sample_sequence, event_sequence,
+                        physical_seconds, physical_nanosecond, integration_offset_ns,
+                        elapsed_age_ns, longitude_degrees, latitude_degrees, height_asl_m,
+                        particle_status, termination_reason, eastward_wind_m_s,
+                        northward_wind_m_s, geometric_vertical_velocity_m_s, air_pressure_pa,
+                        air_temperature_k, wind_validity, wind_quality, pressure_validity,
+                        pressure_quality, temperature_validity, temperature_quality, provenance_id
+                    ) VALUES (
+                        ?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,
+                        ?19,?20,?21,?22,?23,?24,?25
+                    )",
+                )
+                .map_err(io_err)?,
+            particle_state_terminal: connection
+                .prepare_cached(
+                    "UPDATE particle_state
+                     SET event_sequence = ?4,
+                         physical_seconds = ?5,
+                         physical_nanosecond = ?6,
+                         integration_offset_ns = ?7,
+                         elapsed_age_ns = ?8,
+                         longitude_degrees = ?9,
+                         latitude_degrees = ?10,
+                         height_asl_m = ?11,
+                         particle_status = 'terminated',
+                         termination_reason = ?12
+                     WHERE run_id = ?1 AND particle_id = ?2 AND sample_sequence = ?3",
+                )
+                .map_err(io_err)?,
+            termination: connection
+                .prepare_cached(
+                    "INSERT OR IGNORE INTO termination (
+                        run_id, particle_id, reason, classification,
+                        physical_seconds, physical_nanosecond, intersection_fraction
+                    ) VALUES (?1,?2,?3,?4,?5,?6,?7)",
+                )
+                .map_err(io_err)?,
+        })
+    }
+}
+
 fn insert_particle(
-    tx: &Transaction<'_>,
+    statements: &mut EventStatements<'_>,
     run_id: &str,
-    state: &crate::particle::ParticleState,
+    particles: &ParticleBatch,
+    index: usize,
 ) -> Result<(), OutputError> {
-    let particle_id =
-        i64::try_from(state.id.0).map_err(|_| OutputError::Encoding("particle_id".into()))?;
-    let (origin_kind, origin_event_id, origin_domain_id, origin_boundary_face_id) = match &state
-        .origin
+    let particle_id = i64::try_from(particles.id[index].0)
+        .map_err(|_| OutputError::Encoding("particle_id".into()))?;
+    let (origin_kind, origin_event_id, origin_domain_id, origin_boundary_face_id) = match &particles
+        .origin[index]
     {
         ParticleOrigin::Release { event_id } => ("release", Some(event_id.0.as_str()), None, None),
         ParticleOrigin::DomainInitial { domain_id } => {
@@ -597,41 +882,68 @@ fn insert_particle(
             })?),
         ),
     };
-    tx.execute(
-        "INSERT INTO particle (
-            run_id, particle_id, population_id, origin_kind, origin_event_id,
-            origin_domain_id, origin_boundary_face_id, birth_seconds, birth_nanosecond,
-            dry_air_mass_kg, sensitivity_weight
-        ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
-        params![
+    statements
+        .particle
+        .execute(params![
             run_id,
             particle_id,
-            state.population_id.0,
+            particles.population_id[index].0.as_str(),
             origin_kind,
             origin_event_id,
             origin_domain_id,
             origin_boundary_face_id,
-            state.birth_time.seconds_since_unix_epoch(),
-            state.birth_time.nanosecond(),
-            state.dry_air_mass_kg,
-            state.sensitivity_weight,
-        ],
-    )
-    .map_err(io_err)?;
-    for (substance, mass) in &state.mass_kg {
-        tx.execute(
-            "INSERT INTO particle_mass (run_id, particle_id, substance_id, mass_kg)
-             VALUES (?1,?2,?3,?4)",
-            params![run_id, particle_id, substance.0, mass],
-        )
+            particles.birth_time[index].seconds_since_unix_epoch(),
+            particles.birth_time[index].nanosecond(),
+            particles.dry_air_mass_kg[index],
+            particles.sensitivity_weight[index],
+        ])
         .map_err(io_err)?;
+    for (substance, masses) in &particles.mass.mass_kg {
+        statements
+            .particle_mass
+            .execute(params![
+                run_id,
+                particle_id,
+                substance.0.as_str(),
+                masses[index]
+            ])
+            .map_err(io_err)?;
     }
     Ok(())
 }
 
+fn insert_termination(
+    statements: &mut EventStatements<'_>,
+    run_id: &str,
+    particle_id: i64,
+    termination: Option<&crate::particle::ParticleTermination>,
+    event_time: Timestamp,
+    reason: &crate::particle::TerminationReason,
+) -> Result<(), OutputError> {
+    let class = match reason.class() {
+        TerminationClass::Normal => "normal",
+        TerminationClass::Abnormal => "abnormal",
+    };
+    let termination_time = termination.map_or(event_time, |value| value.time);
+    let intersection_fraction = termination.and_then(|value| value.intersection_fraction);
+    statements
+        .termination
+        .execute(params![
+            run_id,
+            particle_id,
+            reason.code(),
+            class,
+            termination_time.seconds_since_unix_epoch(),
+            termination_time.nanosecond(),
+            intersection_fraction,
+        ])
+        .map_err(io_err)?;
+    Ok(())
+}
+
 #[allow(clippy::type_complexity)]
-fn meteorology_columns(
-    meteorology: Option<&QueryOutput>,
+fn meteorology_columns<'a>(
+    meteorology: Option<&'a QueryOutput>,
     index: usize,
     provenance_table: &mut ProvenanceTable,
 ) -> Result<
@@ -641,32 +953,21 @@ fn meteorology_columns(
         Option<f64>,
         Option<f64>,
         Option<f64>,
-        String,
-        Option<String>,
-        String,
-        Option<String>,
-        String,
-        Option<String>,
+        &'static str,
+        Option<&'static str>,
+        &'static str,
+        Option<&'static str>,
+        &'static str,
+        Option<&'static str>,
         Option<i64>,
-        FiveFieldRecords,
+        FiveFieldRecordRefs<'a>,
     ),
     OutputError,
 > {
-    let empty_five = FiveFieldRecords::default();
+    let empty_five = FiveFieldRecordRefs::default();
     let Some(output) = meteorology else {
         return Ok((
-            None,
-            None,
-            None,
-            None,
-            None,
-            "missing".into(),
-            None,
-            "missing".into(),
-            None,
-            "missing".into(),
-            None,
-            None,
+            None, None, None, None, None, "missing", None, "missing", None, "missing", None, None,
             empty_five,
         ));
     };
@@ -684,15 +985,17 @@ fn meteorology_columns(
     let mut q_vert = None;
     let mut q_pres = None;
     let mut q_temp = None;
-    let mut five = FiveFieldRecords::default();
+    let mut five = FiveFieldRecordRefs::default();
 
     for field in output.fields() {
-        let key = field.field().clone();
         let samples = field.samples();
         let value = samples.value(index);
         let quality = samples.quality().get(index).copied();
-        let prov = row.provenance_record(&key).cloned();
-        match five_field_slot(&key) {
+        let prov = samples
+            .provenance()
+            .get(index)
+            .and_then(|id| output.provenance().get(*id));
+        match five_field_slot(field.field()) {
             Some("eastward_wind") => {
                 eastward = value;
                 q_east = quality;
@@ -727,38 +1030,38 @@ fn meteorology_columns(
     let temperature_quality = q_temp.map(quality_label);
 
     let wind_validity = if eastward.is_some() && northward.is_some() && vertical.is_some() {
-        base_validity.clone()
+        base_validity
     } else if eastward.is_none() && northward.is_none() && vertical.is_none() {
-        "missing".into()
+        "missing"
     } else {
-        "partial".into()
+        "partial"
     };
     let pressure_validity = if pressure.is_some() {
-        base_validity.clone()
+        base_validity
     } else {
-        "missing".into()
+        "missing"
     };
     let temperature_validity = if temperature.is_some() {
         base_validity
     } else {
-        "missing".into()
+        "missing"
     };
 
     // Legacy single provenance_id: intern first present five-field record (sorted by slot name).
     let provenance_id = {
         let mut ids = Vec::new();
         for record in [
-            five.eastward_wind.clone(),
-            five.northward_wind.clone(),
-            five.geometric_vertical_velocity.clone(),
-            five.air_pressure.clone(),
-            five.air_temperature.clone(),
+            five.eastward_wind,
+            five.northward_wind,
+            five.geometric_vertical_velocity,
+            five.air_pressure,
+            five.air_temperature,
         ]
         .into_iter()
         .flatten()
         {
             let id = provenance_table
-                .intern(record)
+                .intern_ref(record)
                 .map_err(|error| OutputError::Encoding(format!("provenance intern: {error:?}")))?;
             ids.push(id);
         }
@@ -788,11 +1091,11 @@ fn meteorology_columns(
     ))
 }
 
-fn quality_label(q: FieldQuality) -> String {
+const fn quality_label(q: FieldQuality) -> &'static str {
     match q {
-        FieldQuality::Source => "source".into(),
-        FieldQuality::Derived => "derived".into(),
-        FieldQuality::Estimated => "estimated".into(),
+        FieldQuality::Source => "source",
+        FieldQuality::Derived => "derived",
+        FieldQuality::Estimated => "estimated",
     }
 }
 
@@ -800,11 +1103,7 @@ fn merge_wind_quality(
     east: Option<FieldQuality>,
     north: Option<FieldQuality>,
     vert: Option<FieldQuality>,
-) -> Result<Option<String>, OutputError> {
-    let present: Vec<FieldQuality> = [east, north, vert].into_iter().flatten().collect();
-    if present.is_empty() {
-        return Ok(None);
-    }
+) -> Result<Option<&'static str>, OutputError> {
     // Frozen merge: worst quality wins (Estimated > Derived > Source).
     // Silent overwrite with a single hard-coded label is forbidden; this is an
     // explicit lattice join over the observed component qualities.
@@ -815,16 +1114,27 @@ fn merge_wind_quality(
             FieldQuality::Estimated => 2,
         }
     }
-    let Some(worst) = present.into_iter().max_by_key(|q| rank(*q)) else {
+    let Some(worst) = [east, north, vert]
+        .into_iter()
+        .flatten()
+        .max_by_key(|q| rank(*q))
+    else {
         return Ok(None);
     };
     Ok(Some(quality_label(worst)))
 }
 
-fn status_to_validity(status: SampleStatus) -> String {
+const fn status_to_validity(status: SampleStatus) -> &'static str {
     match status {
-        SampleStatus::Ok => "ok".into(),
-        other => format!("{other:?}").to_ascii_lowercase(),
+        SampleStatus::Ok => "ok",
+        SampleStatus::OutOfDomain => "outofdomain",
+        SampleStatus::PolarSingularity => "polarsingularity",
+        SampleStatus::BelowGround => "belowground",
+        SampleStatus::SurfaceLayerUndefined => "surfacelayerundefined",
+        SampleStatus::AboveAvailableTop => "aboveavailabletop",
+        SampleStatus::AboveModelTop => "abovemodeltop",
+        SampleStatus::InvalidVerticalColumn => "invalidverticalcolumn",
+        SampleStatus::NumericalFailure => "numericalfailure",
     }
 }
 
@@ -854,7 +1164,26 @@ fn infer_event_kind(
     Ok("interval")
 }
 
+fn event_kind_priority(kind: &str) -> u8 {
+    match kind {
+        "birth" => 4,
+        "termination" => 3,
+        "start" => 2,
+        "end" => 1,
+        "interval" => 0,
+        _ => 0,
+    }
+}
+
 fn validate_pragmas(connection: &Connection) -> Result<(), OutputError> {
+    let page_size: i64 = connection
+        .query_row("PRAGMA page_size", [], |row| row.get(0))
+        .map_err(io_err)?;
+    if page_size != SQLITE_PAGE_SIZE_BYTES {
+        return Err(OutputError::Io(format!(
+            "page_size={page_size} expected {SQLITE_PAGE_SIZE_BYTES}"
+        )));
+    }
     let journal: String = connection
         .query_row("PRAGMA journal_mode", [], |row| row.get(0))
         .map_err(io_err)?;
@@ -867,6 +1196,14 @@ fn validate_pragmas(connection: &Connection) -> Result<(), OutputError> {
     // NORMAL == 1
     if synchronous != 1 {
         return Err(OutputError::Io(format!("synchronous={synchronous}")));
+    }
+    let wal_autocheckpoint: i64 = connection
+        .query_row("PRAGMA wal_autocheckpoint", [], |row| row.get(0))
+        .map_err(io_err)?;
+    if wal_autocheckpoint != 0 {
+        return Err(OutputError::Io(format!(
+            "wal_autocheckpoint={wal_autocheckpoint}"
+        )));
     }
     let foreign_keys: i64 = connection
         .query_row("PRAGMA foreign_keys", [], |row| row.get(0))
@@ -883,22 +1220,14 @@ fn validate_pragmas(connection: &Connection) -> Result<(), OutputError> {
     Ok(())
 }
 
-fn canonical_sql_digest(connection: &Connection) -> Result<String, OutputError> {
+fn canonical_sql_digest(connection: &Connection, run_id: &str) -> Result<String, OutputError> {
     let mut hasher = Sha256::new();
     // particle origin / birth / masses
     {
-        let mut stmt = connection
-            .prepare(
-                "SELECT particle_id, population_id, origin_kind,
-                        origin_event_id, origin_domain_id, origin_boundary_face_id,
-                        birth_seconds, birth_nanosecond, dry_air_mass_kg, sensitivity_weight
-                 FROM particle
-                 ORDER BY particle_id",
-            )
-            .map_err(io_err)?;
+        let mut stmt = connection.prepare(CANONICAL_PARTICLE_SQL).map_err(io_err)?;
         hasher.update(b"TABLE particle\n");
         let rows = stmt
-            .query_map([], |row| {
+            .query_map([run_id], |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
                     row.get::<_, String>(1)?,
@@ -925,15 +1254,11 @@ fn canonical_sql_digest(connection: &Connection) -> Result<String, OutputError> 
     }
     {
         let mut stmt = connection
-            .prepare(
-                "SELECT particle_id, substance_id, mass_kg
-                 FROM particle_mass
-                 ORDER BY particle_id, substance_id",
-            )
+            .prepare(CANONICAL_PARTICLE_MASS_SQL)
             .map_err(io_err)?;
         hasher.update(b"TABLE particle_mass\n");
         let rows = stmt
-            .query_map([], |row| {
+            .query_map([run_id], |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
                     row.get::<_, String>(1)?,
@@ -948,15 +1273,11 @@ fn canonical_sql_digest(connection: &Connection) -> Result<String, OutputError> 
     }
     {
         let mut stmt = connection
-            .prepare(
-                "SELECT event_sequence, physical_seconds, physical_nanosecond, event_kind
-                 FROM output_event
-                 ORDER BY event_sequence",
-            )
+            .prepare(CANONICAL_OUTPUT_EVENT_SQL)
             .map_err(io_err)?;
         hasher.update(b"TABLE output_event\n");
         let rows = stmt
-            .query_map([], |row| {
+            .query_map([run_id], |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
                     row.get::<_, i64>(1)?,
@@ -972,24 +1293,11 @@ fn canonical_sql_digest(connection: &Connection) -> Result<String, OutputError> 
     }
     {
         let mut stmt = connection
-            .prepare(
-                "SELECT particle_id, sample_sequence, event_sequence,
-                        physical_seconds, physical_nanosecond,
-                        integration_offset_ns, elapsed_age_ns,
-                        longitude_degrees, latitude_degrees, height_asl_m,
-                        particle_status, termination_reason,
-                        eastward_wind_m_s, northward_wind_m_s, geometric_vertical_velocity_m_s,
-                        air_pressure_pa, air_temperature_k,
-                        wind_validity, wind_quality,
-                        pressure_validity, pressure_quality,
-                        temperature_validity, temperature_quality
-                 FROM particle_state
-                 ORDER BY physical_seconds, physical_nanosecond, particle_id, sample_sequence",
-            )
+            .prepare(CANONICAL_PARTICLE_STATE_SQL)
             .map_err(io_err)?;
         hasher.update(b"TABLE particle_state\n");
         let rows = stmt
-            .query_map([], |row| {
+            .query_map([run_id], |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
                     row.get::<_, i64>(1)?,
@@ -1055,16 +1363,11 @@ fn canonical_sql_digest(connection: &Connection) -> Result<String, OutputError> 
     }
     {
         let mut stmt = connection
-            .prepare(
-                "SELECT particle_id, reason, classification,
-                        physical_seconds, physical_nanosecond, intersection_fraction
-                 FROM termination
-                 ORDER BY particle_id",
-            )
+            .prepare(CANONICAL_TERMINATION_SQL)
             .map_err(io_err)?;
         hasher.update(b"TABLE termination\n");
         let rows = stmt
-            .query_map([], |row| {
+            .query_map([run_id], |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
                     row.get::<_, String>(1)?,
@@ -1118,6 +1421,176 @@ pub fn sqlite_summary(path: &Path, row_counts: BTreeMap<String, u64>) -> SqliteO
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    use trajecta_case::document::MeteorologyReaderBackend;
+    use trajecta_case::model::output::default_particle_state_output;
+    use trajecta_case::model::population::{PopulationId, ReleaseEventId};
+
+    use crate::manifest::{
+        ExecutionSummary, InputIdentity, NumericalSummary, RunId, RunManifestStart,
+        SoftwareIdentity,
+    };
+    use crate::particle::{
+        ParticleId, ParticleOrigin, ParticleTermination, SubstanceMassStore, TerminationReason,
+    };
+
+    fn running_manifest() -> RunManifest {
+        RunManifest::running(RunManifestStart {
+            run_id: RunId("018f0000-0000-7000-8000-000000000001".into()),
+            case_name: "sqlite-lifecycle-test".into(),
+            started_at: Timestamp::UNIX_EPOCH,
+            software: SoftwareIdentity {
+                crate_versions: BTreeMap::from([("trajecta-core".into(), "0.0.0".into())]),
+                git_commit: None,
+            },
+            inputs: InputIdentity {
+                case_sha256: "0".repeat(64),
+                run_profile_sha256: "1".repeat(64),
+                dataset_lock_sha256: BTreeMap::new(),
+                dataset_profile_sha256: BTreeMap::new(),
+                dataset_content_sha256: BTreeMap::new(),
+            },
+            execution: ExecutionSummary {
+                worker_threads: 1,
+                memory_budget_bytes: 1024 * 1024,
+                executor: "test".into(),
+                reader_backends: BTreeMap::<String, MeteorologyReaderBackend>::new(),
+                wall_time_ns: None,
+                peak_rss_bytes: None,
+                io_counters: BTreeMap::new(),
+            },
+            numerical: NumericalSummary {
+                random_seed: 7,
+                integrator: "test_integrator".into(),
+                boundary_policies: Vec::new(),
+                population: "test_population".into(),
+                ozone_rule: None,
+                particle_state_sink: trajecta_case::model::output::PARTICLE_STATE_SQLITE_SINK_ID
+                    .into(),
+                tolerance_registry: "trajecta.m4.numerical-contract/v1".into(),
+                tolerances: BTreeMap::from([("test".into(), 0.0)]),
+                deterministic: true,
+            },
+            geometries: Vec::new(),
+            effective_outputs: vec![default_particle_state_output()],
+        })
+    }
+
+    fn two_particles() -> ParticleBatch {
+        ParticleBatch {
+            id: vec![ParticleId(1), ParticleId(2)],
+            population_id: vec![PopulationId("p".into()), PopulationId("p".into())],
+            origin: vec![
+                ParticleOrigin::Release {
+                    event_id: ReleaseEventId("e".into()),
+                },
+                ParticleOrigin::Release {
+                    event_id: ReleaseEventId("e".into()),
+                },
+            ],
+            birth_time: vec![Timestamp::UNIX_EPOCH; 2],
+            longitude_degrees: vec![0.0, 1.0],
+            latitude_degrees: vec![0.0, 1.0],
+            height_asl_m: vec![1_000.0, 2_000.0],
+            integration_offset_ns: vec![0; 2],
+            elapsed_age_ns: vec![0; 2],
+            dry_air_mass_kg: vec![0.0; 2],
+            sensitivity_weight: vec![None; 2],
+            status: vec![ParticleStatus::Alive; 2],
+            termination: vec![None; 2],
+            mass: SubstanceMassStore::default(),
+        }
+    }
+
+    #[test]
+    fn canonical_digest_queries_are_run_scoped_without_noncovering_time_index() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection.execute_batch(SQLITE_SCHEMA_SQL).unwrap();
+
+        for (table, sql) in [
+            ("particle", CANONICAL_PARTICLE_SQL),
+            ("particle_mass", CANONICAL_PARTICLE_MASS_SQL),
+            ("output_event", CANONICAL_OUTPUT_EVENT_SQL),
+            ("termination", CANONICAL_TERMINATION_SQL),
+        ] {
+            let explain_sql = format!("EXPLAIN QUERY PLAN {sql}");
+            let mut statement = connection.prepare(&explain_sql).unwrap();
+            let details: Vec<String> = statement
+                .query_map(["run-a"], |row| row.get(3))
+                .unwrap()
+                .map(Result::unwrap)
+                .collect();
+            let plan = details.join("\n");
+            assert!(
+                details.iter().any(|detail| detail.starts_with("SEARCH ")),
+                "{table} must use a run-scoped index search; plan:\n{plan}"
+            );
+            assert!(
+                !plan.contains("TEMP B-TREE"),
+                "{table} must not materialize an ORDER BY temp tree; plan:\n{plan}"
+            );
+        }
+
+        let explain_sql = format!("EXPLAIN QUERY PLAN {CANONICAL_PARTICLE_STATE_SQL}");
+        let mut statement = connection.prepare(&explain_sql).unwrap();
+        let details: Vec<String> = statement
+            .query_map(["run-a"], |row| row.get(3))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        let plan = details.join("\n");
+        assert!(
+            plan.contains("USING PRIMARY KEY (run_id=?)"),
+            "canonical particle-state export must scan the run's primary-key range; plan:\n{plan}"
+        );
+        assert!(
+            plan.contains("TEMP B-TREE"),
+            "time ordering must sort the sequential scan instead of random non-covering index lookups; plan:\n{plan}"
+        );
+        assert!(
+            !plan.contains("particle_state_by_time"),
+            "canonical export must not use the non-covering time index; plan:\n{plan}"
+        );
+    }
+
+    #[test]
+    fn canonical_digest_ignores_rows_from_other_runs() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection.execute_batch(SQLITE_SCHEMA_SQL).unwrap();
+        for run_id in ["run-a", "run-b"] {
+            connection
+                .execute(
+                    "INSERT INTO run (
+                        run_id, manifest_schema, case_name, status,
+                        started_seconds, started_nanosecond,
+                        finished_seconds, finished_nanosecond
+                     ) VALUES (?1, 'test/v1', 'test', 'complete', 0, 0, 1, 0)",
+                    [run_id],
+                )
+                .unwrap();
+            connection
+                .execute(
+                    "INSERT INTO particle (
+                        run_id, particle_id, population_id, origin_kind,
+                        origin_event_id, birth_seconds, birth_nanosecond,
+                        dry_air_mass_kg
+                     ) VALUES (?1, 1, 'population', 'release', 'release', 0, 0, 1.0)",
+                    [run_id],
+                )
+                .unwrap();
+        }
+
+        let before = canonical_sql_digest(&connection, "run-a").unwrap();
+        connection
+            .execute(
+                "UPDATE particle SET dry_air_mass_kg = 99.0 WHERE run_id = 'run-b'",
+                [],
+            )
+            .unwrap();
+        let after = canonical_sql_digest(&connection, "run-a").unwrap();
+        assert_eq!(before, after);
+        assert_ne!(after, canonical_sql_digest(&connection, "run-b").unwrap());
+    }
 
     #[test]
     fn wal_truncate_leaves_standalone_main_db() {
@@ -1185,5 +1658,190 @@ mod tests {
             "expected busy or residual wal frames busy={busy} log={log} ckpt={ckpt}"
         );
         reader.execute_batch("COMMIT;").unwrap();
+    }
+
+    #[test]
+    fn exact_termination_row_matches_state_time_fraction_and_lifecycle_subset() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("particles.sqlite");
+        let mut sink = ParticleStateSqliteSink::with_time_bounds(
+            Timestamp::UNIX_EPOCH,
+            Timestamp::new(1, 0).unwrap(),
+        );
+        sink.begin(&path, &running_manifest()).unwrap();
+        let particles = two_particles();
+        sink.write_event(Timestamp::UNIX_EPOCH, &particles, None)
+            .unwrap();
+
+        let termination_time = Timestamp::new(0, 250_000_000).unwrap();
+        let mut terminated = particles.select_indices(&[1]).unwrap();
+        let mut state = terminated.state(0).unwrap();
+        state.integration_offset_ns = 250_000_000;
+        state.elapsed_age_ns = 250_000_000;
+        state.status = ParticleStatus::Terminated {
+            reason: TerminationReason::OutsideDomain,
+        };
+        state.termination = Some(ParticleTermination {
+            time: termination_time,
+            intersection_fraction: Some(0.25),
+        });
+        terminated.set_state(0, state).unwrap();
+        sink.write_event(termination_time, &terminated, None)
+            .unwrap();
+
+        let connection = sink.connection.as_ref().unwrap();
+        let event_sequence: i64 = connection
+            .query_row(
+                "SELECT event_sequence FROM output_event WHERE event_kind = 'termination'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let state_row: (i64, i64, i64, i64) = connection
+            .query_row(
+                "SELECT particle_id, physical_seconds, physical_nanosecond, integration_offset_ns
+                 FROM particle_state WHERE event_sequence = ?1",
+                [event_sequence],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(state_row, (2, 0, 250_000_000, 250_000_000));
+        let state_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM particle_state WHERE event_sequence = ?1",
+                [event_sequence],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            state_count, 1,
+            "lifecycle event wrote an unrelated particle"
+        );
+        let termination_row: (i64, i64, i64, f64) = connection
+            .query_row(
+                "SELECT particle_id, physical_seconds, physical_nanosecond, intersection_fraction
+                 FROM termination",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(termination_row, (2, 0, 250_000_000, 0.25));
+    }
+
+    #[test]
+    fn coincident_interval_and_termination_upgrade_one_event_and_one_state() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("particles.sqlite");
+        let mut sink = ParticleStateSqliteSink::with_time_bounds(
+            Timestamp::UNIX_EPOCH,
+            Timestamp::new(2, 0).unwrap(),
+        );
+        sink.begin(&path, &running_manifest()).unwrap();
+        let time = Timestamp::new(1, 0).unwrap();
+        let particles = two_particles().select_indices(&[0]).unwrap();
+        sink.write_event(time, &particles, None).unwrap();
+
+        let mut terminated = particles;
+        let mut state = terminated.state(0).unwrap();
+        state.integration_offset_ns = 1_000_000_000;
+        state.elapsed_age_ns = 1_000_000_000;
+        state.status = ParticleStatus::Terminated {
+            reason: TerminationReason::ModelTop,
+        };
+        state.termination = Some(ParticleTermination {
+            time,
+            intersection_fraction: Some(0.0),
+        });
+        terminated.set_state(0, state).unwrap();
+        sink.write_event(time, &terminated, None).unwrap();
+
+        let connection = sink.connection.as_ref().unwrap();
+        let event: (i64, String) = connection
+            .query_row("SELECT COUNT(*), event_kind FROM output_event", [], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
+            .unwrap();
+        assert_eq!(event, (1, "termination".into()));
+        let state_row: (i64, String, Option<String>, i64) = connection
+            .query_row(
+                "SELECT COUNT(*), particle_status, termination_reason, sample_sequence
+                 FROM particle_state",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            state_row,
+            (1, "terminated".into(), Some("model_top".into()), 0)
+        );
+        let termination_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM termination", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(termination_count, 1);
+    }
+
+    #[test]
+    fn coincident_birth_retains_priority_when_state_becomes_terminal() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("particles.sqlite");
+        let mut sink = ParticleStateSqliteSink::with_time_bounds(
+            Timestamp::UNIX_EPOCH,
+            Timestamp::new(1, 0).unwrap(),
+        );
+        sink.begin(&path, &running_manifest()).unwrap();
+        let particles = two_particles().select_indices(&[0]).unwrap();
+        sink.write_event(Timestamp::UNIX_EPOCH, &particles, None)
+            .unwrap();
+
+        let mut terminated = particles;
+        let mut state = terminated.state(0).unwrap();
+        state.status = ParticleStatus::Terminated {
+            reason: TerminationReason::ModelTop,
+        };
+        state.termination = Some(ParticleTermination {
+            time: Timestamp::UNIX_EPOCH,
+            intersection_fraction: Some(0.0),
+        });
+        terminated.set_state(0, state).unwrap();
+        sink.write_event(Timestamp::UNIX_EPOCH, &terminated, None)
+            .unwrap();
+
+        let connection = sink.connection.as_ref().unwrap();
+        let event_kind: String = connection
+            .query_row("SELECT event_kind FROM output_event", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(event_kind, "birth");
+        let state_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM particle_state", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(state_count, 1);
+    }
+
+    #[test]
+    fn first_terminal_write_rejects_event_time_mismatch() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("particles.sqlite");
+        let mut sink = ParticleStateSqliteSink::with_time_bounds(
+            Timestamp::UNIX_EPOCH,
+            Timestamp::new(1, 0).unwrap(),
+        );
+        sink.begin(&path, &running_manifest()).unwrap();
+        let particles = two_particles();
+        sink.write_event(Timestamp::UNIX_EPOCH, &particles, None)
+            .unwrap();
+        let mut terminated = particles.select_indices(&[0]).unwrap();
+        let mut state = terminated.state(0).unwrap();
+        state.status = ParticleStatus::Terminated {
+            reason: TerminationReason::OutsideDomain,
+        };
+        state.termination = Some(ParticleTermination {
+            time: Timestamp::new(0, 250_000_000).unwrap(),
+            intersection_fraction: Some(0.25),
+        });
+        terminated.set_state(0, state).unwrap();
+        assert_eq!(
+            sink.write_event(Timestamp::new(0, 500_000_000).unwrap(), &terminated, None),
+            Err(OutputError::InvalidInput)
+        );
     }
 }

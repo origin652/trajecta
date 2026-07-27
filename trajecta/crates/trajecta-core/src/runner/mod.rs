@@ -10,12 +10,15 @@ pub use builder::{
     build_runner_with_store_and_knobs,
 };
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use trajecta_case::document::{ResolvedCase, ResolvedRunProfile};
 use trajecta_case::model::meteorology::DomainId;
 use trajecta_case::model::time::{Direction, Timestamp};
-use trajecta_met::query::engine::{BatchWorkspace, ExecutionContext, MetEngine};
+use trajecta_met::performance::{PerformanceScope, PerformanceStage};
+use trajecta_met::query::cache::CacheMetrics;
+use trajecta_met::query::engine::{BatchWorkspace, EngineError, ExecutionContext, MetEngine};
+use trajecta_met::query::metrics::{QueryOrigin, QueryOriginScope};
 use trajecta_met::query::output::QueryOutput;
 use trajecta_met::query::request::{
     QueryBatch, QueryPlan, QueryPointArrays, TransportPlan, VerticalQuery,
@@ -26,11 +29,14 @@ use crate::boundary::{
 };
 use crate::clock::{
     ClockError, SignedDuration, SimulationClock, StepBoundary, StepPlanner, add_timestamp,
+    scale_duration_by_fraction, signed_duration_between,
 };
-use crate::integrator::{IntegratorContext, IntegratorInput, IntegratorModel};
+use crate::integrator::{IntegratorContext, IntegratorModel, TimedIntegratorInput};
 use crate::manifest::{RunFailure, RunLifecycleStatus, RunManifest, TerminationSummary};
 use crate::output::{OutputProduct, OutputScheduler};
-use crate::particle::{ParticleBatch, ParticleState, ParticleStatus, TerminationClass};
+use crate::particle::{
+    ParticleBatch, ParticleState, ParticleStatus, ParticleTermination, TerminationClass,
+};
 use crate::population::{PopulationContext, PopulationError, PopulationState, PopulationStrategy};
 
 /// Mutable in-memory simulation state.
@@ -236,6 +242,7 @@ impl SimulationRunner {
 
     /// Executes the complete event-driven main loop.
     pub fn run(&mut self) -> Result<RunOutcome, RunError> {
+        let _performance = PerformanceScope::enter(PerformanceStage::RunnerTotal);
         if self.manifest.status != RunLifecycleStatus::Running {
             return Err(RunError::InvalidConfiguration(
                 "a runner can execute only once from running state".into(),
@@ -264,6 +271,11 @@ impl SimulationRunner {
         &self.state
     }
 
+    /// Returns observable meteorology column-cache state for performance audit.
+    pub fn meteorology_column_cache_metrics(&self) -> Result<CacheMetrics, EngineError> {
+        self.meteorology.column_cache_metrics()
+    }
+
     fn run_inner(&mut self) -> Result<(), RunError> {
         for output in &mut self.outputs {
             output
@@ -273,6 +285,7 @@ impl SimulationRunner {
         }
 
         {
+            let _performance = PerformanceScope::enter(PerformanceStage::RunnerPopulation);
             let mut context = PopulationContext {
                 time: self.state.clock.current,
                 direction: self.state.clock.direction,
@@ -288,8 +301,14 @@ impl SimulationRunner {
                 .map_err(map_population_error)?;
         }
         self.sync_population_state();
-        self.emit_current_particles()?;
-        self.sample_outputs(self.state.clock.current, true)?;
+        {
+            let _performance = PerformanceScope::enter(PerformanceStage::RunnerPopulation);
+            self.emit_current_particles()?;
+        }
+        {
+            let _performance = PerformanceScope::enter(PerformanceStage::RunnerOutput);
+            self.sample_outputs(self.state.clock.current, true, &[])?;
+        }
 
         while self.state.clock.current != self.end_time {
             let boundaries = self.collect_step_boundaries()?;
@@ -301,9 +320,15 @@ impl SimulationRunner {
             let end_time =
                 add_timestamp(self.state.clock.current, step).map_err(RunError::Clock)?;
 
-            {
+            let macro_start = self.state.clock.current;
+            let existing_particles = self.state.particles.clone();
+            let existing_particle_count = existing_particles
+                .len()
+                .map_err(|_| RunError::Population("invalid starting particle batch".into()))?;
+            let births = {
+                let _performance = PerformanceScope::enter(PerformanceStage::RunnerPopulation);
                 let mut context = PopulationContext {
-                    time: self.state.clock.current,
+                    time: macro_start,
                     direction: self.state.clock.direction,
                     step: Some(step),
                     step_index: Some(self.state.numerical_step_index),
@@ -313,38 +338,76 @@ impl SimulationRunner {
                     domain: self.domain.clone(),
                 };
                 self.population
-                    .before_step(&mut context, &self.state.particles)
-                    .map_err(map_population_error)?;
+                    .prepare_cohort_step(&mut context, &existing_particles)
+                    .map_err(map_population_error)?
+            };
+            let birth_count = births
+                .len()
+                .map_err(|_| RunError::Population("invalid birth cohort".into()))?;
+            if births.birth_time.iter().any(|birth_time| {
+                !time_inside_macro_step(
+                    macro_start,
+                    end_time,
+                    *birth_time,
+                    self.state.clock.direction,
+                )
+            }) {
+                return Err(RunError::Population(
+                    "birth cohort lies outside its macro step".into(),
+                ));
             }
 
-            let start_particles = self.state.particles.clone();
-            let step_result = self
-                .integrator
-                .advance(
-                    IntegratorInput {
-                        particles: &start_particles,
-                        time: self.state.clock.current,
-                        step,
-                    },
-                    &mut IntegratorContext {
-                        meteorology: &mut self.meteorology,
-                        query_plan: &self.query_plan,
-                        execution: self.execution.as_ref(),
-                        domain: self.domain.as_ref(),
-                    },
-                )
-                .map_err(|error| RunError::Integration(format!("{error:?}")))?;
-            let previously_terminated = count_terminated(&start_particles);
-            let bounded = self.apply_boundaries(
-                self.state.clock.current,
-                end_time,
-                &start_particles,
-                step_result.particles,
-            )?;
+            self.sample_interior_births(&births, end_time)?;
+            let mut start_particles = existing_particles;
+            start_particles
+                .append(births)
+                .map_err(|_| RunError::Population("invalid appended birth cohort".into()))?;
+            let start_particle_count = start_particles
+                .len()
+                .map_err(|_| RunError::Population("invalid starting cohort batch".into()))?;
+            if start_particle_count != existing_particle_count.saturating_add(birth_count) {
+                return Err(RunError::Population(
+                    "birth cohort count does not match appended batch".into(),
+                ));
+            }
+            let mut start_times = vec![macro_start; existing_particle_count];
+            start_times.extend(
+                start_particles.birth_time[existing_particle_count..]
+                    .iter()
+                    .copied(),
+            );
+            let step_result = {
+                let _performance = PerformanceScope::enter(PerformanceStage::RunnerIntegrator);
+                self.integrator
+                    .advance_timed(
+                        TimedIntegratorInput {
+                            particles: &start_particles,
+                            start_times: &start_times,
+                            end_time,
+                        },
+                        &mut IntegratorContext {
+                            meteorology: &mut self.meteorology,
+                            query_plan: &self.query_plan,
+                            execution: self.execution.as_ref(),
+                            domain: self.domain.as_ref(),
+                        },
+                    )
+                    .map_err(|error| RunError::Integration(format!("{error:?}")))?
+            };
+            let bounded = {
+                let _performance = PerformanceScope::enter(PerformanceStage::RunnerBoundary);
+                self.apply_boundaries(
+                    &start_times,
+                    end_time,
+                    &start_particles,
+                    step_result.particles,
+                )?
+            };
             self.state.particles = bounded;
             self.state.clock.current = end_time;
 
             {
+                let _performance = PerformanceScope::enter(PerformanceStage::RunnerPopulation);
                 let mut context = PopulationContext {
                     time: end_time,
                     direction: self.state.clock.direction,
@@ -356,10 +419,7 @@ impl SimulationRunner {
                     domain: self.domain.clone(),
                 };
                 self.population
-                    .after_advection(&mut context, &self.state.particles)
-                    .map_err(map_population_error)?;
-                self.population
-                    .apply_boundary_maintenance(&mut context, &mut self.state.particles)
+                    .complete_cohort_step(&mut context, &mut self.state.particles)
                     .map_err(map_population_error)?;
             }
             self.state.numerical_step_index = self
@@ -368,16 +428,48 @@ impl SimulationRunner {
                 .checked_add(1)
                 .ok_or(RunError::ResourceLimit)?;
             self.sync_population_state();
-            let emitted = self.emit_current_particles()?;
-            let newly_terminated =
-                count_terminated(&self.state.particles).saturating_sub(previously_terminated);
-            self.sample_outputs(
-                end_time,
-                emitted > 0 || newly_terminated > 0 || end_time == self.end_time,
-            )?;
+            let current_particle_count = self
+                .state
+                .particles
+                .len()
+                .map_err(|_| RunError::Population("invalid current particle batch".into()))?;
+            if current_particle_count != start_particle_count {
+                return Err(RunError::Population(
+                    "cohort integration changed particle row count".into(),
+                ));
+            }
+            let newly_terminated = (0..start_particle_count)
+                .filter(|index| {
+                    matches!(start_particles.status[*index], ParticleStatus::Alive)
+                        && matches!(
+                            self.state.particles.status[*index],
+                            ParticleStatus::Terminated { .. }
+                        )
+                })
+                .collect::<Vec<_>>();
+            self.sample_interior_terminations(&newly_terminated, end_time)?;
+            let mut lifecycle_indices = newly_terminated
+                .into_iter()
+                .filter(|index| {
+                    self.state.particles.termination[*index]
+                        .as_ref()
+                        .is_none_or(|termination| termination.time == end_time)
+                })
+                .collect::<Vec<_>>();
+            lifecycle_indices.extend(
+                (existing_particle_count..start_particle_count)
+                    .filter(|index| self.state.particles.birth_time[*index] == end_time),
+            );
+            lifecycle_indices.sort_unstable();
+            lifecycle_indices.dedup();
+            {
+                let _performance = PerformanceScope::enter(PerformanceStage::RunnerOutput);
+                self.sample_outputs(end_time, end_time == self.end_time, &lifecycle_indices)?;
+            }
         }
 
         {
+            let _performance = PerformanceScope::enter(PerformanceStage::RunnerPopulation);
             let mut context = PopulationContext {
                 time: self.state.clock.current,
                 direction: self.state.clock.direction,
@@ -393,16 +485,20 @@ impl SimulationRunner {
                 .map_err(map_population_error)?;
         }
         self.sync_population_state();
-        for output in &mut self.outputs {
-            if let Err(error) = output.product.finish() {
-                // Immediate abort — do not wait for runner Drop; never swallow abort errors.
-                let abort_err = self.abort_outputs();
-                return Err(match abort_err {
-                    Ok(()) => RunError::Output(format!("{error:?}")),
-                    Err(ae) => RunError::Output(format!(
-                        "finish failed: {error:?}; abort also failed: {ae:?}"
-                    )),
-                });
+        {
+            let _performance = PerformanceScope::enter(PerformanceStage::RunnerOutput);
+            let _finish_performance = PerformanceScope::enter(PerformanceStage::RunnerOutputFinish);
+            for output in &mut self.outputs {
+                if let Err(error) = output.product.finish() {
+                    // Immediate abort — do not wait for runner Drop; never swallow abort errors.
+                    let abort_err = self.abort_outputs();
+                    return Err(match abort_err {
+                        Ok(()) => RunError::Output(format!("{error:?}")),
+                        Err(ae) => RunError::Output(format!(
+                            "finish failed: {error:?}; abort also failed: {ae:?}"
+                        )),
+                    });
+                }
             }
         }
         Ok(())
@@ -475,10 +571,7 @@ impl SimulationRunner {
     fn collect_step_boundaries(&mut self) -> Result<Vec<StepBoundary>, RunError> {
         let target =
             add_timestamp(self.state.clock.current, self.time_step).map_err(RunError::Clock)?;
-        let mut boundaries = self
-            .population
-            .step_boundaries(self.state.clock, self.time_step)
-            .map_err(map_population_error)?;
+        let mut boundaries = Vec::new();
         let inside = |time: Timestamp| match self.state.clock.direction {
             Direction::Forward => time > self.state.clock.current && time <= target,
             Direction::Backward => time < self.state.clock.current && time >= target,
@@ -508,37 +601,12 @@ impl SimulationRunner {
         }
         boundaries.push(StepBoundary::End(self.end_time));
         order_step_boundaries(&mut boundaries, self.state.clock.direction);
-        let statically_capped = *StepPlanner::plan(self.state.clock, self.time_step, &boundaries)
-            .map_err(RunError::Clock)?
-            .first()
-            .ok_or_else(|| {
-                RunError::InvalidConfiguration(
-                    "static step-boundary planning made no progress before end".into(),
-                )
-            })?;
-        let dynamic = {
-            let mut context = PopulationContext {
-                time: self.state.clock.current,
-                direction: self.state.clock.direction,
-                step: Some(statically_capped),
-                step_index: Some(self.state.numerical_step_index),
-                random_seed: self.random_seed,
-                meteorology: &mut self.meteorology,
-                execution: self.execution.as_ref(),
-                domain: self.domain.clone(),
-            };
-            self.population
-                .dynamic_step_boundaries(&mut context, statically_capped)
-                .map_err(map_population_error)?
-        };
-        boundaries.extend(dynamic);
-        order_step_boundaries(&mut boundaries, self.state.clock.direction);
         Ok(boundaries)
     }
 
     fn apply_boundaries(
         &mut self,
-        start_time: Timestamp,
+        start_times: &[Timestamp],
         end_time: Timestamp,
         start_particles: &ParticleBatch,
         mut proposed_particles: ParticleBatch,
@@ -556,7 +624,12 @@ impl SimulationRunner {
         let len = proposed_particles
             .len()
             .map_err(|_| RunError::Integration("invalid proposal batch".into()))?;
-        for index in 0..len {
+        if start_times.len() != len {
+            return Err(RunError::Integration(
+                "boundary start-time column length mismatch".into(),
+            ));
+        }
+        for (index, start_time) in start_times.iter().copied().enumerate() {
             let start = start_particles
                 .state(index)
                 .map_err(|_| RunError::Integration("invalid start batch".into()))?;
@@ -591,10 +664,33 @@ impl SimulationRunner {
                     let decision = policy
                         .apply(&start, &mut proposed, &mut context)
                         .map_err(RunError::Boundary)?;
-                    if let BoundaryDecision::Terminated { reason, .. } = decision {
+                    if let BoundaryDecision::Terminated {
+                        reason,
+                        intersection_fraction,
+                    } = decision
+                    {
                         if proposed.status == ParticleStatus::Alive {
                             proposed.status = ParticleStatus::Terminated { reason };
                         }
+                        let full_step = signed_duration_between(start_time, end_time)
+                            .map_err(RunError::Clock)?;
+                        let partial_step =
+                            scale_duration_by_fraction(full_step, intersection_fraction)
+                                .map_err(RunError::Clock)?;
+                        let termination_time =
+                            add_timestamp(start_time, partial_step).map_err(RunError::Clock)?;
+                        proposed.integration_offset_ns = start
+                            .integration_offset_ns
+                            .checked_add(partial_step.0)
+                            .ok_or(RunError::ResourceLimit)?;
+                        proposed.elapsed_age_ns = start
+                            .elapsed_age_ns
+                            .checked_add(partial_step.0.unsigned_abs())
+                            .ok_or(RunError::ResourceLimit)?;
+                        proposed.termination = Some(ParticleTermination {
+                            time: termination_time,
+                            intersection_fraction: Some(intersection_fraction),
+                        });
                         break;
                     }
                 }
@@ -606,20 +702,152 @@ impl SimulationRunner {
         Ok(proposed_particles)
     }
 
-    fn sample_outputs(&mut self, time: Timestamp, force_endpoints: bool) -> Result<(), RunError> {
+    fn sample_interior_births(
+        &mut self,
+        births: &ParticleBatch,
+        macro_end: Timestamp,
+    ) -> Result<(), RunError> {
+        let mut groups = BTreeMap::<Timestamp, Vec<usize>>::new();
+        for (index, time) in births.birth_time.iter().copied().enumerate() {
+            if time != macro_end {
+                groups.entry(time).or_default().push(index);
+            }
+        }
+        for (time, indices) in ordered_event_groups(groups, self.state.clock.direction) {
+            let particles = births
+                .select_indices(&indices)
+                .map_err(|_| RunError::Output("invalid birth lifecycle subset".into()))?;
+            self.sample_lifecycle_batch(time, &particles)?;
+        }
+        Ok(())
+    }
+
+    fn sample_interior_terminations(
+        &mut self,
+        indices: &[usize],
+        macro_end: Timestamp,
+    ) -> Result<(), RunError> {
+        let mut groups = BTreeMap::<Timestamp, Vec<usize>>::new();
+        for index in indices.iter().copied() {
+            if let Some(termination) = &self.state.particles.termination[index]
+                && termination.time != macro_end
+            {
+                groups.entry(termination.time).or_default().push(index);
+            }
+        }
+        for (time, indices) in ordered_event_groups(groups, self.state.clock.direction) {
+            let particles = self
+                .state
+                .particles
+                .select_indices(&indices)
+                .map_err(|_| RunError::Output("invalid termination lifecycle subset".into()))?;
+            self.sample_lifecycle_batch(time, &particles)?;
+        }
+        Ok(())
+    }
+
+    fn sample_lifecycle_batch(
+        &mut self,
+        time: Timestamp,
+        particles: &ParticleBatch,
+    ) -> Result<(), RunError> {
+        if particles.is_empty() {
+            return Ok(());
+        }
         let mut sampled_any = false;
         for index in 0..self.outputs.len() {
+            let meteorology = if self.outputs[index].meteorology_plan.is_some() {
+                let _performance =
+                    PerformanceScope::enter(PerformanceStage::RunnerOutputMeteorology);
+                Some(self.query_output_meteorology(
+                    time,
+                    QueryPointArrays {
+                        longitude_degrees: particles.longitude_degrees.clone(),
+                        latitude_degrees: particles.latitude_degrees.clone(),
+                        vertical: particles.height_asl_m.clone(),
+                    },
+                    QueryOrigin::OutputLifecycle,
+                )?)
+            } else {
+                None
+            };
+            let _performance = PerformanceScope::enter(PerformanceStage::RunnerOutputSink);
+            self.outputs[index]
+                .product
+                .sample(time, particles, meteorology.as_ref())
+                .map_err(|error| RunError::Output(format!("{error:?}")))?;
+            sampled_any = true;
+        }
+        if sampled_any {
+            self.state.output_event_index = self
+                .state
+                .output_event_index
+                .checked_add(1)
+                .ok_or(RunError::ResourceLimit)?;
+        }
+        Ok(())
+    }
+
+    fn sample_outputs(
+        &mut self,
+        time: Timestamp,
+        force_full_snapshot: bool,
+        lifecycle_indices: &[usize],
+    ) -> Result<(), RunError> {
+        let mut sampled_any = false;
+        let lifecycle_particles = if lifecycle_indices.is_empty() {
+            None
+        } else {
+            Some(
+                self.state
+                    .particles
+                    .select_indices(lifecycle_indices)
+                    .map_err(|_| RunError::Output("invalid lifecycle output subset".into()))?,
+            )
+        };
+        for index in 0..self.outputs.len() {
             let scheduled = self.outputs[index].scheduler.sample_times.contains(&time);
-            if force_endpoints || scheduled {
-                let plan = self.outputs[index].meteorology_plan.clone();
-                let meteorology = plan
-                    .as_ref()
-                    .map(|plan| self.query_output_meteorology(time, plan))
-                    .transpose()?;
-                self.outputs[index]
-                    .product
-                    .sample(time, &self.state.particles, meteorology.as_ref())
-                    .map_err(|error| RunError::Output(format!("{error:?}")))?;
+            let full_snapshot = force_full_snapshot || scheduled;
+            if full_snapshot || lifecycle_particles.is_some() {
+                let requires_meteorology = self.outputs[index].meteorology_plan.is_some();
+                let meteorology = if requires_meteorology {
+                    let _performance =
+                        PerformanceScope::enter(PerformanceStage::RunnerOutputMeteorology);
+                    let particles = if full_snapshot {
+                        &self.state.particles
+                    } else {
+                        lifecycle_particles
+                            .as_ref()
+                            .ok_or_else(|| RunError::Output("missing lifecycle subset".into()))?
+                    };
+                    let points = QueryPointArrays {
+                        longitude_degrees: particles.longitude_degrees.clone(),
+                        latitude_degrees: particles.latitude_degrees.clone(),
+                        vertical: particles.height_asl_m.clone(),
+                    };
+                    let origin = if full_snapshot {
+                        QueryOrigin::Output
+                    } else {
+                        QueryOrigin::OutputLifecycle
+                    };
+                    Some(self.query_output_meteorology(time, points, origin)?)
+                } else {
+                    None
+                };
+                {
+                    let _performance = PerformanceScope::enter(PerformanceStage::RunnerOutputSink);
+                    let particles = if full_snapshot {
+                        &self.state.particles
+                    } else {
+                        lifecycle_particles
+                            .as_ref()
+                            .ok_or_else(|| RunError::Output("missing lifecycle subset".into()))?
+                    };
+                    self.outputs[index]
+                        .product
+                        .sample(time, particles, meteorology.as_ref())
+                        .map_err(|error| RunError::Output(format!("{error:?}")))?;
+                }
                 sampled_any = true;
             }
         }
@@ -636,8 +864,10 @@ impl SimulationRunner {
     fn query_output_meteorology(
         &mut self,
         time: Timestamp,
-        plan: &QueryPlan,
+        points: QueryPointArrays,
+        origin: QueryOrigin,
     ) -> Result<QueryOutput, RunError> {
+        let _query_origin = QueryOriginScope::enter(origin);
         let domain = self.domain.as_ref().ok_or_else(|| {
             RunError::Meteorology("output query requires an explicit meteorology domain".into())
         })?;
@@ -646,21 +876,24 @@ impl SimulationRunner {
             .prepare_for_domain(time, domain)
             .map_err(|error| RunError::Meteorology(format!("{error:?}")))?;
         let mut workspace = BatchWorkspace::default();
-        window
-            .prepare_batch(
-                plan,
-                QueryBatch {
-                    vertical_coordinate: VerticalQuery::AboveSeaLevel,
-                    points: QueryPointArrays {
-                        longitude_degrees: self.state.particles.longitude_degrees.clone(),
-                        latitude_degrees: self.state.particles.latitude_degrees.clone(),
-                        vertical: self.state.particles.height_asl_m.clone(),
+        let prepared = {
+            let _performance = PerformanceScope::enter(PerformanceStage::RunnerOutputQueryPrepare);
+            window
+                .prepare_transport_batch(
+                    &self.query_plan,
+                    QueryBatch {
+                        vertical_coordinate: VerticalQuery::AboveSeaLevel,
+                        points,
                     },
-                },
-                &mut workspace,
-            )
-            .map_err(|error| RunError::Meteorology(format!("{error:?}")))?
+                    &mut workspace,
+                )
+                .map_err(|error| RunError::Meteorology(format!("{error:?}")))?
+        };
+        let _performance = PerformanceScope::enter(PerformanceStage::RunnerOutputQueryExecute);
+        prepared
             .execute(self.execution.as_ref(), &mut workspace)
+            .map_err(|error| RunError::Meteorology(format!("{error:?}")))?
+            .clone_as_query_output()
             .map_err(|error| RunError::Meteorology(format!("{error:?}")))
     }
 
@@ -878,12 +1111,27 @@ fn validate_output_schedules(
     Ok(())
 }
 
-fn count_terminated(particles: &ParticleBatch) -> usize {
-    particles
-        .status
-        .iter()
-        .filter(|status| matches!(status, ParticleStatus::Terminated { .. }))
-        .count()
+fn ordered_event_groups(
+    groups: BTreeMap<Timestamp, Vec<usize>>,
+    direction: Direction,
+) -> Vec<(Timestamp, Vec<usize>)> {
+    let mut groups = groups.into_iter().collect::<Vec<_>>();
+    if direction == Direction::Backward {
+        groups.reverse();
+    }
+    groups
+}
+
+fn time_inside_macro_step(
+    start: Timestamp,
+    end: Timestamp,
+    time: Timestamp,
+    direction: Direction,
+) -> bool {
+    match direction {
+        Direction::Forward => time > start && time <= end,
+        Direction::Backward => time < start && time >= end,
+    }
 }
 
 fn termination_summary(particles: &ParticleBatch) -> Result<TerminationSummary, RunError> {
@@ -999,7 +1247,7 @@ mod tests {
     use trajecta_met::surface_layer::{MoninObukhovBusingerDyer, SurfaceLayerRegistry};
 
     use super::*;
-    use crate::integrator::{IntegratorError, StepResult};
+    use crate::integrator::{IntegratorError, IntegratorInput, StepResult};
     use crate::manifest::{
         ExecutionSummary, InputIdentity, NumericalSummary, RunId, RunManifestStart,
         SoftwareIdentity,
@@ -1015,14 +1263,14 @@ mod tests {
         log.lock().unwrap().push(value.into());
     }
 
-    fn one_particle() -> ParticleBatch {
+    fn particle_at(id: u64, birth_time: Timestamp) -> ParticleBatch {
         ParticleBatch {
-            id: vec![ParticleId(1)],
+            id: vec![ParticleId(id)],
             population_id: vec![PopulationId("p".into())],
             origin: vec![ParticleOrigin::Release {
                 event_id: ReleaseEventId("e".into()),
             }],
-            birth_time: vec![Timestamp::UNIX_EPOCH],
+            birth_time: vec![birth_time],
             longitude_degrees: vec![0.0],
             latitude_degrees: vec![0.0],
             height_asl_m: vec![1_000.0],
@@ -1031,14 +1279,21 @@ mod tests {
             dry_air_mass_kg: vec![0.0],
             sensitivity_weight: vec![None],
             status: vec![ParticleStatus::Alive],
+            termination: vec![None],
             mass: SubstanceMassStore::default(),
         }
+    }
+
+    fn one_particle() -> ParticleBatch {
+        particle_at(1, Timestamp::UNIX_EPOCH)
     }
 
     struct LoggingPopulation {
         log: Arc<Mutex<Vec<String>>>,
         state: PopulationState,
         initialized_particle: bool,
+        dynamic_birth_at: Option<Timestamp>,
+        dynamic_birth_emitted: bool,
     }
 
     impl PopulationStrategy for LoggingPopulation {
@@ -1048,6 +1303,32 @@ mod tests {
 
         fn snapshot_state(&self) -> PopulationState {
             self.state.clone()
+        }
+
+        fn dynamic_step_boundaries(
+            &mut self,
+            context: &mut PopulationContext<'_>,
+            requested: SignedDuration,
+        ) -> Result<Vec<StepBoundary>, PopulationError> {
+            let Some(time) = self.dynamic_birth_at else {
+                return Ok(Vec::new());
+            };
+            if self.dynamic_birth_emitted {
+                return Ok(Vec::new());
+            }
+            let target = add_timestamp(context.time, requested)
+                .map_err(|_| PopulationError::TimeOverflow)?;
+            let inside = match context.direction {
+                Direction::Forward => time > context.time && time <= target,
+                Direction::Backward => time < context.time && time >= target,
+            };
+            Ok(inside
+                .then(|| StepBoundary::Population {
+                    time,
+                    event_id: "test-dynamic-birth".into(),
+                })
+                .into_iter()
+                .collect())
         }
 
         fn initialize(
@@ -1093,6 +1374,13 @@ mod tests {
                     context.time.seconds_since_unix_epoch()
                 ),
             );
+            if self.dynamic_birth_at == Some(context.time) && !self.dynamic_birth_emitted {
+                self.dynamic_birth_emitted = true;
+                self.state = PopulationState::ReleaseDriven {
+                    emitted_birth_count: 1,
+                };
+                return Ok(particle_at(2, context.time));
+            }
             Ok(ParticleBatch::default())
         }
 
@@ -1153,7 +1441,13 @@ mod tests {
         ) -> Result<StepResult, IntegratorError> {
             log(
                 &self.log,
-                format!("integrator:{}", input.time.seconds_since_unix_epoch()),
+                format!(
+                    "integrator:{}:{}:{}:{:?}",
+                    input.time.seconds_since_unix_epoch(),
+                    input.time.nanosecond(),
+                    input.step.0,
+                    input.particles.id.iter().map(|id| id.0).collect::<Vec<_>>()
+                ),
             );
             let mut particles = input.particles.clone();
             for index in 0..particles
@@ -1186,6 +1480,77 @@ mod tests {
             Ok(StepResult {
                 particles,
                 abnormal_terminated_count: usize::from(self.terminate_abnormally),
+            })
+        }
+    }
+
+    struct NoopBoundaryPathSampler;
+
+    impl BoundaryPathSampler for NoopBoundaryPathSampler {
+        fn ordered_segments(
+            &self,
+        ) -> Result<Vec<crate::boundary::BoundaryPathSegment>, BoundaryError> {
+            Ok(vec![crate::boundary::BoundaryPathSegment {
+                start_fraction: 0.0,
+                end_fraction: 1.0,
+            }])
+        }
+
+        fn sample(
+            &mut self,
+            _fraction: f64,
+        ) -> Result<crate::boundary::BoundarySample, BoundaryError> {
+            Err(BoundaryError::MissingContext)
+        }
+
+        fn retarget(
+            &mut self,
+            _start_fraction: f64,
+            _start: &ParticleState,
+            _proposed: &ParticleState,
+        ) -> Result<(), BoundaryError> {
+            Ok(())
+        }
+    }
+
+    struct NoopBoundaryPathSamplerFactory;
+
+    impl BoundaryPathSamplerFactory for NoopBoundaryPathSamplerFactory {
+        fn build<'a>(
+            &'a mut self,
+            _request: BoundarySamplerRequest<'_>,
+            _meteorology: &'a mut MetEngine,
+            _query_plan: &'a TransportPlan,
+            _execution: &'a dyn ExecutionContext,
+        ) -> Result<Box<dyn BoundaryPathSampler + 'a>, BoundaryError> {
+            Ok(Box::new(NoopBoundaryPathSampler))
+        }
+    }
+
+    struct FixedFractionTermination {
+        fraction: f64,
+    }
+
+    impl BoundaryPolicy for FixedFractionTermination {
+        fn policy_id(&self) -> &'static str {
+            "test_fraction_termination"
+        }
+
+        fn apply(
+            &self,
+            start: &ParticleState,
+            proposed: &mut ParticleState,
+            _context: &mut BoundaryContext<'_>,
+        ) -> Result<BoundaryDecision, BoundaryError> {
+            proposed.longitude_degrees = start.longitude_degrees
+                + self.fraction * (proposed.longitude_degrees - start.longitude_degrees);
+            proposed.latitude_degrees = start.latitude_degrees
+                + self.fraction * (proposed.latitude_degrees - start.latitude_degrees);
+            proposed.height_asl_m =
+                start.height_asl_m + self.fraction * (proposed.height_asl_m - start.height_asl_m);
+            Ok(BoundaryDecision::Terminated {
+                reason: TerminationReason::OutsideDomain,
+                intersection_fraction: self.fraction,
             })
         }
     }
@@ -1319,12 +1684,21 @@ mod tests {
         fn sample(
             &mut self,
             time: Timestamp,
-            _particles: &ParticleBatch,
+            particles: &ParticleBatch,
             _meteorology: Option<&trajecta_met::query::output::QueryOutput>,
         ) -> Result<(), OutputError> {
             log(
                 &self.log,
                 format!("output.sample:{}", time.seconds_since_unix_epoch()),
+            );
+            log(
+                &self.log,
+                format!(
+                    "output.sample_count:{}:{}:{}",
+                    time.seconds_since_unix_epoch(),
+                    time.nanosecond(),
+                    particles.len().map_err(|_| OutputError::InvalidInput)?
+                ),
             );
             Ok(())
         }
@@ -1520,6 +1894,8 @@ mod tests {
                 log: log.clone(),
                 state: PopulationState::Uninitialized,
                 initialized_particle: true,
+                dynamic_birth_at: None,
+                dynamic_birth_emitted: false,
             }),
             integrator: Box::new(LoggingIntegrator {
                 log: log.clone(),
@@ -1585,6 +1961,148 @@ mod tests {
         assert_eq!(values.last().unwrap(), "manifest:Complete");
         assert!(values.iter().any(|value| value == "output.sample:1"));
         assert!(values.iter().any(|value| value == "output.sample:2"));
+    }
+
+    #[test]
+    fn unscheduled_dynamic_birth_writes_only_the_new_particle() {
+        let (mut runner, log) = runner(Direction::Forward, false, false);
+        runner.population = Box::new(LoggingPopulation {
+            log: log.clone(),
+            state: PopulationState::Uninitialized,
+            initialized_particle: true,
+            dynamic_birth_at: Some(Timestamp::new(0, 500_000_000).unwrap()),
+            dynamic_birth_emitted: false,
+        });
+
+        assert_eq!(runner.run(), Ok(RunOutcome::Complete));
+        let values = log.lock().unwrap();
+        assert!(
+            values
+                .iter()
+                .any(|value| value == "output.sample_count:0:0:1")
+        );
+        assert!(
+            values
+                .iter()
+                .any(|value| value == "output.sample_count:0:500000000:1"),
+            "dynamic birth must not duplicate a full two-particle snapshot: {values:?}"
+        );
+        assert!(
+            values
+                .iter()
+                .any(|value| value == "output.sample_count:1:0:2"),
+            "the next scheduled output must contain both particles: {values:?}"
+        );
+    }
+
+    #[test]
+    fn cohort_birth_never_splits_existing_particle_advection() {
+        for (direction, birth_time, old_step, newborn_step) in [
+            (
+                Direction::Forward,
+                Timestamp::new(0, 500_000_000).unwrap(),
+                1_000_000_000,
+                500_000_000,
+            ),
+            (
+                Direction::Backward,
+                Timestamp::new(2, 500_000_000).unwrap(),
+                -1_000_000_000,
+                -500_000_000,
+            ),
+        ] {
+            let (mut runner, log) = runner(direction, false, false);
+            runner.population = Box::new(LoggingPopulation {
+                log: log.clone(),
+                state: PopulationState::Uninitialized,
+                initialized_particle: true,
+                dynamic_birth_at: Some(birth_time),
+                dynamic_birth_emitted: false,
+            });
+
+            assert_eq!(runner.run(), Ok(RunOutcome::Complete));
+            let by_id = (0..runner.state.particles.len().unwrap())
+                .map(|index| {
+                    let state = runner.state.particles.state(index).unwrap();
+                    (state.id, state)
+                })
+                .collect::<BTreeMap<_, _>>();
+            assert_eq!(by_id[&ParticleId(1)].integration_offset_ns, 3 * old_step);
+            assert_eq!(by_id[&ParticleId(1)].elapsed_age_ns, 3_000_000_000);
+            assert_eq!(
+                by_id[&ParticleId(2)].integration_offset_ns,
+                2 * old_step + newborn_step
+            );
+            assert_eq!(by_id[&ParticleId(2)].elapsed_age_ns, 2_500_000_000);
+
+            let values = log.lock().unwrap();
+            let integration_calls = values
+                .iter()
+                .filter(|value| value.starts_with("integrator:"))
+                .collect::<Vec<_>>();
+            assert_eq!(integration_calls.len(), 4, "{integration_calls:?}");
+            let birth_prefix = format!(
+                "integrator:{}:{}:{newborn_step}:",
+                birth_time.seconds_since_unix_epoch(),
+                birth_time.nanosecond()
+            );
+            assert!(
+                integration_calls
+                    .iter()
+                    .any(|value| value.starts_with(&birth_prefix) && value.ends_with("[2]")),
+                "newborn must advance alone from its exact birth time: {integration_calls:?}"
+            );
+            assert!(
+                integration_calls
+                    .iter()
+                    .all(|value| !(value.starts_with(&birth_prefix) && value.contains('1'))),
+                "an interior birth must not re-advance the existing particle: {integration_calls:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn boundary_fraction_sets_matching_time_age_and_signed_offset() {
+        for (direction, expected_time, expected_offset) in [
+            (
+                Direction::Forward,
+                Timestamp::new(0, 250_000_000).unwrap(),
+                250_000_000,
+            ),
+            (
+                Direction::Backward,
+                Timestamp::new(2, 750_000_000).unwrap(),
+                -250_000_000,
+            ),
+        ] {
+            let (mut runner, log) = runner(direction, false, false);
+            runner.boundaries = vec![Box::new(FixedFractionTermination { fraction: 0.25 })];
+            runner.boundary_sampler_factory = Some(Box::new(NoopBoundaryPathSamplerFactory));
+
+            assert_eq!(runner.run(), Ok(RunOutcome::Complete));
+            let state = runner.state.particles.state(0).unwrap();
+            assert_eq!(state.integration_offset_ns, expected_offset);
+            assert_eq!(state.elapsed_age_ns, 250_000_000);
+            assert_eq!(
+                state.termination,
+                Some(ParticleTermination {
+                    time: expected_time,
+                    intersection_fraction: Some(0.25),
+                })
+            );
+            assert_eq!(
+                state.status,
+                ParticleStatus::Terminated {
+                    reason: TerminationReason::OutsideDomain
+                }
+            );
+            let event = format!(
+                "output.sample_count:{}:{}:1",
+                expected_time.seconds_since_unix_epoch(),
+                expected_time.nanosecond()
+            );
+            assert!(log.lock().unwrap().contains(&event));
+        }
     }
 
     #[test]

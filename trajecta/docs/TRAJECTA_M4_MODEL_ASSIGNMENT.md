@@ -1,7 +1,7 @@
 # Trajecta M4：现行 A 主责、Prompt-only B 与历史 A/B/C 交付边界
 
-状态：M4-A0、M4-A1、M4-A2、M4-A3 已完成；M4-A4 尚未完成。本文不代表 M4 已完成。
-日期：2026-07-24
+状态：**M4-A0～M4-A4 已全部完成；M4 已由 A 于 2026-07-27 正式签署。**
+日期：2026-07-27
 权威实施计划：`TRAJECTA_M4_PARTICLE_LOOP_PLAN.md`。
 
 ## 0. 现行责任配置（2026-07-24，覆盖下文历史分工）
@@ -323,6 +323,28 @@ C：
 - 最终文档、链接、复现命令、artifact index，并签署或拒绝 M4。
 
 退出条件：A 给出书面完成裁决；此前任何模型不得宣称 M4 完成。
+
+状态：**已满足**。A 已独立复核 post-stable-ID 六格正式矩阵、A2/A3 Windows/WSL 全量逻辑行差异、
+Rust/native 六对、WSL baseline、Windows/WSL 当前源码普通门禁和 artifact index，并在
+`TRAJECTA_M4_A4_A_COMPLETION_REPORT.md` 与 `TRAJECTA_M4_A_FINAL_COMPLETION_REPORT.md` 中签署完成。
+
+### M4-A4.5：性能归因关卡
+
+现行责任：A 负责 CPU profile、阶段墙钟计时、1/4 worker 缩放、锁/分配/路径长尾解释和下一项优化授权；A 不调用子代理。B 如由用户另行使用，只能执行 A 已冻结的机械采样命令并整理 artifact。
+
+状态：**已由 A 裁决完成**。重复矩阵与 instrumentation-off baseline 已执行，观测开销约 0.37%，
+阶段计时解释超过 98% wall time；WSL `perf` executable 缺失按合同记为 external blocker。O1 provenance
+buffering、O2 boundary stencil reuse 及后续 query/SQLite/stable-ID 优化已由正式 50k/100k 矩阵验证，
+因此 profiler 缺失不阻断 A4.5/A4/M4。
+
+### M4-A4.6：cohort-local 调度修复
+
+现行责任：A 独立负责 birth 不再切割旧粒子全局步、per-row signed dt、精确 termination、domain-fill 宏步账本、v1 合同勘误和 WSL `S50-F` 复验；A 不调用子代理。若用户另行使用 B，B 只能按 A 的书面 Prompt 做冻结命令执行和 artifact 整理。
+
+版本边界：项目尚未发布，直接修订当前 M4 v1；不得创建 manifest/schema/numerical-contract v2。完整计划见 `TRAJECTA_M4_A4_6_COHORT_SCHEDULER_PLAN.md`。
+
+状态：**已由 A 裁决完成**。全部科学反例、1k/10k replay、正式六格 lifecycle/query/I/O/finite/mass/
+digest 门禁和两方向 scaling 均通过；没有放宽容差、caps、异常分类或版本号。
 
 ## 6. 现行报告格式
 

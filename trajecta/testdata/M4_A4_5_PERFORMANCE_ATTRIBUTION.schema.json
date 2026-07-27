@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.invalid/schemas/M4_A4_5_PERFORMANCE_ATTRIBUTION.schema.json",
+  "title": "Trajecta M4-A4.5 performance attribution",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stages", "distributions"],
+  "properties": {
+    "schema_version": {
+      "const": "trajecta.m4-a4.5-performance-attribution/v1"
+    },
+    "stages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runner_total",
+        "runner_population",
+        "runner_integrator",
+        "runner_boundary",
+        "runner_output",
+        "runner_output_meteorology",
+        "runner_output_query_prepare",
+        "runner_output_query_execute",
+        "runner_output_sink",
+        "runner_output_finish",
+        "output_finish_sqlite_audit",
+        "output_finish_sql_digest",
+        "output_finish_sqlite_hash",
+        "output_finish_provenance_bundle",
+        "provenance_external_sort",
+        "provenance_stream_write",
+        "provenance_semantic_validate",
+        "provenance_final_hash",
+        "provenance_cleanup",
+        "met_window_prepare",
+        "boundary_path_build",
+        "boundary_path_certification",
+        "boundary_root_certificate",
+        "boundary_sample",
+        "boundary_corner_sample",
+        "boundary_query_total",
+        "boundary_grid_locate",
+        "boundary_stencil_prepare",
+        "column_cache_lock_wait",
+        "column_cache_lock_hold",
+        "column_stencil_build",
+        "boundary_column_sample",
+        "boundary_surface_bounds"
+      ],
+      "properties": {
+        "runner_total": { "$ref": "#/$defs/observation" },
+        "runner_population": { "$ref": "#/$defs/observation" },
+        "runner_integrator": { "$ref": "#/$defs/observation" },
+        "runner_boundary": { "$ref": "#/$defs/observation" },
+        "runner_output": { "$ref": "#/$defs/observation" },
+        "runner_output_meteorology": { "$ref": "#/$defs/observation" },
+        "runner_output_query_prepare": { "$ref": "#/$defs/observation" },
+        "runner_output_query_execute": { "$ref": "#/$defs/observation" },
+        "runner_output_sink": { "$ref": "#/$defs/observation" },
+        "runner_output_finish": { "$ref": "#/$defs/observation" },
+        "output_finish_sqlite_audit": { "$ref": "#/$defs/observation" },
+        "output_finish_sql_digest": { "$ref": "#/$defs/observation" },
+        "output_finish_sqlite_hash": { "$ref": "#/$defs/observation" },
+        "output_finish_provenance_bundle": { "$ref": "#/$defs/observation" },
+        "provenance_external_sort": { "$ref": "#/$defs/observation" },
+        "provenance_stream_write": { "$ref": "#/$defs/observation" },
+        "provenance_semantic_validate": { "$ref": "#/$defs/observation" },
+        "provenance_final_hash": { "$ref": "#/$defs/observation" },
+        "provenance_cleanup": { "$ref": "#/$defs/observation" },
+        "met_window_prepare": { "$ref": "#/$defs/observation" },
+        "boundary_path_build": { "$ref": "#/$defs/observation" },
+        "boundary_path_certification": { "$ref": "#/$defs/observation" },
+        "boundary_root_certificate": { "$ref": "#/$defs/observation" },
+        "boundary_sample": { "$ref": "#/$defs/observation" },
+        "boundary_corner_sample": { "$ref": "#/$defs/observation" },
+        "boundary_query_total": { "$ref": "#/$defs/observation" },
+        "boundary_grid_locate": { "$ref": "#/$defs/observation" },
+        "boundary_stencil_prepare": { "$ref": "#/$defs/observation" },
+        "column_cache_lock_wait": { "$ref": "#/$defs/observation" },
+        "column_cache_lock_hold": { "$ref": "#/$defs/observation" },
+        "column_stencil_build": { "$ref": "#/$defs/observation" },
+        "boundary_column_sample": { "$ref": "#/$defs/observation" },
+        "boundary_surface_bounds": { "$ref": "#/$defs/observation" }
+      }
+    },
+    "distributions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boundary_samples_per_path",
+        "boundary_corner_samples_per_path",
+        "boundary_segments_per_path",
+        "boundary_certification_passes_per_path",
+        "residual_nodes_per_isolation",
+        "residual_max_depth_per_isolation"
+      ],
+      "properties": {
+        "boundary_samples_per_path": { "$ref": "#/$defs/observation" },
+        "boundary_corner_samples_per_path": { "$ref": "#/$defs/observation" },
+        "boundary_segments_per_path": { "$ref": "#/$defs/observation" },
+        "boundary_certification_passes_per_path": { "$ref": "#/$defs/observation" },
+        "residual_nodes_per_isolation": { "$ref": "#/$defs/observation" },
+        "residual_max_depth_per_isolation": { "$ref": "#/$defs/observation" }
+      }
+    }
+  },
+  "$defs": {
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observations", "total", "maximum", "log2_histogram"],
+      "properties": {
+        "observations": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 },
+        "maximum": { "type": "integer", "minimum": 0 },
+        "log2_histogram": {
+          "type": "array",
+          "minItems": 64,
+          "maxItems": 64,
+          "items": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

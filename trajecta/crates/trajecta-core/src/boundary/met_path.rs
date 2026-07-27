@@ -12,11 +12,17 @@
     dead_code
 )]
 
+use std::collections::BTreeMap;
+
 use trajecta_case::model::meteorology::DomainId;
 use trajecta_case::model::time::Timestamp;
 use trajecta_met::grid::DomainGeometry;
+use trajecta_met::performance::{
+    PerformanceDistribution, PerformanceScope, PerformanceStage, record_performance_distribution,
+};
 use trajecta_met::profile::graph::ExecutionPlan;
 use trajecta_met::query::engine::{BatchWorkspace, ExecutionContext, MetEngine};
+use trajecta_met::query::metrics::{QueryOrigin, QueryOriginScope};
 use trajecta_met::query::request::{QueryBatch, QueryPointArrays, TransportPlan, VerticalQuery};
 
 use crate::boundary::{
@@ -58,6 +64,10 @@ struct MetBoundaryPathSampler<'a> {
     query_plan: &'a TransportPlan,
     execution: &'a dyn ExecutionContext,
     workspace: BatchWorkspace,
+    samples: BTreeMap<u64, BoundarySample>,
+    corner_fields: BTreeMap<(i64, i64, u64), Option<CellCornerFields>>,
+    certification_passes: u64,
+    observation_ready: bool,
 }
 
 impl<'a> MetBoundaryPathSampler<'a> {
@@ -67,6 +77,7 @@ impl<'a> MetBoundaryPathSampler<'a> {
         query_plan: &'a TransportPlan,
         execution: &'a dyn ExecutionContext,
     ) -> Result<Self, BoundaryError> {
+        let _performance = PerformanceScope::enter(PerformanceStage::BoundaryPathBuild);
         let domain = request
             .domain
             .cloned()
@@ -85,13 +96,18 @@ impl<'a> MetBoundaryPathSampler<'a> {
             query_plan,
             execution,
             workspace: BatchWorkspace::default(),
+            samples: BTreeMap::new(),
+            corner_fields: BTreeMap::new(),
+            certification_passes: 0,
+            observation_ready: false,
         };
         sampler.rebuild_segments()?;
         Ok(sampler)
     }
 
     fn rebuild_segments(&mut self) -> Result<(), BoundaryError> {
-        let cuts = certify_path_cuts(
+        let _performance = PerformanceScope::enter(PerformanceStage::BoundaryPathCertification);
+        let (cuts, certification_passes) = certify_path_cuts(
             &self.start,
             &self.proposed,
             &self.grid,
@@ -103,6 +119,7 @@ impl<'a> MetBoundaryPathSampler<'a> {
             self.query_plan,
             self.execution,
             &mut self.workspace,
+            &mut self.corner_fields,
         )?;
         let mut segments = Vec::with_capacity(cuts.len().saturating_sub(1));
         for window in cuts.windows(2) {
@@ -116,12 +133,48 @@ impl<'a> MetBoundaryPathSampler<'a> {
         }
         validate_ordered_path_segments(&segments)?;
         self.segments = segments;
+        self.certification_passes = u64::from(certification_passes);
+        self.observation_ready = true;
         Ok(())
+    }
+
+    fn record_path_observation(&self) {
+        if !self.observation_ready {
+            return;
+        }
+        record_performance_distribution(
+            PerformanceDistribution::BoundarySamplesPerPath,
+            u64::try_from(self.samples.len()).unwrap_or(u64::MAX),
+        );
+        record_performance_distribution(
+            PerformanceDistribution::BoundaryCornerSamplesPerPath,
+            u64::try_from(self.corner_fields.len()).unwrap_or(u64::MAX),
+        );
+        record_performance_distribution(
+            PerformanceDistribution::BoundarySegmentsPerPath,
+            u64::try_from(self.segments.len()).unwrap_or(u64::MAX),
+        );
+        record_performance_distribution(
+            PerformanceDistribution::BoundaryCertificationPassesPerPath,
+            self.certification_passes,
+        );
     }
 
     fn interpolate_state(&self, local_fraction: f64) -> Result<ParticleState, BoundaryError> {
         if !local_fraction.is_finite() || local_fraction < 0.0 || local_fraction > 1.0 {
             return Err(BoundaryError::InvalidParticleState);
+        }
+        if local_fraction == 0.0 {
+            let mut state = self.start.clone();
+            state.status = crate::particle::ParticleStatus::Alive;
+            state.termination = None;
+            return Ok(state);
+        }
+        if local_fraction == 1.0 {
+            let mut state = self.proposed.clone();
+            state.status = crate::particle::ParticleStatus::Alive;
+            state.termination = None;
+            return Ok(state);
         }
         let (lon, lat) = interpolate_great_circle(
             self.start.longitude_degrees,
@@ -158,15 +211,17 @@ impl<'a> MetBoundaryPathSampler<'a> {
         lerp_timestamp(self.step_start_time, self.step_end_time, global)
     }
 
-    fn sample_raw(&mut self, local_fraction: f64) -> Result<BoundarySample, BoundaryError> {
+    fn sample_uncached(&mut self, local_fraction: f64) -> Result<BoundarySample, BoundaryError> {
+        let _performance = PerformanceScope::enter(PerformanceStage::BoundarySample);
+        let _query_origin = QueryOriginScope::enter(QueryOrigin::Boundary);
         let position = self.interpolate_state(local_fraction)?;
         let time = self.physical_time(local_fraction)?;
         let window = self
             .meteorology
             .prepare_for_domain(time, &self.domain)
             .map_err(|_| BoundaryError::MissingContext)?;
-        let batch = window
-            .prepare_transport_batch(
+        let output = window
+            .query_boundary_batch(
                 self.query_plan,
                 QueryBatch {
                     vertical_coordinate: VerticalQuery::AboveSeaLevel,
@@ -176,11 +231,9 @@ impl<'a> MetBoundaryPathSampler<'a> {
                         vertical: vec![position.height_asl_m],
                     },
                 },
+                self.execution,
                 &mut self.workspace,
             )
-            .map_err(|_| BoundaryError::MissingContext)?;
-        let output = batch
-            .execute(self.execution, &mut self.workspace)
             .map_err(|_| BoundaryError::MissingContext)?;
         let row = output.row(0).ok_or(BoundaryError::MissingContext)?;
         let status = row.status();
@@ -190,11 +243,7 @@ impl<'a> MetBoundaryPathSampler<'a> {
             .or_else(|| row.terrain_height_asl_m())
             .filter(|value| value.is_finite());
         let model_top = bounds
-            .map(|value| {
-                value
-                    .physical_model_top_asl_m()
-                    .unwrap_or_else(|| value.available_top_asl_m())
-            })
+            .map(|value| value.available_top_asl_m())
             .filter(|value| value.is_finite());
         Ok(BoundarySample {
             fraction: local_fraction,
@@ -203,6 +252,16 @@ impl<'a> MetBoundaryPathSampler<'a> {
             surface_height_asl_m: surface,
             model_top_height_asl_m: model_top,
         })
+    }
+
+    fn sample_cached(&mut self, local_fraction: f64) -> Result<BoundarySample, BoundaryError> {
+        let key = local_fraction.to_bits();
+        if let Some(sample) = self.samples.get(&key) {
+            return Ok(sample.clone());
+        }
+        let sample = self.sample_uncached(local_fraction)?;
+        self.samples.insert(key, sample.clone());
+        Ok(sample)
     }
 }
 
@@ -213,7 +272,7 @@ impl BoundaryPathSampler for MetBoundaryPathSampler<'_> {
     }
 
     fn sample(&mut self, fraction: f64) -> Result<BoundarySample, BoundaryError> {
-        self.sample_raw(fraction)
+        self.sample_cached(fraction)
     }
 
     fn retarget(
@@ -233,12 +292,16 @@ impl BoundaryPathSampler for MetBoundaryPathSampler<'_> {
         if start_fraction + 1.0e-15 < self.local_zero_global_fraction {
             return Err(BoundaryError::InvalidParticleState);
         }
+        self.record_path_observation();
+        self.observation_ready = false;
         self.start = start.clone();
         self.proposed = proposed.clone();
         self.local_zero_global_fraction = start_fraction;
+        self.samples.clear();
+        self.corner_fields.clear();
         self.rebuild_segments()?;
         // Contract check: residual sample(0) must equal the collision position.
-        let zero = self.sample_raw(0.0)?;
+        let zero = self.sample_cached(0.0)?;
         if (zero.position.longitude_degrees - start.longitude_degrees).abs() > 1.0e-9
             || (zero.position.latitude_degrees - start.latitude_degrees).abs() > 1.0e-9
             || (zero.position.height_asl_m - start.height_asl_m).abs() > 1.0e-9
@@ -246,6 +309,12 @@ impl BoundaryPathSampler for MetBoundaryPathSampler<'_> {
             return Err(BoundaryError::InvalidParticleState);
         }
         Ok(())
+    }
+}
+
+impl Drop for MetBoundaryPathSampler<'_> {
+    fn drop(&mut self) {
+        self.record_path_observation();
     }
 }
 
@@ -289,7 +358,8 @@ fn certify_path_cuts(
     query_plan: &TransportPlan,
     execution: &dyn ExecutionContext,
     workspace: &mut BatchWorkspace,
-) -> Result<Vec<f64>, BoundaryError> {
+    corner_fields: &mut BTreeMap<(i64, i64, u64), Option<CellCornerFields>>,
+) -> Result<(Vec<f64>, u32), BoundaryError> {
     let mut cuts = vec![0.0, 1.0];
     let grid_crossings = grid_line_crossings(start, proposed, grid);
     for fraction in grid_crossings? {
@@ -333,6 +403,7 @@ fn certify_path_cuts(
                 execution,
                 workspace,
                 grid,
+                corner_fields,
             );
             for f in extrema? {
                 if f > window[0] + 1.0e-14 && f < window[1] - 1.0e-14 {
@@ -346,7 +417,7 @@ fn certify_path_cuts(
             break;
         }
     }
-    Ok(cuts)
+    Ok((cuts, guard))
 }
 
 fn insert_cut(cuts: &mut Vec<f64>, fraction: f64) {
@@ -780,6 +851,7 @@ fn scalar_field_extremum_cuts(
     execution: &dyn ExecutionContext,
     workspace: &mut BatchWorkspace,
     grid: &DomainGeometry,
+    corner_fields: &mut BTreeMap<(i64, i64, u64), Option<CellCornerFields>>,
 ) -> Result<Vec<f64>, BoundaryError> {
     if f1 - f0 <= 1.0e-15 {
         return Ok(Vec::new());
@@ -788,32 +860,6 @@ fn scalar_field_extremum_cuts(
     let b = unit_vector(proposed.longitude_degrees, proposed.latitude_degrees)?;
     let omega = great_circle_angle(a, b)?;
 
-    let s0 = sample_at_fraction(
-        f0,
-        start,
-        proposed,
-        step_start_time,
-        step_end_time,
-        local_zero_global,
-        domain,
-        meteorology,
-        query_plan,
-        execution,
-        workspace,
-    )?;
-    let s1 = sample_at_fraction(
-        f1,
-        start,
-        proposed,
-        step_start_time,
-        step_end_time,
-        local_zero_global,
-        domain,
-        meteorology,
-        query_plan,
-        execution,
-        workspace,
-    )?;
     // Grid-line cuts certify that the open leaf belongs to one cell. An endpoint
     // may lie exactly on a meridian/parallel and floor into the neighbouring cell,
     // so bind the leaf to its interior midpoint cell and validate both endpoints
@@ -824,16 +870,17 @@ fn scalar_field_extremum_cuts(
     let periodic_span = grid
         .periodic_longitude
         .then_some(grid.longitude_spacing_degrees * grid.nx as f64);
-    for sample in [&s0, &s1] {
+    for fraction in [f0, f1] {
+        let (longitude_degrees, latitude_degrees) = path_lonlat(start, proposed, fraction)?;
         local_cell_fraction(
-            sample.position.longitude_degrees,
+            longitude_degrees,
             grid.longitude_origin_degrees,
             grid.longitude_spacing_degrees,
             i0,
             periodic_span,
         )?;
         local_cell_fraction(
-            sample.position.latitude_degrees,
+            latitude_degrees,
             grid.latitude_origin_degrees,
             grid.latitude_spacing_degrees,
             j0,
@@ -878,7 +925,7 @@ fn scalar_field_extremum_cuts(
         }
     }
 
-    let Some(corners_t0) = sample_cell_corner_field(
+    let Some(fields0) = sample_cell_corner_fields_cached(
         i0,
         j0,
         f0,
@@ -893,12 +940,12 @@ fn scalar_field_extremum_cuts(
         execution,
         workspace,
         grid,
-        FieldKind::Terrain,
+        corner_fields,
     )?
     else {
         return Ok(Vec::new());
     };
-    let Some(corners_t1) = sample_cell_corner_field(
+    let Some(fields1) = sample_cell_corner_fields_cached(
         i0,
         j0,
         f1,
@@ -913,45 +960,15 @@ fn scalar_field_extremum_cuts(
         execution,
         workspace,
         grid,
-        FieldKind::Terrain,
+        corner_fields,
     )?
     else {
         return Ok(Vec::new());
     };
-    let corners_m0 = sample_cell_corner_field(
-        i0,
-        j0,
-        f0,
-        start,
-        proposed,
-        step_start_time,
-        step_end_time,
-        local_zero_global,
-        domain,
-        meteorology,
-        query_plan,
-        execution,
-        workspace,
-        grid,
-        FieldKind::ModelTop,
-    )?;
-    let corners_m1 = sample_cell_corner_field(
-        i0,
-        j0,
-        f1,
-        start,
-        proposed,
-        step_start_time,
-        step_end_time,
-        local_zero_global,
-        domain,
-        meteorology,
-        query_plan,
-        execution,
-        workspace,
-        grid,
-        FieldKind::ModelTop,
-    )?;
+    let corners_t0 = fields0.terrain;
+    let corners_t1 = fields1.terrain;
+    let corners_m0 = fields0.model_top;
+    let corners_m1 = fields1.model_top;
 
     let dh = proposed.height_asl_m - start.height_asl_m;
     let mut cuts = Vec::new();
@@ -995,12 +1012,6 @@ fn scalar_field_extremum_cuts(
     cuts.sort_by(|x, y| x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal));
     cuts.dedup_by(|x, y| (*x - *y).abs() <= 1.0e-14);
     Ok(cuts)
-}
-
-#[derive(Clone, Copy)]
-enum FieldKind {
-    Terrain,
-    ModelTop,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -1449,10 +1460,13 @@ fn isolate_residual_roots_interval(
     dh: f64,
     kind: ResidualKind,
 ) -> Result<Vec<f64>, BoundaryError> {
+    let _performance = PerformanceScope::enter(PerformanceStage::BoundaryRootCertificate);
     if omega <= 1.0e-15 || (corners_uniform(corners0) && corners_uniform(corners1)) {
         // Spatially uniform and linearly time-varying field: the residual is
         // affine, so there is no isolated interior extremum. A stationary
         // horizontal path has the same property for any bilinear cell.
+        record_performance_distribution(PerformanceDistribution::ResidualNodesPerIsolation, 0);
+        record_performance_distribution(PerformanceDistribution::ResidualMaxDepthPerIsolation, 0);
         return Ok(Vec::new());
     }
     let context = ResidualContext {
@@ -1472,7 +1486,24 @@ fn isolate_residual_roots_interval(
     };
     let mut roots = Vec::new();
     let mut visited = 0_u32;
-    isolate_residual_rec(&context, f0, f1, 0, &mut visited, &mut roots)?;
+    let mut maximum_depth = 0_u32;
+    isolate_residual_rec(
+        &context,
+        f0,
+        f1,
+        0,
+        &mut visited,
+        &mut maximum_depth,
+        &mut roots,
+    )?;
+    record_performance_distribution(
+        PerformanceDistribution::ResidualNodesPerIsolation,
+        u64::from(visited),
+    );
+    record_performance_distribution(
+        PerformanceDistribution::ResidualMaxDepthPerIsolation,
+        u64::from(maximum_depth),
+    );
     roots.retain(|root| *root > f0 && *root < f1 && root.is_finite());
     roots.sort_by(|left, right| left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal));
     roots.dedup_by(|left, right| (*left - *right).abs() <= 1.0e-13);
@@ -1491,6 +1522,7 @@ fn isolate_residual_rec(
     f1: f64,
     depth: u32,
     visited: &mut u32,
+    maximum_depth: &mut u32,
     roots: &mut Vec<f64>,
 ) -> Result<(), BoundaryError> {
     const MAX_DEPTH: u32 = 64;
@@ -1499,6 +1531,7 @@ fn isolate_residual_rec(
     *visited = visited
         .checked_add(1)
         .ok_or(BoundaryError::RootFindingFailed)?;
+    *maximum_depth = (*maximum_depth).max(depth);
     if *visited > MAX_VISITED || !f0.is_finite() || !f1.is_finite() || f1 <= f0 {
         return Err(BoundaryError::RootFindingFailed);
     }
@@ -1541,8 +1574,8 @@ fn isolate_residual_rec(
     if mid <= f0 || mid >= f1 {
         return Err(BoundaryError::RootFindingFailed);
     }
-    isolate_residual_rec(context, f0, mid, depth + 1, visited, roots)?;
-    isolate_residual_rec(context, mid, f1, depth + 1, visited, roots)?;
+    isolate_residual_rec(context, f0, mid, depth + 1, visited, maximum_depth, roots)?;
+    isolate_residual_rec(context, mid, f1, depth + 1, visited, maximum_depth, roots)?;
     Ok(())
 }
 
@@ -1948,7 +1981,13 @@ fn cell_fraction(
     Ok((i, fx_all - i as f64, j, fy_all - j as f64))
 }
 
-fn sample_cell_corner_field(
+#[derive(Clone, Copy)]
+struct CellCornerFields {
+    terrain: [f64; 4],
+    model_top: Option<[f64; 4]>,
+}
+
+fn sample_cell_corner_fields_cached(
     i: i64,
     j: i64,
     local_fraction: f64,
@@ -1963,9 +2002,15 @@ fn sample_cell_corner_field(
     execution: &dyn ExecutionContext,
     workspace: &mut BatchWorkspace,
     grid: &DomainGeometry,
-    kind: FieldKind,
-) -> Result<Option<[f64; 4]>, BoundaryError> {
-    let mid = sample_at_fraction(
+    cache: &mut BTreeMap<(i64, i64, u64), Option<CellCornerFields>>,
+) -> Result<Option<CellCornerFields>, BoundaryError> {
+    let key = (i, j, local_fraction.to_bits());
+    if let Some(fields) = cache.get(&key) {
+        return Ok(*fields);
+    }
+    let fields = sample_cell_corner_fields(
+        i,
+        j,
         local_fraction,
         start,
         proposed,
@@ -1977,48 +2022,18 @@ fn sample_cell_corner_field(
         query_plan,
         execution,
         workspace,
+        grid,
     )?;
-    let mut values = [0.0_f64; 4];
-    for (slot, (di, dj)) in [(0_i64, 0_i64), (1, 0), (0, 1), (1, 1)]
-        .into_iter()
-        .enumerate()
-    {
-        let lon = grid.longitude_origin_degrees + grid.longitude_spacing_degrees * (i + di) as f64;
-        let lat = grid.latitude_origin_degrees + grid.latitude_spacing_degrees * (j + dj) as f64;
-        if !(-90.0..=90.0).contains(&lat) {
-            return Ok(None);
-        }
-        let mut probe = start.clone();
-        probe.longitude_degrees = lon;
-        probe.latitude_degrees = lat;
-        probe.height_asl_m = mid.position.height_asl_m;
-        let sample = sample_state_at_time(
-            &probe,
-            local_fraction,
-            step_start_time,
-            step_end_time,
-            local_zero_global,
-            domain,
-            meteorology,
-            query_plan,
-            execution,
-            workspace,
-        )?;
-        let value = match kind {
-            FieldKind::Terrain => sample.surface_height_asl_m,
-            FieldKind::ModelTop => sample.model_top_height_asl_m,
-        };
-        let Some(v) = value.filter(|v| v.is_finite()) else {
-            return Ok(None);
-        };
-        values[slot] = v;
-    }
-    Ok(Some(values))
+    cache.insert(key, fields);
+    Ok(fields)
 }
 
-fn sample_state_at_time(
-    state: &ParticleState,
+fn sample_cell_corner_fields(
+    i: i64,
+    j: i64,
     local_fraction: f64,
+    start: &ParticleState,
+    proposed: &ParticleState,
     step_start_time: Timestamp,
     step_end_time: Timestamp,
     local_zero_global: f64,
@@ -2027,40 +2042,66 @@ fn sample_state_at_time(
     query_plan: &TransportPlan,
     execution: &dyn ExecutionContext,
     workspace: &mut BatchWorkspace,
-) -> Result<BoundarySample, BoundaryError> {
+    grid: &DomainGeometry,
+) -> Result<Option<CellCornerFields>, BoundaryError> {
+    let _performance = PerformanceScope::enter(PerformanceStage::BoundaryCornerSample);
+    let _query_origin = QueryOriginScope::enter(QueryOrigin::BoundaryCorners);
+    let height_asl_m = lerp(start.height_asl_m, proposed.height_asl_m, local_fraction);
+    let mut longitude_degrees = Vec::with_capacity(4);
+    let mut latitude_degrees = Vec::with_capacity(4);
+    for (di, dj) in [(0_i64, 0_i64), (1, 0), (0, 1), (1, 1)] {
+        let lon = grid.longitude_origin_degrees + grid.longitude_spacing_degrees * (i + di) as f64;
+        let lat = grid.latitude_origin_degrees + grid.latitude_spacing_degrees * (j + dj) as f64;
+        if !(-90.0..=90.0).contains(&lat) {
+            return Ok(None);
+        }
+        longitude_degrees.push(lon);
+        latitude_degrees.push(lat);
+    }
     let global = local_zero_global + (1.0 - local_zero_global) * local_fraction;
     let time = lerp_timestamp(step_start_time, step_end_time, global)?;
     let window = meteorology
         .prepare_for_domain(time, domain)
         .map_err(|_| BoundaryError::MissingContext)?;
-    let batch = window
-        .prepare_transport_batch(
+    let output = window
+        .query_boundary_batch(
             query_plan,
             QueryBatch {
                 vertical_coordinate: VerticalQuery::AboveSeaLevel,
                 points: QueryPointArrays {
-                    longitude_degrees: vec![state.longitude_degrees],
-                    latitude_degrees: vec![state.latitude_degrees],
-                    vertical: vec![state.height_asl_m],
+                    longitude_degrees,
+                    latitude_degrees,
+                    vertical: vec![height_asl_m; 4],
                 },
             },
+            execution,
             workspace,
         )
         .map_err(|_| BoundaryError::MissingContext)?;
-    let output = batch
-        .execute(execution, workspace)
-        .map_err(|_| BoundaryError::MissingContext)?;
-    let row = output.row(0).ok_or(BoundaryError::MissingContext)?;
-    Ok(BoundarySample {
-        fraction: local_fraction,
-        position: state.clone(),
-        meteorology_status: row.status(),
-        surface_height_asl_m: row.terrain_height_asl_m().filter(|value| value.is_finite()),
-        model_top_height_asl_m: row
-            .bounds()
-            .and_then(|bounds| bounds.physical_model_top_asl_m())
-            .filter(|value| value.is_finite()),
-    })
+    let mut terrain = [0.0; 4];
+    let mut model_top = [0.0; 4];
+    let mut has_model_top = true;
+    for index in 0..4 {
+        let row = output.row(index).ok_or(BoundaryError::MissingContext)?;
+        let Some(bounds) = row.bounds() else {
+            return Ok(None);
+        };
+        let surface = bounds.minimum_transport_asl_m();
+        if !surface.is_finite() {
+            return Ok(None);
+        }
+        terrain[index] = surface;
+        let value = bounds.available_top_asl_m();
+        if value.is_finite() {
+            model_top[index] = value;
+        } else {
+            has_model_top = false;
+        }
+    }
+    Ok(Some(CellCornerFields {
+        terrain,
+        model_top: has_model_top.then_some(model_top),
+    }))
 }
 
 fn sample_at_fraction(
@@ -2076,6 +2117,8 @@ fn sample_at_fraction(
     execution: &dyn ExecutionContext,
     workspace: &mut BatchWorkspace,
 ) -> Result<BoundarySample, BoundaryError> {
+    let _performance = PerformanceScope::enter(PerformanceStage::BoundarySample);
+    let _query_origin = QueryOriginScope::enter(QueryOrigin::Boundary);
     let (lon, lat) = interpolate_great_circle(
         start.longitude_degrees,
         start.latitude_degrees,
@@ -2092,8 +2135,8 @@ fn sample_at_fraction(
     let window = meteorology
         .prepare_for_domain(time, domain)
         .map_err(|_| BoundaryError::MissingContext)?;
-    let batch = window
-        .prepare_transport_batch(
+    let output = window
+        .query_boundary_batch(
             query_plan,
             QueryBatch {
                 vertical_coordinate: VerticalQuery::AboveSeaLevel,
@@ -2103,21 +2146,22 @@ fn sample_at_fraction(
                     vertical: vec![position.height_asl_m],
                 },
             },
+            execution,
             workspace,
         )
         .map_err(|_| BoundaryError::MissingContext)?;
-    let output = batch
-        .execute(execution, workspace)
-        .map_err(|_| BoundaryError::MissingContext)?;
     let row = output.row(0).ok_or(BoundaryError::MissingContext)?;
+    let bounds = row.bounds();
     Ok(BoundarySample {
         fraction: local_fraction,
         position,
         meteorology_status: row.status(),
-        surface_height_asl_m: row.terrain_height_asl_m().filter(|value| value.is_finite()),
-        model_top_height_asl_m: row
-            .bounds()
-            .and_then(|bounds| bounds.physical_model_top_asl_m())
+        surface_height_asl_m: bounds
+            .map(|value| value.minimum_transport_asl_m())
+            .or_else(|| row.terrain_height_asl_m())
+            .filter(|value| value.is_finite()),
+        model_top_height_asl_m: bounds
+            .map(|value| value.available_top_asl_m())
             .filter(|value| value.is_finite()),
     })
 }
@@ -2131,6 +2175,12 @@ fn interpolate_great_circle(
 ) -> Result<(f64, f64), BoundaryError> {
     let a = unit_vector(lon0, lat0)?;
     let b = unit_vector(lon1, lat1)?;
+    if fraction == 0.0 {
+        return Ok((lon0, lat0));
+    }
+    if fraction == 1.0 {
+        return Ok((lon1, lat1));
+    }
     let omega = great_circle_angle(a, b)?;
     lon_lat_from_unit(slerp_unit(a, b, omega, fraction)?)
 }
@@ -2293,6 +2343,7 @@ mod tests {
             mass_kg: Default::default(),
             sensitivity_weight: None,
             status: ParticleStatus::Alive,
+            termination: None,
         }
     }
 
@@ -2322,6 +2373,20 @@ mod tests {
         .unwrap();
         assert!((lon - 6.657_371_451_187_67).abs() < 1.0e-12);
         assert!((lat - 46.309_587_747_098_45).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn great_circle_interpolation_preserves_exact_domain_face_endpoints() {
+        let start = (6.689_985_288_179_23, 52.75);
+        let proposed = (6.774_041_959_747_167, 52.715_817_461_040_51);
+        assert_eq!(
+            interpolate_great_circle(start.0, start.1, proposed.0, proposed.1, 0.0).unwrap(),
+            start
+        );
+        assert_eq!(
+            interpolate_great_circle(start.0, start.1, proposed.0, proposed.1, 1.0).unwrap(),
+            proposed
+        );
     }
 
     #[test]
@@ -2552,6 +2617,10 @@ mod tests {
 
     #[test]
     fn residual_interval_isolator_finds_two_roots_with_same_sign_endpoints() {
+        let performance = trajecta_met::performance::PerformanceCounters::new();
+        trajecta_met::performance::install_performance_counters(std::sync::Arc::clone(
+            &performance,
+        ));
         // Frozen counterexample in the actual GC + bilinear + linear-time model.
         // A same-sign endpoint shortcut would miss both interior extrema.
         let grid = DomainGeometry {
@@ -2629,6 +2698,25 @@ mod tests {
         for root in roots {
             assert!(context.derivative_point(root).unwrap().abs() < 1.0e-8);
         }
+        trajecta_met::performance::clear_performance_counters();
+        let snapshot = performance.snapshot();
+        assert_eq!(
+            snapshot.stages[&trajecta_met::performance::PerformanceStage::BoundaryRootCertificate]
+                .observations,
+            1
+        );
+        assert_eq!(
+            snapshot.distributions
+                [&trajecta_met::performance::PerformanceDistribution::ResidualNodesPerIsolation]
+                .observations,
+            1
+        );
+        assert!(
+            snapshot.distributions
+                [&trajecta_met::performance::PerformanceDistribution::ResidualNodesPerIsolation]
+                .maximum
+                > 1
+        );
     }
 
     #[test]

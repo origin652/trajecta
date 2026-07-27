@@ -1,6 +1,8 @@
 PRAGMA foreign_keys = ON;
+PRAGMA page_size = 32768;
 PRAGMA journal_mode = WAL;
 PRAGMA synchronous = NORMAL;
+PRAGMA wal_autocheckpoint = 0;
 PRAGMA user_version = 1;
 
 CREATE TABLE run (

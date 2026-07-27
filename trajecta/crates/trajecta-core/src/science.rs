@@ -14,6 +14,9 @@ use trajecta_met::science::{
 pub const M4_PARTICLE_LOOP_CONTRACT_ID: &str = "trajecta/particle_loop/m4/v1";
 /// Spherical midpoint integrator identity.
 pub const RK2_SPHERICAL_ID: &str = "rk2_spherical/v0";
+/// Macro-step scheduler that advances existing particles once while starting
+/// each new cohort at its own exact birth time.
+pub const COHORT_LOCAL_SCHEDULER_ID: &str = "cohort_local_macro_step/v1";
 /// One-sided proposal bridge used only to expose a horizontal RK2 stage exit
 /// to the continuous limited-domain boundary solver.
 pub const RK2_DOMAIN_EXIT_BRIDGE_ID: &str = "rk2_domain_exit_euler_bridge/v1";

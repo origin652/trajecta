@@ -250,6 +250,44 @@ impl ValueColumn {
             .filter(|valid| *valid)
             .and_then(|_| self.values.get(index).copied())
     }
+
+    fn select_rows(&self, indices: &[usize]) -> Result<Self, OutputError> {
+        let mut values = Vec::with_capacity(indices.len());
+        let mut valid = Vec::with_capacity(indices.len());
+        let mut quality = Vec::with_capacity(indices.len());
+        let mut provenance = Vec::with_capacity(indices.len());
+        for &index in indices {
+            let value = self
+                .values
+                .get(index)
+                .copied()
+                .ok_or(OutputError::SelectionOutOfBounds(index))?;
+            values.push(value);
+            valid.push(
+                self.validity
+                    .get(index)
+                    .ok_or(OutputError::SelectionOutOfBounds(index))?,
+            );
+            quality.push(
+                *self
+                    .quality
+                    .get(index)
+                    .ok_or(OutputError::SelectionOutOfBounds(index))?,
+            );
+            provenance.push(
+                *self
+                    .provenance
+                    .get(index)
+                    .ok_or(OutputError::SelectionOutOfBounds(index))?,
+            );
+        }
+        Self::new(
+            values,
+            ValidityMask::from_bools(&valid),
+            quality,
+            provenance,
+        )
+    }
 }
 
 /// One requested field and its value column.
@@ -352,6 +390,96 @@ impl BoundsColumn {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
+    }
+}
+
+/// Minimal geometry result consumed by continuous particle-boundary policies.
+///
+/// This output intentionally carries no wind, thermodynamic, provenance, or
+/// explain columns. It is produced from the same pinned frames, horizontal
+/// support, local vertical column, and transport-floor calculation as a
+/// complete transport query.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct BoundaryQueryOutput {
+    status: StatusColumn,
+    bounds: BoundsColumn,
+    terrain_height_asl_m: Vec<Option<f64>>,
+}
+
+impl BoundaryQueryOutput {
+    /// Validates and constructs one boundary-geometry batch in caller order.
+    pub fn new(
+        status: StatusColumn,
+        bounds: BoundsColumn,
+        terrain_height_asl_m: Vec<Option<f64>>,
+    ) -> Result<Self, OutputError> {
+        let len = status.len();
+        ensure_length("bounds".into(), len, bounds.len())?;
+        ensure_length(
+            "terrain_height_asl_m".into(),
+            len,
+            terrain_height_asl_m.len(),
+        )?;
+        if terrain_height_asl_m
+            .iter()
+            .flatten()
+            .any(|value| !value.is_finite())
+        {
+            return Err(OutputError::NonFiniteValue);
+        }
+        Ok(Self {
+            status,
+            bounds,
+            terrain_height_asl_m,
+        })
+    }
+
+    /// Returns point statuses in caller order.
+    #[must_use]
+    pub const fn status(&self) -> &StatusColumn {
+        &self.status
+    }
+
+    /// Returns local vertical bounds in caller order.
+    #[must_use]
+    pub const fn bounds(&self) -> &BoundsColumn {
+        &self.bounds
+    }
+
+    /// Returns a read-only point view when the index is in range.
+    #[must_use]
+    pub fn row(&self, index: usize) -> Option<BoundaryQueryView<'_>> {
+        (index < self.status.len()).then_some(BoundaryQueryView {
+            output: self,
+            index,
+        })
+    }
+}
+
+/// Read-only view over one minimal boundary-geometry result.
+#[derive(Clone, Copy, Debug)]
+pub struct BoundaryQueryView<'a> {
+    output: &'a BoundaryQueryOutput,
+    index: usize,
+}
+
+impl BoundaryQueryView<'_> {
+    /// Returns the point status.
+    #[must_use]
+    pub fn status(self) -> SampleStatus {
+        self.output.status.values[self.index]
+    }
+
+    /// Returns valid geometric terrain height.
+    #[must_use]
+    pub fn terrain_height_asl_m(self) -> Option<f64> {
+        self.output.terrain_height_asl_m[self.index]
+    }
+
+    /// Returns local vertical bounds when horizontal and column support exist.
+    #[must_use]
+    pub fn bounds(self) -> Option<VerticalBounds> {
+        self.output.bounds.values[self.index]
     }
 }
 
@@ -706,6 +834,79 @@ impl TransportOutput {
             index,
         })
     }
+
+    /// Clones the complete typed transport result into the generic query shape.
+    ///
+    /// This is used when a particle-state output and the next RK2 start query
+    /// share the same exact transport request. The conversion changes only the
+    /// view type; values, validity, quality, provenance, status, and bounds are
+    /// preserved exactly.
+    pub fn clone_as_query_output(&self) -> Result<QueryOutput, OutputError> {
+        let fields = transport_field_columns(&self.columns)
+            .into_iter()
+            .map(|(field, column)| FieldColumn::new(field, column.clone()))
+            .collect();
+        QueryOutput::new(
+            fields,
+            self.status.clone(),
+            self.bounds.clone(),
+            Arc::clone(&self.provenance),
+            self.explain.clone(),
+        )
+    }
+
+    pub(crate) fn select_rows(&self, indices: &[usize]) -> Result<Self, OutputError> {
+        let mut status = Vec::with_capacity(indices.len());
+        let mut bounds = Vec::with_capacity(indices.len());
+        for &index in indices {
+            status.push(
+                self.status
+                    .get(index)
+                    .ok_or(OutputError::SelectionOutOfBounds(index))?,
+            );
+            bounds.push(
+                self.bounds
+                    .values()
+                    .get(index)
+                    .cloned()
+                    .ok_or(OutputError::SelectionOutOfBounds(index))?,
+            );
+        }
+        let explain = self
+            .explain
+            .as_ref()
+            .map(|records| {
+                indices
+                    .iter()
+                    .map(|&index| {
+                        records
+                            .get(index)
+                            .cloned()
+                            .ok_or(OutputError::SelectionOutOfBounds(index))
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
+        Self::new(
+            TransportColumns {
+                eastward_wind_m_s: self.columns.eastward_wind_m_s.select_rows(indices)?,
+                northward_wind_m_s: self.columns.northward_wind_m_s.select_rows(indices)?,
+                geometric_vertical_velocity_m_s: self
+                    .columns
+                    .geometric_vertical_velocity_m_s
+                    .select_rows(indices)?,
+                air_pressure_pa: self.columns.air_pressure_pa.select_rows(indices)?,
+                air_temperature_k: self.columns.air_temperature_k.select_rows(indices)?,
+                specific_humidity: self.columns.specific_humidity.select_rows(indices)?,
+                air_density_kg_m3: self.columns.air_density_kg_m3.select_rows(indices)?,
+                terrain_height_asl_m: self.columns.terrain_height_asl_m.select_rows(indices)?,
+            },
+            StatusColumn::new(status),
+            BoundsColumn::new(bounds),
+            Arc::clone(&self.provenance),
+            explain,
+        )
+    }
 }
 
 /// Read-only row view over a complete transport result.
@@ -872,6 +1073,8 @@ fn transport_field_columns(columns: &TransportColumns) -> [(FieldKey, &ValueColu
 /// Output construction or indexing failure.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OutputError {
+    /// A cached row selection referenced an absent source row.
+    SelectionOutOfBounds(usize),
     /// Values, validity, quality, and provenance have inconsistent lengths.
     ValueColumnLengthMismatch {
         /// Numeric value count.

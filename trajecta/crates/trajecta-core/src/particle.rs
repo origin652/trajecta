@@ -172,6 +172,31 @@ pub enum ParticleStatus {
     },
 }
 
+/// Exact lifecycle metadata for a particle that stopped transport.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ParticleTermination {
+    /// Physical instant at which transport stopped.
+    pub time: Timestamp,
+    /// Located fraction of the particle-local numerical step for geometric
+    /// boundary intersections. Integration-local failures leave this absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub intersection_fraction: Option<f64>,
+}
+
+impl ParticleTermination {
+    /// Validates the optional normalized boundary fraction.
+    pub fn validate(&self) -> Result<(), ParticleError> {
+        if self
+            .intersection_fraction
+            .is_some_and(|fraction| !fraction.is_finite() || !(0.0..=1.0).contains(&fraction))
+        {
+            return Err(ParticleError::InvalidTermination);
+        }
+        Ok(())
+    }
+}
+
 /// Convenient owned view of one particle.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -203,6 +228,9 @@ pub struct ParticleState {
     pub sensitivity_weight: Option<f64>,
     /// Current transport status.
     pub status: ParticleStatus,
+    /// Exact terminal lifecycle metadata, when transport has stopped.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub termination: Option<ParticleTermination>,
 }
 
 impl ParticleState {
@@ -230,6 +258,12 @@ impl ParticleState {
             .is_some_and(|value| !value.is_finite())
         {
             return Err(ParticleError::InvalidSensitivityWeight);
+        }
+        if self.termination.is_some() && self.status == ParticleStatus::Alive {
+            return Err(ParticleError::InvalidTermination);
+        }
+        if let Some(termination) = &self.termination {
+            termination.validate()?;
         }
         Ok(())
     }
@@ -271,6 +305,8 @@ pub struct ParticleBatch {
     pub sensitivity_weight: Vec<Option<f64>>,
     /// Typed particle status.
     pub status: Vec<ParticleStatus>,
+    /// Exact terminal lifecycle metadata per particle.
+    pub termination: Vec<Option<ParticleTermination>>,
     /// Substance-major mass arrays.
     pub mass: SubstanceMassStore,
 }
@@ -291,6 +327,7 @@ impl ParticleBatch {
             self.dry_air_mass_kg.len(),
             self.sensitivity_weight.len(),
             self.status.len(),
+            self.termination.len(),
         ];
         if primary_lengths.into_iter().any(|value| value != len)
             || self.mass.mass_kg.values().any(|values| values.len() != len)
@@ -320,6 +357,12 @@ impl ParticleBatch {
             }
             if self.sensitivity_weight[index].is_some_and(|value| !value.is_finite()) {
                 return Err(ParticleError::InvalidSensitivityWeight);
+            }
+            if self.termination[index].is_some() && self.status[index] == ParticleStatus::Alive {
+                return Err(ParticleError::InvalidTermination);
+            }
+            if let Some(termination) = &self.termination[index] {
+                termination.validate()?;
             }
         }
         if self
@@ -359,6 +402,7 @@ impl ParticleBatch {
                 .collect(),
             sensitivity_weight: self.sensitivity_weight[index],
             status: self.status[index].clone(),
+            termination: self.termination[index].clone(),
         })
     }
 
@@ -369,11 +413,16 @@ impl ParticleBatch {
             return Err(ParticleError::IndexOutOfBounds { index, len });
         }
         state.validate()?;
-        if self
-            .id
-            .iter()
-            .enumerate()
-            .any(|(other, id)| other != index && *id == state.id)
+        // Integration and boundary hot paths replace a row while preserving
+        // its stable identity. Scanning the complete ID column for every such
+        // update turns a linear particle step into quadratic work. A duplicate
+        // can only be introduced here when the replacement changes the ID.
+        if state.id != self.id[index]
+            && self
+                .id
+                .iter()
+                .enumerate()
+                .any(|(other, id)| other != index && *id == state.id)
         {
             return Err(ParticleError::DuplicateParticleId(state.id));
         }
@@ -406,7 +455,87 @@ impl ParticleBatch {
         self.dry_air_mass_kg[index] = state.dry_air_mass_kg;
         self.sensitivity_weight[index] = state.sensitivity_weight;
         self.status[index] = state.status;
+        self.termination[index] = state.termination;
         Ok(())
+    }
+
+    /// Selects a stable ordered subset without changing particle identities.
+    ///
+    /// This is used for lifecycle-only output events: a dynamic birth or
+    /// termination writes the affected particles, not a duplicate full-domain
+    /// snapshot. Duplicate or out-of-range indices are rejected by the same
+    /// structural validation as any other batch.
+    pub fn select_indices(&self, indices: &[usize]) -> Result<Self, ParticleError> {
+        let len = self.len()?;
+        if let Some(index) = indices.iter().copied().find(|index| *index >= len) {
+            return Err(ParticleError::IndexOutOfBounds { index, len });
+        }
+        let selected = Self {
+            id: indices.iter().map(|index| self.id[*index]).collect(),
+            population_id: indices
+                .iter()
+                .map(|index| self.population_id[*index].clone())
+                .collect(),
+            origin: indices
+                .iter()
+                .map(|index| self.origin[*index].clone())
+                .collect(),
+            birth_time: indices
+                .iter()
+                .map(|index| self.birth_time[*index])
+                .collect(),
+            longitude_degrees: indices
+                .iter()
+                .map(|index| self.longitude_degrees[*index])
+                .collect(),
+            latitude_degrees: indices
+                .iter()
+                .map(|index| self.latitude_degrees[*index])
+                .collect(),
+            height_asl_m: indices
+                .iter()
+                .map(|index| self.height_asl_m[*index])
+                .collect(),
+            integration_offset_ns: indices
+                .iter()
+                .map(|index| self.integration_offset_ns[*index])
+                .collect(),
+            elapsed_age_ns: indices
+                .iter()
+                .map(|index| self.elapsed_age_ns[*index])
+                .collect(),
+            dry_air_mass_kg: indices
+                .iter()
+                .map(|index| self.dry_air_mass_kg[*index])
+                .collect(),
+            sensitivity_weight: indices
+                .iter()
+                .map(|index| self.sensitivity_weight[*index])
+                .collect(),
+            status: indices
+                .iter()
+                .map(|index| self.status[*index].clone())
+                .collect(),
+            termination: indices
+                .iter()
+                .map(|index| self.termination[*index].clone())
+                .collect(),
+            mass: SubstanceMassStore {
+                mass_kg: self
+                    .mass
+                    .mass_kg
+                    .iter()
+                    .map(|(substance, values)| {
+                        (
+                            substance.clone(),
+                            indices.iter().map(|index| values[*index]).collect(),
+                        )
+                    })
+                    .collect(),
+            },
+        };
+        selected.validate()?;
+        Ok(selected)
     }
 
     /// Appends another validated batch, rejecting stable-ID collisions.
@@ -456,6 +585,7 @@ impl ParticleBatch {
         self.dry_air_mass_kg.extend(other.dry_air_mass_kg);
         self.sensitivity_weight.extend(other.sensitivity_weight);
         self.status.extend(other.status);
+        self.termination.extend(other.termination);
         self.validate()?;
         Ok(())
     }
@@ -475,6 +605,7 @@ impl ParticleBatch {
             && self.dry_air_mass_kg.is_empty()
             && self.sensitivity_weight.is_empty()
             && self.status.is_empty()
+            && self.termination.is_empty()
             && self.mass.mass_kg.values().all(Vec::is_empty)
     }
 }
@@ -492,6 +623,9 @@ pub enum ParticleError {
     InvalidMass,
     /// A separate sensitivity weight is non-finite.
     InvalidSensitivityWeight,
+    /// Termination metadata is non-finite, outside the local step, or attached
+    /// to an active particle.
+    InvalidTermination,
     /// Requested particle index is outside the batch.
     IndexOutOfBounds {
         /// Requested index.
@@ -527,6 +661,7 @@ impl ParticleError {
             Self::InvalidCoordinate => "particle.invalid_coordinate",
             Self::InvalidMass => "particle.invalid_mass",
             Self::InvalidSensitivityWeight => "particle.invalid_sensitivity_weight",
+            Self::InvalidTermination => "particle.invalid_termination",
             Self::IndexOutOfBounds { .. } => "particle.index_out_of_bounds",
         }
     }
@@ -575,6 +710,7 @@ mod tests {
             dry_air_mass_kg: vec![1.0],
             sensitivity_weight: vec![None],
             status: vec![ParticleStatus::Alive],
+            termination: vec![None],
             mass: SubstanceMassStore {
                 mass_kg: BTreeMap::from([(substance.clone(), vec![2.0])]),
             },
@@ -582,5 +718,47 @@ mod tests {
         let state = batch.state(0).unwrap();
         assert_eq!(state.mass_kg.get(&substance), Some(&2.0));
         state.validate().unwrap();
+    }
+
+    #[test]
+    fn set_state_preserves_stable_id_and_rejects_changed_duplicate() {
+        let population = PopulationId("p".into());
+        let event = ReleaseEventId("e".into());
+        let first_id = ParticleId::for_release(&population, &event, 0);
+        let second_id = ParticleId::for_release(&population, &event, 1);
+        let mut batch = ParticleBatch {
+            id: vec![first_id, second_id],
+            population_id: vec![population.clone(), population],
+            origin: vec![
+                ParticleOrigin::Release {
+                    event_id: event.clone(),
+                },
+                ParticleOrigin::Release { event_id: event },
+            ],
+            birth_time: vec![Timestamp::UNIX_EPOCH; 2],
+            longitude_degrees: vec![0.0, 1.0],
+            latitude_degrees: vec![0.0; 2],
+            height_asl_m: vec![100.0; 2],
+            integration_offset_ns: vec![0; 2],
+            elapsed_age_ns: vec![0; 2],
+            dry_air_mass_kg: vec![1.0; 2],
+            sensitivity_weight: vec![None; 2],
+            status: vec![ParticleStatus::Alive; 2],
+            termination: vec![None; 2],
+            mass: SubstanceMassStore::default(),
+        };
+
+        let mut same_identity = batch.state(0).unwrap();
+        same_identity.longitude_degrees = 2.0;
+        batch.set_state(0, same_identity).unwrap();
+        assert_eq!(batch.id, vec![first_id, second_id]);
+        assert_eq!(batch.longitude_degrees[0], 2.0);
+
+        let mut duplicate_identity = batch.state(0).unwrap();
+        duplicate_identity.id = second_id;
+        assert_eq!(
+            batch.set_state(0, duplicate_identity),
+            Err(ParticleError::DuplicateParticleId(second_id))
+        );
     }
 }

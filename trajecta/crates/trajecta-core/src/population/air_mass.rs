@@ -126,27 +126,44 @@ pub fn seed_initial_air_mass(
         let latitude_degrees = sin_latitude.clamp(-1.0, 1.0).asin().to_degrees();
         let pressure_fraction = random(DOMAIN_FILL_PRESSURE_DIMENSION);
         let source_height_asl_m = sample_height_from_pressure_fraction(layer, pressure_fraction)?;
-        let local_terrain_height_asl_m = snapshot
-            .terrain_height_asl_m_at(longitude_degrees, latitude_degrees)
+        let local_bounds = snapshot
+            .local_vertical_bounds_at(longitude_degrees, latitude_degrees)
             .map_err(|_| AirMassPopulationError::InvalidSample)?;
-        let local_transport_floor_height_asl_m = snapshot
-            .transport_floor_height_asl_m_at(longitude_degrees, latitude_degrees)
-            .map_err(|_| AirMassPopulationError::InvalidSample)?;
+        let local_terrain_height_asl_m = local_bounds.terrain_height_asl_m;
+        let local_transport_floor_height_asl_m = local_bounds.transport_floor_height_asl_m;
+        let local_available_top_height_asl_m = local_bounds.available_top_height_asl_m;
         let transport_floor_displacement_m =
             local_transport_floor_height_asl_m - column.transport_floor_height_asl_m;
-        let height_asl_m = source_height_asl_m + transport_floor_displacement_m;
         let local_lower_height_asl_m = layer.lower_height_asl_m + transport_floor_displacement_m;
-        let local_upper_height_asl_m = layer.upper_height_asl_m + transport_floor_displacement_m;
+        let displaced_upper_height_asl_m =
+            layer.upper_height_asl_m + transport_floor_displacement_m;
+        let local_upper_height_asl_m =
+            displaced_upper_height_asl_m.min(local_available_top_height_asl_m);
+        let displaced_height_asl_m = source_height_asl_m + transport_floor_displacement_m;
+        let height_asl_m = if local_upper_height_asl_m == displaced_upper_height_asl_m {
+            displaced_height_asl_m
+        } else {
+            remap_height_between_bounds(
+                source_height_asl_m,
+                layer.lower_height_asl_m,
+                layer.upper_height_asl_m,
+                local_lower_height_asl_m,
+                local_upper_height_asl_m,
+            )?
+        };
         if !longitude_degrees.is_finite()
             || !latitude_degrees.is_finite()
             || !height_asl_m.is_finite()
             || !local_transport_floor_height_asl_m.is_finite()
+            || !local_available_top_height_asl_m.is_finite()
             || !local_lower_height_asl_m.is_finite()
             || !local_upper_height_asl_m.is_finite()
             || local_transport_floor_height_asl_m <= local_terrain_height_asl_m
+            || local_upper_height_asl_m <= local_lower_height_asl_m
             || height_asl_m <= local_transport_floor_height_asl_m
             || height_asl_m < local_lower_height_asl_m
             || height_asl_m > local_upper_height_asl_m
+            || height_asl_m > local_available_top_height_asl_m
         {
             return Err(AirMassPopulationError::InvalidSample);
         }
@@ -578,6 +595,7 @@ fn reserve_batch(
         .and_then(|_| particles.dry_air_mass_kg.try_reserve_exact(count))
         .and_then(|_| particles.sensitivity_weight.try_reserve_exact(count))
         .and_then(|_| particles.status.try_reserve_exact(count))
+        .and_then(|_| particles.termination.try_reserve_exact(count))
         .map_err(|_| AirMassPopulationError::ResourceLimit)
 }
 
@@ -607,6 +625,7 @@ fn push_particle(
     particles.dry_air_mass_kg.push(dry_air_mass_kg);
     particles.sensitivity_weight.push(None);
     particles.status.push(ParticleStatus::Alive);
+    particles.termination.push(None);
 }
 
 fn validate_identity(
@@ -636,6 +655,39 @@ fn sample_height_from_pressure_fraction(
         layer.lower_pressure_pa,
         pressure_fraction,
     )
+}
+
+fn remap_height_between_bounds(
+    source_height_asl_m: f64,
+    source_lower_height_asl_m: f64,
+    source_upper_height_asl_m: f64,
+    target_lower_height_asl_m: f64,
+    target_upper_height_asl_m: f64,
+) -> Result<f64, AirMassPopulationError> {
+    if !source_height_asl_m.is_finite()
+        || !source_lower_height_asl_m.is_finite()
+        || !source_upper_height_asl_m.is_finite()
+        || source_upper_height_asl_m <= source_lower_height_asl_m
+        || source_height_asl_m < source_lower_height_asl_m
+        || source_height_asl_m > source_upper_height_asl_m
+        || !target_lower_height_asl_m.is_finite()
+        || !target_upper_height_asl_m.is_finite()
+        || target_upper_height_asl_m <= target_lower_height_asl_m
+    {
+        return Err(AirMassPopulationError::InvalidSample);
+    }
+    let fraction = (source_height_asl_m - source_lower_height_asl_m)
+        / (source_upper_height_asl_m - source_lower_height_asl_m);
+    let target_height_asl_m = (target_upper_height_asl_m - target_lower_height_asl_m)
+        .mul_add(fraction, target_lower_height_asl_m);
+    if target_height_asl_m.is_finite()
+        && target_height_asl_m >= target_lower_height_asl_m
+        && target_height_asl_m <= target_upper_height_asl_m
+    {
+        Ok(target_height_asl_m)
+    } else {
+        Err(AirMassPopulationError::InvalidSample)
+    }
 }
 
 fn sample_height_from_pressure_bounds(
@@ -1265,6 +1317,7 @@ fn ozone_boundary_particle(
         )]),
         sensitivity_weight: None,
         status: ParticleStatus::Alive,
+        termination: None,
     };
     state
         .validate()
@@ -1335,6 +1388,7 @@ fn boundary_particle(
         mass_kg: BTreeMap::new(),
         sensitivity_weight: None,
         status: ParticleStatus::Alive,
+        termination: None,
     };
     state
         .validate()
@@ -1362,6 +1416,7 @@ pub(super) fn particle_batch_from_states(
         batch.dry_air_mass_kg.push(state.dry_air_mass_kg);
         batch.sensitivity_weight.push(state.sensitivity_weight);
         batch.status.push(state.status);
+        batch.termination.push(state.termination);
         for (substance, mass) in state.mass_kg {
             batch
                 .mass
@@ -1646,6 +1701,7 @@ mod tests {
                 halo_cells: 0,
             },
             terrain_height_grid_asl_m: vec![0.0; 4],
+            available_top_height_grid_asl_m: vec![3_000.0; 4],
             aerodynamic_roughness_length_grid_m: vec![0.1; 4],
             columns: vec![AirMassColumn {
                 cell_id: 0,
@@ -2075,6 +2131,7 @@ mod tests {
         let mut sloped_snapshot = flat_snapshot.clone();
         sloped_snapshot.terrain_height_grid_asl_m = vec![0.0, 100.0, 200.0, 300.0];
         sloped_snapshot.aerodynamic_roughness_length_grid_m = vec![0.1, 0.4, 0.8, 1.2];
+        sloped_snapshot.available_top_height_grid_asl_m = vec![10_000.0; 4];
         let sloped = seed_initial_air_mass(&count_spec(64), &sloped_snapshot, 4_202).unwrap();
 
         assert_eq!(flat.particles.id, sloped.particles.id);
@@ -2109,5 +2166,43 @@ mod tests {
             );
         }
         assert!(saw_roughness_floor_above_half_metre);
+    }
+
+    #[test]
+    fn horizontal_relocation_respects_bilinear_available_top() {
+        let flat_snapshot = snapshot();
+        let flat = seed_initial_air_mass(&count_spec(512), &flat_snapshot, 91_337).unwrap();
+        let mut sloped_snapshot = flat_snapshot.clone();
+        sloped_snapshot.available_top_height_grid_asl_m = vec![3_000.0, 2_350.0, 3_000.0, 2_350.0];
+        let sloped = seed_initial_air_mass(&count_spec(512), &sloped_snapshot, 91_337).unwrap();
+
+        assert_eq!(flat.particles.id, sloped.particles.id);
+        assert_eq!(
+            flat.particles.longitude_degrees,
+            sloped.particles.longitude_degrees
+        );
+        assert_eq!(
+            flat.particles.latitude_degrees,
+            sloped.particles.latitude_degrees
+        );
+        assert_eq!(
+            flat.particles.dry_air_mass_kg,
+            sloped.particles.dry_air_mass_kg
+        );
+        let mut saw_top_adjustment = false;
+        for index in 0..sloped.particles.id.len() {
+            let longitude = sloped.particles.longitude_degrees[index];
+            let latitude = sloped.particles.latitude_degrees[index];
+            let local_top = sloped_snapshot
+                .available_top_height_asl_m_at(longitude, latitude)
+                .unwrap();
+            let sloped_height = sloped.particles.height_asl_m[index];
+            assert!(sloped_height <= local_top);
+            if flat.particles.height_asl_m[index] > local_top {
+                saw_top_adjustment = true;
+                assert!(sloped_height < flat.particles.height_asl_m[index]);
+            }
+        }
+        assert!(saw_top_adjustment);
     }
 }

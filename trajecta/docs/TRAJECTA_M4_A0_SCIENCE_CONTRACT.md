@@ -152,7 +152,8 @@ interval { interval, origin? }
 - signed step 必须与 Direction 一致；
 - boundary 必须按积分方向排序，相同时刻允许多个事件；
 - 相同时刻不生成零长度步；
-- meteorology frame、birth、output、end 都是不可跨越边界；
+- 全局宏步只把 meteorology frame、output、end 作为不可跨越边界；
+- birth 是 cohort-local 起点：旧粒子不因新 cohort 出生而缩短或重复推进，新粒子从各自精确 birth time 推进到同一宏步终点；
 - End 是硬上限，可截短请求步；
 - 全部加减先用 i128 纳秒并检查 Timestamp 与 i64 duration 溢出。
 
@@ -228,7 +229,7 @@ A1 的生产 path sampler 必须按穿越的插值网格单元提供有序区间
 
 ### 6.3 Runner 生命周期
 
-`SimulationRunner::run` 的强制顺序是：先验证并持久化 `running` manifest，再 begin outputs、initialize population、在当前物理时刻 emit、按 release/met/output/end 合并边界拆步、before-step、RK2 proposal、boundary chain、after-advection、population maintenance、exact-time output，最后 population finalize、output finish 和 terminal manifest。
+`SimulationRunner::run` 的强制顺序是：先验证并持久化 `running` manifest，再 begin outputs、initialize population、按 met/output/end 规划全局宏步、一次物化宏步内全部 birth cohort、旧粒子从宏步首且新粒子从各自精确 birth time 推进到共同终点、boundary chain、population accounting/maintenance、exact-time lifecycle 与 scheduled output，最后 population finalize、output finish 和 terminal manifest。
 
 - `running` manifest 持久化失败时不得创建首粒子；
 - abnormal particle 只改变最终 `RunOutcome` 为 `CompletedWithParticleErrors`，不终止其它粒子；
@@ -343,9 +344,9 @@ rho_dry * inward_normal_velocity * geometric_face_area * abs(dt)
 
 `dry_air_boundary_flux/v1` 使用边界控制体的原生层高度厚度乘球面水平边长作为 face area；密度取上下 pressure interface 的算术平均 pressure，并使用该 full level 的 T/q 与 inward-normal wind。正向 inward normal 为 west:+u、east:-u、south:+v、north:-v；反向积分整体翻转法向。
 
-一个已经被 frame/release/output/end 边界静态截断的区间内，`dry_air_static_midpoint_flux/v1` 只在区间物理中点准备一次完整 snapshot，并把每个 face/layer 的 rate 视为区间内常数。动态出生只继续切分此区间，不重新取新中点或改变原计划 rate。
+一个已经被 frame/output/end 边界静态截断的宏步内，`dry_air_static_midpoint_flux/v1` 只在宏步物理中点准备一次完整 snapshot，并把每个 face/layer 的 rate 视为宏步内常数。动态出生保留精确时刻，但不再切分旧粒子的全局步，也不重新取新中点或改变原计划 rate。
 
-`dry_air_mass_threshold_birth/v1` 不随机提前出生：对每个 face/layer，累计 `opening residual + rate * elapsed` 第一次达到下一份完整 carrier mass 的物理时刻即为出生时刻；时间量化为“不早于阈值”的最小整纳秒。随机数只决定 face 内切向位置与几何高度位置。这样每个动态子步结束时 residual 始终在 `[0, carrier mass)`，且不会暂时创造载体质量。
+`dry_air_mass_threshold_birth/v1` 不随机提前出生：对每个 face/layer，累计 `opening residual + rate * elapsed` 第一次达到下一份完整 carrier mass 的物理时刻即为出生时刻；时间量化为“不早于阈值”的最小整纳秒。随机数只决定 face 内切向位置与几何高度位置。宏步内所有 birth 一次计入 cohort 与 residual，宏步结束只生成一条质量账本记录；residual 始终在 `[0, carrier mass)`，且不会暂时创造载体质量。
 
 ### 7.3 Mass gate
 

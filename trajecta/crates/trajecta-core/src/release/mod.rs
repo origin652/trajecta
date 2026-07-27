@@ -218,6 +218,7 @@ impl ReleaseAllocator {
             dry_air_mass_kg: vec![0.0; count],
             sensitivity_weight: vec![None; count],
             status: vec![ParticleStatus::Alive; count],
+            termination: vec![None; count],
             mass: SubstanceMassStore {
                 mass_kg: request
                     .event

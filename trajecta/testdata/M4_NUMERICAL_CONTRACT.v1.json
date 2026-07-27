@@ -4,6 +4,7 @@
   "algorithms": {
     "counter_rng": "philox4x32-10/v1",
     "integrator": "rk2_spherical/v0",
+    "cohort_scheduler": "cohort_local_macro_step/v1",
     "great_circle_path_basis": "great_circle_atan2_oriented_basis/v1",
     "limited_domain_exit_bridge": "rk2_domain_exit_euler_bridge/v1",
     "surface_boundary": "surface_reflect/v0",

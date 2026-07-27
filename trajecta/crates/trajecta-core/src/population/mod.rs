@@ -126,6 +126,67 @@ pub trait PopulationStrategy: Send {
         Vec::new()
     }
 
+    /// Plans and materializes every exact birth inside one runner macro step.
+    ///
+    /// The returned rows retain their individual `birth_time`; the runner
+    /// appends them once and advances each row only from that local time. The
+    /// default implementation preserves release/custom-population behavior by
+    /// collecting existing population boundaries without exposing them to the
+    /// global [`crate::clock::StepPlanner`]. Domain-fill overrides this method
+    /// to aggregate its mass accounting over the complete macro step.
+    fn prepare_cohort_step(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        particles: &ParticleBatch,
+    ) -> Result<ParticleBatch, PopulationError> {
+        let step = context.step.ok_or(PopulationError::InvalidConfiguration)?;
+        self.before_step(context, particles)?;
+        let mut times = self
+            .step_boundaries(
+                SimulationClock {
+                    current: context.time,
+                    direction: context.direction,
+                },
+                step,
+            )?
+            .into_iter()
+            .map(|boundary| boundary.time())
+            .collect::<BTreeSet<_>>();
+        times.extend(
+            self.dynamic_step_boundaries(context, step)?
+                .into_iter()
+                .map(|boundary| boundary.time()),
+        );
+        let mut times = times.into_iter().collect::<Vec<_>>();
+        if context.direction == Direction::Backward {
+            times.reverse();
+        }
+        let original_time = context.time;
+        let emitted = (|| {
+            let mut emitted = ParticleBatch::default();
+            for time in times {
+                context.time = time;
+                emitted
+                    .append(self.emit_particles(context)?)
+                    .map_err(|_| PopulationError::InvalidParticleBatch)?;
+            }
+            Ok(emitted)
+        })();
+        context.time = original_time;
+        emitted
+    }
+
+    /// Completes population accounting after every cohort has reached the
+    /// common macro-step endpoint.
+    fn complete_cohort_step(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        particles: &mut ParticleBatch,
+    ) -> Result<(), PopulationError> {
+        self.after_advection(context, particles)?;
+        self.apply_boundary_maintenance(context, particles)
+    }
+
     /// Initializes persistent strategy state and optional initial particles.
     fn initialize(
         &mut self,
@@ -281,6 +342,9 @@ struct DomainFillStepOpening {
     incoming_by_face_kg: BTreeMap<u64, f64>,
     incoming_kg: f64,
     particle_status: BTreeMap<ParticleId, ParticleStatus>,
+    cohort_birth_ids: BTreeSet<ParticleId>,
+    cohort_birth_count: u64,
+    cohort_residual_applied: bool,
 }
 
 impl DomainFillAirMass {
@@ -448,6 +512,28 @@ impl PopulationStrategy for DomainFillStratosphericOzone {
             .collect();
         self.inner.active_inflow_plan = Some(plan);
         Ok(boundaries)
+    }
+
+    fn prepare_cohort_step(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        particles: &ParticleBatch,
+    ) -> Result<ParticleBatch, PopulationError> {
+        let step = context.step.ok_or(PopulationError::InvalidConfiguration)?;
+        let _ = self.dynamic_step_boundaries(context, step)?;
+        let emitted = self.inner.prepare_cohort_step(context, particles)?;
+        self.sync_state();
+        Ok(emitted)
+    }
+
+    fn complete_cohort_step(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        particles: &mut ParticleBatch,
+    ) -> Result<(), PopulationError> {
+        self.inner.complete_cohort_step(context, particles)?;
+        self.sync_state();
+        Ok(())
     }
 
     fn mass_ledger_records(&self) -> Vec<MassLedgerRecord> {
@@ -635,6 +721,196 @@ impl PopulationStrategy for DomainFillAirMass {
         Ok(boundaries)
     }
 
+    fn prepare_cohort_step(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        particles: &ParticleBatch,
+    ) -> Result<ParticleBatch, PopulationError> {
+        let step = context.step.ok_or(PopulationError::InvalidConfiguration)?;
+        if !self.pending_emissions.is_empty() {
+            return Err(PopulationError::InvalidConfiguration);
+        }
+        let _ = self.dynamic_step_boundaries(context, step)?;
+        self.before_step(context, particles)?;
+
+        let births = self
+            .active_inflow_plan
+            .as_ref()
+            .map(|plan| plan.births.clone())
+            .unwrap_or_default();
+        let incoming_by_face = self
+            .opening_step
+            .as_ref()
+            .ok_or(PopulationError::InvalidConfiguration)?
+            .incoming_by_face_kg
+            .clone();
+        for (face_id, incoming) in incoming_by_face {
+            let residual = self
+                .residual_mass
+                .residual_mass_kg
+                .entry(face_id)
+                .or_insert(0.0);
+            *residual += incoming;
+            if !residual.is_finite() || *residual < 0.0 {
+                return Err(PopulationError::InvalidConfiguration);
+            }
+        }
+
+        let carrier_mass = self
+            .carrier_mass_per_particle_kg
+            .ok_or(PopulationError::InvalidConfiguration)?;
+        let tolerance = mass_balance_tolerance_kg(carrier_mass, false)
+            .map_err(|error| PopulationError::AirMassReference(error.code().into()))?;
+        for birth in &births {
+            let residual = self
+                .residual_mass
+                .residual_mass_kg
+                .get_mut(&birth.face_id)
+                .ok_or(PopulationError::InvalidConfiguration)?;
+            *residual -= carrier_mass;
+            if *residual < -tolerance {
+                return Err(PopulationError::MassImbalance);
+            }
+            if *residual < 0.0 {
+                *residual = 0.0;
+            }
+        }
+        if self
+            .residual_mass
+            .residual_mass_kg
+            .values()
+            .any(|residual| {
+                !residual.is_finite() || *residual < 0.0 || *residual >= carrier_mass + tolerance
+            })
+        {
+            return Err(PopulationError::MassImbalance);
+        }
+
+        let cohort_birth_ids = births
+            .iter()
+            .map(|birth| birth.particle.id)
+            .collect::<BTreeSet<_>>();
+        if cohort_birth_ids.len() != births.len() {
+            return Err(PopulationError::InvalidParticleBatch);
+        }
+        let cohort_birth_count =
+            u64::try_from(births.len()).map_err(|_| PopulationError::ResourceLimit)?;
+        let opening = self
+            .opening_step
+            .as_mut()
+            .ok_or(PopulationError::InvalidConfiguration)?;
+        opening.cohort_birth_ids = cohort_birth_ids;
+        opening.cohort_birth_count = cohort_birth_count;
+        opening.cohort_residual_applied = true;
+
+        air_mass::particle_batch_from_states(
+            births.into_iter().map(|birth| birth.particle).collect(),
+        )
+        .map_err(map_air_mass_error)
+    }
+
+    fn complete_cohort_step(
+        &mut self,
+        context: &mut PopulationContext<'_>,
+        particles: &mut ParticleBatch,
+    ) -> Result<(), PopulationError> {
+        self.after_advection(context, particles)?;
+        let opening = self
+            .opening_step
+            .take()
+            .ok_or(PopulationError::InvalidConfiguration)?;
+        if !opening.cohort_residual_applied
+            || opening.end_time != context.time
+            || context.step_index != Some(opening.step_index)
+            || !self.pending_emissions.is_empty()
+        {
+            return Err(PopulationError::InvalidConfiguration);
+        }
+
+        let mut outgoing = Vec::new();
+        let mut normal_terminated = Vec::new();
+        let mut abnormal_terminated = Vec::new();
+        let len = particles
+            .validate()
+            .map_err(|_| PopulationError::InvalidParticleBatch)?;
+        for index in 0..len {
+            if particles.population_id[index] != self.specification.id {
+                continue;
+            }
+            let opening_alive =
+                opening.particle_status.get(&particles.id[index]) == Some(&ParticleStatus::Alive);
+            if !opening_alive && !opening.cohort_birth_ids.contains(&particles.id[index]) {
+                continue;
+            }
+            if matches!(
+                particles.status[index],
+                ParticleStatus::Terminated {
+                    reason: TerminationReason::OutsideDomain
+                }
+            ) {
+                particles.status[index] = ParticleStatus::Terminated {
+                    reason: TerminationReason::PopulationOutflow,
+                };
+            }
+            let ParticleStatus::Terminated { reason } = &particles.status[index] else {
+                continue;
+            };
+            match reason {
+                TerminationReason::PopulationOutflow => {
+                    outgoing.push(particles.dry_air_mass_kg[index]);
+                }
+                reason if reason.class() == crate::particle::TerminationClass::Normal => {
+                    normal_terminated.push(particles.dry_air_mass_kg[index]);
+                }
+                _ => abnormal_terminated.push(particles.dry_air_mass_kg[index]),
+            }
+        }
+        particles
+            .validate()
+            .map_err(|_| PopulationError::InvalidParticleBatch)?;
+
+        let outgoing_kg = neumaier_sum(&outgoing)
+            .map_err(|error| PopulationError::AirMassReference(error.code().into()))?;
+        let normal_terminated_kg = neumaier_sum(&normal_terminated)
+            .map_err(|error| PopulationError::AirMassReference(error.code().into()))?;
+        let abnormal_terminated_kg = neumaier_sum(&abnormal_terminated)
+            .map_err(|error| PopulationError::AirMassReference(error.code().into()))?;
+        let closing_active_kg = active_carrier_mass_kg(particles, &self.specification.id)
+            .map_err(map_air_mass_error)?;
+        let closing_residual_kg = residual_mass_kg(
+            self.initial_residual_mass_kg,
+            &self.residual_mass.residual_mass_kg,
+        )
+        .map_err(map_air_mass_error)?;
+        self.ledger
+            .record_step(MassLedgerInput {
+                step_index: opening.step_index,
+                time: context.time,
+                opening_active_kg: opening.opening_active_kg,
+                opening_residual_kg: opening.opening_residual_kg,
+                incoming_kg: opening.incoming_kg,
+                outgoing_kg,
+                normal_terminated_kg,
+                abnormal_terminated_kg,
+                closing_active_kg,
+                closing_residual_kg,
+            })
+            .map_err(map_air_mass_error)?;
+        let seeded_particles = self
+            .seeded_particles()?
+            .checked_add(opening.cohort_birth_count)
+            .ok_or(PopulationError::ResourceLimit)?;
+        if self
+            .active_inflow_plan
+            .as_ref()
+            .is_some_and(|plan| plan.end_time == context.time)
+        {
+            self.active_inflow_plan = None;
+        }
+        self.sync_state(seeded_particles);
+        Ok(())
+    }
+
     fn mass_ledger_records(&self) -> Vec<MassLedgerRecord> {
         self.ledger.records().to_vec()
     }
@@ -735,6 +1011,9 @@ impl PopulationStrategy for DomainFillAirMass {
             incoming_by_face_kg,
             incoming_kg,
             particle_status,
+            cohort_birth_ids: BTreeSet::new(),
+            cohort_birth_count: 0,
+            cohort_residual_applied: false,
         });
         Ok(())
     }
@@ -1412,7 +1691,6 @@ mod tests {
     use trajecta_met::surface_layer::SurfaceLayerRegistry;
 
     use super::*;
-    use crate::clock::signed_duration_between;
     use crate::synthetic::{SyntheticWind, constant_wind_stack};
 
     struct OrdinalGeometry;
@@ -1864,7 +2142,7 @@ mod tests {
     }
 
     #[test]
-    fn finite_domain_birth_is_split_at_mass_threshold_and_conserves_each_substep() {
+    fn finite_domain_birth_is_cohort_local_and_records_one_macro_step() {
         let times = [
             Timestamp::new(-10, 0).unwrap(),
             Timestamp::UNIX_EPOCH,
@@ -1923,7 +2201,7 @@ mod tests {
         population.sync_state(4);
 
         let base_step = SignedDuration(10_000_000_000);
-        let birth_time = {
+        let births = {
             let mut context = PopulationContext {
                 time: Timestamp::UNIX_EPOCH,
                 direction: Direction::Forward,
@@ -1934,85 +2212,34 @@ mod tests {
                 execution: stack.execution.as_ref(),
                 domain: Some(stack.domain.clone()),
             };
-            let boundaries = population
-                .dynamic_step_boundaries(&mut context, base_step)
-                .unwrap();
-            assert!(!boundaries.is_empty());
-            boundaries[0].time()
+            population
+                .prepare_cohort_step(&mut context, &particles)
+                .unwrap()
         };
-        let first_step = signed_duration_between(Timestamp::UNIX_EPOCH, birth_time).unwrap();
-        {
-            let mut context = PopulationContext {
-                time: Timestamp::UNIX_EPOCH,
-                direction: Direction::Forward,
-                step: Some(first_step),
-                step_index: Some(0),
-                random_seed: 23,
-                meteorology: &mut stack.engine,
-                execution: stack.execution.as_ref(),
-                domain: Some(stack.domain.clone()),
-            };
-            population.before_step(&mut context, &particles).unwrap();
-        }
-        {
-            let mut context = PopulationContext {
-                time: birth_time,
-                direction: Direction::Forward,
-                step: Some(first_step),
-                step_index: Some(0),
-                random_seed: 23,
-                meteorology: &mut stack.engine,
-                execution: stack.execution.as_ref(),
-                domain: Some(stack.domain.clone()),
-            };
-            population
-                .after_advection(&mut context, &particles)
-                .unwrap();
-            population
-                .apply_boundary_maintenance(&mut context, &mut particles)
-                .unwrap();
-            let emitted = population.emit_particles(&mut context).unwrap();
-            assert_eq!(emitted.len().unwrap(), 1);
-            assert_eq!(emitted.birth_time, vec![birth_time]);
-            particles.append(emitted).unwrap();
-        }
+        assert_eq!(births.len().unwrap(), 1);
+        let birth_time = births.birth_time[0];
+        assert!(birth_time > Timestamp::UNIX_EPOCH);
         let end = Timestamp::new(10, 0).unwrap();
-        let second_step = signed_duration_between(birth_time, end).unwrap();
-        {
-            let mut context = PopulationContext {
-                time: birth_time,
-                direction: Direction::Forward,
-                step: Some(second_step),
-                step_index: Some(1),
-                random_seed: 23,
-                meteorology: &mut stack.engine,
-                execution: stack.execution.as_ref(),
-                domain: Some(stack.domain.clone()),
-            };
-            let remaining = population
-                .dynamic_step_boundaries(&mut context, second_step)
-                .unwrap();
-            assert!(remaining.is_empty());
-            population.before_step(&mut context, &particles).unwrap();
-        }
+        assert!(birth_time <= end);
+        particles.append(births).unwrap();
+        let newborn_index = particles.len().unwrap() - 1;
+        particles.status[newborn_index] = ParticleStatus::Terminated {
+            reason: TerminationReason::PopulationOutflow,
+        };
         {
             let mut context = PopulationContext {
                 time: end,
                 direction: Direction::Forward,
-                step: Some(second_step),
-                step_index: Some(1),
+                step: Some(base_step),
+                step_index: Some(0),
                 random_seed: 23,
                 meteorology: &mut stack.engine,
                 execution: stack.execution.as_ref(),
                 domain: Some(stack.domain.clone()),
             };
             population
-                .after_advection(&mut context, &particles)
+                .complete_cohort_step(&mut context, &mut particles)
                 .unwrap();
-            population
-                .apply_boundary_maintenance(&mut context, &mut particles)
-                .unwrap();
-            assert!(population.emit_particles(&mut context).unwrap().is_empty());
         }
         {
             let mut context = PopulationContext {
@@ -2028,12 +2255,10 @@ mod tests {
             population.finalize(&mut context, &particles).unwrap();
         }
         assert_eq!(particles.len().unwrap(), 5);
-        assert_eq!(population.mass_ledger_records().len(), 2);
-        assert!(
-            population
-                .mass_ledger_records()
-                .iter()
-                .all(|record| record.imbalance_kg.abs() <= record.tolerance_kg)
-        );
+        let records = population.mass_ledger_records();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].step_index, 0);
+        assert_eq!(records[0].outgoing_kg, carrier);
+        assert!(records[0].imbalance_kg.abs() <= records[0].tolerance_kg);
     }
 }
