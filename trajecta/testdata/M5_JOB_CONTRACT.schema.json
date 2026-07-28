@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m5-job-contract-v1.json",
+  "title": "Trajecta M5 job lifecycle contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "states",
+    "terminal_states",
+    "transitions",
+    "scheduling",
+    "automatic_retry",
+    "cancellation",
+    "events",
+    "pruning"
+  ],
+  "properties": {
+    "schema_version": { "const": "trajecta.job-contract/v1" },
+    "states": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "terminal_states": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "transitions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": { "type": "string", "minLength": 1 }
+      }
+    },
+    "scheduling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "safe_backfill", "maximum_head_bypass", "external_memory_pressure"],
+      "properties": {
+        "order": { "const": "fifo" },
+        "safe_backfill": { "const": true },
+        "maximum_head_bypass": { "const": 3 },
+        "external_memory_pressure": { "const": "pause_dispatch_without_auto_cancel" }
+      }
+    },
+    "automatic_retry": { "const": false },
+    "cancellation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before_run_manifest", "after_run_manifest", "force"],
+      "properties": {
+        "before_run_manifest": { "const": "catalog_only_cancelled_no_artifacts" },
+        "after_run_manifest": { "const": "safe_boundary_cancelled_with_provenance" },
+        "force": { "const": "interrupted_forensic" }
+      }
+    },
+    "events": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["persistent", "fan_out", "destructive_read", "maximum_median_overhead_percent"],
+      "properties": {
+        "persistent": { "const": true },
+        "fan_out": { "const": true },
+        "destructive_read": { "const": false },
+        "maximum_median_overhead_percent": { "const": 1.0 }
+      }
+    },
+    "pruning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "delete_enabled", "forget_deletes_artifacts"],
+      "properties": {
+        "mode": { "const": "dry_run" },
+        "delete_enabled": { "const": false },
+        "forget_deletes_artifacts": { "const": false }
+      }
+    }
+  }
+}

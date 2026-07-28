@@ -1,0 +1,61 @@
+{
+  "schema_version": "trajecta.job-contract/v1",
+  "states": [
+    "queued",
+    "starting",
+    "running",
+    "cancelling",
+    "complete",
+    "completed_with_particle_errors",
+    "failed",
+    "cancelled",
+    "interrupted"
+  ],
+  "terminal_states": [
+    "complete",
+    "completed_with_particle_errors",
+    "failed",
+    "cancelled",
+    "interrupted"
+  ],
+  "transitions": {
+    "queued": ["starting", "cancelled"],
+    "starting": ["running", "cancelling", "failed", "interrupted"],
+    "running": [
+      "cancelling",
+      "complete",
+      "completed_with_particle_errors",
+      "failed",
+      "interrupted"
+    ],
+    "cancelling": ["cancelled", "failed", "interrupted"],
+    "complete": [],
+    "completed_with_particle_errors": [],
+    "failed": [],
+    "cancelled": [],
+    "interrupted": []
+  },
+  "scheduling": {
+    "order": "fifo",
+    "safe_backfill": true,
+    "maximum_head_bypass": 3,
+    "external_memory_pressure": "pause_dispatch_without_auto_cancel"
+  },
+  "automatic_retry": false,
+  "cancellation": {
+    "before_run_manifest": "catalog_only_cancelled_no_artifacts",
+    "after_run_manifest": "safe_boundary_cancelled_with_provenance",
+    "force": "interrupted_forensic"
+  },
+  "events": {
+    "persistent": true,
+    "fan_out": true,
+    "destructive_read": false,
+    "maximum_median_overhead_percent": 1.0
+  },
+  "pruning": {
+    "mode": "dry_run",
+    "delete_enabled": false,
+    "forget_deletes_artifacts": false
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m5-cli-stream-item-v1.json",
+  "title": "Trajecta JSONL stream item",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "command", "sequence", "kind"],
+  "properties": {
+    "schema_version": { "const": "trajecta.cli-stream-item/v1" },
+    "command": { "type": "string", "minLength": 1 },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "kind": { "enum": ["data", "diagnostic", "summary"] },
+    "data": true,
+    "diagnostic": { "$ref": "#/$defs/diagnostic" },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok"],
+      "properties": {
+        "ok": { "type": "boolean" },
+        "run_success": { "type": "boolean" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "data" } } },
+      "then": {
+        "required": ["data"],
+        "not": { "anyOf": [{ "required": ["diagnostic"] }, { "required": ["summary"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "diagnostic" } } },
+      "then": {
+        "required": ["diagnostic"],
+        "not": { "anyOf": [{ "required": ["data"] }, { "required": ["summary"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "summary" } } },
+      "then": {
+        "required": ["summary"],
+        "not": { "anyOf": [{ "required": ["data"] }, { "required": ["diagnostic"] }] }
+      }
+    }
+  ],
+  "$defs": {
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity", "code", "message", "path", "hint"],
+      "properties": {
+        "severity": { "enum": ["error", "warning", "info"] },
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "path": { "type": "array" },
+        "hint": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

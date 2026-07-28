@@ -1,7 +1,9 @@
 //! # Contract: atomic run-manifest persistence
 //!
 //! Writes validated manifests through same-directory temporary files and
-//! atomic rename. Interrupted runs remain `running`.
+//! atomic rename. The runner owns ordinary terminalization; the local daemon
+//! may use the same store to mark a valid running manifest `interrupted` after
+//! it has proved that the worker process disappeared.
 
 use std::fs::{self, File};
 use std::io::Write;

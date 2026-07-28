@@ -1,0 +1,20 @@
+{
+  "schema_version": "trajecta.data-plan/v1",
+  "project_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "requirements": [
+    {
+      "profile_name": "local",
+      "case_name": "demo",
+      "dataset_id": "met",
+      "dataset_profile": "era5-hybrid",
+      "coverage_start": { "seconds_since_unix_epoch": 1230768000, "nanosecond": 0 },
+      "coverage_end": { "seconds_since_unix_epoch": 1230771600, "nanosecond": 0 },
+      "lockfile": "locks/era5-hybrid.lock.json",
+      "cache_root": "cache/era5-hybrid",
+      "data_roots": { "raw": "data/era5-hybrid" },
+      "reader_backend": "rust",
+      "required_capabilities": ["transport"],
+      "status": "missing"
+    }
+  ]
+}

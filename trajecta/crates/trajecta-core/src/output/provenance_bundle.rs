@@ -1357,12 +1357,9 @@ fn lockstep_write_samples(
     records_by_sha: &BTreeMap<String, BundleRecordEntry>,
     expected_sample_count: u64,
 ) -> Result<u64, OutputError> {
-    let uri = format!("file:{}?mode=ro", sqlite_path.display());
-    let connection = Connection::open_with_flags(
-        uri,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_URI,
-    )
-    .map_err(|error| OutputError::Io(error.to_string()))?;
+    let connection =
+        Connection::open_with_flags(sqlite_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .map_err(|error| OutputError::Io(error.to_string()))?;
     let mut stmt = connection
         .prepare(LOCKSTEP_PARTICLE_STATE_SQL)
         .map_err(|error| OutputError::Io(error.to_string()))?;

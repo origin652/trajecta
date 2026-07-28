@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m5-data-plan-v1.json",
+  "title": "Trajecta deterministic data plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_sha256", "requirements"],
+  "properties": {
+    "schema_version": { "const": "trajecta.data-plan/v1" },
+    "project_sha256": { "$ref": "#/$defs/sha256" },
+    "requirements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/requirement" }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{64}$"
+    },
+    "timestamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seconds_since_unix_epoch", "nanosecond"],
+      "properties": {
+        "seconds_since_unix_epoch": { "type": "integer" },
+        "nanosecond": { "type": "integer", "minimum": 0, "maximum": 999999999 }
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_name",
+        "case_name",
+        "dataset_id",
+        "dataset_profile",
+        "coverage_start",
+        "coverage_end",
+        "lockfile",
+        "data_roots",
+        "reader_backend",
+        "required_capabilities",
+        "status"
+      ],
+      "properties": {
+        "profile_name": { "type": "string", "minLength": 1 },
+        "case_name": { "type": "string", "minLength": 1 },
+        "dataset_id": { "type": "string", "minLength": 1 },
+        "dataset_profile": { "type": "string", "minLength": 1 },
+        "coverage_start": { "$ref": "#/$defs/timestamp" },
+        "coverage_end": { "$ref": "#/$defs/timestamp" },
+        "lockfile": { "type": "string", "minLength": 1 },
+        "cache_root": { "type": "string", "minLength": 1 },
+        "data_roots": {
+          "type": "object",
+          "propertyNames": { "minLength": 1 },
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        },
+        "reader_backend": { "enum": ["rust", "native"] },
+        "required_capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "status": { "enum": ["missing", "partial", "ready"] }
+      }
+    }
+  }
+}

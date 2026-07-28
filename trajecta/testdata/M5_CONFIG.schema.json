@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m5-config-v1.json",
+  "title": "Trajecta machine configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "default_reader_backend",
+    "daemon",
+    "resources",
+    "monitoring",
+    "profile_templates"
+  ],
+  "properties": {
+    "schema_version": { "const": "trajecta.config/v1" },
+    "default_reader_backend": { "enum": ["rust", "native"] },
+    "daemon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["idle_shutdown_seconds", "local_ipc_only"],
+      "properties": {
+        "idle_shutdown_seconds": { "type": "integer", "minimum": 0 },
+        "local_ipc_only": { "const": true }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu_slots", "memory_pool_mib", "memory_reserve_mib"],
+      "properties": {
+        "cpu_slots": { "type": "integer", "minimum": 1 },
+        "memory_pool_mib": { "type": "integer", "minimum": 1 },
+        "memory_reserve_mib": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sample_interval_ms", "maximum_median_overhead_percent"],
+      "properties": {
+        "sample_interval_ms": { "type": "integer", "minimum": 100 },
+        "maximum_median_overhead_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "profile_templates": {
+      "type": "object",
+      "propertyNames": { "minLength": 1 },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["execution"],
+        "properties": {
+          "execution": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "worker_threads",
+              "memory_budget_bytes",
+              "executor",
+              "meteorology_reader"
+            ],
+            "properties": {
+              "worker_threads": { "type": "integer", "minimum": 1 },
+              "memory_budget_bytes": { "type": "integer", "minimum": 1 },
+              "executor": { "type": "string", "minLength": 1 },
+              "meteorology_reader": { "enum": ["rust", "native"] }
+            }
+          }
+        }
+      }
+    }
+  }
+}

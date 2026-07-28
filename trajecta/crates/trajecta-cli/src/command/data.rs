@@ -14,8 +14,12 @@ pub enum DataCommand {
         root: PathBuf,
         /// Exact profile name.
         profile: String,
+        /// Case from which coverage and capability requirements are resolved.
+        case: PathBuf,
         /// Destination lockfile path.
         output: PathBuf,
+        /// Whether an existing destination may be atomically replaced.
+        replace: bool,
     },
     /// Inspect one local source file without decoding a full simulation.
     Inspect {

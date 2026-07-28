@@ -16,9 +16,12 @@ pub trait Renderer<T> {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct HumanRenderer;
 
-impl<T> Renderer<T> for HumanRenderer {
-    fn render(&self, _envelope: &CommandEnvelope<T>) -> Result<String, RenderError> {
-        Err(RenderError::NotImplemented)
+impl<T: std::fmt::Debug> Renderer<T> for HumanRenderer {
+    fn render(&self, envelope: &CommandEnvelope<T>) -> Result<String, RenderError> {
+        Ok(format!(
+            "data: {:?}\ndiagnostics: {:?}",
+            envelope.data, envelope.diagnostics
+        ))
     }
 }
 
@@ -26,17 +29,15 @@ impl<T> Renderer<T> for HumanRenderer {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ExplainRenderer;
 
-impl<T> Renderer<T> for ExplainRenderer {
-    fn render(&self, _envelope: &CommandEnvelope<T>) -> Result<String, RenderError> {
-        Err(RenderError::NotImplemented)
+impl<T: std::fmt::Debug> Renderer<T> for ExplainRenderer {
+    fn render(&self, envelope: &CommandEnvelope<T>) -> Result<String, RenderError> {
+        Ok(format!("explanation\n{envelope:#?}"))
     }
 }
 
 /// Output rendering failure.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RenderError {
-    /// Renderer has not been implemented yet.
-    NotImplemented,
     /// Typed payload cannot be represented by the requested renderer.
     UnsupportedPayload,
     /// Serialization failed.

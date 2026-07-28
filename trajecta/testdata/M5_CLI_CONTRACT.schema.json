@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m5-cli-contract-v1.json",
+  "title": "Trajecta M5 CLI contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "formats",
+    "global_options",
+    "commands",
+    "run",
+    "exit_codes"
+  ],
+  "properties": {
+    "schema_version": { "const": "trajecta.cli-contract/v1" },
+    "formats": {
+      "const": ["human", "json", "jsonl"]
+    },
+    "global_options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "json_alias", "config", "project"],
+      "properties": {
+        "format": { "const": "--format" },
+        "json_alias": { "const": "--json" },
+        "config": { "const": "--config" },
+        "project": { "const": "--project" }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "stage", "owner", "streaming"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "stage": { "enum": ["m5_a1", "m5_a2", "m5_a3"] },
+          "owner": { "enum": ["a", "b"] },
+          "streaming": { "type": "boolean" }
+        }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_mode", "detach_flag", "foreground_survives_client_disconnect"],
+      "properties": {
+        "default_mode": { "const": "foreground_wait" },
+        "detach_flag": { "const": "--detach" },
+        "foreground_survives_client_disconnect": { "const": true }
+      }
+    },
+    "exit_codes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["complete", "non_success_terminal", "usage", "detached_accepted"],
+      "properties": {
+        "complete": { "const": 0 },
+        "non_success_terminal": { "const": 1 },
+        "usage": { "const": 2 },
+        "detached_accepted": { "const": 0 }
+      }
+    }
+  }
+}

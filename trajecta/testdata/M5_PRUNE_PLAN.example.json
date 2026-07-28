@@ -1,0 +1,17 @@
+{
+  "schema_version": "trajecta.prune-plan/v1",
+  "mode": "dry_run",
+  "delete_enabled": false,
+  "candidates": [
+    {
+      "job_series_id": "018f0000-0000-7000-8000-000000000000",
+      "run_id": "018f0000-0000-7000-8000-000000000001",
+      "attempt": 1,
+      "path": "/srv/trajecta/demo/runs/attempt-1",
+      "size_bytes": 1048576,
+      "reason": "superseded attempt passed full verification",
+      "protected": true,
+      "superseded_by": "018f0000-0000-7000-8000-000000000002"
+    }
+  ]
+}

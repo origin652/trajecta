@@ -18,6 +18,7 @@ use trajecta_case::lockfile::{
     DatasetIdentity, DatasetLock, GeneratorInfo, GridSignature, LockedFile, ProfileIdentity,
     VerticalSignature,
 };
+use trajecta_case::model::meteorology::DatasetRef;
 use trajecta_case::model::time::Timestamp;
 use trajecta_case::resolver::sha256_file_streaming;
 use trajecta_case::schema::CURRENT_SCHEMA_VERSION;
@@ -95,6 +96,130 @@ pub struct DatasetLockRequest {
     /// participate in topology/coverage selection; other products in a mixed
     /// root are skipped with non-fatal notes.
     pub preferred_profile: Option<String>,
+}
+
+/// Current run requirements that an existing immutable lock must satisfy.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DatasetLockRequirements {
+    /// Logical dataset identity expected by the Case and RunProfile binding.
+    pub dataset: DatasetRef,
+    /// Physical Case interval plus explicit interpolation guards.
+    pub coverage: LockCoverageRequest,
+    /// Capabilities required by the resolved particle population.
+    pub required_capabilities: CapabilitySet,
+    /// Exact active Profile name selected by the project.
+    pub preferred_profile: String,
+}
+
+/// Validates an existing lock against current dataset, Profile, coverage, and
+/// capability requirements without rescanning source containers.
+///
+/// Payload integrity and logical-frame assembly remain the responsibility of
+/// `DatasetLock::verify_local_files_with_roots` and `InventoryBuilder`.
+#[must_use]
+pub fn validate_dataset_lock_requirements(
+    profiles: &ProfileCatalog,
+    lock: &DatasetLock,
+    requirements: &DatasetLockRequirements,
+) -> Vec<LockBuildDiagnostic> {
+    let mut diagnostics = Vec::new();
+    if requirements.coverage.start > requirements.coverage.end {
+        diagnostics.push(LockBuildDiagnostic::new(
+            LockBuildStage::Assemble,
+            "lock_requirements.coverage.reversed",
+            "coverage.start must be no later than coverage.end",
+        ));
+    }
+    if lock.identity.id != requirements.dataset {
+        diagnostics.push(LockBuildDiagnostic::new(
+            LockBuildStage::ProfileMatch,
+            "lock_requirements.dataset.mismatch",
+            format!(
+                "locked dataset '{}' differs from requested '{}'",
+                lock.identity.id.0, requirements.dataset.0
+            ),
+        ));
+    }
+    let profile_name = ProfileName(requirements.preferred_profile.clone());
+    let Some(profile) = profiles.get(&profile_name) else {
+        diagnostics.push(LockBuildDiagnostic::new(
+            LockBuildStage::ProfileMatch,
+            "lock_requirements.profile.unknown",
+            format!(
+                "requested Profile '{}' is not loaded",
+                requirements.preferred_profile
+            ),
+        ));
+        sort_diagnostics(&mut diagnostics);
+        return diagnostics;
+    };
+    if lock.profile.name != requirements.preferred_profile {
+        diagnostics.push(LockBuildDiagnostic::new(
+            LockBuildStage::ProfileMatch,
+            "lock_requirements.profile.name_mismatch",
+            format!(
+                "locked Profile '{}' differs from requested '{}'",
+                lock.profile.name, requirements.preferred_profile
+            ),
+        ));
+    }
+    if lock.profile.sha256 != profile.sha256 {
+        diagnostics.push(LockBuildDiagnostic::new(
+            LockBuildStage::ProfileMatch,
+            "lock_requirements.profile.hash_mismatch",
+            format!(
+                "locked Profile '{}' content differs from the active catalog",
+                lock.profile.name
+            ),
+        ));
+    }
+    for capability in requirements.required_capabilities.iter() {
+        if !profile.document.capabilities.contains_key(&capability) {
+            diagnostics.push(LockBuildDiagnostic::new(
+                LockBuildStage::CapabilityValidate,
+                "lock_requirements.capability.missing",
+                format!(
+                    "Profile '{}' does not provide required capability {capability:?}",
+                    profile.name().0
+                ),
+            ));
+        }
+    }
+    if diagnostics.is_empty() {
+        let before_frames = requirements
+            .coverage
+            .interpolation_before_frames
+            .checked_add(profile_warmup_frames(profile));
+        match before_frames {
+            Some(before_frames) => {
+                let all_times = lock
+                    .files
+                    .iter()
+                    .flat_map(|file| file.valid_times.iter().copied())
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                if let Err(mut diagnostic) =
+                    select_times(&all_times, requirements.coverage, before_frames)
+                {
+                    let suffix = diagnostic
+                        .code
+                        .strip_prefix("lock_build.")
+                        .unwrap_or(&diagnostic.code)
+                        .to_owned();
+                    diagnostic.code = format!("lock_requirements.{suffix}");
+                    diagnostics.push(diagnostic);
+                }
+            }
+            None => diagnostics.push(LockBuildDiagnostic::new(
+                LockBuildStage::Assemble,
+                "lock_requirements.coverage.buffer_overflow",
+                "warm-up and interpolation frame counts overflow usize",
+            )),
+        }
+    }
+    sort_diagnostics(&mut diagnostics);
+    diagnostics
 }
 
 /// Ordered lock-construction stage.
@@ -445,20 +570,7 @@ impl<'a> DatasetLockBuilder<'a> {
                 &mut notes,
             ) {
             Some((profile, files)) if diagnostics.is_empty() => {
-                let warmup = profile
-                    .document
-                    .fields
-                    .iter()
-                    .map(|field| usize::from(field.temporal.warmup_frames))
-                    .chain(
-                        profile
-                            .document
-                            .derived_fields
-                            .iter()
-                            .map(|field| usize::from(field.temporal.warmup_frames)),
-                    )
-                    .max()
-                    .unwrap_or(0);
+                let warmup = profile_warmup_frames(profile);
                 (
                     profile.name().0.clone(),
                     profile.sha256.clone(),
@@ -1125,6 +1237,23 @@ fn scan_roots(
     candidates
 }
 
+fn profile_warmup_frames(profile: &DatasetProfile) -> usize {
+    profile
+        .document
+        .fields
+        .iter()
+        .map(|field| usize::from(field.temporal.warmup_frames))
+        .chain(
+            profile
+                .document
+                .derived_fields
+                .iter()
+                .map(|field| usize::from(field.temporal.warmup_frames)),
+        )
+        .max()
+        .unwrap_or(0)
+}
+
 fn select_times(
     all_times: &[Timestamp],
     coverage: LockCoverageRequest,
@@ -1428,6 +1557,40 @@ mod tests {
         assert!(second.is_success(), "{:?}", second.diagnostics);
         assert_eq!(second.summary.hash_cache_hits, 4);
         assert_eq!(first.lock, second.lock);
+
+        let lock = first.lock.as_ref().unwrap();
+        let requirements = DatasetLockRequirements {
+            dataset: DatasetRef("era5".into()),
+            coverage: request(directory.path()).coverage,
+            required_capabilities: request(directory.path()).required_capabilities,
+            preferred_profile: "era5-flex-extract-hybrid-v0".into(),
+        };
+        assert!(validate_dataset_lock_requirements(&profiles, lock, &requirements).is_empty());
+
+        let mut wrong_dataset = requirements.clone();
+        wrong_dataset.dataset = DatasetRef("other".into());
+        assert!(
+            validate_dataset_lock_requirements(&profiles, lock, &wrong_dataset)
+                .iter()
+                .any(|diagnostic| diagnostic.code == "lock_requirements.dataset.mismatch")
+        );
+
+        let mut stale_profile = lock.clone();
+        stale_profile.profile.sha256 = sha256_hex(b"stale-profile");
+        assert!(
+            validate_dataset_lock_requirements(&profiles, &stale_profile, &requirements)
+                .iter()
+                .any(|diagnostic| diagnostic.code == "lock_requirements.profile.hash_mismatch")
+        );
+
+        let mut insufficient_coverage = requirements;
+        insufficient_coverage.coverage.end = Timestamp::new(32_400, 0).unwrap();
+        assert!(
+            validate_dataset_lock_requirements(&profiles, lock, &insufficient_coverage)
+                .iter()
+                .any(|diagnostic| diagnostic.code
+                    == "lock_requirements.coverage.missing_following")
+        );
     }
 
     #[test]

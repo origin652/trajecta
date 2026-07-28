@@ -8,11 +8,22 @@ authors.workspace = true
 description = "Thin command-line contract for Trajecta"
 
 [dependencies]
+hex = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_yml = "0.0.12"
+sha2 = "0.10"
+rusqlite = { version = "0.32", features = ["bundled"] }
+toml = "0.8"
 trajecta-case = { path = "../trajecta-case" }
 trajecta-met = { path = "../trajecta-met" }
 trajecta-core = { path = "../trajecta-core" }
+trajecta-job = { path = "../trajecta-job" }
+trajecta-local-ipc = { path = "../../vendor/trajecta-local-ipc" }
+uuid = { version = "1", features = ["v7", "std"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_System_Threading"] }
 
 [dev-dependencies]
 tempfile = "3"

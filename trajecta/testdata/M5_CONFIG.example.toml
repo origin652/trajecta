@@ -1,0 +1,21 @@
+schema_version = "trajecta.config/v1"
+default_reader_backend = "rust"
+
+[daemon]
+idle_shutdown_seconds = 300
+local_ipc_only = true
+
+[resources]
+cpu_slots = 4
+memory_pool_mib = 8192
+memory_reserve_mib = 2048
+
+[monitoring]
+sample_interval_ms = 1000
+maximum_median_overhead_percent = 1.0
+
+[profile_templates.local.execution]
+worker_threads = 4
+memory_budget_bytes = 2147483648
+executor = "rayon"
+meteorology_reader = "rust"

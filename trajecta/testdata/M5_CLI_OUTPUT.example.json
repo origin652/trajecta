@@ -1,0 +1,15 @@
+{
+  "schema_version": "trajecta.cli-output/v1",
+  "command": "project status",
+  "ok": true,
+  "data": { "state": "configured" },
+  "diagnostics": [
+    {
+      "severity": "warning",
+      "code": "project.data_pending",
+      "message": "meteorology data has not been downloaded",
+      "path": [],
+      "hint": "run `trajecta project data-plan --format json`"
+    }
+  ]
+}

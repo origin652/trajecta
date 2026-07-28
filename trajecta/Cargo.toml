@@ -1,15 +1,18 @@
 [workspace]
 resolver = "3"
+exclude = ["vendor/trajecta-local-ipc"]
 members = [
     "crates/trajecta-case",
     "crates/trajecta-met",
     "crates/trajecta-core",
+    "crates/trajecta-job",
     "crates/trajecta-cli",
 ]
 default-members = [
     "crates/trajecta-case",
     "crates/trajecta-met",
     "crates/trajecta-core",
+    "crates/trajecta-job",
     "crates/trajecta-cli",
 ]
 

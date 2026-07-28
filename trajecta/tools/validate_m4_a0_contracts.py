@@ -142,6 +142,8 @@ def validate_json_contracts() -> None:
     sha1 = "1" * 64
     running_manifest = {
         "schema_version": "trajecta.run-manifest/v1",
+        "job_series_id": "018f0000-0000-7000-8000-000000000000",
+        "attempt": 1,
         "run_id": "018f0000-0000-7000-8000-000000000000",
         "case_name": "m4-a0-contract",
         "status": "running",

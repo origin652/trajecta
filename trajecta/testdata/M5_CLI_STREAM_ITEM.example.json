@@ -1,0 +1,7 @@
+{
+  "schema_version": "trajecta.cli-stream-item/v1",
+  "command": "job events",
+  "sequence": 1,
+  "kind": "summary",
+  "summary": { "ok": true, "run_success": false }
+}

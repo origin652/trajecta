@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m5-job-event-v1.json",
+  "title": "Trajecta persistent job event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "sequence",
+    "emitted_at",
+    "job_series_id",
+    "run_id",
+    "attempt",
+    "kind",
+    "state"
+  ],
+  "properties": {
+    "schema_version": { "const": "trajecta.job-event/v1" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "emitted_at": { "$ref": "#/$defs/timestamp" },
+    "job_series_id": { "$ref": "#/$defs/uuidV7" },
+    "run_id": { "$ref": "#/$defs/uuidV7" },
+    "attempt": { "type": "integer", "minimum": 1 },
+    "kind": {
+      "enum": ["state_transition", "progress", "resource", "warning", "error", "artifact"]
+    },
+    "state": { "$ref": "#/$defs/state" },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completed_macro_steps",
+        "active_particles",
+        "normal_terminations",
+        "abnormal_terminations"
+      ],
+      "properties": {
+        "completed_macro_steps": { "type": "integer", "minimum": 0 },
+        "simulation_time": { "$ref": "#/$defs/timestamp" },
+        "active_particles": { "type": "integer", "minimum": 0 },
+        "normal_terminations": { "type": "integer", "minimum": 0 },
+        "abnormal_terminations": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wall_time_ms"],
+      "properties": {
+        "wall_time_ms": { "type": "integer", "minimum": 0 },
+        "cpu_time_ms": { "type": "integer", "minimum": 0 },
+        "rss_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "code": { "type": "string", "minLength": 1 },
+    "message": { "type": "string", "minLength": 1 },
+    "artifact_path": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "uuidV7": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-7[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$"
+    },
+    "state": {
+      "enum": [
+        "queued",
+        "starting",
+        "running",
+        "cancelling",
+        "complete",
+        "completed_with_particle_errors",
+        "failed",
+        "cancelled",
+        "interrupted"
+      ]
+    },
+    "timestamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seconds_since_unix_epoch", "nanosecond"],
+      "properties": {
+        "seconds_since_unix_epoch": { "type": "integer" },
+        "nanosecond": { "type": "integer", "minimum": 0, "maximum": 999999999 }
+      }
+    }
+  }
+}

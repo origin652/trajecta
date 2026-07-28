@@ -39,8 +39,8 @@ use crate::clock::SignedDuration;
 use crate::integrator::Rk2Spherical;
 use crate::lifecycle_clock::SystemLifecycleClock;
 use crate::manifest::{
-    ExecutionSummary, GeometryIdentity, InputIdentity, NumericalSummary, RunId, RunManifest,
-    RunManifestStart, SoftwareIdentity,
+    ExecutionSummary, GeometryIdentity, InputIdentity, JobSeriesId, NumericalSummary, RunId,
+    RunManifest, RunManifestStart, SoftwareIdentity,
 };
 use crate::manifest_store::AtomicRunManifestStore;
 use crate::output::sqlite::ParticleStateSqliteSink;
@@ -79,6 +79,17 @@ pub struct RunnerBuildKnobs {
     pub reverse_particle_scan: bool,
 }
 
+/// Explicit durable job identity supplied by the M5 worker control plane.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RunnerAttemptIdentity {
+    /// Logical series shared by future rerun attempts.
+    pub job_series_id: JobSeriesId,
+    /// Unique UUID-v7 identity of this attempt.
+    pub run_id: RunId,
+    /// One-based attempt number.
+    pub attempt: u32,
+}
+
 /// Builds a runner, optionally injecting a prebuilt meteorology stack used by
 /// synthetic hard-gate fixtures. Production calls use [`RunnerBuilder::build`].
 pub fn build_runner(
@@ -91,6 +102,24 @@ pub fn build_runner(
         run_profile,
         synthetic,
         None,
+        None,
+        RunnerBuildKnobs::default(),
+    )
+}
+
+/// Builds a production runner whose manifest and output path use a durable job attempt identity.
+pub fn build_runner_for_attempt(
+    case: ResolvedCase,
+    run_profile: ResolvedRunProfile,
+    identity: RunnerAttemptIdentity,
+) -> Result<SimulationRunner, RunError> {
+    validate_attempt_identity(&identity)?;
+    build_runner_inner(
+        case,
+        run_profile,
+        None,
+        Some(identity),
+        None,
         RunnerBuildKnobs::default(),
     )
 }
@@ -99,6 +128,7 @@ fn build_runner_inner(
     case: ResolvedCase,
     run_profile: ResolvedRunProfile,
     synthetic: Option<crate::synthetic::SyntheticStack>,
+    attempt_identity: Option<RunnerAttemptIdentity>,
     manifest_store: Option<Box<dyn crate::runner::RunManifestStore>>,
     knobs: RunnerBuildKnobs,
 ) -> Result<SimulationRunner, RunError> {
@@ -143,7 +173,10 @@ fn build_runner_inner(
     }
 
     let seed = numerics.random_seed.unwrap_or_else(generate_seed);
-    let run_id = RunId(Uuid::now_v7().to_string());
+    let run_id = attempt_identity.as_ref().map_or_else(
+        || RunId(Uuid::now_v7().to_string()),
+        |value| value.run_id.clone(),
+    );
     let run_dir = unique_run_directory(&run_profile.output_root, &case.metadata.name, &run_id)?;
     fs::create_dir_all(&run_dir).map_err(|error| RunError::Manifest(error.to_string()))?;
     let manifest_path = run_dir.join("run-manifest.json");
@@ -324,7 +357,7 @@ fn build_runner_inner(
         );
     }
 
-    let manifest = RunManifest::running(RunManifestStart {
+    let manifest_start = RunManifestStart {
         run_id: run_id.clone(),
         case_name: sanitize_case_name(&case.metadata.name)?,
         started_at: Timestamp::UNIX_EPOCH, // overwritten below after lifecycle clock
@@ -370,7 +403,13 @@ fn build_runner_inner(
         },
         geometries,
         effective_outputs: case.outputs.clone(),
-    });
+    };
+    let manifest = match attempt_identity {
+        Some(identity) => {
+            RunManifest::running_in_series(manifest_start, identity.job_series_id, identity.attempt)
+        }
+        None => RunManifest::running(manifest_start),
+    };
 
     let mut lifecycle_clock = SystemLifecycleClock;
     let started_at =
@@ -423,6 +462,7 @@ pub fn build_runner_with_manifest_store(
         case,
         run_profile,
         synthetic,
+        None,
         Some(manifest_store),
         RunnerBuildKnobs::default(),
     )
@@ -435,7 +475,7 @@ pub fn build_runner_with_knobs(
     synthetic: Option<crate::synthetic::SyntheticStack>,
     knobs: RunnerBuildKnobs,
 ) -> Result<SimulationRunner, RunError> {
-    build_runner_inner(case, run_profile, synthetic, None, knobs)
+    build_runner_inner(case, run_profile, synthetic, None, None, knobs)
 }
 
 /// Test/harness entry: store + knobs.
@@ -446,10 +486,21 @@ pub fn build_runner_with_store_and_knobs(
     manifest_store: Box<dyn crate::runner::RunManifestStore>,
     knobs: RunnerBuildKnobs,
 ) -> Result<SimulationRunner, RunError> {
-    build_runner_inner(case, run_profile, synthetic, Some(manifest_store), knobs)
+    build_runner_inner(
+        case,
+        run_profile,
+        synthetic,
+        None,
+        Some(manifest_store),
+        knobs,
+    )
 }
 
-fn required_capabilities_for_population(
+/// Returns the exact meteorological capability set required by a population strategy.
+///
+/// Project data planning must call this helper rather than duplicating the
+/// RunnerBuilder population-to-capability mapping.
+pub fn required_capabilities_for_population(
     population: &ParticlePopulationSpec,
 ) -> Result<CapabilitySet, RunError> {
     let base = CapabilitySet::new()
@@ -822,9 +873,7 @@ fn unique_run_directory(
     case_name: &str,
     run_id: &RunId,
 ) -> Result<PathBuf, RunError> {
-    let safe = sanitize_case_name(case_name)?;
-    // Frozen layout: <output_root>/<sanitized-case-name>/<uuid-v7>/
-    let dir = output_root.join(safe).join(&run_id.0);
+    let dir = run_directory_path(output_root, case_name, run_id)?;
     if dir.exists() {
         return Err(RunError::InvalidConfiguration(format!(
             "run directory already exists: {}",
@@ -832,6 +881,29 @@ fn unique_run_directory(
         )));
     }
     Ok(dir)
+}
+
+/// Returns the frozen `<output>/<sanitized-case>/<run-id>` attempt path.
+pub fn run_directory_path(
+    output_root: &Path,
+    case_name: &str,
+    run_id: &RunId,
+) -> Result<PathBuf, RunError> {
+    let safe = sanitize_case_name(case_name)?;
+    Ok(output_root.join(safe).join(&run_id.0))
+}
+
+fn validate_attempt_identity(identity: &RunnerAttemptIdentity) -> Result<(), RunError> {
+    let series = Uuid::parse_str(&identity.job_series_id.0)
+        .map_err(|_| RunError::InvalidConfiguration("job series id is not a UUID".into()))?;
+    let run = Uuid::parse_str(&identity.run_id.0)
+        .map_err(|_| RunError::InvalidConfiguration("run id is not a UUID".into()))?;
+    if series.get_version_num() != 7 || run.get_version_num() != 7 || identity.attempt == 0 {
+        return Err(RunError::InvalidConfiguration(
+            "attempt identity requires UUID-v7 ids and a positive attempt".into(),
+        ));
+    }
+    Ok(())
 }
 
 fn case_with_canonical_geometries(

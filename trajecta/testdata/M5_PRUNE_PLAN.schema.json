@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m5-prune-plan-v1.json",
+  "title": "Trajecta dry-run prune plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mode", "delete_enabled", "candidates"],
+  "properties": {
+    "schema_version": { "const": "trajecta.prune-plan/v1" },
+    "mode": { "const": "dry_run" },
+    "delete_enabled": { "const": false },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "job_series_id",
+          "run_id",
+          "attempt",
+          "path",
+          "size_bytes",
+          "reason",
+          "protected"
+        ],
+        "properties": {
+          "job_series_id": { "$ref": "#/$defs/uuidV7" },
+          "run_id": { "$ref": "#/$defs/uuidV7" },
+          "attempt": { "type": "integer", "minimum": 1 },
+          "path": { "type": "string", "minLength": 1 },
+          "size_bytes": { "type": "integer", "minimum": 0 },
+          "reason": { "type": "string", "minLength": 1 },
+          "protected": { "type": "boolean" },
+          "superseded_by": { "$ref": "#/$defs/uuidV7" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "uuidV7": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-7[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$"
+    }
+  }
+}

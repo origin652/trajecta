@@ -1,0 +1,24 @@
+[package]
+name = "trajecta-job"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Typed local job-control contracts for Trajecta"
+
+[dependencies]
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+trajecta-case = { path = "../trajecta-case" }
+trajecta-core = { path = "../trajecta-core" }
+trajecta-local-ipc = { path = "../../vendor/trajecta-local-ipc" }
+uuid = { version = "1", features = ["v7", "std"] }
+
+[dev-dependencies]
+serde_json = "1"
+tempfile = "3"
+
+[lints]
+workspace = true

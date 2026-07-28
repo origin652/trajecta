@@ -142,12 +142,8 @@ impl ParticleStateSqliteSink {
 
     /// Opens a read-only connection against an already-written database.
     pub fn open_readonly(path: &Path) -> Result<Connection, OutputError> {
-        let uri = format!("file:{}?mode=ro", path.display());
-        Connection::open_with_flags(
-            uri,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_URI,
-        )
-        .map_err(io_err)
+        Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .map_err(io_err)
     }
 
     /// Returns path/size/sha/integrity diagnostics for a finished database.

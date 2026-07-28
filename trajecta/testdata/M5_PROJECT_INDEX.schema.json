@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m5-project-index-v1.json",
+  "title": "Trajecta project orchestration index",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "name", "cases", "profiles"],
+  "properties": {
+    "schema_version": { "const": "trajecta.project-index/v1" },
+    "name": { "type": "string", "minLength": 1 },
+    "cases": {
+      "type": "object",
+      "propertyNames": { "minLength": 1 },
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "profiles": {
+      "type": "object",
+      "propertyNames": { "minLength": 1 },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "dataset_profiles"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "dataset_profiles": {
+            "type": "object",
+            "propertyNames": { "minLength": 1 },
+            "additionalProperties": { "type": "string", "minLength": 1 }
+          },
+          "template": { "type": "string", "minLength": 1 },
+          "template_sha256": {
+            "type": "string",
+            "pattern": "^[0-9A-Fa-f]{64}$"
+          }
+        },
+        "dependentRequired": {
+          "template": ["template_sha256"],
+          "template_sha256": ["template"]
+        }
+      }
+    },
+    "default_profile": { "type": "string", "minLength": 1 }
+  }
+}

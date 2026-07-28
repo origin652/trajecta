@@ -5,12 +5,17 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version", "run_id", "case_name", "status", "started_at",
+    "schema_version", "job_series_id", "attempt", "run_id", "case_name", "status", "started_at",
     "software", "inputs", "execution", "numerical", "geometries",
     "effective_outputs", "sqlite", "terminations", "mass_ledger"
   ],
   "properties": {
     "schema_version": { "const": "trajecta.run-manifest/v1" },
+    "job_series_id": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-7[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$"
+    },
+    "attempt": { "type": "integer", "minimum": 1 },
     "run_id": {
       "type": "string",
       "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-7[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$"
@@ -21,7 +26,14 @@
       "pattern": "^[^/\\\\]+$"
     },
     "status": {
-      "enum": ["running", "complete", "completed_with_particle_errors", "failed"]
+      "enum": [
+        "running",
+        "complete",
+        "completed_with_particle_errors",
+        "failed",
+        "cancelled",
+        "interrupted"
+      ]
     },
     "started_at": { "$ref": "#/$defs/timestamp" },
     "finished_at": { "$ref": "#/$defs/timestamp" },
@@ -68,7 +80,7 @@
     {
       "if": {
         "properties": {
-          "status": { "enum": ["complete", "completed_with_particle_errors"] }
+          "status": { "enum": ["complete", "completed_with_particle_errors", "cancelled"] }
         }
       },
       "then": {
@@ -77,8 +89,13 @@
       }
     },
     {
-      "if": { "properties": { "status": { "const": "failed" } } },
-      "then": { "required": ["finished_at", "failure"] }
+      "if": {
+        "properties": { "status": { "enum": ["failed", "interrupted"] } }
+      },
+      "then": {
+        "required": ["finished_at", "failure"],
+        "not": { "required": ["provenance"] }
+      }
     },
     {
       "if": { "properties": { "status": { "const": "complete" } } },

@@ -1,0 +1,12 @@
+schema_version: trajecta.project-index/v1
+name: demo-project
+cases:
+  demo: cases/demo.yaml
+profiles:
+  local:
+    path: profiles/local.yaml
+    dataset_profiles:
+      met: era5-hybrid
+    template: local
+    template_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+default_profile: local

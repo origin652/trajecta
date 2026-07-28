@@ -1,0 +1,19 @@
+{
+  "schema_version": "trajecta.job-record/v1",
+  "job_series_id": "018f0000-0000-7000-8000-000000000000",
+  "run_id": "018f0000-0000-7000-8000-000000000001",
+  "attempt": 1,
+  "state": "queued",
+  "input": {
+    "mode": "project",
+    "project_root": "/srv/trajecta/demo",
+    "profile_name": "local"
+  },
+  "resources": {
+    "cpu_slots": 4,
+    "memory_mib": 2048,
+    "worker_threads": 4
+  },
+  "created_at": { "seconds_since_unix_epoch": 0, "nanosecond": 0 },
+  "queue_position": 0
+}

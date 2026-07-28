@@ -1,0 +1,26 @@
+[package]
+name = "trajecta-local-ipc"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+description = "Small safe local-stream wrapper for Trajecta named pipes and Unix sockets"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Console",
+    "Win32_System_IO",
+    "Win32_System_Pipes",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+] }
+
+[lints.rust]
+missing_docs = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+all = "warn"

@@ -20,6 +20,11 @@ use crate::science::{RUN_MANIFEST_SCHEMA_ID, SQLITE_SCHEMA_VERSION};
 #[serde(transparent)]
 pub struct RunId(pub String);
 
+/// Stable logical job-series identifier, represented as a UUID-v7 string.
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct JobSeriesId(pub String);
+
 /// Persistent lifecycle state of a run.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -33,6 +38,37 @@ pub enum RunLifecycleStatus {
     CompletedWithParticleErrors,
     /// A fatal run-level error prevented completion.
     Failed,
+    /// The user requested a safe macro-step-boundary cancellation and outputs finalized.
+    Cancelled,
+    /// Execution disappeared or was force-stopped before safe output finalization.
+    Interrupted,
+}
+
+impl RunLifecycleStatus {
+    /// Returns whether no further execution transition is permitted.
+    #[must_use]
+    pub const fn is_terminal(self) -> bool {
+        !matches!(self, Self::Running)
+    }
+
+    /// Returns whether this status represents a successful simulation.
+    #[must_use]
+    pub const fn run_success(self) -> bool {
+        matches!(self, Self::Complete)
+    }
+
+    /// Returns the frozen foreground-run and `job wait` terminal exit code.
+    #[must_use]
+    pub const fn wait_exit_code(self) -> Option<i32> {
+        match self {
+            Self::Running => None,
+            Self::Complete => Some(0),
+            Self::CompletedWithParticleErrors
+            | Self::Failed
+            | Self::Cancelled
+            | Self::Interrupted => Some(1),
+        }
+    }
 }
 
 /// Software versions and source revision used by a run.
@@ -269,6 +305,10 @@ pub struct ProvenanceBundleIdentity {
 pub struct RunManifest {
     /// Must equal [`RUN_MANIFEST_SCHEMA_ID`].
     pub schema_version: String,
+    /// Stable logical series shared by explicit rerun attempts.
+    pub job_series_id: JobSeriesId,
+    /// One-based attempt number within the logical job series.
+    pub attempt: u32,
     /// Unique run identity.
     pub run_id: RunId,
     /// Sanitized human Case name used in the run directory.
@@ -313,8 +353,21 @@ impl RunManifest {
     /// Creates a running manifest with frozen schema and SQLite defaults.
     #[must_use]
     pub fn running(start: RunManifestStart) -> Self {
+        let job_series_id = JobSeriesId(start.run_id.0.clone());
+        Self::running_in_series(start, job_series_id, 1)
+    }
+
+    /// Creates a running manifest for an explicit logical job-series attempt.
+    #[must_use]
+    pub fn running_in_series(
+        start: RunManifestStart,
+        job_series_id: JobSeriesId,
+        attempt: u32,
+    ) -> Self {
         Self {
             schema_version: RUN_MANIFEST_SCHEMA_ID.into(),
+            job_series_id,
+            attempt,
             run_id: start.run_id,
             case_name: start.case_name,
             status: RunLifecycleStatus::Running,
@@ -339,7 +392,11 @@ impl RunManifest {
         if self.schema_version != RUN_MANIFEST_SCHEMA_ID {
             return Err(ManifestError::UnsupportedSchema);
         }
-        if !is_uuid_v7(&self.run_id.0) || !is_sanitized_case_name(&self.case_name) {
+        if !is_uuid_v7(&self.job_series_id.0)
+            || self.attempt == 0
+            || !is_uuid_v7(&self.run_id.0)
+            || !is_sanitized_case_name(&self.case_name)
+        {
             return Err(ManifestError::MissingIdentity);
         }
         if self.software.crate_versions.is_empty()
@@ -439,34 +496,20 @@ impl RunManifest {
                     return Err(ManifestError::InvalidLifecycle);
                 }
             }
-            RunLifecycleStatus::Complete | RunLifecycleStatus::CompletedWithParticleErrors => {
+            RunLifecycleStatus::Complete
+            | RunLifecycleStatus::CompletedWithParticleErrors
+            | RunLifecycleStatus::Cancelled => {
                 if self.finished_at.is_none() || self.failure.is_some() {
                     return Err(ManifestError::InvalidLifecycle);
                 }
-                let Some(prov) = &self.provenance else {
-                    return Err(ManifestError::InvalidLifecycle);
-                };
-                if prov.schema_version != crate::science::PROVENANCE_BUNDLE_SCHEMA_ID
-                    || prov.relative_path != crate::science::PROVENANCE_BUNDLE_FILE_NAME
-                    || !is_sha256(&prov.sha256)
-                    || !is_sha256(&prov.sqlite_sha256)
-                    || !is_sha256(&prov.content_sha256)
-                    || !is_sha256(&prov.sqlite_sql_sha256)
-                    || !is_sha256(&prov.canonical_output_sha256)
-                {
-                    return Err(ManifestError::InvalidLifecycle);
-                }
-                // Independent formula check — not just presence of hex strings.
-                match crate::output::provenance_bundle::canonical_output_digest(
-                    &prov.sqlite_sql_sha256,
-                    &prov.content_sha256,
-                ) {
-                    Ok(expected) if expected == prov.canonical_output_sha256 => {}
+                match self.provenance.as_ref() {
+                    Some(provenance) if valid_provenance_identity(provenance) => {}
                     _ => return Err(ManifestError::InvalidLifecycle),
                 }
             }
-            RunLifecycleStatus::Failed => {
-                if self.finished_at.is_none() || self.failure.is_none() {
+            RunLifecycleStatus::Failed | RunLifecycleStatus::Interrupted => {
+                if self.finished_at.is_none() || self.failure.is_none() || self.provenance.is_some()
+                {
                     return Err(ManifestError::InvalidLifecycle);
                 }
             }
@@ -558,6 +601,24 @@ fn valid_sha_map(values: &BTreeMap<String, String>) -> bool {
         .all(|(key, value)| !key.trim().is_empty() && is_sha256(value))
 }
 
+fn valid_provenance_identity(provenance: &ProvenanceBundleIdentity) -> bool {
+    if provenance.schema_version != crate::science::PROVENANCE_BUNDLE_SCHEMA_ID
+        || provenance.relative_path != crate::science::PROVENANCE_BUNDLE_FILE_NAME
+        || !is_sha256(&provenance.sha256)
+        || !is_sha256(&provenance.sqlite_sha256)
+        || !is_sha256(&provenance.content_sha256)
+        || !is_sha256(&provenance.sqlite_sql_sha256)
+        || !is_sha256(&provenance.canonical_output_sha256)
+    {
+        return false;
+    }
+    crate::output::provenance_bundle::canonical_output_digest(
+        &provenance.sqlite_sql_sha256,
+        &provenance.content_sha256,
+    )
+    .is_ok_and(|expected| expected == provenance.canonical_output_sha256)
+}
+
 fn is_sha256(value: &str) -> bool {
     value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
@@ -629,7 +690,7 @@ fn valid_termination_summary(summary: &TerminationSummary) -> bool {
 pub enum ManifestError {
     /// Manifest schema identity is not supported.
     UnsupportedSchema,
-    /// Run or Case identity is empty.
+    /// Job series, attempt, run, or Case identity is invalid.
     MissingIdentity,
     /// Lifecycle status conflicts with final time, failure, or termination counts.
     InvalidLifecycle,
@@ -696,6 +757,25 @@ mod tests {
         }
     }
 
+    fn provenance() -> ProvenanceBundleIdentity {
+        let content = "cc".repeat(32);
+        let sql = "dd".repeat(32);
+        let canonical = crate::output::provenance_bundle::canonical_output_digest(&sql, &content)
+            .unwrap_or_else(|_| "00".repeat(32));
+        ProvenanceBundleIdentity {
+            schema_version: crate::science::PROVENANCE_BUNDLE_SCHEMA_ID.into(),
+            relative_path: crate::science::PROVENANCE_BUNDLE_FILE_NAME.into(),
+            sha256: "aa".repeat(32),
+            sqlite_sha256: "bb".repeat(32),
+            content_sha256: content,
+            sqlite_sql_sha256: sql,
+            canonical_output_sha256: canonical,
+            record_count: 0,
+            field_set_count: 0,
+            sample_count: 0,
+        }
+    }
+
     #[test]
     fn running_manifest_roundtrips_and_rejects_unknown_fields() {
         let manifest = RunManifest::running(start());
@@ -722,25 +802,56 @@ mod tests {
             .terminations
             .by_reason
             .insert("invalid_meteorology".into(), 1);
-        // Terminal statuses require provenance identity under v1 contract.
-        let content = "cc".repeat(32);
-        let sql = "dd".repeat(32);
-        let canonical = crate::output::provenance_bundle::canonical_output_digest(&sql, &content)
-            .unwrap_or_else(|_| "00".repeat(32));
-        manifest.provenance = Some(ProvenanceBundleIdentity {
-            schema_version: crate::science::PROVENANCE_BUNDLE_SCHEMA_ID.into(),
-            relative_path: crate::science::PROVENANCE_BUNDLE_FILE_NAME.into(),
-            sha256: "aa".repeat(32),
-            sqlite_sha256: "bb".repeat(32),
-            content_sha256: content,
-            sqlite_sql_sha256: sql,
-            canonical_output_sha256: canonical,
-            record_count: 0,
-            field_set_count: 0,
-            sample_count: 0,
-        });
+        manifest.provenance = Some(provenance());
         assert_eq!(manifest.validate(), Err(ManifestError::InvalidLifecycle));
         manifest.status = RunLifecycleStatus::CompletedWithParticleErrors;
         manifest.validate().unwrap();
+    }
+
+    #[test]
+    fn series_attempt_and_terminal_exit_semantics_are_frozen() {
+        let manifest = RunManifest::running_in_series(
+            start(),
+            JobSeriesId("018f0000-0000-7000-8000-000000000001".into()),
+            2,
+        );
+        assert_eq!(manifest.attempt, 2);
+        assert_eq!(manifest.status.wait_exit_code(), None);
+        assert_eq!(RunLifecycleStatus::Complete.wait_exit_code(), Some(0));
+        for status in [
+            RunLifecycleStatus::CompletedWithParticleErrors,
+            RunLifecycleStatus::Failed,
+            RunLifecycleStatus::Cancelled,
+            RunLifecycleStatus::Interrupted,
+        ] {
+            assert!(status.is_terminal());
+            assert!(!status.run_success());
+            assert_eq!(status.wait_exit_code(), Some(1));
+        }
+
+        let mut invalid = manifest;
+        invalid.attempt = 0;
+        assert_eq!(invalid.validate(), Err(ManifestError::MissingIdentity));
+    }
+
+    #[test]
+    fn cancelled_requires_provenance_and_interrupted_forbids_it() {
+        let mut cancelled = RunManifest::running(start());
+        cancelled.status = RunLifecycleStatus::Cancelled;
+        cancelled.finished_at = Some(Timestamp::UNIX_EPOCH);
+        assert_eq!(cancelled.validate(), Err(ManifestError::InvalidLifecycle));
+        cancelled.provenance = Some(provenance());
+        cancelled.validate().unwrap();
+
+        let mut interrupted = RunManifest::running(start());
+        interrupted.status = RunLifecycleStatus::Interrupted;
+        interrupted.finished_at = Some(Timestamp::UNIX_EPOCH);
+        interrupted.failure = Some(RunFailure {
+            code: "run.interrupted".into(),
+            message: "worker disappeared before safe finalization".into(),
+        });
+        interrupted.validate().unwrap();
+        interrupted.provenance = Some(provenance());
+        assert_eq!(interrupted.validate(), Err(ManifestError::InvalidLifecycle));
     }
 }

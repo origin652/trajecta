@@ -13,6 +13,7 @@ fn every_public_module_has_an_authoritative_contract_file() -> Result<(), Box<dy
         workspace.join("crates/trajecta-case/src/lib.rs"),
         workspace.join("crates/trajecta-met/src/lib.rs"),
         workspace.join("crates/trajecta-core/src/lib.rs"),
+        workspace.join("crates/trajecta-job/src/lib.rs"),
         workspace.join("crates/trajecta-cli/src/lib.rs"),
     ];
 
@@ -22,7 +23,7 @@ fn every_public_module_has_an_authoritative_contract_file() -> Result<(), Box<dy
     }
     assert_eq!(
         visited.len(),
-        95,
+        106,
         "the public module inventory changed; review and update its contracts"
     );
     Ok(())

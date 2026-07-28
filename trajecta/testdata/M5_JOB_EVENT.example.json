@@ -1,0 +1,11 @@
+{
+  "schema_version": "trajecta.job-event/v1",
+  "sequence": 1,
+  "emitted_at": { "seconds_since_unix_epoch": 0, "nanosecond": 0 },
+  "job_series_id": "018f0000-0000-7000-8000-000000000000",
+  "run_id": "018f0000-0000-7000-8000-000000000001",
+  "attempt": 1,
+  "kind": "state_transition",
+  "state": "queued",
+  "message": "accepted into durable queue"
+}

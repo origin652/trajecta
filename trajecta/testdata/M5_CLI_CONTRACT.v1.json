@@ -1,0 +1,58 @@
+{
+  "schema_version": "trajecta.cli-contract/v1",
+  "formats": ["human", "json", "jsonl"],
+  "global_options": {
+    "format": "--format",
+    "json_alias": "--json",
+    "config": "--config",
+    "project": "--project"
+  },
+  "commands": [
+    { "path": "config init", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "config path", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "config list", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "config get", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "config set", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "config unset", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "config validate", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "project init", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "project status", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "project show", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "project get", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "project set", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "project unset", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "project validate", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "project data-plan", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "project finalize", "stage": "m5_a1", "owner": "a", "streaming": false },
+    { "path": "case validate", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "case resolve", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "data inspect", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "data lock", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "met probe", "stage": "m5_a1", "owner": "b", "streaming": true },
+    { "path": "met replay", "stage": "m5_a1", "owner": "b", "streaming": true },
+    { "path": "doctor", "stage": "m5_a1", "owner": "b", "streaming": false },
+    { "path": "run", "stage": "m5_a2", "owner": "a", "streaming": true },
+    { "path": "job list", "stage": "m5_a2", "owner": "b", "streaming": false },
+    { "path": "job status", "stage": "m5_a2", "owner": "b", "streaming": false },
+    { "path": "job wait", "stage": "m5_a2", "owner": "b", "streaming": true },
+    { "path": "job events", "stage": "m5_a2", "owner": "b", "streaming": true },
+    { "path": "job cancel", "stage": "m5_a2", "owner": "a", "streaming": false },
+    { "path": "job rerun", "stage": "m5_a3", "owner": "a", "streaming": false },
+    { "path": "job forget", "stage": "m5_a3", "owner": "a", "streaming": false },
+    { "path": "job prune", "stage": "m5_a3", "owner": "a", "streaming": false },
+    { "path": "result inspect", "stage": "m5_a3", "owner": "b", "streaming": false },
+    { "path": "result verify", "stage": "m5_a3", "owner": "a", "streaming": false },
+    { "path": "result trajectory", "stage": "m5_a3", "owner": "b", "streaming": true }
+  ],
+  "run": {
+    "default_mode": "foreground_wait",
+    "detach_flag": "--detach",
+    "foreground_survives_client_disconnect": true
+  },
+  "exit_codes": {
+    "complete": 0,
+    "non_success_terminal": 1,
+    "usage": 2,
+    "detached_accepted": 0
+  }
+}

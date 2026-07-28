@@ -300,6 +300,17 @@ fn manifest_numerical_and_provenance_schemas_are_frozen_draft_2020_12() {
             .and_then(Value::as_str),
         Some(RUN_MANIFEST_SCHEMA_ID)
     );
+    let required = manifest.get("required").and_then(Value::as_array).unwrap();
+    for field in ["job_series_id", "attempt", "run_id"] {
+        assert!(required.iter().any(|value| value.as_str() == Some(field)));
+    }
+    let statuses = manifest
+        .pointer("/properties/status/enum")
+        .and_then(Value::as_array)
+        .unwrap();
+    for status in ["cancelled", "interrupted"] {
+        assert!(statuses.iter().any(|value| value.as_str() == Some(status)));
+    }
     let provenance: Value = serde_json::from_slice(
         &fs::read(workspace().join("testdata/M4_PROVENANCE_BUNDLE.schema.json")).unwrap(),
     )

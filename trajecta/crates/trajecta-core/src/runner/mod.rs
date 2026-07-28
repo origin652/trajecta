@@ -6,8 +6,9 @@
 
 mod builder;
 pub use builder::{
-    RunnerBuildKnobs, build_runner, build_runner_with_knobs, build_runner_with_manifest_store,
-    build_runner_with_store_and_knobs,
+    RunnerAttemptIdentity, RunnerBuildKnobs, build_runner, build_runner_for_attempt,
+    build_runner_with_knobs, build_runner_with_manifest_store, build_runner_with_store_and_knobs,
+    required_capabilities_for_population, run_directory_path,
 };
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -111,6 +112,51 @@ pub trait RunManifestStore: Send {
 pub trait LifecycleClock: Send {
     /// Returns the current UTC timestamp.
     fn now(&mut self) -> Result<Timestamp, String>;
+}
+
+/// Task-level progress snapshot observed only at a completed macro-step boundary.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RunnerProgress {
+    /// Number of fully completed numerical macro steps.
+    pub completed_macro_steps: u64,
+    /// Exact physical simulation time at this boundary.
+    pub simulation_time: Timestamp,
+    /// Currently alive particle count.
+    pub active_particles: u64,
+    /// Cumulative normal termination count.
+    pub normal_terminations: u64,
+    /// Cumulative abnormal termination count.
+    pub abnormal_terminations: u64,
+}
+
+/// Decision returned by a runner control implementation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RunnerControlDecision {
+    /// Continue with the next planned macro step.
+    Continue,
+    /// Finalize a legal cancelled run at this completed boundary.
+    Cancel,
+}
+
+/// Low-overhead control-plane hook invoked only at macro-step boundaries.
+pub trait RunnerControl: Send {
+    /// Persists heartbeat/progress and returns any safe cancellation request.
+    fn macro_step_boundary(
+        &mut self,
+        progress: RunnerProgress,
+    ) -> Result<RunnerControlDecision, String>;
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct NoopRunnerControl;
+
+impl RunnerControl for NoopRunnerControl {
+    fn macro_step_boundary(
+        &mut self,
+        _progress: RunnerProgress,
+    ) -> Result<RunnerControlDecision, String> {
+        Ok(RunnerControlDecision::Continue)
+    }
 }
 
 /// Explicit runtime components supplied by builder/plumbing code.
@@ -242,6 +288,14 @@ impl SimulationRunner {
 
     /// Executes the complete event-driven main loop.
     pub fn run(&mut self) -> Result<RunOutcome, RunError> {
+        self.run_with_control(&mut NoopRunnerControl)
+    }
+
+    /// Executes with a control hook polled only at safe macro-step boundaries.
+    pub fn run_with_control(
+        &mut self,
+        control: &mut dyn RunnerControl,
+    ) -> Result<RunOutcome, RunError> {
         let _performance = PerformanceScope::enter(PerformanceStage::RunnerTotal);
         if self.manifest.status != RunLifecycleStatus::Running {
             return Err(RunError::InvalidConfiguration(
@@ -249,9 +303,12 @@ impl SimulationRunner {
             ));
         }
         self.persist_manifest()?;
-        let result = self.run_inner();
+        let result = self.run_inner(control);
         match result {
-            Ok(()) => self.finalize_success(),
+            Ok(RunLoopCompletion::Natural) => self.finalize_terminal(TerminalDisposition::Natural),
+            Ok(RunLoopCompletion::Cancelled) => {
+                self.finalize_terminal(TerminalDisposition::Cancelled)
+            }
             Err(error) => {
                 self.finalize_failure(&error)?;
                 Err(error)
@@ -276,7 +333,10 @@ impl SimulationRunner {
         self.meteorology.column_cache_metrics()
     }
 
-    fn run_inner(&mut self) -> Result<(), RunError> {
+    fn run_inner(
+        &mut self,
+        control: &mut dyn RunnerControl,
+    ) -> Result<RunLoopCompletion, RunError> {
         for output in &mut self.outputs {
             output
                 .product
@@ -308,6 +368,16 @@ impl SimulationRunner {
         {
             let _performance = PerformanceScope::enter(PerformanceStage::RunnerOutput);
             self.sample_outputs(self.state.clock.current, true, &[])?;
+        }
+
+        let initial_terminations = termination_summary(&self.state.particles)?;
+        let mut progress_counts = ProgressCounts {
+            normal: initial_terminations.normal_count,
+            abnormal: initial_terminations.abnormal_count,
+        };
+        if poll_runner_control(control, self.progress_snapshot(progress_counts)?)? {
+            self.finish_run_inner()?;
+            return Ok(RunLoopCompletion::Cancelled);
         }
 
         while self.state.clock.current != self.end_time {
@@ -447,6 +517,28 @@ impl SimulationRunner {
                         )
                 })
                 .collect::<Vec<_>>();
+            for index in &newly_terminated {
+                let ParticleStatus::Terminated { reason } = &self.state.particles.status[*index]
+                else {
+                    return Err(RunError::InvalidConfiguration(
+                        "new termination index is not terminated".into(),
+                    ));
+                };
+                match reason.class() {
+                    TerminationClass::Normal => {
+                        progress_counts.normal = progress_counts
+                            .normal
+                            .checked_add(1)
+                            .ok_or(RunError::ResourceLimit)?;
+                    }
+                    TerminationClass::Abnormal => {
+                        progress_counts.abnormal = progress_counts
+                            .abnormal
+                            .checked_add(1)
+                            .ok_or(RunError::ResourceLimit)?;
+                    }
+                }
+            }
             self.sample_interior_terminations(&newly_terminated, end_time)?;
             let mut lifecycle_indices = newly_terminated
                 .into_iter()
@@ -462,12 +554,26 @@ impl SimulationRunner {
             );
             lifecycle_indices.sort_unstable();
             lifecycle_indices.dedup();
+            let cancelled = poll_runner_control(control, self.progress_snapshot(progress_counts)?)?;
             {
                 let _performance = PerformanceScope::enter(PerformanceStage::RunnerOutput);
-                self.sample_outputs(end_time, end_time == self.end_time, &lifecycle_indices)?;
+                self.sample_outputs(
+                    end_time,
+                    cancelled || end_time == self.end_time,
+                    &lifecycle_indices,
+                )?;
+            }
+            if cancelled {
+                self.finish_run_inner()?;
+                return Ok(RunLoopCompletion::Cancelled);
             }
         }
 
+        self.finish_run_inner()?;
+        Ok(RunLoopCompletion::Natural)
+    }
+
+    fn finish_run_inner(&mut self) -> Result<(), RunError> {
         {
             let _performance = PerformanceScope::enter(PerformanceStage::RunnerPopulation);
             let mut context = PopulationContext {
@@ -502,6 +608,30 @@ impl SimulationRunner {
             }
         }
         Ok(())
+    }
+
+    fn progress_snapshot(&self, counts: ProgressCounts) -> Result<RunnerProgress, RunError> {
+        let total = u64::try_from(
+            self.state
+                .particles
+                .len()
+                .map_err(|_| RunError::Population("invalid progress particle batch".into()))?,
+        )
+        .map_err(|_| RunError::ResourceLimit)?;
+        let terminated = counts
+            .normal
+            .checked_add(counts.abnormal)
+            .ok_or(RunError::ResourceLimit)?;
+        let active_particles = total.checked_sub(terminated).ok_or_else(|| {
+            RunError::InvalidConfiguration("progress termination count exceeds population".into())
+        })?;
+        Ok(RunnerProgress {
+            completed_macro_steps: self.state.numerical_step_index,
+            simulation_time: self.state.clock.current,
+            active_particles,
+            normal_terminations: counts.normal,
+            abnormal_terminations: counts.abnormal,
+        })
     }
 
     fn abort_outputs(&mut self) -> Result<(), RunError> {
@@ -901,7 +1031,10 @@ impl SimulationRunner {
         self.state.population_state = self.population.snapshot_state();
     }
 
-    fn finalize_success(&mut self) -> Result<RunOutcome, RunError> {
+    fn finalize_terminal(
+        &mut self,
+        disposition: TerminalDisposition,
+    ) -> Result<RunOutcome, RunError> {
         // Freeze terminal timestamp first so any subsequent Failed path is lifecycle-legal.
         // Clock failure is retained and aggregated — never silently dropped.
         let clock_result = self
@@ -926,12 +1059,19 @@ impl SimulationRunner {
             }
             self.manifest.terminations = termination_summary(&self.state.particles)?;
             let finished_at = clock_result.clone()?;
-            let outcome = if self.manifest.terminations.abnormal_count == 0 {
-                self.manifest.status = RunLifecycleStatus::Complete;
-                RunOutcome::Complete
-            } else {
-                self.manifest.status = RunLifecycleStatus::CompletedWithParticleErrors;
-                RunOutcome::CompletedWithParticleErrors
+            let outcome = match disposition {
+                TerminalDisposition::Cancelled => {
+                    self.manifest.status = RunLifecycleStatus::Cancelled;
+                    RunOutcome::Cancelled
+                }
+                TerminalDisposition::Natural if self.manifest.terminations.abnormal_count == 0 => {
+                    self.manifest.status = RunLifecycleStatus::Complete;
+                    RunOutcome::Complete
+                }
+                TerminalDisposition::Natural => {
+                    self.manifest.status = RunLifecycleStatus::CompletedWithParticleErrors;
+                    RunOutcome::CompletedWithParticleErrors
+                }
             };
             self.manifest.finished_at = Some(finished_at);
             self.manifest.failure = None;
@@ -1163,6 +1303,34 @@ fn termination_summary(particles: &ParticleBatch) -> Result<TerminationSummary, 
     Ok(summary)
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ProgressCounts {
+    normal: u64,
+    abnormal: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RunLoopCompletion {
+    Natural,
+    Cancelled,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TerminalDisposition {
+    Natural,
+    Cancelled,
+}
+
+fn poll_runner_control(
+    control: &mut dyn RunnerControl,
+    progress: RunnerProgress,
+) -> Result<bool, RunError> {
+    control
+        .macro_step_boundary(progress)
+        .map(|decision| decision == RunnerControlDecision::Cancel)
+        .map_err(RunError::Control)
+}
+
 /// Successful run-level outcome.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RunOutcome {
@@ -1170,6 +1338,8 @@ pub enum RunOutcome {
     Complete,
     /// Run-level work completed but one or more particles terminated abnormally.
     CompletedWithParticleErrors,
+    /// A safe macro-step-boundary cancellation finalized auditable outputs.
+    Cancelled,
 }
 
 /// Builder that resolves model identifiers and validates runtime capabilities.
@@ -1201,6 +1371,8 @@ pub enum RunError {
     Output(String),
     /// Running/final manifest validation or persistence failed.
     Manifest(String),
+    /// Job-control heartbeat or cancellation polling failed.
+    Control(String),
     /// Domain-fill mass conservation exceeded tolerance.
     MassConservation,
     /// Requested memory, counter, or particle capacity cannot be satisfied.
@@ -1221,6 +1393,7 @@ impl RunError {
             Self::Clock(_) => "run.clock",
             Self::Output(_) => "run.output",
             Self::Manifest(_) => "run.manifest",
+            Self::Control(_) => "run.control",
             Self::MassConservation => "run.mass_conservation",
             Self::ResourceLimit => "run.resource_limit",
         }
@@ -1777,6 +1950,25 @@ mod tests {
         }
     }
 
+    #[derive(Default)]
+    struct CancelAfterOneStep {
+        observed: Vec<RunnerProgress>,
+    }
+
+    impl RunnerControl for CancelAfterOneStep {
+        fn macro_step_boundary(
+            &mut self,
+            progress: RunnerProgress,
+        ) -> Result<RunnerControlDecision, String> {
+            self.observed.push(progress);
+            if progress.completed_macro_steps >= 1 {
+                Ok(RunnerControlDecision::Cancel)
+            } else {
+                Ok(RunnerControlDecision::Continue)
+            }
+        }
+    }
+
     fn engine_and_plan() -> (MetEngine, TransportPlan) {
         let capabilities = CapabilitySet::new()
             .with(Capability::Transport)
@@ -1961,6 +2153,47 @@ mod tests {
         assert_eq!(values.last().unwrap(), "manifest:Complete");
         assert!(values.iter().any(|value| value == "output.sample:1"));
         assert!(values.iter().any(|value| value == "output.sample:2"));
+    }
+
+    #[test]
+    fn safe_control_cancel_stops_at_macro_boundary_and_finalizes_cancelled() {
+        let (mut runner, log) = runner(Direction::Forward, false, false);
+        let mut control = CancelAfterOneStep::default();
+        assert_eq!(
+            runner.run_with_control(&mut control),
+            Ok(RunOutcome::Cancelled)
+        );
+        assert_eq!(runner.manifest.status, RunLifecycleStatus::Cancelled);
+        assert_eq!(runner.manifest.failure, None);
+        assert!(runner.manifest.provenance.is_some());
+        assert_eq!(runner.state.clock.current, Timestamp::new(1, 0).unwrap());
+        assert_eq!(runner.state.numerical_step_index, 1);
+        assert_eq!(control.observed.len(), 2);
+        assert_eq!(control.observed[0].completed_macro_steps, 0);
+        assert_eq!(control.observed[1].completed_macro_steps, 1);
+        assert_eq!(
+            control.observed[1].simulation_time,
+            Timestamp::new(1, 0).unwrap()
+        );
+        assert_eq!(control.observed[1].active_particles, 1);
+        let values = log.lock().unwrap();
+        assert!(values.iter().any(|value| value == "output.sample:1"));
+        assert!(
+            values
+                .iter()
+                .position(|value| value == "population.finalize")
+                .unwrap()
+                < values
+                    .iter()
+                    .position(|value| value == "output.finish")
+                    .unwrap()
+        );
+        assert_eq!(values.last().unwrap(), "manifest:Cancelled");
+        assert!(
+            !values
+                .iter()
+                .any(|value| value == "integrator:1:0:1000000000:[1]")
+        );
     }
 
     #[test]

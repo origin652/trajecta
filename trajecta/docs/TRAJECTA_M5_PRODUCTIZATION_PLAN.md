@@ -232,6 +232,7 @@ M5 内不实现真实产物删除：rerun 后的清理判断和 `job prune` 都�
 由 A 完成：
 
 - 形成独立的 M4 完成基线 commit/push；
+- 以 `TRAJECTA_M5_A0_PRODUCT_CONTRACT.md` 作为 M5 控制面最高权威；
 - 写入 M5 权威计划、命令合同、状态机、退出码和职责；
 - 冻结 project/config/data-plan/job-event 机器合同；
 - 冻结 manifest v1 的 cancelled/interrupted 修订；
@@ -260,6 +261,16 @@ M5 内不实现真实产物删除：rerun 后的清理判断和 `job prune` 都�
 - 实现 worker 重新关联、失联检测、interrupted forensic；
 - 实现安全取消的 SQLite/provenance/manifest 终态化；
 - 不改变积分、插值、边界、population 或气象查询结果。
+
+### M5-A2E：A2 代码精简与结构收口
+
+A2 功能和真实进程验收冻结后，由 A 单独执行一次不扩功能的工程收口：
+
+- 盘点 A1/A2 新增生产代码，优先拆分过大的 runtime/catalog 文件；
+- 删除重复实现、宽泛兜底、死分支、叙述性注释和只为未来预留的抽象；
+- 复用现有 helper 与类型，收紧错误传播和模块职责，但不建立 `v2`、`fix2` 等平行版本；
+- 不改变公开 CLI、job/schema、状态机、数值路径、容差、异常分类或磁盘产物语义；
+- 精简后必须原样复跑 A2 的 Windows/WSL 进程合同、恢复/取消场景和 workspace 全量门禁。
 
 ### M5-A3：任务操作、验证和轨迹产品化
 
