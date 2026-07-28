@@ -57,20 +57,20 @@ const MIB: u64 = 1024 * 1024;
 
 pub(crate) fn internal_entry(arguments: &[OsString]) -> Option<i32> {
     match arguments.get(1).and_then(|value| value.to_str()) {
-        Some("__daemon") => Some(run_internal(arguments, parse_daemon_arguments)),
-        Some("__worker") => Some(run_internal(arguments, parse_worker_arguments)),
+        Some("__daemon") => Some(run_internal(
+            parse_daemon_arguments(arguments)
+                .and_then(|invocation| run_daemon(&invocation.config_path)),
+        )),
+        Some("__worker") => Some(run_internal(
+            parse_worker_arguments(arguments)
+                .and_then(|invocation| run_worker(&invocation.config_path, invocation.run_id)),
+        )),
         _ => None,
     }
 }
 
-fn run_internal<T>(
-    arguments: &[OsString],
-    parser: fn(&[OsString]) -> Result<T, RuntimeError>,
-) -> i32
-where
-    T: InternalInvocation,
-{
-    match parser(arguments).and_then(InternalInvocation::execute) {
+fn run_internal(result: Result<(), RuntimeError>) -> i32 {
+    match result {
         Ok(()) => 0,
         Err(error) => {
             let _ = writeln!(
@@ -84,29 +84,13 @@ where
     }
 }
 
-trait InternalInvocation: Sized {
-    fn execute(self) -> Result<(), RuntimeError>;
-}
-
 struct DaemonInvocation {
     config_path: PathBuf,
-}
-
-impl InternalInvocation for DaemonInvocation {
-    fn execute(self) -> Result<(), RuntimeError> {
-        run_daemon(&self.config_path)
-    }
 }
 
 struct WorkerInvocation {
     config_path: PathBuf,
     run_id: RunId,
-}
-
-impl InternalInvocation for WorkerInvocation {
-    fn execute(self) -> Result<(), RuntimeError> {
-        run_worker(&self.config_path, self.run_id)
-    }
 }
 
 fn parse_daemon_arguments(arguments: &[OsString]) -> Result<DaemonInvocation, RuntimeError> {
