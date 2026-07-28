@@ -537,10 +537,12 @@ fn emit_job_event(
 ) -> io::Result<()> {
     match output {
         OutputMode::Human => {
-            let kind = serde_json::to_value(event.kind)
-                .ok()
-                .and_then(|value| value.as_str().map(str::to_owned))
-                .unwrap_or_else(|| "event".into());
+            let Value::String(kind) = serde_json::to_value(event.kind).map_err(io::Error::other)?
+            else {
+                return Err(io::Error::other(
+                    "job event kind did not serialize as a string",
+                ));
+            };
             let message = event.message.as_deref().unwrap_or("");
             writeln!(
                 writer,
@@ -570,7 +572,7 @@ fn emit_stream_value(
         OutputMode::Human => writeln!(
             writer,
             "{}",
-            serde_json::to_string_pretty(&value).unwrap_or_else(|_| "null".into())
+            serde_json::to_string_pretty(&value).map_err(io::Error::other)?
         ),
         OutputMode::Jsonl => {
             let line = crate::app::render_stream_data(command, *sequence, value)
@@ -1048,11 +1050,7 @@ fn run_daemon(config_path: &Path) -> Result<(), RuntimeError> {
                 format!("locate executable: {error}"),
             )
         })?;
-        let log_root = settings
-            .catalog_path
-            .parent()
-            .unwrap_or_else(|| Path::new("."))
-            .join("worker-logs");
+        let log_root = settings.catalog_path.with_file_name("worker-logs");
         let mut processes =
             HostWorkerProcesses::new(executable, settings.config_path.clone(), log_root);
         let tick = Duration::from_millis(settings.sample_interval_ms.clamp(100, 1_000));

@@ -111,11 +111,10 @@ pub fn dispatch_once(
                     let stop = processes.force_stop(&lease);
                     let current = catalog.snapshot_for_run(&snapshot.run_id)?;
                     if current.state.is_terminal() {
-                        if stop.is_err() {
+                        if let Err(stop_error) = stop {
                             return Err(JobBackendError::Unavailable(format!(
                                 "worker became terminal before lease attachment, but the spawned process could not be stopped: {attach_error}; {}",
-                                stop.err()
-                                    .unwrap_or_else(|| "unknown force-stop failure".into())
+                                stop_error
                             )));
                         }
                         report.interrupted_run_ids.push(snapshot.run_id);

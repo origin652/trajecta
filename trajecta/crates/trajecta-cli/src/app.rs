@@ -170,16 +170,16 @@ pub(crate) fn render(
     output: OutputMode,
 ) -> Result<String, serde_json::Error> {
     match output {
-        OutputMode::Human => Ok(render_human(outcome)),
+        OutputMode::Human => render_human(outcome),
         OutputMode::Json => serde_json::to_string(&OutputEnvelope::from(outcome)),
         OutputMode::Jsonl => render_jsonl(outcome),
     }
 }
 
-fn render_human(outcome: &AppOutcome) -> String {
+fn render_human(outcome: &AppOutcome) -> Result<String, serde_json::Error> {
     let mut lines = Vec::new();
     if !outcome.data.is_null() {
-        lines.push(serde_json::to_string_pretty(&outcome.data).unwrap_or_else(|_| "null".into()));
+        lines.push(serde_json::to_string_pretty(&outcome.data)?);
     }
     for diagnostic in &outcome.diagnostics {
         lines.push(format!("{}: {}", diagnostic.code(), diagnostic.message()));
@@ -188,9 +188,9 @@ fn render_human(outcome: &AppOutcome) -> String {
         }
     }
     if lines.is_empty() {
-        "ok".into()
+        Ok("ok".into())
     } else {
-        lines.join("\n")
+        Ok(lines.join("\n"))
     }
 }
 
