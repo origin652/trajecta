@@ -16,6 +16,7 @@ use trajecta_case::document::{
 use trajecta_case::expand::{expand_case_file, expand_run_profile_file};
 use trajecta_case::intent::{IntentValidator, ValidationIntent};
 use trajecta_case::lockfile::parse_dataset_lock_json;
+use trajecta_case::model::time::Timestamp;
 use trajecta_case::resolver::LocalRefResolver;
 use trajecta_case::schema::{CURRENT_SCHEMA_VERSION, SchemaDocument, SchemaError};
 use trajecta_met::io::lock_builder::{ReaderMetadataInspector, SourceMetadataInspector};
@@ -1789,8 +1790,7 @@ fn data_plan(project: &Project) -> Result<Value, ProjectError> {
                 .iter()
                 .map(|value| serde_json::to_value(value).map_err(json_error))
                 .collect::<Result<Vec<_>, _>>()?;
-            required_capabilities
-                .sort_by_key(|value| value.as_str().unwrap_or_default().to_owned());
+            required_capabilities.sort_by(|left, right| left.as_str().cmp(&right.as_str()));
             let mut requirement = serde_json::Map::new();
             requirement.insert("profile_name".into(), Value::String(profile_name.clone()));
             requirement.insert("case_name".into(), Value::String(case_name.clone()));
@@ -1830,15 +1830,17 @@ fn data_plan(project: &Project) -> Result<Value, ProjectError> {
             requirements.push(Value::Object(requirement));
         }
     }
-    requirements.sort_by_key(|value| {
+    requirements.sort_by(|left, right| {
         (
-            value["profile_name"]
-                .as_str()
-                .unwrap_or_default()
-                .to_owned(),
-            value["case_name"].as_str().unwrap_or_default().to_owned(),
-            value["dataset_id"].as_str().unwrap_or_default().to_owned(),
+            left["profile_name"].as_str(),
+            left["case_name"].as_str(),
+            left["dataset_id"].as_str(),
         )
+            .cmp(&(
+                right["profile_name"].as_str(),
+                right["case_name"].as_str(),
+                right["dataset_id"].as_str(),
+            ))
     });
     let canonical =
         serde_json::json!({"index": project.index, "cases": cases, "profiles": profiles_value});
@@ -1952,28 +1954,13 @@ fn validate_data_plan_shape(plan: &Value) -> Result<(), ProjectError> {
                 )
             })?;
         }
-        let mut coverage = Vec::new();
+        let mut coverage = Vec::<Timestamp>::new();
         for key in ["coverage_start", "coverage_end"] {
-            let timestamp = item.get(key).and_then(Value::as_object).ok_or_else(|| {
-                ProjectError::new(
-                    "project.data_plan_schema",
-                    "coverage timestamp must be object",
-                )
-            })?;
-            let seconds = timestamp
-                .get("seconds_since_unix_epoch")
-                .and_then(Value::as_i64);
-            let nanosecond = timestamp.get("nanosecond").and_then(Value::as_u64);
-            if timestamp.len() != 2
-                || seconds.is_none()
-                || nanosecond.is_none_or(|value| value > 999_999_999)
-            {
-                return Err(ProjectError::new(
-                    "project.data_plan_schema",
-                    "invalid coverage timestamp",
-                ));
-            }
-            coverage.push((seconds.unwrap_or_default(), nanosecond.unwrap_or_default()));
+            let timestamp =
+                serde_json::from_value::<Timestamp>(item[key].clone()).map_err(|_| {
+                    ProjectError::new("project.data_plan_schema", "invalid coverage timestamp")
+                })?;
+            coverage.push(timestamp);
         }
         if coverage[0] > coverage[1] {
             return Err(ProjectError::new(
