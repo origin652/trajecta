@@ -162,8 +162,8 @@ pub(crate) fn execute_run(
     })();
 
     match result {
-        Ok(PublicRunResult::Detached(receipt)) => write_outcome(
-            AppOutcome::ok("run", serialize_value(&receipt).unwrap_or(Value::Null)),
+        Ok(PublicRunResult::Detached(receipt)) => crate::write_outcome(
+            &AppOutcome::ok("run", serialize_value(&receipt).unwrap_or(Value::Null)),
             output,
         ),
         Ok(PublicRunResult::Foreground {
@@ -203,8 +203,8 @@ pub(crate) fn execute_job(
         command,
         JobCommand::Rerun(_) | JobCommand::Forget(_) | JobCommand::Prune
     ) {
-        return write_outcome(
-            AppOutcome::error(
+        return crate::write_outcome(
+            &AppOutcome::error(
                 job_command_name(command),
                 "command.stage_not_available",
                 "command is reserved for M5-A3",
@@ -226,8 +226,8 @@ pub(crate) fn execute_job(
             states: Vec::new(),
             limit: 1_000,
         }) {
-            Ok(snapshots) => write_outcome(
-                AppOutcome::ok(
+            Ok(snapshots) => crate::write_outcome(
+                &AppOutcome::ok(
                     "job list",
                     serialize_value(&snapshots).unwrap_or(Value::Null),
                 ),
@@ -241,8 +241,8 @@ pub(crate) fn execute_job(
                 Err(error) => return write_runtime_error("job status", error, output),
             };
             match client.status(&id) {
-                Ok(snapshot) => write_outcome(
-                    AppOutcome::ok(
+                Ok(snapshot) => crate::write_outcome(
+                    &AppOutcome::ok(
                         "job status",
                         serialize_value(&snapshot).unwrap_or(Value::Null),
                     ),
@@ -296,8 +296,8 @@ pub(crate) fn execute_job(
                 CancelMode::Safe
             };
             match cancel_reliably(&mut client, &id, mode) {
-                Ok(snapshot) => write_outcome(
-                    AppOutcome::ok(
+                Ok(snapshot) => crate::write_outcome(
+                    &AppOutcome::ok(
                         "job cancel",
                         serialize_value(&snapshot).unwrap_or(Value::Null),
                     ),
@@ -369,8 +369,8 @@ fn wait_for_job(
                 Ok(snapshot) if snapshot.state.is_terminal() => {
                     let exit_code = snapshot.state.wait_exit_code().unwrap_or(1);
                     let run_success = snapshot.state.run_success();
-                    return write_outcome(
-                        AppOutcome::ok(command, serialize_value(&snapshot).unwrap_or(Value::Null))
+                    return crate::write_outcome(
+                        &AppOutcome::ok(command, serialize_value(&snapshot).unwrap_or(Value::Null))
                             .with_run_success(run_success)
                             .with_exit_code(exit_code),
                         output,
@@ -476,8 +476,8 @@ fn stream_events(
             after_sequence: since,
             limit: 10_000,
         }) {
-            Ok(events) => write_outcome(
-                AppOutcome::ok(
+            Ok(events) => crate::write_outcome(
+                &AppOutcome::ok(
                     "job events",
                     serialize_value(&events).unwrap_or(Value::Null),
                 ),
@@ -663,15 +663,11 @@ fn finish_stream_error(
 }
 
 fn write_runtime_error(command: &str, error: RuntimeError, output: OutputMode) -> i32 {
-    write_outcome(
-        AppOutcome::error(command, &error.code, error.message, error.hint)
+    crate::write_outcome(
+        &AppOutcome::error(command, &error.code, error.message, error.hint)
             .with_exit_code(error.exit_code),
         output,
     )
-}
-
-fn write_outcome(outcome: AppOutcome, output: OutputMode) -> i32 {
-    crate::write_outcome(&outcome, output)
 }
 
 fn serialize_value(value: &impl Serialize) -> Result<Value, RuntimeError> {
