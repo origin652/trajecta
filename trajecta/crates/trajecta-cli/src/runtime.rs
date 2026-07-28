@@ -1329,32 +1329,28 @@ fn run_worker(config_path: &Path, run_id: RunId) -> Result<(), RuntimeError> {
         return Ok(());
     }
 
-    let resolved = match resolve_worker_input(&snapshot.input) {
-        Ok(resolved) => resolved,
-        Err(error) => {
-            finish_worker_failure(
-                &mut catalog,
-                &run_id,
-                &identity.start_token,
-                &error.code,
-                &error.message,
-            )?;
-            return Ok(());
-        }
-    };
-    let actual_resources = match resources_from_execution(&resolved.run_profile.execution) {
-        Ok(resources) => resources,
-        Err(error) => {
-            finish_worker_failure(
-                &mut catalog,
-                &run_id,
-                &identity.start_token,
-                &error.code,
-                &error.message,
-            )?;
-            return Ok(());
-        }
-    };
+    // Setup failures are durable job outcomes, not worker-process failures.
+    macro_rules! setup_or_finish {
+        ($result:expr) => {
+            match $result {
+                Ok(value) => value,
+                Err(error) => {
+                    finish_worker_failure(
+                        &mut catalog,
+                        &run_id,
+                        &identity.start_token,
+                        &error.code,
+                        &error.message,
+                    )?;
+                    return Ok(());
+                }
+            }
+        };
+    }
+
+    let resolved = setup_or_finish!(resolve_worker_input(&snapshot.input));
+    let actual_resources =
+        setup_or_finish!(resources_from_execution(&resolved.run_profile.execution));
     if actual_resources != snapshot.resources {
         finish_worker_failure(
             &mut catalog,
@@ -1368,25 +1364,14 @@ fn run_worker(config_path: &Path, run_id: RunId) -> Result<(), RuntimeError> {
     if finish_pre_manifest_cancel_if_requested(&mut catalog, &run_id, &identity.start_token)? {
         return Ok(());
     }
-    let output_directory = match run_directory_path(
-        &resolved.run_profile.output_root,
-        &resolved.case.metadata.name,
-        &snapshot.run_id,
-    )
-    .map_err(|error| RuntimeError::product(error.code(), format!("{error:?}")))
-    {
-        Ok(path) => path,
-        Err(error) => {
-            finish_worker_failure(
-                &mut catalog,
-                &run_id,
-                &identity.start_token,
-                &error.code,
-                &error.message,
-            )?;
-            return Ok(());
-        }
-    };
+    let output_directory = setup_or_finish!(
+        run_directory_path(
+            &resolved.run_profile.output_root,
+            &resolved.case.metadata.name,
+            &snapshot.run_id,
+        )
+        .map_err(|error| RuntimeError::product(error.code(), format!("{error:?}")))
+    );
     retry_catalog_write(|| catalog.set_output_directory(&run_id, &output_directory))?;
     let control_before_build = catalog
         .worker_control(&run_id, &identity.start_token)
@@ -1394,47 +1379,27 @@ fn run_worker(config_path: &Path, run_id: RunId) -> Result<(), RuntimeError> {
     if control_before_build == trajecta_job::catalog::WorkerControl::Continue {
         mark_worker_running_reliably(&mut catalog, &run_id, &identity.start_token)?;
     }
-    let mut runner = match build_runner_for_attempt(
-        resolved.case,
-        resolved.run_profile,
-        RunnerAttemptIdentity {
-            job_series_id: snapshot.job_series_id.clone(),
-            run_id: snapshot.run_id.clone(),
-            attempt: snapshot.attempt,
-        },
-    ) {
-        Ok(runner) => runner,
-        Err(error) => {
-            finish_worker_failure(
-                &mut catalog,
-                &run_id,
-                &identity.start_token,
-                error.code(),
-                &format!("{error:?}"),
-            )?;
-            return Ok(());
-        }
-    };
-    let mut control = match CatalogRunnerControl::open(
-        &settings.catalog_path,
-        run_id.clone(),
-        identity.start_token.clone(),
-        poll_interval(&settings),
-    )
-    .map_err(RuntimeError::backend)
-    {
-        Ok(control) => control,
-        Err(error) => {
-            finish_worker_failure(
-                &mut catalog,
-                &run_id,
-                &identity.start_token,
-                &error.code,
-                &error.message,
-            )?;
-            return Ok(());
-        }
-    };
+    let mut runner = setup_or_finish!(
+        build_runner_for_attempt(
+            resolved.case,
+            resolved.run_profile,
+            RunnerAttemptIdentity {
+                job_series_id: snapshot.job_series_id.clone(),
+                run_id: snapshot.run_id.clone(),
+                attempt: snapshot.attempt,
+            },
+        )
+        .map_err(|error| RuntimeError::product(error.code(), format!("{error:?}")))
+    );
+    let mut control = setup_or_finish!(
+        CatalogRunnerControl::open(
+            &settings.catalog_path,
+            run_id.clone(),
+            identity.start_token.clone(),
+            poll_interval(&settings),
+        )
+        .map_err(RuntimeError::backend)
+    );
     let (terminal, code, message) = match runner.run_with_control(&mut control) {
         Ok(RunOutcome::Complete) => (
             JobState::Complete,
