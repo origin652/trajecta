@@ -4,7 +4,7 @@
 //! opening meteorology files or executing scientific work. Machine-readable
 //! and human output modes share the same command result envelope.
 
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::path::PathBuf;
 
 use trajecta_case::document::MeteorologyReaderBackend;
@@ -818,11 +818,6 @@ Global:
   --project PATH      explicit project root or index
   -h, --help          show this help
 ";
-
-#[allow(dead_code)]
-fn os(value: &str) -> &OsStr {
-    OsStr::new(value)
-}
 
 #[cfg(test)]
 mod tests {

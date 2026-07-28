@@ -219,7 +219,6 @@ pub(crate) fn doctor(
                     "warning",
                     "project.not_found",
                     "no project was discovered",
-                    None,
                 )],
             ));
         }
@@ -253,14 +252,12 @@ pub(crate) fn doctor(
             "info",
             "doctor.deep_sqlite_ok",
             "SQLite create, integrity_check, WAL checkpoint and cleanup succeeded",
-            None,
         ));
     }
     diagnostics.push(diagnostic(
         "info",
         "doctor.daemon_pending_m5_a2",
         "daemon and IPC checks begin in M5-A2",
-        None,
     ));
     Ok(ProjectOutcome::with_diagnostics(
         serde_json::json!({"root": project.root, "config": config, "state": status.state, "deep": deep}),
@@ -862,12 +859,7 @@ fn validate_project(project: &Project) -> Result<ProjectStatus, ProjectError> {
             Ok(None) => draft = true,
             Err(error) => {
                 has_errors = true;
-                diagnostics.push(diagnostic(
-                    "error",
-                    error.code,
-                    error.message,
-                    Some(format!("case.{name}")),
-                ));
+                diagnostics.push(diagnostic("error", error.code, error.message));
             }
         }
     }
@@ -884,7 +876,6 @@ fn validate_project(project: &Project) -> Result<ProjectStatus, ProjectError> {
                         "error",
                         "project.profile_case_mismatch",
                         "profile case_path does not select an indexed resolved Case",
-                        Some(format!("profile.{name}")),
                     ));
                     continue;
                 };
@@ -911,7 +902,7 @@ fn validate_project(project: &Project) -> Result<ProjectStatus, ProjectError> {
                     .unwrap_or_default();
                 if expected != actual || actual != case_datasets {
                     has_errors = true;
-                    diagnostics.push(diagnostic("error", "project.dataset_profiles_mismatch", format!("profile `{name}` dataset_profiles and RunProfile bindings must exactly match Case `{case_name}` datasets"), Some(format!("profile.{name}"))));
+                    diagnostics.push(diagnostic("error", "project.dataset_profiles_mismatch", format!("profile `{name}` dataset_profiles and RunProfile bindings must exactly match Case `{case_name}` datasets")));
                 }
                 if case.time.is_none() || case.particle_population.is_none() {
                     draft = true;
@@ -920,12 +911,7 @@ fn validate_project(project: &Project) -> Result<ProjectStatus, ProjectError> {
             Ok(None) => draft = true,
             Err(error) => {
                 has_errors = true;
-                diagnostics.push(diagnostic(
-                    "error",
-                    error.code,
-                    error.message,
-                    Some(format!("profile.{name}")),
-                ));
+                diagnostics.push(diagnostic("error", error.code, error.message));
             }
         }
     }
@@ -954,7 +940,6 @@ fn validate_project(project: &Project) -> Result<ProjectStatus, ProjectError> {
                         "error",
                         error.code,
                         format!("output root is not writable: {display}"),
-                        None,
                     ));
                 }
             }
@@ -964,7 +949,6 @@ fn validate_project(project: &Project) -> Result<ProjectStatus, ProjectError> {
                     "error",
                     "project.output_root_invalid",
                     format!("output root is not a directory: {display}"),
-                    None,
                 ));
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -973,7 +957,6 @@ fn validate_project(project: &Project) -> Result<ProjectStatus, ProjectError> {
                     "warning",
                     "project.output_root_pending",
                     format!("output root will be created by finalize: {display}"),
-                    None,
                 ));
             }
             Err(error) => {
@@ -982,7 +965,6 @@ fn validate_project(project: &Project) -> Result<ProjectStatus, ProjectError> {
                     "error",
                     "project.output_root_invalid",
                     format!("inspect {display}: {error}"),
-                    None,
                 ));
             }
         }
@@ -995,7 +977,6 @@ fn validate_project(project: &Project) -> Result<ProjectStatus, ProjectError> {
                 "warning",
                 "project.lock_missing",
                 format!("dataset lock is missing: {display}"),
-                None,
             ));
             continue;
         }
@@ -1005,7 +986,6 @@ fn validate_project(project: &Project) -> Result<ProjectStatus, ProjectError> {
                 "error",
                 "project.lock_invalid",
                 format!("dataset lock is not a file: {display}"),
-                None,
             ));
             continue;
         }
@@ -1017,7 +997,6 @@ fn validate_project(project: &Project) -> Result<ProjectStatus, ProjectError> {
                     "error",
                     "project.lock_invalid",
                     format!("{display}: {}", error.message),
-                    None,
                 ));
             }
         }
@@ -1032,7 +1011,6 @@ fn validate_project(project: &Project) -> Result<ProjectStatus, ProjectError> {
             "info",
             "project.finalize_pending",
             "run project finalize after local data has been prepared",
-            None,
         ));
     }
     Ok(ProjectStatus {
@@ -2205,20 +2183,13 @@ fn write_file_atomic(path: &Path, bytes: &[u8]) -> Result<(), ProjectError> {
         ProjectError::new("project.write_failed", error.to_string())
     })
 }
-fn diagnostic(
-    severity: &str,
-    code: &str,
-    message: impl Into<String>,
-    path: Option<String>,
-) -> Diagnostic {
+fn diagnostic(severity: &str, code: &str, message: impl Into<String>) -> Diagnostic {
     let message = message.into();
-    let diagnostic = match severity {
+    match severity {
         "error" => Diagnostic::error(code, message),
         "warning" => Diagnostic::warning(code, message),
         _ => Diagnostic::info(code, message),
-    };
-    let _ = path;
-    diagnostic
+    }
 }
 fn json_error(error: impl std::fmt::Display) -> ProjectError {
     ProjectError::new("project.document_invalid", error.to_string())
