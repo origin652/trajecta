@@ -58,12 +58,11 @@ const MIB: u64 = 1024 * 1024;
 pub(crate) fn internal_entry(arguments: &[OsString]) -> Option<i32> {
     match arguments.get(1).and_then(|value| value.to_str()) {
         Some("__daemon") => Some(run_internal(
-            parse_daemon_arguments(arguments)
-                .and_then(|invocation| run_daemon(&invocation.config_path)),
+            parse_daemon_arguments(arguments).and_then(|config_path| run_daemon(&config_path)),
         )),
         Some("__worker") => Some(run_internal(
             parse_worker_arguments(arguments)
-                .and_then(|invocation| run_worker(&invocation.config_path, invocation.run_id)),
+                .and_then(|(config_path, run_id)| run_worker(&config_path, run_id)),
         )),
         _ => None,
     }
@@ -84,28 +83,17 @@ fn run_internal(result: Result<(), RuntimeError>) -> i32 {
     }
 }
 
-struct DaemonInvocation {
-    config_path: PathBuf,
-}
-
-struct WorkerInvocation {
-    config_path: PathBuf,
-    run_id: RunId,
-}
-
-fn parse_daemon_arguments(arguments: &[OsString]) -> Result<DaemonInvocation, RuntimeError> {
+fn parse_daemon_arguments(arguments: &[OsString]) -> Result<PathBuf, RuntimeError> {
     if arguments.len() != 4 || arguments[2].to_str() != Some("--config") {
         return Err(RuntimeError::internal(
             "daemon.arguments",
             "hidden daemon mode requires exactly --config PATH",
         ));
     }
-    Ok(DaemonInvocation {
-        config_path: PathBuf::from(&arguments[3]),
-    })
+    Ok(PathBuf::from(&arguments[3]))
 }
 
-fn parse_worker_arguments(arguments: &[OsString]) -> Result<WorkerInvocation, RuntimeError> {
+fn parse_worker_arguments(arguments: &[OsString]) -> Result<(PathBuf, RunId), RuntimeError> {
     if arguments.len() != 6
         || arguments[2].to_str() != Some("--config")
         || arguments[4].to_str() != Some("--run-id")
@@ -119,10 +107,7 @@ fn parse_worker_arguments(arguments: &[OsString]) -> Result<WorkerInvocation, Ru
         .to_str()
         .ok_or_else(|| RuntimeError::internal("worker.arguments", "run id is not UTF-8"))?;
     validate_uuid_v7(run_id, "worker.invalid_run_id")?;
-    Ok(WorkerInvocation {
-        config_path: PathBuf::from(&arguments[3]),
-        run_id: RunId(run_id.into()),
-    })
+    Ok((PathBuf::from(&arguments[3]), RunId(run_id.into())))
 }
 
 pub(crate) fn execute_run(
