@@ -1,7 +1,6 @@
 use std::fs;
 use std::path::Path;
 
-use serde_json::Value;
 use trajecta_case::diagnostic::Diagnostic;
 use trajecta_case::document::{DataRootId, MeteorologyReaderBackend};
 use trajecta_case::expand::expand_case_file;
@@ -13,26 +12,8 @@ use trajecta_met::io::reader::detect_source_format;
 
 use crate::command::case::CaseCommand;
 use crate::command::data::DataCommand;
+use crate::command_result::{CommandError as CaseDataError, CommandOutcome as CaseDataOutcome};
 use crate::data_lock::{LockSpec, build_lock, persist_lock, requirements_from_case};
-
-pub(crate) struct CaseDataOutcome {
-    pub(crate) data: Value,
-    pub(crate) diagnostics: Vec<Diagnostic>,
-}
-
-pub(crate) struct CaseDataError {
-    pub(crate) code: &'static str,
-    pub(crate) message: String,
-}
-
-impl CaseDataError {
-    fn new(code: &'static str, message: impl Into<String>) -> Self {
-        Self {
-            code,
-            message: message.into(),
-        }
-    }
-}
 
 pub(crate) fn execute_case(command: &CaseCommand) -> Result<CaseDataOutcome, CaseDataError> {
     match command {

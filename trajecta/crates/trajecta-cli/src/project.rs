@@ -22,8 +22,9 @@ use trajecta_met::io::lock_builder::{ReaderMetadataInspector, SourceMetadataInsp
 use trajecta_met::io::reader::{SourceFormat, detect_source_format};
 
 use crate::command::project::ProjectCommand;
+use crate::command_result::{CommandError as ProjectError, CommandOutcome as ProjectOutcome};
 use crate::data_lock::{
-    DataLockError, LockArtifact, LockSpec, build_lock, persist_lock, requirements_from_case,
+    LockArtifact, LockSpec, build_lock, persist_lock, requirements_from_case,
     validate_existing_lock,
 };
 
@@ -721,7 +722,7 @@ fn project_lock_uses(project: &Project) -> Result<Vec<ProjectLockUse>, ProjectEr
                     ),
                 )
             })?;
-        let requirements = requirements_from_case(case).map_err(project_data_lock_error)?;
+        let requirements = requirements_from_case(case)?;
         for binding in &profile.datasets {
             let dataset_profile = entry
                 .dataset_profiles
@@ -839,10 +840,6 @@ fn group_lock_uses(uses: &[ProjectLockUse]) -> Result<Vec<ProjectLockGroup>, Pro
         }
     }
     Ok(groups.into_values().collect())
-}
-
-fn project_data_lock_error(error: DataLockError) -> ProjectError {
-    ProjectError::new(error.code, error.message)
 }
 
 fn validate_project(project: &Project) -> Result<ProjectStatus, ProjectError> {
@@ -1069,8 +1066,7 @@ fn finalize_project(requested: Option<&Path>) -> Result<ProjectOutcome, ProjectE
                     ),
                 ));
             }
-            let (_, notes) =
-                validate_existing_lock(&group.spec).map_err(project_data_lock_error)?;
+            let (_, notes) = validate_existing_lock(&group.spec)?;
             diagnostics.extend(notes);
             reused.push(relative_string(&project.root, &group.spec.output)?);
         } else {
@@ -1079,7 +1075,7 @@ fn finalize_project(requested: Option<&Path>) -> Result<ProjectOutcome, ProjectE
     }
     let mut pending = Vec::<(ProjectLockGroup, LockArtifact)>::new();
     for group in missing {
-        let artifact = build_lock(&group.spec).map_err(project_data_lock_error)?;
+        let artifact = build_lock(&group.spec)?;
         diagnostics.extend(artifact.notes.clone());
         pending.push((group, artifact));
     }
@@ -1090,10 +1086,7 @@ fn finalize_project(requested: Option<&Path>) -> Result<ProjectOutcome, ProjectE
         if let Err(error) = persist_lock(&group.spec.output, artifact, false) {
             let rollback = rollback_created_locks(&installed);
             cleanup_created_output_roots(&created_output_roots);
-            return Err(combine_finalize_error(
-                project_data_lock_error(error),
-                rollback,
-            ));
+            return Err(combine_finalize_error(error, rollback));
         }
         installed.push((group.spec.output.clone(), artifact.bytes.clone()));
     }
@@ -2067,7 +2060,7 @@ fn lock_status(spec: &LockSpec) -> Result<&'static str, ProjectError> {
             "missing"
         });
     }
-    validate_existing_lock(spec).map_err(project_data_lock_error)?;
+    validate_existing_lock(spec)?;
     Ok("ready")
 }
 
@@ -2196,35 +2189,6 @@ fn json_error(error: impl std::fmt::Display) -> ProjectError {
 }
 fn io_error(error: std::io::Error) -> ProjectError {
     ProjectError::new("project.write_failed", error.to_string())
-}
-
-pub(crate) struct ProjectOutcome {
-    pub(crate) data: Value,
-    pub(crate) diagnostics: Vec<Diagnostic>,
-}
-impl ProjectOutcome {
-    fn ok(data: Value) -> Self {
-        Self {
-            data,
-            diagnostics: Vec::new(),
-        }
-    }
-    fn with_diagnostics(data: Value, diagnostics: Vec<Diagnostic>) -> Self {
-        Self { data, diagnostics }
-    }
-}
-#[derive(Clone, Debug)]
-pub(crate) struct ProjectError {
-    pub(crate) code: &'static str,
-    pub(crate) message: String,
-}
-impl ProjectError {
-    fn new(code: &'static str, message: impl Into<String>) -> Self {
-        Self {
-            code,
-            message: message.into(),
-        }
-    }
 }
 
 #[cfg(test)]

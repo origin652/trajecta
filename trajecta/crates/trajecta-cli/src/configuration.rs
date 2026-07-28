@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
-use std::io::{self, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -10,6 +10,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::command::config::ConfigCommand;
+use crate::command_result::CommandError as ConfigError;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -501,25 +502,4 @@ fn write_atomic(path: &Path, config: &ConfigFile) -> Result<(), ConfigError> {
 
 fn serialize_error(error: impl std::fmt::Display) -> ConfigError {
     ConfigError::new("config.invalid_schema", error.to_string())
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct ConfigError {
-    pub(crate) code: &'static str,
-    pub(crate) message: String,
-}
-
-impl ConfigError {
-    fn new(code: &'static str, message: impl Into<String>) -> Self {
-        Self {
-            code,
-            message: message.into(),
-        }
-    }
-}
-
-impl From<io::Error> for ConfigError {
-    fn from(error: io::Error) -> Self {
-        Self::new("config.write_failed", error.to_string())
-    }
 }

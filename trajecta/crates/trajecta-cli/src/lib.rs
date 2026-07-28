@@ -13,6 +13,7 @@ use std::io::{self, Write};
 
 mod app;
 mod case_data;
+mod command_result;
 mod configuration;
 mod data_lock;
 mod project;

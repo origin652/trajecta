@@ -4,6 +4,7 @@ use trajecta_case::diagnostic::Diagnostic;
 
 use crate::cli::OutputMode;
 use crate::command::Command;
+use crate::command_result::{CommandError, CommandOutcome};
 use crate::configuration;
 
 #[derive(Clone, Debug)]
@@ -65,79 +66,31 @@ pub(crate) fn execute(
     project_path: Option<&std::path::Path>,
 ) -> AppOutcome {
     match command {
-        Command::Config(config) => match configuration::execute(config, config_path) {
-            Ok(data) => AppOutcome::ok(command_name(command), data),
-            Err(error) => AppOutcome::error(
-                command_name(command),
-                error.code,
-                error.message,
-                "inspect configuration path and schema",
-            ),
-        },
-        Command::Project(project_command) => {
-            match crate::project::execute(project_command, project_path) {
-                Ok(outcome) => AppOutcome {
-                    command: command_name(command).into(),
-                    data: outcome.data,
-                    diagnostics: outcome.diagnostics,
-                    run_success: None,
-                    exit_code: 0,
-                },
-                Err(error) => AppOutcome::error(
-                    command_name(command),
-                    error.code,
-                    error.message,
-                    "inspect project index and document paths",
-                ),
-            }
-        }
-        Command::Case(case_command) => match crate::case_data::execute_case(case_command) {
-            Ok(outcome) => AppOutcome {
-                command: command_name(command).into(),
-                data: outcome.data,
-                diagnostics: outcome.diagnostics,
-                run_success: None,
-                exit_code: 0,
-            },
-            Err(error) => AppOutcome::error(
-                command_name(command),
-                error.code,
-                error.message,
-                "inspect Case document and references",
-            ),
-        },
-        Command::Data(data_command) => match crate::case_data::execute_data(data_command) {
-            Ok(outcome) => AppOutcome {
-                command: command_name(command).into(),
-                data: outcome.data,
-                diagnostics: outcome.diagnostics,
-                run_success: None,
-                exit_code: 0,
-            },
-            Err(error) => AppOutcome::error(
-                command_name(command),
-                error.code,
-                error.message,
-                "inspect data input and lock prerequisites",
-            ),
-        },
-        Command::Doctor(doctor) => {
-            match crate::project::doctor(project_path, config_path, doctor.deep) {
-                Ok(outcome) => AppOutcome {
-                    command: command_name(command).into(),
-                    data: outcome.data,
-                    diagnostics: outcome.diagnostics,
-                    run_success: None,
-                    exit_code: 0,
-                },
-                Err(error) => AppOutcome::error(
-                    command_name(command),
-                    error.code,
-                    error.message,
-                    "inspect local filesystem readiness",
-                ),
-            }
-        }
+        Command::Config(config) => command_outcome(
+            command,
+            configuration::execute(config, config_path).map(CommandOutcome::ok),
+            "inspect configuration path and schema",
+        ),
+        Command::Project(project_command) => command_outcome(
+            command,
+            crate::project::execute(project_command, project_path),
+            "inspect project index and document paths",
+        ),
+        Command::Case(case_command) => command_outcome(
+            command,
+            crate::case_data::execute_case(case_command),
+            "inspect Case document and references",
+        ),
+        Command::Data(data_command) => command_outcome(
+            command,
+            crate::case_data::execute_data(data_command),
+            "inspect data input and lock prerequisites",
+        ),
+        Command::Doctor(doctor) => command_outcome(
+            command,
+            crate::project::doctor(project_path, config_path, doctor.deep),
+            "inspect local filesystem readiness",
+        ),
         Command::Met(_) => AppOutcome::error(
             command_name(command),
             "command.stage_not_available",
@@ -152,6 +105,23 @@ pub(crate) fn execute(
                 "requires M5-A2 local daemon",
             )
         }
+    }
+}
+
+fn command_outcome(
+    command: &Command,
+    result: Result<CommandOutcome, CommandError>,
+    hint: &str,
+) -> AppOutcome {
+    match result {
+        Ok(outcome) => AppOutcome {
+            command: command_name(command).into(),
+            data: outcome.data,
+            diagnostics: outcome.diagnostics,
+            run_success: None,
+            exit_code: 0,
+        },
+        Err(error) => AppOutcome::error(command_name(command), error.code, error.message, hint),
     }
 }
 

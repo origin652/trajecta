@@ -20,6 +20,8 @@ use trajecta_met::io::lock_builder::{
 };
 use trajecta_met::profile::document::{ProfileCatalog, ProfileName};
 
+use crate::command_result::CommandError as DataLockError;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct CaseLockRequirements {
     pub(crate) coverage: LockCoverageRequest,
@@ -46,21 +48,6 @@ pub(crate) struct LockArtifact {
     pub(crate) bytes: Vec<u8>,
     pub(crate) sha256: String,
     pub(crate) notes: Vec<Diagnostic>,
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct DataLockError {
-    pub(crate) code: &'static str,
-    pub(crate) message: String,
-}
-
-impl DataLockError {
-    fn new(code: &'static str, message: impl Into<String>) -> Self {
-        Self {
-            code,
-            message: message.into(),
-        }
-    }
 }
 
 pub(crate) fn requirements_from_case(
