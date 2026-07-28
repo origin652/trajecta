@@ -4,11 +4,9 @@
 
 ## 1. 结论
 
-M5-A2E 的 Windows 侧结构收口、去重、死代码和兜底审计已完成，完整 workspace、真实 CFSR runtime contract、clippy、doc、A0 validators、fmt 与 diff-check 均通过。
+M5-A2E 的结构收口、去重、死代码和兜底审计已完成。Windows 完整 workspace、真实 CFSR runtime contract、clippy、doc、A0 validators、fmt 与 diff-check 均通过；沙盒外 `Ubuntu-24.04` / WSL2 的 local IPC、job、CLI lib 和真实 CFSR runtime contract 也在同一源码身份上通过。
 
-当前不能宣称 M5-A2E 正式完成：本机 wsl --list --quiet 无任何发行版，冻结要求中的 WSL local IPC、job、CLI 和真实 runtime contract 无法复跑。该项记为 external_blocked，不以 Windows 结果替代。
-
-本轮不宣称 M5 完成、发布完成或跨平台验收完成。
+M5-A2E 冻结验收条件已满足，不再存在 `external_blocked`。本轮只关闭 A2E 精简与行为保持验收，不宣称 M5、发布或 M5-A4 正式跨平台产品矩阵完成。
 
 ## 2. 范围与约束
 
@@ -122,24 +120,40 @@ catalog family 因明确私有可见性和模块 import 合计增加 22 行，�
 
 最终一次真实 runtime contract 中，长测试约 81.6 秒完成。
 
-## 7. WSL 状态
+## 7. WSL 最终门禁
 
-    wsl --list --quiet
-    # 无输出
+所有命令均通过宿主 `wsl.exe -d Ubuntu-24.04` 在沙盒外执行，没有安装软件、联网下载或修改系统配置。
 
-因此尚缺：
+环境与源码身份：
 
-- WSL local IPC tests；
-- WSL trajecta-job tests；
-- WSL trajecta-cli lib tests；
-- WSL m5_a2_runtime_contracts 真实 CFSR 进程链。
+    distro: Ubuntu-24.04
+    kernel: Linux 6.18.33.2-microsoft-standard-WSL2 x86_64
+    rustc: 1.94.0 (4a4ef493e 2026-03-02)
+    cargo: 1.94.0 (85eff7c80 2026-01-15)
+    source HEAD: 978b2c7476d1859ba04c857d4b25bc4f4f647c34
+    repository: /mnt/e/flexpart/trajecta
+    target: /tmp/trajecta-m5-a2-b-target
 
-WSL 恢复后应在相同 source identity 上复跑以上四组；通过前不关闭 M5-A2E。
+三份冻结 `pgbl00` CFSR fixture 与离线 Cargo metadata 预检通过。随后严格按冻结顺序执行四组测试，首轮全部通过：
+
+| 命令 | 结果 | wall time |
+|---|---|---:|
+| `cargo test --offline --manifest-path vendor/trajecta-local-ipc/Cargo.toml` | 2 passed | 17.86 s |
+| `cargo test --offline -p trajecta-job` | 31 passed（24 lib + 7 contracts） | 58.76 s |
+| `cargo test --offline -p trajecta-cli --lib` | 16 passed；Linux 平台条件计数 | 61.35 s |
+| `cargo test --offline -p trajecta-cli --test m5_a2_runtime_contracts -- --nocapture` | 2 passed；test suite 88.44 s | 98.01 s |
+
+真实 runtime contract 覆盖的 daemon、worker、catalog、cancel/force-cancel、恢复重关联、SQLite、provenance 与 manifest 链全部通过。没有产品测试重试、源码修改、参数调整或残留 WSL Trajecta 进程。该 smoke 仍不替代 M5-A4 正式跨平台产品矩阵。
 
 ## 8. 工作树与交付状态
 
-代码 cleanup 已按 pattern class 分成独立提交。报告写入后，工作树预期只剩用户既存且禁止触碰的：
+代码 cleanup 已按 pattern class 分成独立提交。WSL 验证前后源码身份保持 `978b2c7476d1859ba04c857d4b25bc4f4f647c34`；结束时 Windows 与 WSL 均无遗留 Trajecta 进程，`git diff --check` 通过，外层文件 SHA-256 保持：
+
+    E:\flexpart\origo-validation-v1.json
+    d6e79bb88bbedf224f8f55745caf3995b6528a9b63cb679ed3daca99ac1253b0
+
+报告提交后，工作树只剩用户既存且禁止触碰的：
 
     ?? origo-validation-v1.json
 
-本报告不宣称 M5-A2E、M5 或发布完成；交后续跨平台复验与最终裁决。
+本报告关闭 M5-A2E 精简范围；不宣称 M5、发布或 M5-A4 完成。
