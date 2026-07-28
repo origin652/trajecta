@@ -131,10 +131,9 @@ pub(crate) fn execute_run(
     })();
 
     match result {
-        Ok(PublicRunResult::Detached(receipt)) => crate::write_outcome(
-            &AppOutcome::ok("run", serialize_value(&receipt).unwrap_or(Value::Null)),
-            output,
-        ),
+        Ok(PublicRunResult::Detached(receipt)) => {
+            crate::write_outcome(&AppOutcome::ok("run", serialize_or_null(&receipt)), output)
+        }
         Ok(PublicRunResult::Foreground {
             client,
             receipt,
@@ -196,10 +195,7 @@ pub(crate) fn execute_job(
             limit: 1_000,
         }) {
             Ok(snapshots) => crate::write_outcome(
-                &AppOutcome::ok(
-                    "job list",
-                    serialize_value(&snapshots).unwrap_or(Value::Null),
-                ),
+                &AppOutcome::ok("job list", serialize_or_null(&snapshots)),
                 output,
             ),
             Err(error) => write_runtime_error("job list", RuntimeError::backend(error), output),
@@ -211,10 +207,7 @@ pub(crate) fn execute_job(
             };
             match client.status(&id) {
                 Ok(snapshot) => crate::write_outcome(
-                    &AppOutcome::ok(
-                        "job status",
-                        serialize_value(&snapshot).unwrap_or(Value::Null),
-                    ),
+                    &AppOutcome::ok("job status", serialize_or_null(&snapshot)),
                     output,
                 ),
                 Err(error) => {
@@ -266,10 +259,7 @@ pub(crate) fn execute_job(
             };
             match cancel_reliably(&mut client, &id, mode) {
                 Ok(snapshot) => crate::write_outcome(
-                    &AppOutcome::ok(
-                        "job cancel",
-                        serialize_value(&snapshot).unwrap_or(Value::Null),
-                    ),
+                    &AppOutcome::ok("job cancel", serialize_or_null(&snapshot)),
                     output,
                 ),
                 Err(error) => {
@@ -339,7 +329,7 @@ fn wait_for_job(
                     let exit_code = snapshot.state.wait_exit_code().unwrap_or(1);
                     let run_success = snapshot.state.run_success();
                     return crate::write_outcome(
-                        &AppOutcome::ok(command, serialize_value(&snapshot).unwrap_or(Value::Null))
+                        &AppOutcome::ok(command, serialize_or_null(&snapshot))
                             .with_run_success(run_success)
                             .with_exit_code(exit_code),
                         output,
@@ -361,7 +351,7 @@ fn wait_for_job(
             output,
             command,
             &mut sequence,
-            serialize_value(&receipt).unwrap_or(Value::Null),
+            serialize_or_null(&receipt),
         )
         .is_err()
     {
@@ -410,7 +400,7 @@ fn wait_for_job(
                 output,
                 command,
                 &mut sequence,
-                serialize_value(&snapshot).unwrap_or(Value::Null),
+                serialize_or_null(&snapshot),
             )
             .is_err()
                 || emit_stream_summary(
@@ -446,10 +436,7 @@ fn stream_events(
             limit: 10_000,
         }) {
             Ok(events) => crate::write_outcome(
-                &AppOutcome::ok(
-                    "job events",
-                    serialize_value(&events).unwrap_or(Value::Null),
-                ),
+                &AppOutcome::ok("job events", serialize_or_null(&events)),
                 output,
             ),
             Err(error) => write_runtime_error("job events", RuntimeError::backend(error), output),
@@ -550,13 +537,9 @@ fn emit_job_event(
                 event.sequence, event.state
             )
         }
-        OutputMode::Jsonl => emit_stream_value(
-            writer,
-            output,
-            command,
-            sequence,
-            serialize_value(event).unwrap_or(Value::Null),
-        ),
+        OutputMode::Jsonl => {
+            emit_stream_value(writer, output, command, sequence, serialize_or_null(event))
+        }
         OutputMode::Json => Ok(()),
     }
 }
@@ -641,13 +624,8 @@ fn write_runtime_error(command: &str, error: RuntimeError, output: OutputMode) -
     )
 }
 
-fn serialize_value(value: &impl Serialize) -> Result<Value, RuntimeError> {
-    serde_json::to_value(value).map_err(|error| {
-        RuntimeError::internal(
-            "runtime.serialization",
-            format!("serialize result: {error}"),
-        )
-    })
+fn serialize_or_null(value: &impl Serialize) -> Value {
+    serde_json::to_value(value).unwrap_or(Value::Null)
 }
 
 fn runtime_settings(config_path: Option<&Path>) -> Result<RuntimeSettings, RuntimeError> {
