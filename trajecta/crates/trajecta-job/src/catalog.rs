@@ -7,7 +7,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::{Connection, OptionalExtension, Row, Transaction, TransactionBehavior, params};
@@ -19,7 +19,7 @@ use crate::backend::{JobBackend, JobBackendError};
 use crate::model::{
     CancelMode, EventQuery, JOB_EVENT_SCHEMA_ID, JOB_RECORD_SCHEMA_ID, JobEvent, JobEventKind,
     JobListQuery, JobProgress, JobReceipt, JobSnapshot, JobState, ResourceObservation,
-    ResourceRequest, RunInput, SubmitRequest,
+    ResourceRequest, RunInput, SubmitRequest, is_normal_absolute_path,
 };
 use crate::scheduler::{DispatchPlan, MAXIMUM_HEAD_BYPASS, QueuedAttempt, ResourceUsage};
 
@@ -1702,7 +1702,7 @@ fn timestamp_from_parts(seconds: i64, nanosecond: i64) -> Result<Timestamp, JobB
         .map_err(|_| JobBackendError::Storage("invalid timestamp nanosecond".into()))
 }
 
-fn system_timestamp() -> Result<Timestamp, JobBackendError> {
+pub(crate) fn system_timestamp() -> Result<Timestamp, JobBackendError> {
     let duration = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|error| JobBackendError::Storage(error.to_string()))?;
@@ -1783,13 +1783,6 @@ fn parse_event_kind_sql(column: usize, value: &str) -> rusqlite::Result<JobEvent
         }
     };
     Ok(kind)
-}
-
-fn is_normal_absolute_path(path: &Path) -> bool {
-    path.is_absolute()
-        && !path
-            .components()
-            .any(|component| matches!(component, Component::ParentDir | Component::CurDir))
 }
 
 fn storage_error(error: impl std::fmt::Display) -> JobBackendError {

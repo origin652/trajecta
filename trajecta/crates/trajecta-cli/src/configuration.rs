@@ -8,6 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+use trajecta_case::document::MeteorologyReaderBackend as ReaderBackend;
 
 use crate::command::config::ConfigCommand;
 use crate::command_result::CommandError as ConfigError;
@@ -21,13 +22,6 @@ struct ConfigFile {
     resources: Resources,
     monitoring: Monitoring,
     profile_templates: BTreeMap<String, ProfileTemplate>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-enum ReaderBackend {
-    Rust,
-    Native,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

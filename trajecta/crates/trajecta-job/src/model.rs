@@ -512,7 +512,7 @@ impl JobModelError {
     }
 }
 
-fn is_normal_absolute_path(path: &Path) -> bool {
+pub(crate) fn is_normal_absolute_path(path: &Path) -> bool {
     path.is_absolute()
         && !path
             .components()

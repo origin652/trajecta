@@ -5,14 +5,16 @@
 //! no scientific document or numerical rule is duplicated here.
 
 use std::path::Path;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use trajecta_case::model::time::Timestamp;
 use trajecta_core::manifest::{JobSeriesId, RunId};
 use trajecta_core::runner::{RunnerControl, RunnerControlDecision, RunnerProgress};
 
 use crate::backend::{JobBackend, JobBackendError};
-use crate::catalog::{LocalJobCatalog, TransitionDiagnostic, WorkerControl, WorkerLease};
+use crate::catalog::{
+    LocalJobCatalog, TransitionDiagnostic, WorkerControl, WorkerLease, system_timestamp,
+};
 use crate::model::{
     CancelMode, EventQuery, JobEvent, JobListQuery, JobProgress, JobReceipt, JobSnapshot, JobState,
     ResourceObservation, SubmitRequest,
@@ -389,16 +391,6 @@ fn scheduler_error(error: SchedulerError) -> JobBackendError {
             JobBackendError::Storage(format!("invalid queued bypass count for {}", run_id.0))
         }
     }
-}
-
-fn system_timestamp() -> Result<Timestamp, JobBackendError> {
-    let duration = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|error| JobBackendError::Storage(error.to_string()))?;
-    let seconds = i64::try_from(duration.as_secs())
-        .map_err(|error| JobBackendError::Storage(error.to_string()))?;
-    Timestamp::new(seconds, duration.subsec_nanos())
-        .map_err(|error| JobBackendError::Storage(error.to_string()))
 }
 
 #[cfg(test)]
