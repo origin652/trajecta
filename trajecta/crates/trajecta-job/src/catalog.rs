@@ -7,7 +7,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
@@ -16,6 +16,10 @@ use trajecta_core::manifest::{JobSeriesId, RunId};
 use uuid::Uuid;
 
 use crate::backend::{JobBackend, JobBackendError};
+use crate::history::{
+    FullVerificationRecord, JobAttemptHistory, JobHistoryBackend, PRUNE_PLAN_SCHEMA_ID,
+    PruneCandidate, PrunePlan, is_sha256,
+};
 use crate::model::{
     CancelMode, EventQuery, JobEvent, JobEventKind, JobListQuery, JobProgress, JobReceipt,
     JobSnapshot, JobState, ResourceObservation, ResourceRequest, SubmitRequest,
@@ -179,6 +183,7 @@ impl LocalJobCatalog {
                 "unsupported job catalog schema {version}"
             )));
         }
+        ensure_history_schema(&connection)?;
         Ok(Self { connection })
     }
 
@@ -1051,37 +1056,16 @@ impl LocalJobCatalog {
         request
             .validate()
             .map_err(|error| JobBackendError::InvalidRequest(error.code().into()))?;
-        let input_json = serde_json::to_string(&request.input).map_err(storage_error)?;
-        let resources_json = serde_json::to_string(&request.resources).map_err(storage_error)?;
         let transaction = self.connection.transaction().map_err(storage_error)?;
-        transaction
-            .execute(
-                "INSERT INTO jobs (
-                    job_series_id, run_id, attempt, state, input_json, resources_json,
-                    created_seconds, created_nanosecond, head_bypass_count
-                 ) VALUES (?1, ?2, ?3, 'queued', ?4, ?5, ?6, ?7, 0)",
-                params![
-                    job_series_id.0,
-                    run_id.0,
-                    i64::from(attempt),
-                    input_json,
-                    resources_json,
-                    at.seconds_since_unix_epoch(),
-                    i64::from(at.nanosecond()),
-                ],
-            )
-            .map_err(storage_error)?;
-        let stored = load_job_by_run_transaction(&transaction, &run_id)?;
-        append_event_in_transaction(
+        insert_queued_in_transaction(
             &transaction,
-            &stored,
+            &request,
+            &job_series_id,
+            &run_id,
+            attempt,
             at,
-            JobEventKind::StateTransition,
-            None,
-            None,
-            Some("scheduler.queued"),
-            Some("accepted into durable FIFO queue"),
-            None,
+            "scheduler.queued",
+            "accepted into durable FIFO queue",
         )?;
         transaction.commit().map_err(storage_error)?;
         let receipt = JobReceipt {
@@ -1095,6 +1079,305 @@ impl LocalJobCatalog {
             .map_err(|error| JobBackendError::Storage(error.code().into()))?;
         Ok(receipt)
     }
+
+    fn rerun_at(
+        &mut self,
+        job_series_id: &JobSeriesId,
+        run_id: RunId,
+        at: Timestamp,
+    ) -> Result<JobReceipt, JobBackendError> {
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(storage_error)?;
+        let current = transaction
+            .query_row(
+                &format!(
+                    "{} WHERE job_series_id = ?1 ORDER BY attempt DESC LIMIT 1",
+                    JOB_SELECT
+                ),
+                params![job_series_id.0],
+                stored_job_from_row,
+            )
+            .optional()
+            .map_err(storage_error)?
+            .ok_or(JobBackendError::NotFound)?;
+        if !current.state.is_terminal() {
+            return Err(JobBackendError::Conflict(
+                "active attempt must reach a safe terminal state before rerun".into(),
+            ));
+        }
+        let attempt = current
+            .attempt
+            .checked_add(1)
+            .ok_or_else(|| JobBackendError::Storage("job attempt overflow".into()))?;
+        let request = SubmitRequest {
+            input: serde_json::from_str(&current.input_json).map_err(corrupt_json_error)?,
+            resources: serde_json::from_str(&current.resources_json).map_err(corrupt_json_error)?,
+        };
+        request
+            .validate()
+            .map_err(|error| JobBackendError::Storage(error.code().into()))?;
+        transaction
+            .execute(
+                "DELETE FROM forgotten_series WHERE job_series_id = ?1",
+                params![job_series_id.0],
+            )
+            .map_err(storage_error)?;
+        insert_queued_in_transaction(
+            &transaction,
+            &request,
+            job_series_id,
+            &run_id,
+            attempt,
+            at,
+            "job.rerun_queued",
+            "explicit rerun accepted as a new attempt",
+        )?;
+        transaction.commit().map_err(storage_error)?;
+        let receipt = JobReceipt {
+            job_series_id: job_series_id.clone(),
+            run_id,
+            attempt,
+            state: JobState::Queued,
+        };
+        receipt
+            .validate()
+            .map_err(|error| JobBackendError::Storage(error.code().into()))?;
+        Ok(receipt)
+    }
+
+    fn forget_at(
+        &mut self,
+        job_series_id: &JobSeriesId,
+        at: Timestamp,
+    ) -> Result<JobSnapshot, JobBackendError> {
+        let current = self.status(job_series_id)?;
+        if !current.state.is_terminal() {
+            return Err(JobBackendError::Conflict(
+                "only terminal job series can be forgotten".into(),
+            ));
+        }
+        self.connection
+            .execute(
+                "INSERT OR IGNORE INTO forgotten_series (
+                    job_series_id, forgotten_seconds, forgotten_nanosecond
+                 ) VALUES (?1, ?2, ?3)",
+                params![
+                    job_series_id.0,
+                    at.seconds_since_unix_epoch(),
+                    i64::from(at.nanosecond()),
+                ],
+            )
+            .map_err(storage_error)?;
+        Ok(current)
+    }
+
+    fn record_full_verification_at(
+        &mut self,
+        run_id: &RunId,
+        canonical_output_sha256: &str,
+        at: Timestamp,
+    ) -> Result<JobAttemptHistory, JobBackendError> {
+        if !is_sha256(canonical_output_sha256) {
+            return Err(JobBackendError::InvalidRequest(
+                "canonical output digest must be lowercase SHA-256".into(),
+            ));
+        }
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(storage_error)?;
+        let current = load_job_by_run_transaction(&transaction, run_id)?;
+        if current.state != JobState::Complete {
+            return Err(JobBackendError::Conflict(
+                "only a Complete attempt can record full verification".into(),
+            ));
+        }
+        let finished = optional_timestamp(current.finished_seconds, current.finished_nanosecond)?
+            .ok_or_else(|| {
+            JobBackendError::Storage("Complete attempt has no finish time".into())
+        })?;
+        if at < finished {
+            return Err(JobBackendError::InvalidRequest(
+                "full verification time precedes attempt completion".into(),
+            ));
+        }
+        let existing = transaction
+            .query_row(
+                "SELECT canonical_output_sha256 FROM full_verifications WHERE run_id = ?1",
+                params![run_id.0],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(storage_error)?;
+        match existing {
+            Some(existing) if existing != canonical_output_sha256 => {
+                return Err(JobBackendError::Conflict(
+                    "attempt was already verified with a different canonical digest".into(),
+                ));
+            }
+            Some(_) => {}
+            None => {
+                transaction
+                    .execute(
+                        "INSERT INTO full_verifications (
+                            run_id, verified_seconds, verified_nanosecond,
+                            canonical_output_sha256
+                         ) VALUES (?1, ?2, ?3, ?4)",
+                        params![
+                            run_id.0,
+                            at.seconds_since_unix_epoch(),
+                            i64::from(at.nanosecond()),
+                            canonical_output_sha256,
+                        ],
+                    )
+                    .map_err(storage_error)?;
+                transaction
+                    .execute(
+                        "INSERT OR IGNORE INTO attempt_supersession (run_id, superseded_by)
+                         SELECT run_id, ?1 FROM jobs
+                         WHERE job_series_id = ?2 AND attempt < ?3",
+                        params![
+                            run_id.0,
+                            current.job_series_id.0,
+                            i64::from(current.attempt)
+                        ],
+                    )
+                    .map_err(storage_error)?;
+                let output_directory = current.output_directory.as_deref().map(Path::new);
+                append_event_in_transaction(
+                    &transaction,
+                    &current,
+                    at,
+                    JobEventKind::Artifact,
+                    None,
+                    None,
+                    Some("result.full_verified"),
+                    Some("full result verification passed"),
+                    output_directory,
+                )?;
+            }
+        }
+        transaction.commit().map_err(storage_error)?;
+        self.attempt_history_for_run(run_id)
+    }
+
+    fn attempt_history_for_run(
+        &self,
+        run_id: &RunId,
+    ) -> Result<JobAttemptHistory, JobBackendError> {
+        let snapshot = self.status_run(run_id)?;
+        let visible_in_routine_list = self
+            .connection
+            .query_row(
+                "SELECT NOT EXISTS (
+                    SELECT 1 FROM forgotten_series WHERE job_series_id = ?1
+                 )",
+                params![snapshot.job_series_id.0],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(storage_error)?;
+        let full_verification = self
+            .connection
+            .query_row(
+                "SELECT verified_seconds, verified_nanosecond, canonical_output_sha256
+                 FROM full_verifications WHERE run_id = ?1",
+                params![run_id.0],
+                |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, i64>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                },
+            )
+            .optional()
+            .map_err(storage_error)?
+            .map(
+                |(seconds, nanosecond, canonical_output_sha256)| -> Result<_, JobBackendError> {
+                    Ok(FullVerificationRecord {
+                        verified_at: timestamp_from_parts(seconds, nanosecond)?,
+                        canonical_output_sha256,
+                    })
+                },
+            )
+            .transpose()?;
+        let supersession = self
+            .connection
+            .query_row(
+                "SELECT s.superseded_by, successor.job_series_id, successor.attempt,
+                        successor.state, verification.canonical_output_sha256
+                 FROM attempt_supersession s
+                 JOIN jobs successor ON successor.run_id = s.superseded_by
+                 LEFT JOIN full_verifications verification
+                   ON verification.run_id = successor.run_id
+                 WHERE s.run_id = ?1",
+                params![run_id.0],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, i64>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, Option<String>>(4)?,
+                    ))
+                },
+            )
+            .optional()
+            .map_err(storage_error)?;
+        let superseded_by = supersession
+            .map(
+                |(
+                    successor_run_id,
+                    successor_series,
+                    successor_attempt,
+                    successor_state,
+                    digest,
+                )| {
+                    let successor_attempt = u32::try_from(successor_attempt).map_err(|_| {
+                        JobBackendError::Storage("invalid superseding attempt number".into())
+                    })?;
+                    if successor_series != snapshot.job_series_id.0
+                        || successor_attempt <= snapshot.attempt
+                        || parse_state(&successor_state)? != JobState::Complete
+                        || !digest.as_deref().is_some_and(is_sha256)
+                    {
+                        return Err(JobBackendError::Storage(
+                            "invalid persisted supersession relationship".into(),
+                        ));
+                    }
+                    Ok(RunId(successor_run_id))
+                },
+            )
+            .transpose()?;
+        let history = JobAttemptHistory {
+            snapshot,
+            visible_in_routine_list,
+            full_verification,
+            superseded_by,
+        };
+        history.validate()?;
+        Ok(history)
+    }
+}
+
+fn ensure_history_schema(connection: &Connection) -> Result<(), JobBackendError> {
+    let tables: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master
+             WHERE type = 'table'
+               AND name IN ('forgotten_series', 'full_verifications', 'attempt_supersession')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)?;
+    if tables != 3 {
+        connection
+            .execute_batch(HISTORY_SCHEMA)
+            .map_err(storage_error)?;
+    }
+    Ok(())
 }
 
 impl JobBackend for LocalJobCatalog {
@@ -1111,7 +1394,13 @@ impl JobBackend for LocalJobCatalog {
         let positions = self.queue_positions()?;
         let mut statement = self
             .connection
-            .prepare(&format!("{} ORDER BY queue_order ASC", JOB_SELECT))
+            .prepare(&format!(
+                "{} WHERE NOT EXISTS (
+                    SELECT 1 FROM forgotten_series
+                    WHERE forgotten_series.job_series_id = jobs.job_series_id
+                 ) ORDER BY queue_order ASC",
+                JOB_SELECT
+            ))
             .map_err(storage_error)?;
         let rows = statement
             .query_map([], stored_job_from_row)
@@ -1263,6 +1552,113 @@ impl JobBackend for LocalJobCatalog {
     }
 }
 
+impl JobHistoryBackend for LocalJobCatalog {
+    fn rerun(&mut self, job_series_id: &JobSeriesId) -> Result<JobReceipt, JobBackendError> {
+        self.rerun_at(
+            job_series_id,
+            RunId(Uuid::now_v7().to_string()),
+            system_timestamp()?,
+        )
+    }
+
+    fn forget(&mut self, job_series_id: &JobSeriesId) -> Result<JobSnapshot, JobBackendError> {
+        self.forget_at(job_series_id, system_timestamp()?)
+    }
+
+    fn attempt_history(
+        &self,
+        job_series_id: &JobSeriesId,
+    ) -> Result<Vec<JobAttemptHistory>, JobBackendError> {
+        let mut statement = self
+            .connection
+            .prepare(
+                "SELECT run_id FROM jobs
+                 WHERE job_series_id = ?1 ORDER BY attempt ASC, run_id ASC",
+            )
+            .map_err(storage_error)?;
+        let rows = statement
+            .query_map(params![job_series_id.0], |row| row.get::<_, String>(0))
+            .map_err(storage_error)?;
+        let mut run_ids = Vec::new();
+        for row in rows {
+            run_ids.push(RunId(row.map_err(storage_error)?));
+        }
+        drop(statement);
+        if run_ids.is_empty() {
+            return Err(JobBackendError::NotFound);
+        }
+        run_ids
+            .iter()
+            .map(|run_id| self.attempt_history_for_run(run_id))
+            .collect()
+    }
+
+    fn record_full_verification(
+        &mut self,
+        run_id: &RunId,
+        canonical_output_sha256: &str,
+    ) -> Result<JobAttemptHistory, JobBackendError> {
+        self.record_full_verification_at(run_id, canonical_output_sha256, system_timestamp()?)
+    }
+
+    fn attempt(&self, run_id: &RunId) -> Result<JobAttemptHistory, JobBackendError> {
+        self.attempt_history_for_run(run_id)
+    }
+
+    fn prune_plan(&self) -> Result<PrunePlan, JobBackendError> {
+        let mut statement = self
+            .connection
+            .prepare(
+                "SELECT jobs.run_id FROM jobs
+                 JOIN attempt_supersession
+                   ON attempt_supersession.run_id = jobs.run_id
+                 WHERE jobs.output_directory IS NOT NULL
+                 ORDER BY jobs.job_series_id ASC, jobs.attempt ASC, jobs.run_id ASC",
+            )
+            .map_err(storage_error)?;
+        let rows = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(storage_error)?;
+        let mut run_ids = Vec::new();
+        for row in rows {
+            run_ids.push(RunId(row.map_err(storage_error)?));
+        }
+        drop(statement);
+
+        let mut candidates = Vec::with_capacity(run_ids.len());
+        for run_id in run_ids {
+            let history = self.attempt_history_for_run(&run_id)?;
+            let path = history.snapshot.output_directory.clone().ok_or_else(|| {
+                JobBackendError::Storage("attempt output path disappeared".into())
+            })?;
+            let observation = path_size_without_following_links(&path)?;
+            let (protected, reason) = if !observation.exists {
+                (true, "artifact_missing")
+            } else {
+                (false, "superseded_by_verified_complete_attempt")
+            };
+            candidates.push(PruneCandidate {
+                job_series_id: history.snapshot.job_series_id,
+                run_id: history.snapshot.run_id,
+                attempt: history.snapshot.attempt,
+                path,
+                size_bytes: observation.size_bytes,
+                reason: reason.into(),
+                protected,
+                superseded_by: history.superseded_by,
+            });
+        }
+        let plan = PrunePlan {
+            schema_version: PRUNE_PLAN_SCHEMA_ID.into(),
+            mode: "dry_run".into(),
+            delete_enabled: false,
+            candidates,
+        };
+        plan.validate()?;
+        Ok(plan)
+    }
+}
+
 fn transition_in_transaction(
     transaction: &Transaction<'_>,
     run_id: &RunId,
@@ -1396,6 +1792,50 @@ fn append_event_in_transaction(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
+fn insert_queued_in_transaction(
+    transaction: &Transaction<'_>,
+    request: &SubmitRequest,
+    job_series_id: &JobSeriesId,
+    run_id: &RunId,
+    attempt: u32,
+    at: Timestamp,
+    event_code: &str,
+    event_message: &str,
+) -> Result<(), JobBackendError> {
+    let input_json = serde_json::to_string(&request.input).map_err(storage_error)?;
+    let resources_json = serde_json::to_string(&request.resources).map_err(storage_error)?;
+    transaction
+        .execute(
+            "INSERT INTO jobs (
+                job_series_id, run_id, attempt, state, input_json, resources_json,
+                created_seconds, created_nanosecond, head_bypass_count
+             ) VALUES (?1, ?2, ?3, 'queued', ?4, ?5, ?6, ?7, 0)",
+            params![
+                job_series_id.0,
+                run_id.0,
+                i64::from(attempt),
+                input_json,
+                resources_json,
+                at.seconds_since_unix_epoch(),
+                i64::from(at.nanosecond()),
+            ],
+        )
+        .map_err(storage_error)?;
+    let stored = load_job_by_run_transaction(transaction, run_id)?;
+    append_event_in_transaction(
+        transaction,
+        &stored,
+        at,
+        JobEventKind::StateTransition,
+        None,
+        None,
+        Some(event_code),
+        Some(event_message),
+        None,
+    )
+}
+
 fn load_job_by_run_transaction(
     transaction: &Transaction<'_>,
     run_id: &RunId,
@@ -1442,6 +1882,50 @@ fn require_worker_token_transaction(
         .optional()
         .map_err(storage_error)?
         .ok_or_else(|| JobBackendError::Conflict("worker lease token does not match".into()))
+}
+
+struct PathSizeObservation {
+    exists: bool,
+    size_bytes: u64,
+}
+
+fn path_size_without_following_links(path: &Path) -> Result<PathSizeObservation, JobBackendError> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(PathSizeObservation {
+                exists: false,
+                size_bytes: 0,
+            });
+        }
+        Err(error) => return Err(storage_error(error)),
+    };
+    if !metadata.is_dir() {
+        return Ok(PathSizeObservation {
+            exists: true,
+            size_bytes: metadata.len(),
+        });
+    }
+
+    let mut size_bytes = 0_u64;
+    let mut pending = vec![PathBuf::from(path)];
+    while let Some(directory) = pending.pop() {
+        for entry in fs::read_dir(directory).map_err(storage_error)? {
+            let entry = entry.map_err(storage_error)?;
+            let metadata = fs::symlink_metadata(entry.path()).map_err(storage_error)?;
+            if metadata.is_dir() {
+                pending.push(entry.path());
+            } else {
+                size_bytes = size_bytes
+                    .checked_add(metadata.len())
+                    .ok_or_else(|| JobBackendError::Storage("artifact size overflow".into()))?;
+            }
+        }
+    }
+    Ok(PathSizeObservation {
+        exists: true,
+        size_bytes,
+    })
 }
 
 pub(crate) fn system_timestamp() -> Result<Timestamp, JobBackendError> {
@@ -1582,6 +2066,39 @@ mod tests {
             after_sequence: None,
             limit: 100,
         }
+    }
+
+    fn complete_with_output(
+        catalog: &mut LocalJobCatalog,
+        run_id: &RunId,
+        output: &Path,
+        start_second: i64,
+    ) {
+        catalog
+            .transition(
+                run_id,
+                JobState::Starting,
+                Timestamp::new(start_second, 0).unwrap(),
+                TransitionDiagnostic::default(),
+            )
+            .unwrap();
+        catalog.set_output_directory(run_id, output).unwrap();
+        catalog
+            .transition(
+                run_id,
+                JobState::Running,
+                Timestamp::new(start_second + 1, 0).unwrap(),
+                TransitionDiagnostic::default(),
+            )
+            .unwrap();
+        catalog
+            .transition(
+                run_id,
+                JobState::Complete,
+                Timestamp::new(start_second + 2, 0).unwrap(),
+                TransitionDiagnostic::default(),
+            )
+            .unwrap();
     }
 
     #[test]
@@ -2109,5 +2626,218 @@ mod tests {
             .unwrap();
         catalog.release_daemon("daemon-b", "start-b").unwrap();
         assert_eq!(catalog.daemon_lease().unwrap(), None);
+    }
+
+    #[test]
+    fn rerun_preserves_series_and_rejects_active_attempts() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        let mut catalog = LocalJobCatalog::open_in_memory().unwrap();
+        catalog
+            .submit_at(
+                request(&root, 2, 1_024),
+                series(1),
+                run(1),
+                1,
+                Timestamp::UNIX_EPOCH,
+            )
+            .unwrap();
+        assert!(
+            catalog
+                .rerun_at(&series(1), run(2), Timestamp::new(1, 0).unwrap())
+                .is_err()
+        );
+
+        let first_output = root.join("attempt-1");
+        fs::create_dir(&first_output).unwrap();
+        complete_with_output(&mut catalog, &run(1), &first_output, 1);
+        let receipt = catalog
+            .rerun_at(&series(1), run(2), Timestamp::new(4, 0).unwrap())
+            .unwrap();
+        assert_eq!(receipt.job_series_id, series(1));
+        assert_eq!(receipt.run_id, run(2));
+        assert_eq!(receipt.attempt, 2);
+        assert_eq!(receipt.state, JobState::Queued);
+
+        let history = catalog.attempt_history(&series(1)).unwrap();
+        assert_eq!(history.len(), 2);
+        assert_eq!(history[0].snapshot.input, history[1].snapshot.input);
+        assert_eq!(history[0].snapshot.resources, history[1].snapshot.resources);
+        assert_eq!(history[0].snapshot.output_directory, Some(first_output));
+        assert_eq!(history[1].snapshot.output_directory, None);
+    }
+
+    #[test]
+    fn forget_hides_terminal_series_without_deleting_artifacts() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        let output = root.join("attempt-1");
+        fs::create_dir(&output).unwrap();
+        let artifact = output.join("evidence.bin");
+        fs::write(&artifact, b"immutable evidence").unwrap();
+        let before = fs::read(&artifact).unwrap();
+        let mut catalog = LocalJobCatalog::open_in_memory().unwrap();
+        catalog
+            .submit_at(
+                request(&root, 1, 256),
+                series(1),
+                run(1),
+                1,
+                Timestamp::UNIX_EPOCH,
+            )
+            .unwrap();
+        complete_with_output(&mut catalog, &run(1), &output, 1);
+        assert!(catalog.attempt(&run(1)).unwrap().visible_in_routine_list);
+
+        catalog
+            .forget_at(&series(1), Timestamp::new(4, 0).unwrap())
+            .unwrap();
+        assert!(list_all(&catalog).is_empty());
+        assert_eq!(catalog.status(&series(1)).unwrap().run_id, run(1));
+        let history = catalog.attempt_history(&series(1)).unwrap();
+        assert_eq!(history.len(), 1);
+        assert!(!history[0].visible_in_routine_list);
+        assert_eq!(fs::read(&artifact).unwrap(), before);
+    }
+
+    #[test]
+    fn verified_success_supersedes_old_attempt_and_prune_never_deletes() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        let first_output = root.join("attempt-1");
+        let second_output = root.join("attempt-2");
+        fs::create_dir(&first_output).unwrap();
+        fs::create_dir(&second_output).unwrap();
+        let first_artifact = first_output.join("old.bin");
+        let second_artifact = second_output.join("current.bin");
+        fs::write(&first_artifact, b"old attempt").unwrap();
+        fs::write(&second_artifact, b"verified attempt").unwrap();
+        let before = (
+            fs::read(&first_artifact).unwrap(),
+            fs::read(&second_artifact).unwrap(),
+        );
+
+        let mut catalog = LocalJobCatalog::open_in_memory().unwrap();
+        catalog
+            .submit_at(
+                request(&root, 1, 256),
+                series(1),
+                run(1),
+                1,
+                Timestamp::UNIX_EPOCH,
+            )
+            .unwrap();
+        complete_with_output(&mut catalog, &run(1), &first_output, 1);
+        catalog
+            .rerun_at(&series(1), run(2), Timestamp::new(4, 0).unwrap())
+            .unwrap();
+        complete_with_output(&mut catalog, &run(2), &second_output, 5);
+        catalog
+            .record_full_verification_at(&run(2), &"ab".repeat(32), Timestamp::new(8, 0).unwrap())
+            .unwrap();
+        let event_count = catalog.events(&event_query()).unwrap().len();
+        let verified = catalog
+            .record_full_verification_at(&run(2), &"ab".repeat(32), Timestamp::new(9, 0).unwrap())
+            .unwrap();
+        assert_eq!(
+            verified.full_verification.unwrap().verified_at,
+            Timestamp::new(8, 0).unwrap()
+        );
+        assert_eq!(catalog.events(&event_query()).unwrap().len(), event_count);
+
+        let history = catalog.attempt_history(&series(1)).unwrap();
+        assert_eq!(history[0].superseded_by, Some(run(2)));
+        assert!(history[0].full_verification.is_none());
+        assert_eq!(
+            history[1]
+                .full_verification
+                .as_ref()
+                .unwrap()
+                .canonical_output_sha256,
+            "ab".repeat(32)
+        );
+
+        let plan = catalog.prune_plan().unwrap();
+        assert_eq!(plan.mode, "dry_run");
+        assert!(!plan.delete_enabled);
+        assert_eq!(plan.candidates.len(), 1);
+        assert!(!plan.candidates[0].protected);
+        assert_eq!(plan.candidates[0].superseded_by, Some(run(2)));
+        assert_eq!(
+            (
+                fs::read(&first_artifact).unwrap(),
+                fs::read(&second_artifact).unwrap()
+            ),
+            before
+        );
+    }
+
+    #[test]
+    fn persisted_supersession_must_target_a_later_verified_complete_in_the_same_series() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        let first_output = root.join("first");
+        let other_output = root.join("other");
+        fs::create_dir(&first_output).unwrap();
+        fs::create_dir(&other_output).unwrap();
+        let mut catalog = LocalJobCatalog::open_in_memory().unwrap();
+        catalog
+            .submit_at(
+                request(&root, 1, 256),
+                series(1),
+                run(1),
+                1,
+                Timestamp::UNIX_EPOCH,
+            )
+            .unwrap();
+        complete_with_output(&mut catalog, &run(1), &first_output, 1);
+        catalog
+            .submit_at(
+                request(&root, 1, 256),
+                series(2),
+                run(2),
+                1,
+                Timestamp::new(4, 0).unwrap(),
+            )
+            .unwrap();
+        complete_with_output(&mut catalog, &run(2), &other_output, 5);
+        catalog
+            .record_full_verification_at(&run(2), &"cd".repeat(32), Timestamp::new(8, 0).unwrap())
+            .unwrap();
+        catalog
+            .connection
+            .execute(
+                "INSERT INTO attempt_supersession (run_id, superseded_by) VALUES (?1, ?2)",
+                params![run(1).0, run(2).0],
+            )
+            .unwrap();
+
+        assert!(catalog.attempt_history(&series(1)).is_err());
+        assert!(catalog.prune_plan().is_err());
+    }
+
+    #[test]
+    fn history_tables_are_added_to_an_existing_catalog_v1() {
+        let temp = TempDir::new().unwrap();
+        let database = temp.path().join("jobs.sqlite");
+        let connection = Connection::open(&database).unwrap();
+        connection.execute_batch(CATALOG_SCHEMA).unwrap();
+        connection
+            .pragma_update(None, "user_version", CATALOG_SCHEMA_VERSION)
+            .unwrap();
+        drop(connection);
+
+        let catalog = LocalJobCatalog::open(&database).unwrap();
+        let count: i64 = catalog
+            .connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master
+                 WHERE type = 'table'
+                   AND name IN ('forgotten_series', 'full_verifications', 'attempt_supersession')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 3);
     }
 }

@@ -11,6 +11,7 @@
 pub mod backend;
 pub mod catalog;
 pub mod daemon;
+pub mod history;
 pub mod ipc;
 pub mod model;
 pub mod scheduler;

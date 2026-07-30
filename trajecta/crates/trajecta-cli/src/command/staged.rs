@@ -71,13 +71,37 @@ pub enum JobCommand {
     Prune,
 }
 
-/// Parsed future result command.
+/// Parsed result command.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ResultCommand {
     /// Inspect a result id/path.
     Inspect(String),
     /// Verify a result id/path.
-    Verify(String),
+    Verify {
+        /// Job-series id, run id, or run-directory path.
+        result: String,
+        /// Run the lifecycle, quality, mass, and row audits.
+        full: bool,
+    },
     /// Stream trajectories for a result id/path.
-    Trajectory(String),
+    Trajectory {
+        /// Job-series id, run id, or run-directory path.
+        result: String,
+        /// Explicit bounded selection or the complete particle set.
+        selection: TrajectorySelection,
+    },
+    /// Write the deterministic `run-report.md` product for a result id/path.
+    Report {
+        /// Job-series id, run id, or run-directory path.
+        result: String,
+    },
+}
+
+/// Particle selection for trajectory streaming.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TrajectorySelection {
+    /// Sorted unique stable particle identities.
+    ParticleIds(Vec<u64>),
+    /// Every particle, streamed without whole-result buffering.
+    All,
 }

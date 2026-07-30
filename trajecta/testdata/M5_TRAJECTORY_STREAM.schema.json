@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m5-trajectory-stream-v1.json",
+  "title": "Trajecta trajectory stream header",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "job_series_id", "run_id", "attempt",
+    "status", "run_success", "selection"
+  ],
+  "properties": {
+    "schema_version": {"const": "trajecta.trajectory-stream/v1"},
+    "job_series_id": {"$ref": "#/$defs/uuid"},
+    "run_id": {"$ref": "#/$defs/uuid"},
+    "attempt": {"type": "integer", "minimum": 1},
+    "status": {
+      "enum": [
+        "running", "complete", "completed_with_particle_errors", "failed",
+        "cancelled", "interrupted"
+      ]
+    },
+    "run_success": {"type": "boolean"},
+    "selection": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "particle_ids"],
+          "properties": {
+            "mode": {"const": "all"},
+            "particle_ids": {"type": "array", "maxItems": 0}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "particle_ids"],
+          "properties": {
+            "mode": {"const": "particle_ids"},
+            "particle_ids": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "integer", "minimum": 0},
+              "uniqueItems": true
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    }
+  }
+}

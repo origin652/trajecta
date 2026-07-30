@@ -1,7 +1,8 @@
 //! M5-A2 real-process daemon, worker, and foreground-run contracts.
 
-#![allow(clippy::panic, clippy::unwrap_used)]
+#![allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -9,6 +10,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use rusqlite::{Connection, OptionalExtension};
+use sha2::{Digest, Sha256};
 use trajecta_local_ipc::{ProcessIdentity, force_terminate_process, process_identity_matches};
 
 #[derive(Debug)]
@@ -115,6 +117,181 @@ fn wait_for_daemon_release(catalog: &Path) {
         assert!(started.elapsed() < Duration::from_secs(10));
         thread::sleep(Duration::from_millis(100));
     }
+}
+
+fn daemon_instance(catalog: &Path) -> String {
+    Connection::open(catalog)
+        .unwrap()
+        .query_row(
+            "SELECT daemon_instance_id FROM daemon_lease WHERE singleton = 1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap()
+}
+
+fn artifact_fingerprint(root: &Path) -> BTreeMap<PathBuf, (u64, String)> {
+    let mut files = BTreeMap::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        for entry in fs::read_dir(&directory).unwrap() {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            let metadata = fs::symlink_metadata(&path).unwrap();
+            assert!(!metadata.file_type().is_symlink());
+            if metadata.is_dir() {
+                pending.push(path);
+            } else {
+                let relative = path.strip_prefix(root).unwrap().to_path_buf();
+                let digest = hex::encode(Sha256::digest(fs::read(&path).unwrap()));
+                files.insert(relative, (metadata.len(), digest));
+            }
+        }
+    }
+    files
+}
+
+fn successful_json(config: &Path, arguments: &[&str]) -> serde_json::Value {
+    let mut command = vec!["--format", "json", "--config", config.to_str().unwrap()];
+    command.extend_from_slice(arguments);
+    let output = cli(&command);
+    assert!(
+        output.status.success(),
+        "arguments={arguments:?} stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).unwrap()
+}
+
+fn verify_attempt_history_contract(
+    config: &Path,
+    catalog: &Path,
+    job_series_id: &str,
+    first_run_id: &str,
+    first_output: &Path,
+) {
+    let first_verification =
+        successful_json(config, &["result", "verify", job_series_id, "--full"]);
+    assert_eq!(first_verification["data"]["mode"], "full");
+    assert_eq!(first_verification["data"]["run_id"], first_run_id);
+    let canonical_digest = first_verification["data"]["canonical_output_sha256"]
+        .as_str()
+        .unwrap();
+    let first_report = fs::read_to_string(first_output.join("run-report.md")).unwrap();
+    assert!(first_report.contains(canonical_digest));
+
+    let rerun = successful_json(config, &["job", "rerun", job_series_id]);
+    assert_eq!(rerun["data"]["job_series_id"], job_series_id);
+    assert_eq!(rerun["data"]["attempt"], 2);
+    assert_eq!(rerun["data"]["state"], "queued");
+    let second_run_id = rerun["data"]["run_id"].as_str().unwrap();
+    assert_ne!(second_run_id, first_run_id);
+
+    let waited = successful_json(config, &["job", "wait", job_series_id]);
+    assert_eq!(waited["data"]["run_id"], second_run_id);
+    assert_eq!(waited["data"]["attempt"], 2);
+    assert_eq!(waited["data"]["state"], "complete");
+
+    let second_verification =
+        successful_json(config, &["result", "verify", second_run_id, "--full"]);
+    assert_eq!(
+        second_verification["data"]["canonical_output_sha256"],
+        canonical_digest
+    );
+    let first_report = fs::read_to_string(first_output.join("run-report.md")).unwrap();
+    assert!(first_report.contains(second_run_id));
+    let second_output = PathBuf::from(waited["data"]["output_directory"].as_str().unwrap());
+    assert!(
+        fs::read_to_string(second_output.join("run-report.md"))
+            .unwrap()
+            .contains(canonical_digest)
+    );
+    let second_report_path = second_output.join("run-report.md");
+    fs::remove_file(&second_report_path).unwrap();
+    fs::create_dir(&second_report_path).unwrap();
+    let report_failure = successful_json(config, &["result", "verify", second_run_id, "--full"]);
+    assert!(
+        report_failure["diagnostics"]
+            .as_array()
+            .is_some_and(|diagnostics| {
+                diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic["code"] == "report.refresh_failed")
+            })
+    );
+    fs::remove_dir(&second_report_path).unwrap();
+    successful_json(config, &["run", "report", "--result", second_run_id]);
+
+    let verified_files = artifact_fingerprint(first_output);
+    let before_prune = artifact_fingerprint(first_output);
+    assert_eq!(before_prune, verified_files);
+    let plan = successful_json(config, &["job", "prune"]);
+    assert_eq!(plan["data"]["mode"], "dry_run");
+    assert_eq!(plan["data"]["delete_enabled"], false);
+    let candidates = plan["data"]["candidates"].as_array().unwrap();
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(candidates[0]["run_id"], first_run_id);
+    assert_eq!(candidates[0]["superseded_by"], second_run_id);
+    assert_eq!(candidates[0]["protected"], false);
+    assert_eq!(artifact_fingerprint(first_output), before_prune);
+
+    let connection = Connection::open(catalog).unwrap();
+    let attempts = connection
+        .query_row(
+            "SELECT COUNT(*) FROM jobs WHERE job_series_id = ?1",
+            [job_series_id],
+            |row| row.get::<_, u64>(0),
+        )
+        .unwrap();
+    let verifications = connection
+        .query_row(
+            "SELECT COUNT(*) FROM full_verifications
+             JOIN jobs USING (run_id) WHERE jobs.job_series_id = ?1",
+            [job_series_id],
+            |row| row.get::<_, u64>(0),
+        )
+        .unwrap();
+    let superseded_by = connection
+        .query_row(
+            "SELECT superseded_by FROM attempt_supersession WHERE run_id = ?1",
+            [first_run_id],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap();
+    assert_eq!(attempts, 2);
+    assert_eq!(verifications, 2);
+    assert_eq!(superseded_by, second_run_id);
+    drop(connection);
+
+    successful_json(config, &["job", "forget", job_series_id]);
+    assert!(
+        fs::read_to_string(first_output.join("run-report.md"))
+            .unwrap()
+            .contains("\"visible_in_routine_list\": false")
+    );
+    let list = successful_json(config, &["job", "list"]);
+    assert!(
+        list["data"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|snapshot| { snapshot["job_series_id"].as_str() != Some(job_series_id) })
+    );
+    let old_attempt = successful_json(config, &["result", "verify", first_run_id]);
+    assert_eq!(old_attempt["data"]["run_id"], first_run_id);
+    let hidden = successful_json(config, &["result", "inspect", first_run_id]);
+    assert_eq!(hidden["data"]["catalog"]["visible_in_routine_list"], false);
+    assert_eq!(hidden["data"]["catalog"]["superseded_by"], second_run_id);
+    let hidden_files = artifact_fingerprint(first_output);
+
+    let previous_daemon = daemon_instance(catalog);
+    wait_for_daemon_release(catalog);
+    let status = successful_json(config, &["job", "status", job_series_id]);
+    assert_eq!(status["data"]["run_id"], second_run_id);
+    assert_eq!(status["data"]["attempt"], 2);
+    assert_ne!(daemon_instance(catalog), previous_daemon);
+    assert_eq!(artifact_fingerprint(first_output), hidden_files);
 }
 
 fn wait_for_job(
@@ -454,6 +631,199 @@ execution:
     assert_eq!(manifest["job_series_id"], series);
     assert_eq!(manifest["run_id"], run_id);
     assert_eq!(manifest["attempt"], 1);
+    let started = Instant::now();
+    while !output_directory.join("run-report.md").is_file() {
+        assert!(started.elapsed() < Duration::from_secs(10));
+        thread::sleep(Duration::from_millis(25));
+    }
+
+    // A3 result products consume the same production artifact that the daemon
+    // completed above; no hand-written manifest or SQLite fixture is used.
+    let inspect = cli(&[
+        "--format",
+        "json",
+        "result",
+        "inspect",
+        output_directory.to_str().unwrap(),
+    ]);
+    assert!(inspect.status.success());
+    let inspect: serde_json::Value = serde_json::from_slice(&inspect.stdout).unwrap();
+    assert_eq!(inspect["command"], "result inspect");
+    assert_eq!(inspect["data"]["identity"]["run_id"], run_id);
+    assert_eq!(
+        inspect["data"]["schema_version"],
+        "trajecta.result-inspection/v1"
+    );
+    assert!(inspect["data"]["artifacts"].is_array());
+    assert!(inspect["data"]["quality"].is_object());
+    assert!(inspect["data"]["particles"].is_object());
+    let catalog_inspect = cli(&[
+        "--format",
+        "json",
+        "--config",
+        config.to_str().unwrap(),
+        "result",
+        "inspect",
+        series,
+    ]);
+    assert!(catalog_inspect.status.success());
+    let catalog_inspect: serde_json::Value =
+        serde_json::from_slice(&catalog_inspect.stdout).unwrap();
+    assert_eq!(catalog_inspect["data"]["identity"]["run_id"], run_id);
+    assert_eq!(
+        catalog_inspect["data"]["catalog"]["visible_in_routine_list"],
+        true
+    );
+    assert!(catalog_inspect["data"]["catalog"]["full_verification"].is_null());
+
+    let particle_id: i64 = Connection::open(output_directory.join("particles.sqlite"))
+        .unwrap()
+        .query_row(
+            "SELECT particle_id FROM particle ORDER BY particle_id LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let trajectory = cli(&[
+        "--format",
+        "json",
+        "result",
+        "trajectory",
+        output_directory.to_str().unwrap(),
+        "--particle-id",
+        &particle_id.to_string(),
+    ]);
+    assert!(trajectory.status.success());
+    let trajectory: serde_json::Value = serde_json::from_slice(&trajectory.stdout).unwrap();
+    assert_eq!(trajectory["command"], "result trajectory");
+    assert!(trajectory.get("exit_code").is_none());
+    let records = trajectory["data"]["records"]
+        .as_array()
+        .expect("trajectory JSON data contains records array");
+    assert!(!records.is_empty());
+    assert_eq!(
+        trajectory["data"]["schema_version"],
+        "trajecta.trajectory-stream/v1"
+    );
+    assert_eq!(trajectory["data"]["run_id"], run_id);
+
+    let trajectory_jsonl = cli(&[
+        "--format",
+        "jsonl",
+        "result",
+        "trajectory",
+        output_directory.to_str().unwrap(),
+        "--particle-id",
+        &particle_id.to_string(),
+    ]);
+    assert!(trajectory_jsonl.status.success());
+    let jsonl: Vec<serde_json::Value> = String::from_utf8(trajectory_jsonl.stdout)
+        .expect("JSONL is UTF-8")
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("JSONL item"))
+        .collect();
+    assert!(jsonl.len() >= 3);
+    for (index, item) in jsonl.iter().enumerate() {
+        assert_eq!(item["sequence"], u64::try_from(index + 1).unwrap());
+    }
+    assert_eq!(
+        jsonl.first().and_then(|item| item.get("kind")),
+        Some(&serde_json::Value::String("data".to_owned()))
+    );
+    assert_eq!(
+        jsonl.last().and_then(|item| item.get("kind")),
+        Some(&serde_json::Value::String("summary".to_owned()))
+    );
+    assert!(jsonl.last().unwrap()["summary"].is_object());
+    assert!(jsonl.last().unwrap().get("data").is_none());
+
+    let trajectory_human = cli(&[
+        "--format",
+        "human",
+        "result",
+        "trajectory",
+        output_directory.to_str().unwrap(),
+        "--particle-id",
+        &particle_id.to_string(),
+    ]);
+    assert!(trajectory_human.status.success());
+    let human = String::from_utf8(trajectory_human.stdout).expect("human output is UTF-8");
+    assert!(human.starts_with("trajectory run_id="));
+    assert!(!human.contains("{\"schema_version\""));
+
+    let missing_trajectory = cli(&[
+        "--format",
+        "json",
+        "result",
+        "trajectory",
+        output_directory.to_str().unwrap(),
+        "--particle-id",
+        "0",
+    ]);
+    assert_eq!(missing_trajectory.status.code(), Some(1));
+    assert!(missing_trajectory.stderr.is_empty());
+    let missing_trajectory: serde_json::Value =
+        serde_json::from_slice(&missing_trajectory.stdout).unwrap();
+    assert!(
+        missing_trajectory["diagnostics"]
+            .as_array()
+            .is_some_and(|diagnostics| diagnostics
+                .iter()
+                .any(|diagnostic| { diagnostic["code"] == "result.particle_not_found" }))
+    );
+
+    let report = cli(&[
+        "--format",
+        "json",
+        "run",
+        "report",
+        "--result",
+        output_directory.to_str().unwrap(),
+    ]);
+    assert!(report.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&report.stdout).unwrap();
+    assert_eq!(report["data"]["path"], "run-report.md");
+    let report_bytes = fs::read(output_directory.join("run-report.md")).unwrap();
+    assert!(report_bytes.ends_with(b"\n"));
+    let report_text = String::from_utf8(report_bytes.clone()).expect("report is UTF-8");
+    for section in [
+        "# Trajecta run report",
+        "## Identity",
+        "## Lifecycle",
+        "## Inputs and software",
+        "## Execution resources",
+        "## Particles and terminations",
+        "## Quality summary",
+        "## Mass ledger",
+        "## Verification and supersession",
+        "## Artifacts and forensic pointers",
+        "run-report.md is a derived human-readable view and is not part of the scientific digest identity.",
+    ] {
+        assert!(
+            report_text.contains(section),
+            "missing report section: {section}"
+        );
+    }
+    let second_report = cli(&[
+        "--format",
+        "json",
+        "run",
+        "report",
+        "--result",
+        output_directory.to_str().unwrap(),
+    ]);
+    assert!(second_report.status.success());
+    assert_eq!(
+        fs::read(output_directory.join("run-report.md")).unwrap(),
+        report_bytes
+    );
+    assert!(fs::read_dir(&output_directory).unwrap().all(|entry| {
+        !entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with(".trajecta-run-report-")
+    }));
 
     let events = cli(&[
         "--format",
@@ -474,8 +844,35 @@ execution:
             .any(|event| { event["state"] == "complete" && event["kind"] == "state_transition" })
     );
 
-    let catalog_path = temp.join("runtime/jobs.sqlite3");
-    let catalog = catalog_path;
+    let catalog = temp.join("runtime/jobs.sqlite3");
+    verify_attempt_history_contract(&config, &catalog, series, run_id, &output_directory);
+
+    // A readable manifest with an unreadable SQLite artifact is an inspectable
+    // partial result: the CLI returns one structured diagnostic, rather than
+    // hiding the manifest identity or reporting a false successful SQLite view.
+    fs::write(
+        output_directory.join("particles.sqlite"),
+        b"not a sqlite database",
+    )
+    .expect("corrupt copied result sqlite");
+    let partial_inspect = cli(&[
+        "--format",
+        "json",
+        "result",
+        "inspect",
+        output_directory.to_str().unwrap(),
+    ]);
+    assert!(partial_inspect.status.success());
+    let partial_inspect: serde_json::Value =
+        serde_json::from_slice(&partial_inspect.stdout).expect("partial inspect json");
+    assert_eq!(partial_inspect["diagnostics"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        partial_inspect["diagnostics"][0]["code"],
+        "result.inspect_sqlite_unavailable"
+    );
+    assert_eq!(partial_inspect["data"]["identity"]["run_id"], run_id);
+    assert!(partial_inspect["data"]["quality"].is_null());
+
     let started = Instant::now();
     loop {
         let connection = Connection::open(&catalog).unwrap();
@@ -655,6 +1052,16 @@ execution:
     assert!(safe_manifest["provenance"].is_object());
     assert!(safe_manifest.get("failure").is_none());
     assert!(safe_output.join("particles.sqlite").is_file());
+    let started = Instant::now();
+    while !safe_output.join("run-report.md").is_file() {
+        assert!(started.elapsed() < Duration::from_secs(10));
+        thread::sleep(Duration::from_millis(25));
+    }
+    assert!(
+        fs::read_to_string(safe_output.join("run-report.md"))
+            .unwrap()
+            .contains("cancelled")
+    );
     let safe_wal = safe_output.join("particles.sqlite-wal");
     assert!(!safe_wal.exists() || fs::metadata(safe_wal).unwrap().len() == 0);
     let safe_wait = cli(&[
@@ -721,6 +1128,11 @@ execution:
         "run.interrupted.worker_lost"
     );
     assert!(forced_manifest.get("provenance").is_none());
+    assert!(
+        fs::read_to_string(forced_output.join("run-report.md"))
+            .unwrap()
+            .contains("run.interrupted.worker_lost")
+    );
     wait_for_daemon_release(&catalog);
 
     let mut foreground = Command::new(env!("CARGO_BIN_EXE_trajecta-cli"))
@@ -827,6 +1239,11 @@ execution:
         serde_json::from_slice(&fs::read(live.output_directory.join("run-manifest.json")).unwrap())
             .unwrap();
     assert_eq!(recovered_manifest["status"], "interrupted");
+    assert!(
+        fs::read_to_string(live.output_directory.join("run-report.md"))
+            .unwrap()
+            .contains("run.interrupted.worker_lost")
+    );
     wait_for_daemon_release(&catalog);
     fs::remove_dir_all(temp).unwrap();
 }

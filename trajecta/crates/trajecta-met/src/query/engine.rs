@@ -3424,23 +3424,6 @@ fn sample_surface_transport(
         .map_err(|_| EngineError::NumericalFailure)?;
     let minimum = minimum_transport_height_agl_m(physical_roughness)
         .map_err(|_| EngineError::NumericalFailure)?;
-    let structural_lowest = target_column
-        .lowest_valid_index()
-        .map_err(EngineError::Vertical)?;
-    let structural_lowest_height_agl_m =
-        target_column.height_asl_m()[structural_lowest] - target_column.terrain_asl_m();
-    let structural_query_height_agl_m =
-        surface_query_height_agl_m(target_column, coordinate, vertical_value, structural_lowest)?;
-    if !structural_query_height_agl_m.is_finite()
-        || structural_query_height_agl_m < minimum
-        || structural_query_height_agl_m > structural_lowest_height_agl_m
-    {
-        return Ok(TransportPointResult::invalid(
-            SampleStatus::SurfaceLayerUndefined,
-            Some(bounds),
-            metadata,
-        ));
-    }
     let before_column = frame_stencils(stencils, &window.frames.before)?.column(
         cell,
         longitude_degrees,
@@ -4095,19 +4078,53 @@ fn sample_transport_point(
         )
     } else {
         match target_bracket {
-            Ok(bracket) => sample_upper_transport(
-                window,
-                stencils,
-                &column.geometry,
-                cell,
-                longitude_degrees,
-                latitude_degrees,
-                batch.vertical_coordinate,
-                vertical_value,
-                bracket,
-                bounds,
-                &metadata.upper_transport,
-            ),
+            Ok(bracket) => {
+                let upper = sample_upper_transport(
+                    window,
+                    stencils,
+                    &column.geometry,
+                    cell,
+                    longitude_degrees,
+                    latitude_degrees,
+                    batch.vertical_coordinate,
+                    vertical_value,
+                    bracket,
+                    bounds,
+                    &metadata.upper_transport,
+                );
+                match upper {
+                    Ok(value) => Ok(value),
+                    Err(error)
+                        if is_incomplete_transport_level(&error)
+                            && column.geometry.lowest_valid_index().ok()
+                                == Some(bracket.second) =>
+                    {
+                        match sample_surface_transport(
+                            plan,
+                            window,
+                            stencils,
+                            &column.geometry,
+                            cell,
+                            longitude_degrees,
+                            latitude_degrees,
+                            batch.vertical_coordinate,
+                            vertical_value,
+                            bounds,
+                            &metadata.surface_transport,
+                        ) {
+                            Ok(value) if value.status == SampleStatus::SurfaceLayerUndefined => {
+                                Err(error)
+                            }
+                            Ok(value) => Ok(value),
+                            Err(surface_error) if is_incomplete_transport_level(&surface_error) => {
+                                Err(error)
+                            }
+                            Err(surface_error) => Err(surface_error),
+                        }
+                    }
+                    Err(error) => Err(error),
+                }
+            }
             Err(VerticalError::SurfaceLayerRequired) => sample_surface_transport(
                 plan,
                 window,
@@ -4314,6 +4331,7 @@ fn explain_record_for_point(
     original_index: usize,
     quality: &[FieldQuality],
     provenance: &[ProvenanceId],
+    transport_mode: bool,
 ) -> Result<ExplainRecord, EngineError> {
     if quality.len() != plan.fields().len() || provenance.len() != plan.fields().len() {
         return Err(EngineError::InvalidPreparedState);
@@ -4349,6 +4367,25 @@ fn explain_record_for_point(
             &target_bracket,
         )?
         .is_some();
+    let incomplete_bottom_surface_route = if transport_mode && !mixed_route {
+        match &target_bracket {
+            Ok(bracket) if column.geometry.lowest_valid_index().ok() == Some(bracket.second) => {
+                let (_, w_valid) = geometric_w_profile(
+                    window,
+                    stencils,
+                    &column.geometry,
+                    cell,
+                    longitude_degrees,
+                    latitude_degrees,
+                )?;
+                !w_valid.get(bracket.first).copied().unwrap_or(false)
+                    || !w_valid.get(bracket.second).copied().unwrap_or(false)
+            }
+            _ => false,
+        }
+    } else {
+        false
+    };
     let (horizontal, vertical) = if mixed_route {
         (
             ExplainHorizontalSupport {
@@ -4367,6 +4404,21 @@ fn explain_record_for_point(
         )
     } else {
         match target_bracket {
+            Ok(_) if incomplete_bottom_surface_route => (
+                ExplainHorizontalSupport {
+                    points: base.points,
+                    first_level_weights: base.weights,
+                    first_level_method: ExplainHorizontalMethod::Bilinear,
+                    second_level_weights: None,
+                    second_level_method: None,
+                },
+                ExplainVerticalSupport {
+                    path: ExplainVerticalPath::SurfaceLayer,
+                    first_level: None,
+                    second_level: None,
+                    second_weight: None,
+                },
+            ),
             Ok(bracket) => {
                 let first_weights = column.geometry.level_horizontal_weights()[bracket.first];
                 let (second_level_weights, second_level_method) = if bracket.second == bracket.first
@@ -5219,6 +5271,7 @@ impl PreparedBatch {
                                 original_index,
                                 &point_quality,
                                 &point_provenance,
+                                false,
                             )?);
                         }
                     }
@@ -5366,6 +5419,7 @@ impl PreparedTransportBatch {
                                 original_index,
                                 &point_quality,
                                 &point_provenance,
+                                true,
                             )?);
                         }
                     }
@@ -5560,6 +5614,56 @@ mod tests {
 
     fn analytic_pressure_frame(seconds: i64) -> Arc<RawMetFrame> {
         analytic_pressure_frame_with_estimated(seconds, None)
+    }
+
+    fn analytic_pressure_frame_with_low_bottom(
+        seconds: i64,
+        incomplete_bottom_transport: bool,
+    ) -> Arc<RawMetFrame> {
+        let frame = analytic_pressure_frame(seconds);
+        let geometric_height = FieldKey::Canonical(CanonicalField::GeometricHeight);
+        let terrain_height = FieldKey::Canonical(CanonicalField::GeometricTerrainHeight);
+        let vertical_velocity = FieldKey::Canonical(CanonicalField::PressureVerticalVelocity);
+        let mut fields = RawFieldStore::new();
+        for (key, field) in frame.fields().iter() {
+            let replacement = if key == &geometric_height {
+                Some((
+                    vec![1_000.0; 4].into_iter().chain(vec![100.0; 4]).collect(),
+                    None,
+                ))
+            } else if key == &terrain_height {
+                Some((vec![0.0; 4], None))
+            } else if key == &vertical_velocity && incomplete_bottom_transport {
+                if let ArrayLayout::Full3D { levels, ny, nx } = field.layout() {
+                    let mut valid = field.validity().as_arc().to_vec();
+                    valid[(levels - 1) * ny * nx..].fill(false);
+                    Some((field.values().to_vec(), Some(valid)))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            let field = if let Some((values, valid)) = replacement {
+                RawField::new(
+                    Arc::from(values),
+                    Arc::from(valid.unwrap_or_else(|| field.validity().as_arc().to_vec())),
+                    field.unit().clone(),
+                    field.layout(),
+                    field.temporal(),
+                    field.quality(),
+                    field.provenance(),
+                )
+                .unwrap()
+            } else {
+                field.clone()
+            };
+            fields.insert(key.clone(), field).unwrap();
+        }
+        Arc::new(
+            RawMetFrame::publish(frame.metadata().clone(), fields, frame.provenance().clone())
+                .unwrap(),
+        )
     }
 
     fn analytic_pressure_frame_without_surface_layer_inputs(seconds: i64) -> Arc<RawMetFrame> {
@@ -6629,6 +6733,45 @@ mod tests {
                 .geometric_vertical_velocity_m_s()
                 .unwrap()
                 .is_finite()
+        );
+    }
+
+    #[test]
+    fn exact_bottom_interval_uses_surface_when_transport_anchor_is_incomplete() {
+        let mut window = PreparedWindow::at_frame(
+            Some(analytic_pressure_frame_with_low_bottom(0, false)),
+            analytic_pressure_frame_with_low_bottom(3_600, true),
+            Some(analytic_pressure_frame_with_low_bottom(7_200, false)),
+            8 * 1024 * 1024,
+        )
+        .unwrap();
+        let cache = Arc::new(Mutex::new(ColumnCache::new(8 * 1024 * 1024)));
+        window.attach_column_cache(&cache);
+        let mut workspace = BatchWorkspace::default();
+        let output = window
+            .prepare_transport_batch(
+                &transport_plan_with_options(false, ExplainMode::Full),
+                QueryBatch {
+                    vertical_coordinate: VerticalQuery::AboveGround,
+                    points: QueryPointArrays {
+                        longitude_degrees: vec![0.5],
+                        latitude_degrees: vec![0.5],
+                        vertical: vec![200.0],
+                    },
+                },
+                &mut workspace,
+            )
+            .unwrap()
+            .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+            .unwrap();
+        let row = output.row(0).unwrap();
+        assert_eq!(row.status(), SampleStatus::Ok);
+        assert!(row.geometric_vertical_velocity_m_s().unwrap().is_finite());
+        let explain = output.explain().unwrap()[0].as_ref().unwrap();
+        assert_eq!(explain.vertical.path, ExplainVerticalPath::SurfaceLayer);
+        assert_eq!(
+            explain.surface_model.as_ref().unwrap().0,
+            MoninObukhovBusingerDyer::MODEL_ID
         );
     }
 

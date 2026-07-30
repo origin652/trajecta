@@ -4,6 +4,7 @@
 //! opening meteorology files or executing scientific work. Machine-readable
 //! and human output modes share the same command result envelope.
 
+use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
@@ -12,7 +13,9 @@ use trajecta_case::document::MeteorologyReaderBackend;
 use crate::command::case::CaseCommand;
 use crate::command::config::ConfigCommand;
 use crate::command::project::ProjectCommand;
-use crate::command::staged::{JobCommand, ResultCommand, RunInput, StagedRunCommand};
+use crate::command::staged::{
+    JobCommand, ResultCommand, RunInput, StagedRunCommand, TrajectorySelection,
+};
 use crate::command::{Command, DataCommand, DoctorCommand, MetCommand};
 
 /// Requested output representation.
@@ -95,7 +98,7 @@ impl Cli {
         let _ = all.next();
         let (output, config_path, project_path, positional) = parse_global_options(all.collect())?;
         if positional.is_empty() {
-            return Err(CliParseError::Help);
+            return Err(CliParseError::MissingArgument("command".into()));
         }
         let command_name = positional[0]
             .to_str()
@@ -107,6 +110,9 @@ impl Cli {
             "data" => Command::Data(parse_data(&positional[1..])?),
             "met" => Command::Met(parse_met(&positional[1..])?),
             "doctor" => Command::Doctor(parse_doctor(&positional[1..])?),
+            "run" if positional.get(1).and_then(|value| value.to_str()) == Some("report") => {
+                Command::Result(parse_run_report(&positional[2..])?)
+            }
             "run" => Command::StagedRun(parse_staged_run(&positional[1..], project_path.clone())?),
             "job" => Command::Job(parse_job(&positional[1..])?),
             "result" => Command::Result(parse_result(&positional[1..])?),
@@ -570,6 +576,34 @@ fn parse_doctor(args: &[OsString]) -> Result<DoctorCommand, CliParseError> {
     }
 }
 
+fn parse_run_report(args: &[OsString]) -> Result<ResultCommand, CliParseError> {
+    let mut result = None;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].to_string_lossy().as_ref() {
+            "--result" => {
+                index += 1;
+                result = Some(require_utf8(args, index, "--result")?);
+            }
+            "--output" => {
+                return Err(CliParseError::InvalidArgument(
+                    "run report writes fixed run-report.md inside the resolved run directory"
+                        .into(),
+                ));
+            }
+            other => {
+                return Err(CliParseError::InvalidArgument(format!(
+                    "unknown run report option `{other}`"
+                )));
+            }
+        }
+        index += 1;
+    }
+    Ok(ResultCommand::Report {
+        result: result.ok_or_else(|| CliParseError::MissingArgument("--result".into()))?,
+    })
+}
+
 fn parse_staged_run(
     args: &[OsString],
     project_path: Option<PathBuf>,
@@ -709,20 +743,83 @@ fn parse_result(args: &[OsString]) -> Result<ResultCommand, CliParseError> {
     let Some(name) = args.first().and_then(|value| value.to_str()) else {
         return Err(CliParseError::MissingArgument("result subcommand".into()));
     };
-    if args.len() != 2 {
-        return Err(CliParseError::InvalidArgument(
-            "result command requires RESULT".into(),
-        ));
-    }
-    let value = require_utf8(args, 1, "RESULT")?;
     match name {
-        "inspect" => Ok(ResultCommand::Inspect(value)),
-        "verify" => Ok(ResultCommand::Verify(value)),
-        "trajectory" => Ok(ResultCommand::Trajectory(value)),
+        "inspect" if args.len() == 2 => {
+            Ok(ResultCommand::Inspect(require_utf8(args, 1, "RESULT")?))
+        }
+        "verify" if matches!(args.len(), 2 | 3) => {
+            let full = args.len() == 3 && args[2] == "--full";
+            if args.len() == 3 && !full {
+                return Err(CliParseError::InvalidArgument(
+                    "result verify accepts only --full after RESULT".into(),
+                ));
+            }
+            Ok(ResultCommand::Verify {
+                result: require_utf8(args, 1, "RESULT")?,
+                full,
+            })
+        }
+        "trajectory" => parse_result_trajectory(&args[1..]),
         _ => Err(CliParseError::InvalidArgument(
-            "invalid result command".into(),
+            "invalid result command arguments".into(),
         )),
     }
+}
+
+fn parse_result_trajectory(args: &[OsString]) -> Result<ResultCommand, CliParseError> {
+    let result = require_utf8(args, 0, "RESULT")?;
+    let mut all = false;
+    let mut particle_ids = BTreeSet::new();
+    let mut index = 1;
+    while index < args.len() {
+        match args[index].to_str() {
+            Some("--all") if !all => all = true,
+            Some("--all") => {
+                return Err(CliParseError::InvalidArgument("duplicate --all".into()));
+            }
+            Some("--particle-id") => {
+                index += 1;
+                let value = require_utf8(args, index, "--particle-id")?;
+                let particle_id = value.parse::<u64>().map_err(|_| {
+                    CliParseError::InvalidArgument(
+                        "--particle-id must be a non-negative integer".into(),
+                    )
+                })?;
+                if particle_id > i64::MAX as u64 {
+                    return Err(CliParseError::InvalidArgument(
+                        "--particle-id exceeds the SQLite identity range".into(),
+                    ));
+                }
+                if !particle_ids.insert(particle_id) {
+                    return Err(CliParseError::InvalidArgument(format!(
+                        "duplicate --particle-id {particle_id}"
+                    )));
+                }
+            }
+            _ => {
+                return Err(CliParseError::InvalidArgument(
+                    "result trajectory accepts RESULT plus repeated --particle-id ID or --all"
+                        .into(),
+                ));
+            }
+        }
+        index += 1;
+    }
+    let selection = match (all, particle_ids.is_empty()) {
+        (true, true) => TrajectorySelection::All,
+        (false, false) => TrajectorySelection::ParticleIds(particle_ids.into_iter().collect()),
+        (true, false) => {
+            return Err(CliParseError::InvalidArgument(
+                "--all cannot be combined with --particle-id".into(),
+            ));
+        }
+        (false, true) => {
+            return Err(CliParseError::InvalidArgument(
+                "result trajectory requires --particle-id ID or --all".into(),
+            ));
+        }
+    };
+    Ok(ResultCommand::Trajectory { result, selection })
 }
 
 fn parse_backend(value: &str) -> Result<MeteorologyReaderBackend, CliParseError> {
@@ -773,7 +870,8 @@ impl CliParseError {
     #[must_use]
     pub const fn exit_code(&self) -> i32 {
         match self {
-            Self::Help | Self::MissingArgument(_) | Self::InvalidArgument(_) => 2,
+            Self::Help => 0,
+            Self::MissingArgument(_) | Self::InvalidArgument(_) => 2,
         }
     }
 }
@@ -794,6 +892,8 @@ trajecta — Trajecta command-line interface
 Usage:
   trajecta run (--project PATH --profile NAME | --case FILE --run-profile FILE) [--detach]
   trajecta job list|status|wait|events|cancel ...
+  trajecta result inspect|verify RESULT
+  trajecta result trajectory RESULT (--particle-id ID ... | --all)
   trajecta met probe --data-root DIR --profile NAME --time UNIX [options]
   trajecta met replay --data-root DIR --profile NAME --input JSONL [options]
 
@@ -894,5 +994,69 @@ mod tests {
                 "job cancel accepts only --force after JOB_ID".into()
             ))
         );
+    }
+
+    #[test]
+    fn trajectory_selection_is_explicit_sorted_and_bounded() {
+        let selected = parse(&[
+            "trajecta",
+            "result",
+            "trajectory",
+            "run",
+            "--particle-id",
+            "9",
+            "--particle-id",
+            "2",
+        ])
+        .unwrap();
+        assert_eq!(
+            selected.command,
+            Command::Result(ResultCommand::Trajectory {
+                result: "run".into(),
+                selection: TrajectorySelection::ParticleIds(vec![2, 9]),
+            })
+        );
+        assert_eq!(
+            parse(&["trajecta", "result", "trajectory", "run", "--all"])
+                .unwrap()
+                .command,
+            Command::Result(ResultCommand::Trajectory {
+                result: "run".into(),
+                selection: TrajectorySelection::All,
+            })
+        );
+
+        for arguments in [
+            &["trajecta", "result", "trajectory", "run"][..],
+            &[
+                "trajecta",
+                "result",
+                "trajectory",
+                "run",
+                "--all",
+                "--particle-id",
+                "1",
+            ],
+            &[
+                "trajecta",
+                "result",
+                "trajectory",
+                "run",
+                "--particle-id",
+                "1",
+                "--particle-id",
+                "1",
+            ],
+            &[
+                "trajecta",
+                "result",
+                "trajectory",
+                "run",
+                "--particle-id",
+                "9223372036854775808",
+            ],
+        ] {
+            assert!(parse(arguments).is_err(), "{arguments:?}");
+        }
     }
 }

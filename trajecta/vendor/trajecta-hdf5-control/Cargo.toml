@@ -1,0 +1,17 @@
+[package]
+name = "trajecta-hdf5-control"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+description = "Narrow safe HDF5 process-control boundary for Trajecta"
+
+[dependencies]
+hdf5-metno-sys = "0.10.1"
+
+[lints.rust]
+missing_docs = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+all = "warn"

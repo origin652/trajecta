@@ -107,7 +107,7 @@ fn parses_all_thirty_five_frozen_command_paths() {
         &["job", "prune"],
         &["result", "inspect", "r"],
         &["result", "verify", "r"],
-        &["result", "trajectory", "r"],
+        &["result", "trajectory", "r", "--all"],
     ];
     assert_eq!(paths.len(), 35);
     for path in paths {
@@ -268,6 +268,48 @@ fn machine_parse_errors_and_command_paths_use_the_frozen_envelope() {
     assert!(project.status.success());
     let value: serde_json::Value = serde_json::from_slice(&project.stdout).unwrap();
     assert_eq!(value["command"], "project init");
+}
+
+#[test]
+fn help_succeeds_and_missing_command_remains_a_usage_error() {
+    let exe = env!("CARGO_BIN_EXE_trajecta-cli");
+
+    let human_help = ProcessCommand::new(exe).arg("--help").output().unwrap();
+    assert_eq!(human_help.status.code(), Some(0));
+    assert!(human_help.stderr.is_empty());
+    let human_text = String::from_utf8(human_help.stdout).unwrap();
+    assert!(human_text.contains("Trajecta command-line interface"));
+    assert!(human_text.contains("Usage:"));
+
+    let json_help = ProcessCommand::new(exe)
+        .args(["--format", "json", "--help"])
+        .output()
+        .unwrap();
+    assert_eq!(json_help.status.code(), Some(0));
+    assert!(json_help.stderr.is_empty());
+    let json: serde_json::Value = serde_json::from_slice(&json_help.stdout).unwrap();
+    assert_eq!(json["schema_version"], "trajecta.cli-output/v1");
+    assert_eq!(json["command"], "cli");
+    assert_eq!(json["ok"], true);
+    assert!(json["diagnostics"].as_array().unwrap().is_empty());
+    assert!(json["data"]["help"].as_str().unwrap().contains("Usage:"));
+
+    let missing = ProcessCommand::new(exe)
+        .args(["--format", "json"])
+        .output()
+        .unwrap();
+    assert_eq!(missing.status.code(), Some(2));
+    assert!(missing.stderr.is_empty());
+    let json: serde_json::Value = serde_json::from_slice(&missing.stdout).unwrap();
+    assert_eq!(json["command"], "cli");
+    assert_eq!(json["ok"], false);
+    assert_eq!(json["diagnostics"][0]["code"], "cli.invalid_arguments");
+    assert!(
+        json["diagnostics"][0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("missing argument: command")
+    );
 }
 
 #[test]

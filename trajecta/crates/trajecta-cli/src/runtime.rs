@@ -25,11 +25,13 @@ use trajecta_core::runner::{
     RunManifestStore, RunOutcome, RunnerAttemptIdentity, build_runner_for_attempt,
     run_directory_path,
 };
+use trajecta_core::verification::{VerificationMode, verify_run_directory};
 use trajecta_job::backend::{JobBackend, JobBackendError};
 use trajecta_job::catalog::{
     DaemonLease, LocalJobCatalog, TransitionDiagnostic, WorkerRecoveryDisposition,
 };
 use trajecta_job::daemon::{CatalogRunnerControl, DaemonControlBackend, dispatch_once};
+use trajecta_job::history::{JobAttemptHistory, JobHistoryBackend};
 use trajecta_job::ipc::{LocalJobClient, LocalJobServer};
 use trajecta_job::model::{
     CancelMode, EventQuery, JobEvent, JobListQuery, JobReceipt, JobSnapshot, JobState,
@@ -44,7 +46,7 @@ use uuid::Uuid;
 
 use crate::app::AppOutcome;
 use crate::cli::OutputMode;
-use crate::command::staged::{JobCommand, RunInput, StagedRunCommand};
+use crate::command::staged::{JobCommand, ResultCommand, RunInput, StagedRunCommand};
 use crate::configuration::RuntimeSettings;
 
 mod process;
@@ -168,20 +170,6 @@ pub(crate) fn execute_job(
     config_path: Option<&Path>,
     output: OutputMode,
 ) -> i32 {
-    if matches!(
-        command,
-        JobCommand::Rerun(_) | JobCommand::Forget(_) | JobCommand::Prune
-    ) {
-        return crate::write_outcome(
-            &AppOutcome::error(
-                job_command_name(command),
-                "command.stage_not_available",
-                "command is reserved for M5-A3",
-                "M5-A2 implements list, status, wait, events, and cancel",
-            ),
-            output,
-        );
-    }
     let settings = match runtime_settings(config_path) {
         Ok(settings) => settings,
         Err(error) => return write_runtime_error(job_command_name(command), error, output),
@@ -259,17 +247,328 @@ pub(crate) fn execute_job(
                 CancelMode::Safe
             };
             match cancel_reliably(&mut client, &id, mode) {
-                Ok(snapshot) => crate::write_outcome(
-                    &AppOutcome::ok("job cancel", serialize_or_null(&snapshot)),
-                    output,
-                ),
+                Ok(snapshot) => {
+                    let mut outcome = AppOutcome::ok("job cancel", serialize_or_null(&snapshot));
+                    if snapshot.state.is_terminal() {
+                        outcome.diagnostics = refresh_client_attempt_report(&client, &snapshot);
+                    }
+                    crate::write_outcome(&outcome, output)
+                }
                 Err(error) => {
                     write_runtime_error("job cancel", RuntimeError::backend(error), output)
                 }
             }
         }
-        JobCommand::Rerun(_) | JobCommand::Forget(_) | JobCommand::Prune => 1,
+        JobCommand::Rerun(job_id) => {
+            let id = match job_series_id(job_id) {
+                Ok(id) => id,
+                Err(error) => return write_runtime_error("job rerun", error, output),
+            };
+            match prepare_series_for_rerun(&mut client, &id, poll_interval(&settings))
+                .and_then(|()| client.rerun(&id))
+            {
+                Ok(receipt) => crate::write_outcome(
+                    &AppOutcome::ok("job rerun", serialize_or_null(&receipt)),
+                    output,
+                ),
+                Err(error) => {
+                    write_runtime_error("job rerun", RuntimeError::backend(error), output)
+                }
+            }
+        }
+        JobCommand::Forget(job_id) => {
+            let id = match job_series_id(job_id) {
+                Ok(id) => id,
+                Err(error) => return write_runtime_error("job forget", error, output),
+            };
+            match client.forget(&id) {
+                Ok(snapshot) => {
+                    let mut outcome = AppOutcome::ok("job forget", serialize_or_null(&snapshot));
+                    outcome.diagnostics = refresh_client_series_reports(&client, &id);
+                    crate::write_outcome(&outcome, output)
+                }
+                Err(error) => {
+                    write_runtime_error("job forget", RuntimeError::backend(error), output)
+                }
+            }
+        }
+        JobCommand::Prune => match client.prune_plan() {
+            Ok(plan) => crate::write_outcome(
+                &AppOutcome::ok("job prune", serialize_or_null(&plan)),
+                output,
+            ),
+            Err(error) => write_runtime_error("job prune", RuntimeError::backend(error), output),
+        },
     }
+}
+
+pub(crate) fn execute_result(
+    command: &ResultCommand,
+    config_path: Option<&Path>,
+    output: OutputMode,
+) -> i32 {
+    if let ResultCommand::Inspect(result)
+    | ResultCommand::Trajectory { result, .. }
+    | ResultCommand::Report { result, .. } = command
+    {
+        let resolved = match resolve_result(result, config_path) {
+            Ok(resolved) => resolved,
+            Err(error) => return write_runtime_error("result", error, output),
+        };
+        let input = resolved.product_input();
+        return match command {
+            ResultCommand::Inspect(_) => match crate::result_products::inspect(&input) {
+                Ok(product) if output == OutputMode::Human => {
+                    let text = crate::result_products::render_inspection_human(&product);
+                    match writeln!(io::stdout(), "{text}") {
+                        Ok(()) => 0,
+                        Err(error) => write_runtime_error(
+                            "result inspect",
+                            RuntimeError::product("result.io", error.to_string()),
+                            output,
+                        ),
+                    }
+                }
+                Ok(product) => {
+                    let run_success = product.data["lifecycle"]["run_success"]
+                        .as_bool()
+                        .unwrap_or(false);
+                    let mut outcome = AppOutcome::ok("result inspect", product.data)
+                        .with_run_success(run_success);
+                    outcome.diagnostics = product
+                        .warnings
+                        .into_iter()
+                        .map(|warning| Diagnostic::warning(warning.code, warning.message))
+                        .collect();
+                    crate::write_outcome(&outcome, output)
+                }
+                Err(error) => write_runtime_error(
+                    "result inspect",
+                    RuntimeError::product(error.code, error.message),
+                    output,
+                ),
+            },
+            ResultCommand::Trajectory { selection, .. } => {
+                match crate::result_products::trajectory(&input, selection, output) {
+                    Ok(exit_code) => exit_code,
+                    Err(error) if error.stream_started => 1,
+                    Err(error) => write_runtime_error(
+                        "result trajectory",
+                        RuntimeError::product(error.code, error.message),
+                        output,
+                    ),
+                }
+            }
+            ResultCommand::Report { .. } => match crate::result_products::write_report(&input) {
+                Ok(data) => crate::write_outcome(&AppOutcome::ok("run report", data), output),
+                Err(error) => write_runtime_error(
+                    "run report",
+                    RuntimeError::product(error.code, error.message),
+                    output,
+                ),
+            },
+            ResultCommand::Verify { .. } => unreachable!(),
+        };
+    }
+    let ResultCommand::Verify { result, full } = command else {
+        unreachable!()
+    };
+    let mut resolved = match resolve_result(result, config_path) {
+        Ok(resolved) => resolved,
+        Err(error) => return write_runtime_error("result verify", error, output),
+    };
+    let mode = if *full {
+        VerificationMode::Full
+    } else {
+        VerificationMode::Quick
+    };
+    let verification = match verify_run_directory(&resolved.path, mode) {
+        Ok(verification) => verification,
+        Err(error) => {
+            return write_runtime_error(
+                "result verify",
+                RuntimeError::product(error.code(), error.to_string()),
+                output,
+            );
+        }
+    };
+    let mut diagnostics = Vec::new();
+    if let Some((client, history)) = resolved.catalog.as_mut() {
+        if history.snapshot.run_id != verification.run_id
+            || history.snapshot.job_series_id != verification.job_series_id
+            || history.snapshot.attempt != verification.attempt
+            || JobState::from(verification.status) != history.snapshot.state
+        {
+            return write_runtime_error(
+                "result verify",
+                RuntimeError::product(
+                    "result.catalog_identity_mismatch",
+                    "verified manifest identity does not match the durable job attempt",
+                ),
+                output,
+            );
+        }
+        if mode == VerificationMode::Full && verification.status == RunLifecycleStatus::Complete {
+            // Local verification may outlive the daemon idle timeout.
+            let settings = match runtime_settings(config_path) {
+                Ok(settings) => settings,
+                Err(error) => return write_runtime_error("result verify", error, output),
+            };
+            *client = match daemon_client(&settings) {
+                Ok(client) => client,
+                Err(error) => return write_runtime_error("result verify", error, output),
+            };
+            if let Err(error) = client.record_full_verification(
+                &verification.run_id,
+                &verification.canonical_output_sha256,
+            ) {
+                return write_runtime_error("result verify", RuntimeError::backend(error), output);
+            }
+            diagnostics.extend(refresh_client_series_reports(
+                client,
+                &verification.job_series_id,
+            ));
+        }
+    }
+    let mut outcome = AppOutcome::ok("result verify", serialize_or_null(&verification))
+        .with_run_success(verification.run_success)
+        .with_exit_code(0);
+    outcome.diagnostics = diagnostics;
+    crate::write_outcome(&outcome, output)
+}
+
+struct ResolvedResult {
+    path: PathBuf,
+    catalog: Option<(LocalJobClient, JobAttemptHistory)>,
+}
+
+impl ResolvedResult {
+    fn product_input(&self) -> crate::result_products::ResultProductInput {
+        crate::result_products::ResultProductInput {
+            run_directory: self.path.clone(),
+            catalog: self.catalog.as_ref().map(|(_, history)| history.clone()),
+        }
+    }
+}
+
+fn resolve_result(
+    result: &str,
+    config_path: Option<&Path>,
+) -> Result<ResolvedResult, RuntimeError> {
+    let path = Path::new(result);
+    if path.exists() {
+        let path = if path.is_file()
+            && path
+                .file_name()
+                .is_some_and(|name| name == "run-manifest.json")
+        {
+            path.parent().unwrap_or(path)
+        } else {
+            path
+        };
+        return Ok(ResolvedResult {
+            path: path.to_path_buf(),
+            catalog: None,
+        });
+    }
+
+    let id = job_series_id(result)?;
+    let settings = runtime_settings(config_path)?;
+    let client = daemon_client(&settings)?;
+    let history = match client.status(&id) {
+        Ok(snapshot) => client
+            .attempt(&snapshot.run_id)
+            .map_err(RuntimeError::backend)?,
+        Err(JobBackendError::NotFound) => client
+            .attempt(&RunId(id.0.clone()))
+            .map_err(RuntimeError::backend)?,
+        Err(error) => return Err(RuntimeError::backend(error)),
+    };
+    let path = history.snapshot.output_directory.clone().ok_or_else(|| {
+        RuntimeError::product(
+            "result.artifact_missing",
+            "selected attempt has no allocated run directory",
+        )
+    })?;
+    Ok(ResolvedResult {
+        path,
+        catalog: Some((client, history)),
+    })
+}
+
+fn refresh_client_attempt_report(
+    client: &LocalJobClient,
+    snapshot: &JobSnapshot,
+) -> Vec<Diagnostic> {
+    match client.attempt(&snapshot.run_id) {
+        Ok(history) => report_refresh_warning(write_history_report(&history)),
+        Err(error) => {
+            let mut diagnostics = vec![Diagnostic::warning(
+                "report.refresh_failed",
+                format!("load terminal attempt for report refresh: {error}"),
+            )];
+            diagnostics.extend(report_refresh_warning(write_snapshot_report(snapshot)));
+            diagnostics
+        }
+    }
+}
+
+fn refresh_client_series_reports(
+    client: &LocalJobClient,
+    job_series_id: &JobSeriesId,
+) -> Vec<Diagnostic> {
+    let histories = match client.attempt_history(job_series_id) {
+        Ok(histories) => histories,
+        Err(error) => {
+            return vec![Diagnostic::warning(
+                "report.refresh_failed",
+                format!("load attempt history for report refresh: {error}"),
+            )];
+        }
+    };
+    histories
+        .iter()
+        .flat_map(|history| report_refresh_warning(write_history_report(history)))
+        .collect()
+}
+
+fn report_refresh_warning(result: Result<(), RuntimeError>) -> Vec<Diagnostic> {
+    result
+        .err()
+        .map(|error| vec![Diagnostic::warning("report.refresh_failed", error.message)])
+        .unwrap_or_default()
+}
+
+fn refresh_local_attempt_report(
+    catalog: &LocalJobCatalog,
+    run_id: &RunId,
+) -> Result<(), RuntimeError> {
+    let history = catalog.attempt(run_id).map_err(RuntimeError::backend)?;
+    write_history_report(&history)
+}
+
+fn write_history_report(history: &JobAttemptHistory) -> Result<(), RuntimeError> {
+    write_attempt_report(&history.snapshot, Some(history.clone()))
+}
+
+fn write_snapshot_report(snapshot: &JobSnapshot) -> Result<(), RuntimeError> {
+    write_attempt_report(snapshot, None)
+}
+
+fn write_attempt_report(
+    snapshot: &JobSnapshot,
+    catalog: Option<JobAttemptHistory>,
+) -> Result<(), RuntimeError> {
+    let Some(run_directory) = snapshot.output_directory.clone() else {
+        return Ok(());
+    };
+    let input = crate::result_products::ResultProductInput {
+        run_directory,
+        catalog,
+    };
+    crate::result_products::write_report(&input)
+        .map(|_| ())
+        .map_err(|error| RuntimeError::product(error.code, error.message))
 }
 
 fn job_command_name(command: &JobCommand) -> &'static str {
@@ -312,6 +611,23 @@ fn cancel_reliably(
                 thread::sleep(Duration::from_millis(25));
             }
         }
+    }
+}
+
+fn prepare_series_for_rerun(
+    client: &mut LocalJobClient,
+    job_series_id: &JobSeriesId,
+    poll_interval: Duration,
+) -> Result<(), JobBackendError> {
+    if client.status(job_series_id)?.state.is_terminal() {
+        return Ok(());
+    }
+    cancel_reliably(client, job_series_id, CancelMode::Safe)?;
+    loop {
+        if client.status(job_series_id)?.state.is_terminal() {
+            return Ok(());
+        }
+        thread::sleep(poll_interval);
     }
 }
 
@@ -850,13 +1166,22 @@ fn recover_daemon_workers(
         };
         decisions.insert(snapshot.run_id, decision);
     }
-    catalog
+    let report = catalog
         .recover_workers_with(daemon_instance_id, at, |run_id, _| {
             decisions
                 .remove(run_id)
                 .unwrap_or(WorkerRecoveryDisposition::Interrupt)
         })
         .map_err(RuntimeError::backend)?;
+    for run_id in report
+        .reconciled_terminal_run_ids
+        .iter()
+        .chain(&report.interrupted_run_ids)
+    {
+        if let Err(error) = refresh_local_attempt_report(catalog, run_id) {
+            eprintln!("trajecta: derived report refresh failed: {}", error.message);
+        }
+    }
     Ok(())
 }
 
@@ -1258,6 +1583,9 @@ fn run_worker(config_path: &Path, run_id: RunId) -> Result<(), RuntimeError> {
             message: Some(message),
         },
     )?;
+    if let Err(error) = refresh_local_attempt_report(&catalog, &run_id) {
+        eprintln!("trajecta: derived report refresh failed: {}", error.message);
+    }
     Ok(())
 }
 
@@ -1602,6 +1930,18 @@ mod tests {
         }
     }
 
+    fn unavailable_endpoint(root: &Path) -> String {
+        #[cfg(windows)]
+        {
+            let _ = root;
+            format!(r"\\.\pipe\trajecta-missing-{}", Uuid::now_v7())
+        }
+        #[cfg(unix)]
+        {
+            root.join("missing.sock").to_string_lossy().into_owned()
+        }
+    }
+
     #[test]
     fn resource_rounding_is_explicit_and_never_zero() {
         let execution = ExecutionSpec {
@@ -1655,6 +1995,35 @@ mod tests {
             Some("run.interrupted.worker_lost")
         );
         assert!(persisted.provenance.is_none());
+    }
+
+    #[test]
+    fn terminal_report_falls_back_when_attempt_lookup_is_unavailable() {
+        let temp = tempfile::tempdir().unwrap();
+        let output_directory = temp.path().canonicalize().unwrap();
+        let manifest_path = output_directory.join("run-manifest.json");
+        let mut store = AtomicRunManifestStore::new(&manifest_path);
+        store.persist(&recovery_manifest()).unwrap();
+
+        let finished_at = Timestamp::new(2, 0).unwrap();
+        let mut snapshot = recovery_snapshot(output_directory.clone());
+        assert_eq!(
+            recovery_manifest_disposition(&snapshot, finished_at).unwrap(),
+            WorkerRecoveryDisposition::ReconcileTerminal(JobState::Interrupted)
+        );
+        snapshot.state = JobState::Interrupted;
+        snapshot.finished_at = Some(finished_at);
+
+        let client =
+            LocalJobClient::new(unavailable_endpoint(temp.path()), Duration::from_millis(50));
+        let diagnostics = refresh_client_attempt_report(&client, &snapshot);
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].code(), "report.refresh_failed");
+        assert!(
+            fs::read_to_string(output_directory.join("run-report.md"))
+                .unwrap()
+                .contains("run.interrupted.worker_lost")
+        );
     }
 
     #[test]

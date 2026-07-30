@@ -17,6 +17,7 @@ mod command_result;
 mod configuration;
 mod data_lock;
 mod project;
+mod result_products;
 mod runtime;
 
 pub mod cli;
@@ -42,6 +43,13 @@ pub fn main_entry(arguments: impl IntoIterator<Item = OsString>) -> i32 {
                 }
                 command::Command::Job(command) => {
                     return runtime::execute_job(command, cli.config_path.as_deref(), cli.output);
+                }
+                command::Command::Result(command) => {
+                    return runtime::execute_result(
+                        command,
+                        cli.config_path.as_deref(),
+                        cli.output,
+                    );
                 }
                 _ => {}
             }
@@ -93,6 +101,15 @@ pub fn main_entry(arguments: impl IntoIterator<Item = OsString>) -> i32 {
         }
         Err(error) => {
             let output = cli::requested_output(&arguments);
+            if matches!(error, cli::CliParseError::Help) {
+                if output == cli::OutputMode::Human {
+                    let _ = writeln!(io::stdout(), "{error}");
+                    return 0;
+                }
+                let outcome =
+                    app::AppOutcome::ok("cli", serde_json::json!({"help": error.to_string()}));
+                return write_outcome(&outcome, output);
+            }
             if output == cli::OutputMode::Human {
                 let _ = writeln!(io::stderr(), "{error}");
                 return error.exit_code();

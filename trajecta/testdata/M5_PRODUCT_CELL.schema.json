@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.invalid/schemas/M5_PRODUCT_CELL.schema.json",
+  "title": "Trajecta M5-A4 packaged product cell",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "cell",
+    "source_tree_sha256",
+    "build_manifest_sha256",
+    "binary_sha256",
+    "result",
+    "checks",
+    "failures"
+  ],
+  "properties": {
+    "schema_version": { "const": "trajecta.m5-a4-product-cell/v1" },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "platform", "phase", "family", "population", "direction", "backend", "particles", "worker_threads"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "platform": { "enum": ["windows-x86_64", "linux-x86_64"] },
+        "phase": { "enum": ["rust-1k", "rust-10k", "native-1k"] },
+        "family": { "enum": ["era5-pressure", "era5-hybrid", "cfsr-pressure"] },
+        "population": { "enum": ["release", "air-mass", "ozone"] },
+        "direction": { "enum": ["forward", "backward"] },
+        "backend": { "enum": ["rust", "native"] },
+        "particles": { "enum": [1000, 10000] },
+        "worker_threads": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "source_tree_sha256": { "$ref": "#/$defs/sha256" },
+    "build_manifest_sha256": { "$ref": "#/$defs/sha256" },
+    "binary_sha256": { "$ref": "#/$defs/sha256" },
+    "result": { "enum": ["passed", "failed"] },
+    "checks": {
+      "type": "object",
+      "additionalProperties": { "type": "boolean" }
+    },
+    "failures": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_series_id", "run_id", "attempt", "run_directory", "runner_milliseconds", "digests"],
+      "properties": {
+        "job_series_id": { "$ref": "#/$defs/uuid" },
+        "run_id": { "$ref": "#/$defs/uuid" },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "run_directory": { "type": "string", "minLength": 1 },
+        "runner_milliseconds": { "type": "integer", "minimum": 0 },
+        "digests": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["content_sha256", "sqlite_sql_sha256", "canonical_output_sha256"],
+          "properties": {
+            "content_sha256": { "$ref": "#/$defs/sha256" },
+            "sqlite_sql_sha256": { "$ref": "#/$defs/sha256" },
+            "canonical_output_sha256": { "$ref": "#/$defs/sha256" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "uuid": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" }
+  }
+}

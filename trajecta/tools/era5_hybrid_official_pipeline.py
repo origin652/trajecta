@@ -24,7 +24,7 @@ from pathlib import Path
 import cdsapi
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "target/test-data/era5-cds-hybrid137-official"
+DEFAULT_OUT = ROOT / "target/test-data/era5-cds-hybrid137-official"
 # A-frozen expanded box: N, W, S, E
 AREA = [53, 0, 45, 10]
 DATE = "2018-12-01"
@@ -196,9 +196,16 @@ def promote_part(part: Path, target: Path, *, exp_size, exp_sha) -> None:
             f"downloaded file unexpectedly contains Trajecta stamp: {target}"
         )
 
-def retrieve(client: cdsapi.Client, dataset: str, request: dict, target: Path, *, force: bool) -> None:
+def retrieve(
+    client: cdsapi.Client,
+    dataset: str,
+    request: dict,
+    target: Path,
+    *,
+    root: Path,
+    force: bool,
+) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
-    root = OUT
     exp_size, exp_sha = load_expected_from_manifest(root, target.name)
     if force:
         # Expanded area / content change invalidates prior FETCH expectations.
@@ -228,8 +235,8 @@ def retrieve(client: cdsapi.Client, dataset: str, request: dict, target: Path, *
     client.retrieve(dataset, request, str(part))
     promote_part(part, target, exp_size=exp_size, exp_sha=exp_sha)
 
-def fetch_all(*, force: bool) -> None:
-    raw = OUT / "raw"
+def fetch_all(out: Path, times: list[str], *, force: bool) -> None:
+    raw = out / "raw"
     raw.mkdir(parents=True, exist_ok=True)
     client = cdsapi.Client()
     year, month, day = DATE.split("-")
@@ -246,13 +253,14 @@ def fetch_all(*, force: bool) -> None:
             "levtype": "ml",
             "param": "130/131/132/133/135",
             "stream": "oper",
-            "time": "/".join(t.replace(":00", "") for t in ["00", "03", "06"]),
+            "time": "/".join(t.removesuffix(":00") for t in times),
             "type": "an",
             "area": "/".join(str(x) for x in AREA),
             "grid": "0.25/0.25",
             "format": "netcdf",
         },
         raw / "era5_hybrid137_20181201.nc",
+        root=out,
         force=force,
     )
 
@@ -268,17 +276,18 @@ def fetch_all(*, force: bool) -> None:
             "levtype": "ml",
             "param": "152",
             "stream": "oper",
-            "time": "/".join(t.replace(":00", "") for t in ["00", "03", "06"]),
+            "time": "/".join(t.removesuffix(":00") for t in times),
             "type": "an",
             "area": "/".join(str(x) for x in AREA),
             "grid": "0.25/0.25",
             "format": "netcdf",
         },
         raw / "era5_lnsp_20181201.nc",
+        root=out,
         force=force,
     )
 
-    # Surface companions aligned to 00/03/06
+    # Surface companions aligned to the requested model-level frames.
     retrieve(
         client,
         "reanalysis-era5-single-levels",
@@ -297,12 +306,13 @@ def fetch_all(*, force: bool) -> None:
             "year": year,
             "month": month,
             "day": day,
-            "time": TIMES,
+            "time": times,
             "area": AREA,
             "data_format": "netcdf",
             "download_format": "unarchived",
         },
         raw / "era5_hybrid_surface_base_20181201.nc",
+        root=out,
         force=force,
     )
     retrieve(
@@ -317,12 +327,13 @@ def fetch_all(*, force: bool) -> None:
             "year": year,
             "month": month,
             "day": day,
-            "time": TIMES,
+            "time": times,
             "area": AREA,
             "data_format": "netcdf",
             "download_format": "unarchived",
         },
         raw / "era5_hybrid_surface_flux_20181201.nc",
+        root=out,
         force=force,
     )
 
@@ -345,6 +356,7 @@ def fetch_all(*, force: bool) -> None:
             "format": "grib",
         },
         raw / "era5_hybrid_pv_probe.grib",
+        root=out,
         force=force,
     )
 
@@ -360,12 +372,12 @@ def fetch_all(*, force: bool) -> None:
                 }
             )
             print(path.name, path.stat().st_size, files[-1]["sha256"], flush=True)
-    (OUT / "FETCH_MANIFEST.json").write_text(
+    (out / "FETCH_MANIFEST.json").write_text(
         json.dumps(
             {
                 "dataset": "era5_cds_hybrid137_raw",
                 "date": DATE,
-                "times_utc": ["00", "03", "06"],
+                "times_utc": [time.removesuffix(":00") for time in times],
                 "source": "https://cds.climate.copernicus.eu",
                 "files": files,
                 "notes": [
@@ -381,9 +393,9 @@ def fetch_all(*, force: bool) -> None:
     )
 
 
-def extract_coefficients() -> Path:
-    raw_probe = OUT / "raw" / "era5_hybrid_pv_probe.grib"
-    derived = OUT / "derived"
+def extract_coefficients(out: Path) -> Path:
+    raw_probe = out / "raw" / "era5_hybrid_pv_probe.grib"
+    derived = out / "derived"
     derived.mkdir(parents=True, exist_ok=True)
     coeff = derived / "era5_l137_ab_coefficients.json"
     if not raw_probe.is_file():
@@ -407,9 +419,16 @@ def extract_coefficients() -> Path:
     return coeff
 
 
-def prepare() -> None:
+def prepare(out: Path, times: list[str]) -> None:
     # Point prepare script at correct layout (coeff in derived/).
-    cmd = [sys.executable, str(ROOT / "tools/prepare_era5_hybrid_anchors.py"), "--root", str(OUT)]
+    cmd = [
+        sys.executable,
+        str(ROOT / "tools/prepare_era5_hybrid_anchors.py"),
+        "--root",
+        str(out),
+        "--times",
+        *(time.removesuffix(":00") for time in times),
+    ]
     print("+", " ".join(cmd), flush=True)
     proc = subprocess.run(cmd, cwd=ROOT)
     if proc.returncode != 0:
@@ -418,15 +437,18 @@ def prepare() -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--times", nargs="+", default=TIMES)
     parser.add_argument("--force-fetch", action="store_true")
     parser.add_argument("--skip-fetch", action="store_true")
     args = parser.parse_args()
-    OUT.mkdir(parents=True, exist_ok=True)
+    out = args.out_dir.resolve()
+    out.mkdir(parents=True, exist_ok=True)
     if not args.skip_fetch:
-        fetch_all(force=args.force_fetch)
-    extract_coefficients()
-    prepare()
-    print("pipeline complete:", OUT)
+        fetch_all(out, args.times, force=args.force_fetch)
+    extract_coefficients(out)
+    prepare(out, args.times)
+    print("pipeline complete:", out)
     return 0
 
 

@@ -158,6 +158,7 @@ def main() -> int:
         type=Path,
         default=Path("target/test-data/era5-cds-pressure-classic"),
     )
+    parser.add_argument("--times", nargs="+", default=["00", "06", "12"])
     args = parser.parse_args()
     root = args.root
     raw = root / "raw"
@@ -245,7 +246,7 @@ def main() -> int:
         "dataset": "era5_cds_pressure_raw",
         "dataset_family": FAMILY,
         "date": "2018-12-01",
-        "times_utc": ["00", "06", "12"],
+        "times_utc": args.times,
         "source": "https://cds.climate.copernicus.eu",
         "product": "reanalysis-era5-pressure-levels + reanalysis-era5-single-levels",
         "files": [file_record(p, root) for p in sorted(raw.glob("*.nc"))],
@@ -258,7 +259,7 @@ def main() -> int:
         "dataset": "era5_cds_pressure_ready",
         "dataset_family": FAMILY,
         "date": "2018-12-01",
-        "times_utc": ["00", "06", "12"],
+        "times_utc": args.times,
         "files": [file_record(p, root) for p in sorted(ready.glob("*.nc"))]
         + [file_record(p, args.classic_dir.parent if False else p.parent) for p in []],
         "classic_files": [

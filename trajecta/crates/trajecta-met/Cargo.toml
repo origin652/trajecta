@@ -10,7 +10,7 @@ description = "Compiler-checked meteorology runtime contracts for Trajecta"
 [features]
 default = []
 native-eccodes = ["dep:eccodes"]
-native-netcdf = ["dep:netcdf"]
+native-netcdf = ["dep:netcdf", "dep:trajecta-hdf5-control"]
 
 [dependencies]
 eccodes = { version = "0.13", default-features = false, optional = true }
@@ -25,6 +25,7 @@ serde_json = "1"
 serde_yml = "0.0.12"
 sha2 = "0.10"
 trajecta-case = { path = "../trajecta-case" }
+trajecta-hdf5-control = { path = "../../vendor/trajecta-hdf5-control", optional = true }
 
 [build-dependencies]
 serde_json = "1"

@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m5-trajectory-record-v1.json",
+  "title": "Trajecta trajectory record",
+  "oneOf": [
+    {"$ref": "#/$defs/particle"},
+    {"$ref": "#/$defs/state"}
+  ],
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "timestamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seconds_since_unix_epoch", "nanosecond"],
+      "properties": {
+        "seconds_since_unix_epoch": {"type": "integer"},
+        "nanosecond": {"type": "integer", "minimum": 0, "maximum": 999999999}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "required": ["schema_version", "record_kind", "job_series_id", "run_id", "attempt", "particle_id"],
+      "properties": {
+        "schema_version": {"const": "trajecta.trajectory-record/v1"},
+        "job_series_id": {"$ref": "#/$defs/uuid"},
+        "run_id": {"$ref": "#/$defs/uuid"},
+        "attempt": {"type": "integer", "minimum": 1},
+        "particle_id": {"type": "integer", "minimum": 0}
+      }
+    },
+    "particle": {
+      "allOf": [
+        {"$ref": "#/$defs/identity"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version", "record_kind", "job_series_id", "run_id", "attempt",
+            "particle_id", "population_id", "origin", "birth_time", "dry_air_mass_kg",
+            "sensitivity_weight", "substance_mass_kg"
+          ],
+          "properties": {
+            "schema_version": {"const": "trajecta.trajectory-record/v1"},
+            "record_kind": {"const": "particle"},
+            "job_series_id": {"$ref": "#/$defs/uuid"},
+            "run_id": {"$ref": "#/$defs/uuid"},
+            "attempt": {"type": "integer", "minimum": 1},
+            "particle_id": {"type": "integer", "minimum": 0},
+            "population_id": {"type": "string", "minLength": 1},
+            "origin": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "event_id", "domain_id", "boundary_face_id"],
+              "properties": {
+                "kind": {"enum": ["release", "domain_initial", "domain_boundary"]},
+                "event_id": {"type": ["string", "null"]},
+                "domain_id": {"type": ["string", "null"]},
+                "boundary_face_id": {"type": ["integer", "null"], "minimum": 0}
+              }
+            },
+            "birth_time": {"$ref": "#/$defs/timestamp"},
+            "dry_air_mass_kg": {"type": "number", "minimum": 0},
+            "sensitivity_weight": {"type": ["number", "null"]},
+            "substance_mass_kg": {
+              "type": "object",
+              "additionalProperties": {"type": "number", "minimum": 0}
+            }
+          }
+        }
+      ]
+    },
+    "state": {
+      "allOf": [
+        {"$ref": "#/$defs/identity"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version", "record_kind", "job_series_id", "run_id", "attempt",
+            "particle_id", "sample_sequence", "event_sequence", "event_kind", "time",
+            "integration_offset_ns", "elapsed_age_ns", "position", "particle_status",
+            "termination", "meteorology", "provenance_id"
+          ],
+          "properties": {
+            "schema_version": {"const": "trajecta.trajectory-record/v1"},
+            "record_kind": {"const": "state"},
+            "job_series_id": {"$ref": "#/$defs/uuid"},
+            "run_id": {"$ref": "#/$defs/uuid"},
+            "attempt": {"type": "integer", "minimum": 1},
+            "particle_id": {"type": "integer", "minimum": 0},
+            "sample_sequence": {"type": "integer", "minimum": 0},
+            "event_sequence": {"type": "integer", "minimum": 0},
+            "event_kind": {"enum": ["birth", "start", "interval", "end", "termination"]},
+            "time": {"$ref": "#/$defs/timestamp"},
+            "integration_offset_ns": {"type": "integer"},
+            "elapsed_age_ns": {"type": "integer", "minimum": 0},
+            "position": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["longitude_degrees", "latitude_degrees", "height_asl_m"],
+              "properties": {
+                "longitude_degrees": {"type": "number"},
+                "latitude_degrees": {"type": "number", "minimum": -90, "maximum": 90},
+                "height_asl_m": {"type": "number"}
+              }
+            },
+            "particle_status": {"enum": ["alive", "terminated"]},
+            "termination": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["reason", "classification", "time", "intersection_fraction"],
+                  "properties": {
+                    "reason": {"type": "string", "minLength": 1},
+                    "classification": {"enum": ["normal", "abnormal"]},
+                    "time": {"$ref": "#/$defs/timestamp"},
+                    "intersection_fraction": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+                  }
+                },
+                {"type": "null"}
+              ]
+            },
+            "meteorology": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "eastward_wind_m_s", "northward_wind_m_s",
+                "geometric_vertical_velocity_m_s", "air_pressure_pa", "air_temperature_k",
+                "wind_validity", "wind_quality", "pressure_validity", "pressure_quality",
+                "temperature_validity", "temperature_quality"
+              ],
+              "properties": {
+                "eastward_wind_m_s": {"type": ["number", "null"]},
+                "northward_wind_m_s": {"type": ["number", "null"]},
+                "geometric_vertical_velocity_m_s": {"type": ["number", "null"]},
+                "air_pressure_pa": {"type": ["number", "null"]},
+                "air_temperature_k": {"type": ["number", "null"]},
+                "wind_validity": {"type": "string", "minLength": 1},
+                "wind_quality": {"type": ["string", "null"]},
+                "pressure_validity": {"type": "string", "minLength": 1},
+                "pressure_quality": {"type": ["string", "null"]},
+                "temperature_validity": {"type": "string", "minLength": 1},
+                "temperature_quality": {"type": ["string", "null"]}
+              }
+            },
+            "provenance_id": {"type": ["integer", "null"], "minimum": 0}
+          }
+        }
+      ]
+    }
+  }
+}

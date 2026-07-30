@@ -246,6 +246,7 @@ def main() -> int:
         type=Path,
         default=Path("target/test-data/era5-cds-hybrid137-official"),
     )
+    parser.add_argument("--times", nargs="+", default=["00", "03", "06"])
     args = parser.parse_args()
     root = args.root
     raw = root / "raw"
@@ -286,7 +287,7 @@ def main() -> int:
         "dataset": "era5_cds_hybrid137_ready",
         "dataset_family": FAMILY,
         "date": "2018-12-01",
-        "times_utc": ["00", "03", "06"],
+        "times_utc": args.times,
         "model_levels": list(range(1, 138)),
         "primary_files": {
             "hybrid_prepared": "ready/era5_hybrid137_prepared_20181201.nc",

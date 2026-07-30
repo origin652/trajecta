@@ -731,3 +731,32 @@ fn real_cfsr_domain_fill_invalid_meteorology_replay() {
         ],
     );
 }
+
+#[test]
+#[ignore = "explicit real ERA5 pressure exact-frame bottom transport replay"]
+fn real_era5_pressure_exact_bottom_transport_replay() {
+    let policies = [
+        SURFACE_REFLECT_ID,
+        MODEL_TOP_TERMINATE_ID,
+        LIMITED_DOMAIN_TERMINATE_ID,
+    ];
+    run_release_replay_window(
+        FAMILIES[0],
+        "m5-a4-real-era5-pressure-exact-bottom-transport-replay",
+        Timestamp::new(1_543_644_000, 0).unwrap(),
+        Timestamp::new(1_543_644_001, 0).unwrap(),
+        &[
+            (
+                2.458_827_322_753_592,
+                48.467_186_535_637_566,
+                286.546_021_523_512_3,
+            ),
+            (
+                2.906_164_562_726_559,
+                48.730_087_279_301_19,
+                286.577_299_474_385_94,
+            ),
+        ],
+        &policies,
+    );
+}

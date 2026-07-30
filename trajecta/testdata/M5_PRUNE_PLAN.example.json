@@ -9,8 +9,8 @@
       "attempt": 1,
       "path": "/srv/trajecta/demo/runs/attempt-1",
       "size_bytes": 1048576,
-      "reason": "superseded attempt passed full verification",
-      "protected": true,
+      "reason": "superseded_by_verified_complete_attempt",
+      "protected": false,
       "superseded_by": "018f0000-0000-7000-8000-000000000002"
     }
   ]

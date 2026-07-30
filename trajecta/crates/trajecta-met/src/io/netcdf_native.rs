@@ -226,6 +226,10 @@ fn native_worker(
     receiver: mpsc::Receiver<NativeCommand>,
     ready: mpsc::SyncSender<Result<NetCdfIndexPartsPublic, String>>,
 ) {
+    if let Err(error) = disable_hdf5_auto_error_printing() {
+        let _ = ready.send(Err(error));
+        return;
+    }
     let file = match netcdf::open(&path) {
         Ok(file) => file,
         Err(error) => {
@@ -296,6 +300,10 @@ fn native_worker(
             NativeCommand::Shutdown => break,
         }
     }
+}
+
+fn disable_hdf5_auto_error_printing() -> Result<(), String> {
+    trajecta_hdf5_control::disable_automatic_error_printing().map_err(|error| error.to_string())
 }
 
 fn index_parts_from_native(file: &netcdf::File) -> Result<NetCdfIndexPartsPublic, String> {

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-exclude = ["vendor/trajecta-local-ipc"]
+exclude = ["vendor/trajecta-hdf5-control", "vendor/trajecta-local-ipc"]
 members = [
     "crates/trajecta-case",
     "crates/trajecta-met",

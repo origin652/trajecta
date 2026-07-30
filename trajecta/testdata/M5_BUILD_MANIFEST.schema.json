@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.invalid/schemas/M5_BUILD_MANIFEST.schema.json",
+  "title": "Trajecta product build manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "product",
+    "version",
+    "platform",
+    "source",
+    "build",
+    "archive",
+    "binary",
+    "sbom",
+    "license_inventory",
+    "native_components",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": { "const": "trajecta.build-manifest/v1" },
+    "product": { "const": "trajecta" },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "target_triple", "minimum_os"],
+      "properties": {
+        "label": { "enum": ["windows-x86_64", "linux-x86_64"] },
+        "target_triple": { "type": "string", "minLength": 1 },
+        "minimum_os": { "type": "string", "minLength": 1 }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["git_head", "source_tree_sha256", "file_count", "dirty_paths"],
+      "properties": {
+        "git_head": { "$ref": "#/$defs/sha1" },
+        "source_tree_sha256": { "$ref": "#/$defs/sha256" },
+        "file_count": { "type": "integer", "minimum": 1 },
+        "dirty_paths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/relativePath" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cargo_profile",
+        "cargo",
+        "rustc",
+        "features",
+        "default_reader_backend",
+        "native_reader_included",
+        "source_date_epoch"
+      ],
+      "properties": {
+        "cargo_profile": { "const": "release" },
+        "cargo": { "type": "string", "minLength": 1 },
+        "rustc": { "type": "string", "minLength": 1 },
+        "features": {
+          "type": "array",
+          "items": { "enum": ["native-eccodes", "native-netcdf"] },
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true
+        },
+        "default_reader_backend": { "const": "rust" },
+        "native_reader_included": { "const": true },
+        "source_date_epoch": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "archive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file_name", "format", "root_directory"],
+      "properties": {
+        "file_name": { "type": "string", "minLength": 1 },
+        "format": { "enum": ["zip", "tar.gz"] },
+        "root_directory": { "$ref": "#/$defs/pathSegment" }
+      }
+    },
+    "binary": {
+      "allOf": [{ "$ref": "#/$defs/fileIdentity" }],
+      "unevaluatedProperties": false
+    },
+    "sbom": {
+      "allOf": [
+        { "$ref": "#/$defs/fileIdentity" },
+        {
+          "type": "object",
+          "required": ["spec_version"],
+          "properties": { "spec_version": { "const": "CycloneDX 1.5" } }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "license_inventory": {
+      "allOf": [{ "$ref": "#/$defs/fileIdentity" }],
+      "unevaluatedProperties": false
+    },
+    "native_components": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "version", "license", "source"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "minLength": 1 },
+          "license": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "payload": {
+      "type": "array",
+      "minItems": 6,
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/fileIdentity" },
+          {
+            "type": "object",
+            "required": ["role"],
+            "properties": {
+              "role": {
+                "enum": [
+                  "binary",
+                  "documentation",
+                  "license",
+                  "sbom",
+                  "license_inventory",
+                  "example",
+                  "native_library",
+                  "native_data"
+                ]
+              }
+            }
+          }
+        ],
+        "unevaluatedProperties": false
+      }
+    }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "pathSegment": { "type": "string", "pattern": "^[^/\\\\]+$" },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+    },
+    "fileIdentity": {
+      "type": "object",
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": { "$ref": "#/$defs/relativePath" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

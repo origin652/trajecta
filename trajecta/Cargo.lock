@@ -1242,6 +1242,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "trajecta-hdf5-control"
+version = "0.0.0"
+dependencies = [
+ "hdf5-metno-sys",
+]
+
+[[package]]
 name = "trajecta-job"
 version = "0.0.0"
 dependencies = [
@@ -1279,6 +1286,7 @@ dependencies = [
  "sha2",
  "tempfile",
  "trajecta-case",
+ "trajecta-hdf5-control",
 ]
 
 [[package]]

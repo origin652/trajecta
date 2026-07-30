@@ -264,7 +264,7 @@ pub(super) fn worker_lease_from_stored(
     Ok(lease)
 }
 
-fn optional_timestamp(
+pub(super) fn optional_timestamp(
     seconds: Option<i64>,
     nanosecond: Option<i64>,
 ) -> Result<Option<Timestamp>, JobBackendError> {
@@ -277,7 +277,10 @@ fn optional_timestamp(
     }
 }
 
-fn timestamp_from_parts(seconds: i64, nanosecond: i64) -> Result<Timestamp, JobBackendError> {
+pub(super) fn timestamp_from_parts(
+    seconds: i64,
+    nanosecond: i64,
+) -> Result<Timestamp, JobBackendError> {
     let nanosecond = u32::try_from(nanosecond)
         .map_err(|_| JobBackendError::Storage("invalid timestamp nanosecond".into()))?;
     Timestamp::new(seconds, nanosecond)
@@ -380,4 +383,31 @@ CREATE TABLE daemon_lease (
         heartbeat_nanosecond >= 0 AND heartbeat_nanosecond < 1000000000
     )
 );
+"#;
+
+pub(super) const HISTORY_SCHEMA: &str = r#"
+CREATE TABLE IF NOT EXISTS forgotten_series (
+    job_series_id TEXT PRIMARY KEY,
+    forgotten_seconds INTEGER NOT NULL,
+    forgotten_nanosecond INTEGER NOT NULL CHECK (
+        forgotten_nanosecond >= 0 AND forgotten_nanosecond < 1000000000
+    )
+);
+
+CREATE TABLE IF NOT EXISTS full_verifications (
+    run_id TEXT PRIMARY KEY REFERENCES jobs(run_id) ON DELETE RESTRICT,
+    verified_seconds INTEGER NOT NULL,
+    verified_nanosecond INTEGER NOT NULL CHECK (
+        verified_nanosecond >= 0 AND verified_nanosecond < 1000000000
+    ),
+    canonical_output_sha256 TEXT NOT NULL CHECK (length(canonical_output_sha256) = 64)
+);
+
+CREATE TABLE IF NOT EXISTS attempt_supersession (
+    run_id TEXT PRIMARY KEY REFERENCES jobs(run_id) ON DELETE RESTRICT,
+    superseded_by TEXT NOT NULL REFERENCES jobs(run_id) ON DELETE RESTRICT,
+    CHECK (run_id <> superseded_by)
+);
+
+CREATE INDEX IF NOT EXISTS supersession_target ON attempt_supersession(superseded_by);
 "#;

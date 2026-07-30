@@ -12,6 +12,8 @@ from pathlib import Path, PurePosixPath
 import yaml
 from jsonschema import Draft202012Validator
 
+import run_m5_a4_product_matrix as product_matrix
+
 
 ROOT = Path(__file__).resolve().parents[1]
 TESTDATA = ROOT / "testdata"
@@ -100,6 +102,11 @@ def validate_schema_examples() -> None:
         ("M5_PRUNE_PLAN.schema.json", "M5_PRUNE_PLAN.example.json"),
         ("M5_CLI_OUTPUT.schema.json", "M5_CLI_OUTPUT.example.json"),
         ("M5_CLI_STREAM_ITEM.schema.json", "M5_CLI_STREAM_ITEM.example.json"),
+        ("M5_RESULT_INSPECTION.schema.json", "M5_RESULT_INSPECTION.example.json"),
+        ("M5_TRAJECTORY_RECORD.schema.json", "M5_TRAJECTORY_RECORD.example.json"),
+        ("M5_TRAJECTORY_STREAM.schema.json", "M5_TRAJECTORY_STREAM.example.json"),
+        ("M5_BUILD_MANIFEST.schema.json", "M5_BUILD_MANIFEST.example.json"),
+        ("M5_PRODUCT_CELL.schema.json", "M5_PRODUCT_CELL.example.json"),
     ]
     for schema_name, example_name in pairs:
         validator(schema_name).validate(load_json(example_name))
@@ -131,6 +138,105 @@ def validate_schema_examples() -> None:
     )
     validator("M5_PROJECT_INDEX.schema.json").validate(project)
     validate_project_index(project)
+    validate_build_manifest(load_json("M5_BUILD_MANIFEST.example.json"))
+
+
+def validate_build_manifest(manifest: dict[str, object]) -> None:
+    require(manifest["version"] == "0.0.0", "A4 must not bump the development version")
+    build = manifest["build"]
+    require(
+        build["features"] == ["native-eccodes", "native-netcdf"],
+        "product package must contain both native reader features",
+    )
+    require(build["default_reader_backend"] == "rust", "product default reader drift")
+    native = manifest["native_components"]
+    require(
+        {entry["name"] for entry in native} == {"ecCodes", "netCDF-C", "HDF5"},
+        "native product component set drift",
+    )
+    payload = manifest["payload"]
+    paths = [entry["path"] for entry in payload]
+    require(paths == sorted(paths), "build-manifest payload is not sorted")
+    require(len(paths) == len(set(paths)), "build-manifest payload path duplicated")
+    require("BUILD-MANIFEST.json" not in paths, "build manifest cannot hash itself")
+    require(
+        {entry["role"] for entry in payload}
+        >= {
+            "binary",
+            "documentation",
+            "license",
+            "sbom",
+            "license_inventory",
+            "example",
+            "native_library",
+            "native_data",
+        },
+        "build-manifest is missing a required payload role",
+    )
+    require(manifest["binary"]["path"] in paths, "binary missing from payload")
+    require(manifest["sbom"]["path"] in paths, "SBOM missing from payload")
+    require(
+        manifest["license_inventory"]["path"] in paths,
+        "license inventory missing from payload",
+    )
+
+
+def validate_product_matrix_definition() -> None:
+    platforms = ("windows-x86_64", "linux-x86_64")
+    all_cells = []
+    for platform in platforms:
+        cells = product_matrix.formal_cells(platform)
+        all_cells.extend(cells)
+        require(len(cells) == 30, f"{platform} product matrix must contain 30 cells")
+        require(len({cell.id for cell in cells}) == 30, f"{platform} cell id duplicated")
+        require(
+            sum(cell.phase == "rust-1k" for cell in cells) == 18,
+            f"{platform} Rust 1k phase drift",
+        )
+        require(
+            sum(cell.phase == "rust-10k" for cell in cells) == 6,
+            f"{platform} Rust 10k phase drift",
+        )
+        require(
+            sum(cell.phase == "native-1k" for cell in cells) == 6,
+            f"{platform} native 1k phase drift",
+        )
+        require(
+            {
+                (cell.family, cell.population, cell.direction)
+                for cell in cells
+                if cell.phase == "rust-1k"
+            }
+            == {
+                (family, population, direction)
+                for family in product_matrix.FAMILIES
+                for population in product_matrix.POPULATIONS
+                for direction in product_matrix.DIRECTIONS
+            },
+            f"{platform} Rust 1k coverage drift",
+        )
+        require(
+            all(
+                cell.backend == "native" and cell.population == "release"
+                for cell in cells
+                if cell.phase == "native-1k"
+            ),
+            f"{platform} native phase semantics drift",
+        )
+    require(len(all_cells) == 60, "cross-platform product matrix must contain 60 cells")
+    require(len({cell.id for cell in all_cells}) == 60, "cross-platform cell id duplicated")
+    require(
+        {family: len(definition.files) for family, definition in product_matrix.FAMILIES.items()}
+        == {"era5-pressure": 2, "era5-hybrid": 2, "cfsr-pressure": 4},
+        "A4 four-frame fixture definition drift",
+    )
+    require(
+        all(
+            family.forward_start != family.backward_start
+            for family in product_matrix.FAMILIES.values()
+        ),
+        "A4 direction-specific start times collapsed",
+    )
 
 
 def validate_project_index(project: dict[str, object]) -> None:
@@ -250,6 +356,27 @@ def validate_data_plan() -> None:
             timestamp_key(entry["coverage_start"]) <= timestamp_key(entry["coverage_end"]),
             "data-plan coverage is reversed",
         )
+
+
+def validate_prune_plan() -> None:
+    plan = load_json("M5_PRUNE_PLAN.example.json")
+    require(plan["mode"] == "dry_run", "prune example is not dry-run")
+    require(plan["delete_enabled"] is False, "prune example enables deletion")
+    for candidate in plan["candidates"]:
+        require(
+            candidate["superseded_by"] != candidate["run_id"],
+            "prune candidate supersedes itself",
+        )
+        if candidate["protected"]:
+            require(
+                candidate["reason"] == "artifact_missing",
+                "only missing superseded artifacts may remain protected candidates",
+            )
+        else:
+            require(
+                candidate["reason"] == "superseded_by_verified_complete_attempt",
+                "eligible prune candidate lacks verified-successor reason",
+            )
 
 
 def validate_manifest_revision() -> None:
@@ -403,9 +530,11 @@ def reject_version_sprawl() -> None:
 
 def main() -> int:
     validate_schema_examples()
+    validate_product_matrix_definition()
     validate_cli_contract()
     validate_job_contract()
     validate_data_plan()
+    validate_prune_plan()
     validate_manifest_revision()
     placeholder_count = validate_known_placeholders()
     reject_version_sprawl()
@@ -418,6 +547,8 @@ def main() -> int:
                 "manifest_schema_version": "trajecta.run-manifest/v1",
                 "pruning_mode": "dry_run",
                 "known_cli_placeholders": placeholder_count,
+                "product_cells_per_platform": 30,
+                "product_cells_total": 60,
             },
             sort_keys=True,
         )

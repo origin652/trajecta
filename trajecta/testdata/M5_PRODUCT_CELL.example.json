@@ -1,0 +1,39 @@
+{
+  "schema_version": "trajecta.m5-a4-product-cell/v1",
+  "cell": {
+    "id": "windows-x86_64__era5-pressure__release__forward__rust__p1000",
+    "platform": "windows-x86_64",
+    "phase": "rust-1k",
+    "family": "era5-pressure",
+    "population": "release",
+    "direction": "forward",
+    "backend": "rust",
+    "particles": 1000,
+    "worker_threads": 1
+  },
+  "source_tree_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "build_manifest_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "binary_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+  "result": "passed",
+  "checks": {
+    "manifest_complete": true,
+    "abnormal_zero": true,
+    "full_verify": true,
+    "sqlite_integrity": true,
+    "terminal_wal": true,
+    "report_present": true
+  },
+  "failures": [],
+  "run": {
+    "job_series_id": "018f0000-0000-7000-8000-000000000000",
+    "run_id": "018f0000-0000-7000-8000-000000000001",
+    "attempt": 1,
+    "run_directory": "runs/example/018f0000-0000-7000-8000-000000000001",
+    "runner_milliseconds": 1,
+    "digests": {
+      "content_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "sqlite_sql_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "canonical_output_sha256": "6666666666666666666666666666666666666666666666666666666666666666"
+    }
+  }
+}

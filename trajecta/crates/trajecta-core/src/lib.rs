@@ -22,6 +22,7 @@ pub mod rng;
 pub mod runner;
 pub mod science;
 pub mod synthetic;
+pub mod verification;
 
 /// Version of the compiler-checked public code contracts.
 pub const CONTRACT_VERSION: u32 = 1;

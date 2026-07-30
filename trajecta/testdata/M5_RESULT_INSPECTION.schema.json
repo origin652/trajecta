@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m5-result-inspection-v1.json",
+  "title": "Trajecta result inspection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "result_path", "identity", "lifecycle", "software",
+    "inputs", "execution", "numerical", "particles", "quality",
+    "mass_ledger", "artifacts", "catalog"
+  ],
+  "properties": {
+    "schema_version": {"const": "trajecta.result-inspection/v1"},
+    "result_path": {"type": "string", "minLength": 1},
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_series_id", "run_id", "attempt", "case_name"],
+      "properties": {
+        "job_series_id": {"$ref": "#/$defs/uuid"},
+        "run_id": {"$ref": "#/$defs/uuid"},
+        "attempt": {"type": "integer", "minimum": 1},
+        "case_name": {"type": "string", "minLength": 1}
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "run_success", "started_at", "finished_at", "failure"],
+      "properties": {
+        "status": {
+          "enum": [
+            "running", "complete", "completed_with_particle_errors", "failed",
+            "cancelled", "interrupted"
+          ]
+        },
+        "run_success": {"type": "boolean"},
+        "started_at": {"$ref": "#/$defs/timestamp"},
+        "finished_at": {
+          "oneOf": [{"$ref": "#/$defs/timestamp"}, {"type": "null"}]
+        },
+        "failure": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["code", "message"],
+              "properties": {
+                "code": {"type": "string", "minLength": 1},
+                "message": {"type": "string", "minLength": 1}
+              }
+            },
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "software": {"type": "object"},
+    "inputs": {"type": "object"},
+    "execution": {"type": "object"},
+    "numerical": {"type": "object"},
+    "particles": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "particle_count", "particle_mass_count", "state_count",
+            "output_event_count", "termination_count", "normal_termination_count",
+            "abnormal_termination_count", "termination_by_reason"
+          ],
+          "properties": {
+            "particle_count": {"type": "integer", "minimum": 0},
+            "particle_mass_count": {"type": "integer", "minimum": 0},
+            "state_count": {"type": "integer", "minimum": 0},
+            "output_event_count": {"type": "integer", "minimum": 0},
+            "termination_count": {"type": "integer", "minimum": 0},
+            "normal_termination_count": {"type": "integer", "minimum": 0},
+            "abnormal_termination_count": {"type": "integer", "minimum": 0},
+            "termination_by_reason": {
+              "type": "object",
+              "additionalProperties": {"type": "integer", "minimum": 0}
+            }
+          }
+        },
+        {"type": "null"}
+      ]
+    },
+    "quality": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["wind", "pressure", "temperature"],
+          "properties": {
+            "wind": {"$ref": "#/$defs/quality_buckets"},
+            "pressure": {"$ref": "#/$defs/quality_buckets"},
+            "temperature": {"$ref": "#/$defs/quality_buckets"}
+          }
+        },
+        {"type": "null"}
+      ]
+    },
+    "mass_ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_count", "maximum_absolute_imbalance_kg", "maximum_tolerance_fraction"
+      ],
+      "properties": {
+        "record_count": {"type": "integer", "minimum": 0},
+        "maximum_absolute_imbalance_kg": {"type": "number", "minimum": 0},
+        "maximum_tolerance_fraction": {"type": "number", "minimum": 0}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/artifact"}
+    },
+    "catalog": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["visible_in_routine_list", "full_verification", "superseded_by"],
+          "properties": {
+            "visible_in_routine_list": {"type": "boolean"},
+            "full_verification": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["verified_at", "canonical_output_sha256"],
+                  "properties": {
+                    "verified_at": {"$ref": "#/$defs/timestamp"},
+                    "canonical_output_sha256": {"$ref": "#/$defs/sha256"}
+                  }
+                },
+                {"type": "null"}
+              ]
+            },
+            "superseded_by": {
+              "oneOf": [{"$ref": "#/$defs/uuid"}, {"type": "null"}]
+            }
+          }
+        },
+        {"type": "null"}
+      ]
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seconds_since_unix_epoch", "nanosecond"],
+      "properties": {
+        "seconds_since_unix_epoch": {"type": "integer"},
+        "nanosecond": {"type": "integer", "minimum": 0, "maximum": 999999999}
+      }
+    },
+    "quality_buckets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["validity", "quality", "count"],
+        "properties": {
+          "validity": {"type": "string", "minLength": 1},
+          "quality": {"type": ["string", "null"]},
+          "count": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "relative_path", "exists", "size_bytes", "declared_sha256"],
+      "properties": {
+        "role": {
+          "enum": ["manifest", "sqlite", "sqlite_wal", "provenance", "run_report", "forensic"]
+        },
+        "relative_path": {
+          "type": "string",
+          "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+        },
+        "exists": {"type": "boolean"},
+        "size_bytes": {"type": ["integer", "null"], "minimum": 0},
+        "declared_sha256": {
+          "oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]
+        }
+      }
+    }
+  }
+}

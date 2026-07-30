@@ -1,0 +1,35 @@
+schema_version: 0
+kind: case
+metadata: { name: minimal-cfsr }
+time:
+  start: { seconds_since_unix_epoch: 1230789600, nanosecond: 0 }
+  end: { seconds_since_unix_epoch: 1230789600, nanosecond: 0 }
+  direction: forward
+meteorology:
+  domains:
+    - id: global
+      dataset: cfsr
+      priority: 1
+      horizontal_halo_cells: 1
+particle_population:
+  strategy: release_driven
+  id: release
+  events:
+    - id: event
+      start: { seconds_since_unix_epoch: 1230789600, nanosecond: 0 }
+      end: { seconds_since_unix_epoch: 1230789600, nanosecond: 0 }
+      particle_count: 2
+      mass: { tracer: { value: 1, unit: kg } }
+      geometry:
+        source: inline
+        geometry: { type: Point, coordinates: [0, 0] }
+      vertical:
+        coordinate: above_sea_level
+        lower: { value: 100, unit: m }
+substances:
+  - { id: tracer, display_name: Tracer }
+numerics:
+  time_step: { value: 10, unit: min }
+  integrator: { model: rk2_spherical/v0 }
+  boundaries:
+    policies: [surface_reflect/v0, model_top_terminate/v0, global_periodic/v0]

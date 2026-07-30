@@ -519,7 +519,7 @@ pub(crate) fn is_normal_absolute_path(path: &Path) -> bool {
             .any(|component| matches!(component, Component::ParentDir | Component::CurDir))
 }
 
-fn is_uuid_v7(value: &str) -> bool {
+pub(crate) fn is_uuid_v7(value: &str) -> bool {
     let bytes = value.as_bytes();
     bytes.len() == 36
         && [8, 13, 18, 23].iter().all(|index| bytes[*index] == b'-')

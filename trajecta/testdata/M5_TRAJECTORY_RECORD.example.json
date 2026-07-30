@@ -1,0 +1,14 @@
+{
+  "schema_version":"trajecta.trajectory-record/v1",
+  "record_kind":"particle",
+  "job_series_id":"018f00aa-0000-7000-8000-000000000001",
+  "run_id":"018f00aa-0000-7000-8000-000000000002",
+  "attempt":1,
+  "particle_id":42,
+  "population_id":"release",
+  "origin":{"kind":"release","event_id":null,"domain_id":null,"boundary_face_id":null},
+  "birth_time":{"seconds_since_unix_epoch":0,"nanosecond":0},
+  "dry_air_mass_kg":1.0,
+  "sensitivity_weight":null,
+  "substance_mass_kg":{}
+}

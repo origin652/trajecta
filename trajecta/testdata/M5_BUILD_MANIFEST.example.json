@@ -1,0 +1,116 @@
+{
+  "schema_version": "trajecta.build-manifest/v1",
+  "product": "trajecta",
+  "version": "0.0.0",
+  "platform": {
+    "label": "windows-x86_64",
+    "target_triple": "x86_64-pc-windows-gnu",
+    "minimum_os": "Windows x64"
+  },
+  "source": {
+    "git_head": "0000000000000000000000000000000000000000",
+    "source_tree_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "file_count": 1,
+    "dirty_paths": []
+  },
+  "build": {
+    "cargo_profile": "release",
+    "cargo": "cargo 1.95.0",
+    "rustc": "rustc 1.95.0",
+    "features": ["native-eccodes", "native-netcdf"],
+    "default_reader_backend": "rust",
+    "native_reader_included": true,
+    "source_date_epoch": 1785283200
+  },
+  "archive": {
+    "file_name": "trajecta-0.0.0-windows-x86_64.zip",
+    "format": "zip",
+    "root_directory": "trajecta-0.0.0-windows-x86_64"
+  },
+  "binary": {
+    "path": "trajecta.exe",
+    "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "bytes": 1
+  },
+  "sbom": {
+    "path": "SBOM.cdx.json",
+    "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "bytes": 1,
+    "spec_version": "CycloneDX 1.5"
+  },
+  "license_inventory": {
+    "path": "THIRD-PARTY-LICENSES.json",
+    "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+    "bytes": 1
+  },
+  "native_components": [
+    {
+      "name": "ecCodes",
+      "version": "2.47.0",
+      "license": "Apache-2.0",
+      "source": "https://github.com/ecmwf/eccodes"
+    },
+    {
+      "name": "netCDF-C",
+      "version": "4.9.3",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/Unidata/netcdf-c"
+    },
+    {
+      "name": "HDF5",
+      "version": "1.14.6",
+      "license": "LicenseRef-HDF5",
+      "source": "https://github.com/HDFGroup/hdf5"
+    }
+  ],
+  "payload": [
+    {
+      "path": "LICENSE",
+      "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "bytes": 1,
+      "role": "license"
+    },
+    {
+      "path": "README.md",
+      "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+      "bytes": 1,
+      "role": "documentation"
+    },
+    {
+      "path": "SBOM.cdx.json",
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "bytes": 1,
+      "role": "sbom"
+    },
+    {
+      "path": "THIRD-PARTY-LICENSES.json",
+      "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "bytes": 1,
+      "role": "license_inventory"
+    },
+    {
+      "path": "eccodes.dll",
+      "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+      "bytes": 1,
+      "role": "native_library"
+    },
+    {
+      "path": "examples/minimal/trajecta-project.yaml",
+      "sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+      "bytes": 1,
+      "role": "example"
+    },
+    {
+      "path": "share/eccodes/definitions/boot.def",
+      "sha256": "9999999999999999999999999999999999999999999999999999999999999999",
+      "bytes": 1,
+      "role": "native_data"
+    },
+    {
+      "path": "trajecta.exe",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "bytes": 1,
+      "role": "binary"
+    }
+  ]
+}

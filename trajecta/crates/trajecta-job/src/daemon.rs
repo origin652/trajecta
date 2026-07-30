@@ -15,6 +15,7 @@ use crate::backend::{JobBackend, JobBackendError};
 use crate::catalog::{
     LocalJobCatalog, TransitionDiagnostic, WorkerControl, WorkerLease, system_timestamp,
 };
+use crate::history::{JobAttemptHistory, JobHistoryBackend, PrunePlan};
 use crate::model::{
     CancelMode, EventQuery, JobEvent, JobListQuery, JobProgress, JobReceipt, JobSnapshot, JobState,
     ResourceObservation, SubmitRequest,
@@ -286,6 +287,48 @@ impl<T: WorkerTerminator> JobBackend for DaemonControlBackend<T> {
 
     fn events(&self, query: &EventQuery) -> Result<Vec<JobEvent>, JobBackendError> {
         self.catalog.events(query)
+    }
+}
+
+impl<T: WorkerTerminator> JobHistoryBackend for DaemonControlBackend<T> {
+    fn rerun(&mut self, job_series_id: &JobSeriesId) -> Result<JobReceipt, JobBackendError> {
+        let current = self.catalog.status(job_series_id)?;
+        if current.resources.cpu_slots > self.capacity.cpu_slots
+            || current.resources.memory_mib > self.capacity.memory_mib
+        {
+            return Err(JobBackendError::InvalidRequest(
+                "rerun resource request exceeds current daemon capacity".into(),
+            ));
+        }
+        self.catalog.rerun(job_series_id)
+    }
+
+    fn forget(&mut self, job_series_id: &JobSeriesId) -> Result<JobSnapshot, JobBackendError> {
+        self.catalog.forget(job_series_id)
+    }
+
+    fn attempt_history(
+        &self,
+        job_series_id: &JobSeriesId,
+    ) -> Result<Vec<JobAttemptHistory>, JobBackendError> {
+        self.catalog.attempt_history(job_series_id)
+    }
+
+    fn record_full_verification(
+        &mut self,
+        run_id: &RunId,
+        canonical_output_sha256: &str,
+    ) -> Result<JobAttemptHistory, JobBackendError> {
+        self.catalog
+            .record_full_verification(run_id, canonical_output_sha256)
+    }
+
+    fn attempt(&self, run_id: &RunId) -> Result<JobAttemptHistory, JobBackendError> {
+        self.catalog.attempt(run_id)
+    }
+
+    fn prune_plan(&self) -> Result<PrunePlan, JobBackendError> {
+        self.catalog.prune_plan()
     }
 }
 
