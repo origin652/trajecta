@@ -26,8 +26,9 @@ use crate::frame::{
     ArrayLayout, FrameCache, FrameError, PreparedWindow, RawField, RawMetFrame, WindowManager,
 };
 use crate::grid::{
-    GridBackend, GridError, GridPoint, HorizontalWeights, RegularLatLonGrid,
-    interpolate_spherical_vector,
+    GridBackend, GridError, GridPoint, HorizontalWeights, RegularLatLonGrid, SphericalBasis,
+    interpolate_spherical_vector, interpolate_spherical_vector_with_bases,
+    spherical_vector_query_basis,
 };
 use crate::io::inventory::MetCatalog;
 use crate::performance::{PerformanceScope, PerformanceStage};
@@ -65,8 +66,9 @@ use crate::surface_layer::{
     project_aerodynamic_roughness_for_physics,
 };
 use crate::vertical::{
-    BoundaryColumnGeometry, ColumnGeometry, ColumnRequest, ColumnStencil, NativeCoordinateKind,
-    VerticalBounds, VerticalBracket, VerticalError, VerticalTopology,
+    ColumnGeometry, ColumnLevelSample, ColumnRequest, ColumnShape, ColumnStencil, HybridColumnView,
+    HybridLevelGeometry, NativeCoordinateKind, VerticalBounds, VerticalBracket, VerticalError,
+    VerticalTopology,
 };
 
 /// Caller-provided parallel execution policy.
@@ -388,7 +390,8 @@ impl PreparedWindow {
         batch.validate().map_err(EngineError::QueryPlan)?;
         self.validate_transport_time_support()
             .map_err(EngineError::Frame)?;
-        let (placements, initial_status) = locate_points(self, &batch)?;
+        let (placements, initial_status, horizontal_support) =
+            locate_points_with_weights(self, &batch)?;
         let stencils = prepare_stencils(
             self,
             &batch,
@@ -402,8 +405,11 @@ impl PreparedWindow {
             initial_status.len(),
             plan.query_plan(),
             stencils.resident_bytes,
-            u64::try_from(std::mem::size_of::<Result<TransportPointResult, EngineError>>())
-                .map_err(|_| EngineError::MemoryEstimateOverflow)?,
+            u64::try_from(
+                std::mem::size_of::<Result<TransportPointResult, EngineError>>()
+                    + std::mem::size_of::<Option<HorizontalWeights>>(),
+            )
+            .map_err(|_| EngineError::MemoryEstimateOverflow)?,
         )?;
         let query_counter = active_query_counters();
         let query_origin = active_query_origin();
@@ -439,6 +445,7 @@ impl PreparedWindow {
             batch,
             layout,
             initial_status,
+            horizontal_support,
             stencils,
             query_counter,
             exact_query_key,
@@ -523,7 +530,7 @@ impl PreparedWindow {
         }
         let (placements, mut status, horizontal_support) = {
             let _performance = PerformanceScope::enter(PerformanceStage::BoundaryGridLocate);
-            locate_boundary_points(self, &batch)?
+            locate_points_with_weights(self, &batch)?
         };
         let stencils = {
             let _performance = PerformanceScope::enter(PerformanceStage::BoundaryStencilPrepare);
@@ -646,7 +653,7 @@ type BoundaryPointLocations = (
     Vec<Option<HorizontalWeights>>,
 );
 
-fn locate_boundary_points(
+fn locate_points_with_weights(
     window: &PreparedWindow,
     batch: &QueryBatch,
 ) -> Result<BoundaryPointLocations, EngineError> {
@@ -746,16 +753,35 @@ struct PreparedFrameStencils {
 
 #[derive(Clone, Debug, Default)]
 struct PreparedStencils {
-    by_frame: BTreeMap<crate::io::inventory::LogicalFrameId, PreparedFrameStencils>,
+    frames: Vec<PreparedFrameStencils>,
     resident_bytes: u64,
 }
 
 impl PreparedStencils {
-    fn frame(
-        &self,
-        frame: &crate::io::inventory::LogicalFrameId,
-    ) -> Option<&PreparedFrameStencils> {
-        self.by_frame.get(frame)
+    fn frame(&self, frame: &RawMetFrame) -> Option<&PreparedFrameStencils> {
+        self.frames
+            .iter()
+            .find(|prepared| std::ptr::eq(prepared.frame.as_ref(), frame))
+    }
+
+    fn insert(
+        &mut self,
+        frame: Arc<RawMetFrame>,
+        cell: crate::grid::CellId,
+        pin: PinGuard<ColumnStencil>,
+    ) {
+        if let Some(prepared) = self
+            .frames
+            .iter_mut()
+            .find(|prepared| Arc::ptr_eq(&prepared.frame, &frame))
+        {
+            prepared.by_cell.insert(cell, pin);
+        } else {
+            self.frames.push(PreparedFrameStencils {
+                frame,
+                by_cell: BTreeMap::from([(cell, pin)]),
+            });
+        }
     }
 }
 
@@ -789,10 +815,9 @@ fn prepare_stencils(
                 .ok_or(EngineError::MemoryEstimateOverflow)?;
             by_cell.insert(*cell, pin);
         }
-        prepared.by_frame.insert(
-            frame.metadata().id.clone(),
-            PreparedFrameStencils { frame, by_cell },
-        );
+        prepared
+            .frames
+            .push(PreparedFrameStencils { frame, by_cell });
     }
     cache
         .trim_unpinned_to(prepared.resident_bytes)
@@ -939,15 +964,7 @@ fn prepare_boundary_stencils_once(
             .resident_bytes
             .checked_add(pin.size_bytes())
             .ok_or(EngineError::MemoryEstimateOverflow)?;
-        prepared
-            .by_frame
-            .entry(frame.metadata().id.clone())
-            .or_insert_with(|| PreparedFrameStencils {
-                frame: frame.clone(),
-                by_cell: BTreeMap::new(),
-            })
-            .by_cell
-            .insert(cell, pin);
+        prepared.insert(frame, cell, pin);
     }
     Ok(prepared)
 }
@@ -997,8 +1014,8 @@ fn boundary_direct_execution_bytes(
     point_count: usize,
 ) -> Result<u64, EngineError> {
     let maximum_levels = stencils
-        .by_frame
-        .values()
+        .frames
+        .iter()
         .flat_map(|frame| frame.by_cell.values())
         .map(|pin| pin.value().level_count())
         .max()
@@ -1137,14 +1154,14 @@ impl PreparedFrameStencils {
             .map_err(EngineError::Vertical)
     }
 
-    fn boundary_column(
+    fn shape(
         &self,
         cell: crate::grid::CellId,
         longitude_degrees: f64,
         latitude_degrees: f64,
-    ) -> Result<BoundaryColumnGeometry, EngineError> {
+    ) -> Result<ColumnShape, EngineError> {
         self.stencil(cell)?
-            .sample_boundary(ColumnRequest {
+            .sample_shape(ColumnRequest {
                 frame: &self.frame,
                 cell,
                 longitude_degrees,
@@ -1153,13 +1170,43 @@ impl PreparedFrameStencils {
             .map_err(EngineError::Vertical)
     }
 
-    fn boundary_column_with_weights(
+    fn shape_with_weights(
         &self,
         cell: crate::grid::CellId,
         weights: HorizontalWeights,
-    ) -> Result<BoundaryColumnGeometry, EngineError> {
+    ) -> Result<ColumnShape, EngineError> {
         self.stencil(cell)?
-            .sample_boundary_with_weights(&self.frame.metadata().id, cell, weights)
+            .sample_shape_with_weights(&self.frame.metadata().id, cell, weights)
+            .map_err(EngineError::Vertical)
+    }
+
+    fn level_sample_with_weights(
+        &self,
+        cell: crate::grid::CellId,
+        weights: HorizontalWeights,
+        shape: &ColumnShape,
+        level: usize,
+    ) -> Result<ColumnLevelSample, EngineError> {
+        self.stencil(cell)?
+            .sample_level_with_weights(&self.frame.metadata().id, cell, weights, shape, level)
+            .map_err(EngineError::Vertical)
+    }
+
+    fn level_horizontal_weights_with_weights(
+        &self,
+        cell: crate::grid::CellId,
+        weights: HorizontalWeights,
+        shape: &ColumnShape,
+        level: usize,
+    ) -> Result<[f64; 4], EngineError> {
+        self.stencil(cell)?
+            .level_horizontal_weights_with_weights(
+                &self.frame.metadata().id,
+                cell,
+                weights,
+                shape,
+                level,
+            )
             .map_err(EngineError::Vertical)
     }
 }
@@ -1169,22 +1216,8 @@ fn frame_stencils<'a>(
     frame: &RawMetFrame,
 ) -> Result<&'a PreparedFrameStencils, EngineError> {
     prepared
-        .frame(&frame.metadata().id)
+        .frame(frame)
         .ok_or(EngineError::InvalidPreparedState)
-}
-
-fn point_column_request(
-    frame: &RawMetFrame,
-    cell: crate::grid::CellId,
-    longitude_degrees: f64,
-    latitude_degrees: f64,
-) -> ColumnRequest<'_> {
-    ColumnRequest {
-        frame,
-        cell,
-        longitude_degrees,
-        latitude_degrees,
-    }
 }
 
 fn blend_value(before: f64, after: f64, window: &PreparedWindow) -> Result<f64, EngineError> {
@@ -1274,8 +1307,199 @@ fn blend_columns(
 
 struct TargetColumnGeometry {
     geometry: ColumnGeometry,
+    before: ColumnGeometry,
+    after: ColumnGeometry,
     restrictive_transport_top_asl_m: f64,
     restrictive_transport_top_pressure_pa: f64,
+}
+
+struct TargetTransportColumn {
+    before: ColumnShape,
+    after: Option<ColumnShape>,
+    blended: Option<ColumnShape>,
+    restrictive_transport_top_asl_m: f64,
+    restrictive_transport_top_pressure_pa: f64,
+}
+
+impl TargetTransportColumn {
+    fn geometry(&self) -> &ColumnShape {
+        self.blended.as_ref().unwrap_or(&self.before)
+    }
+
+    fn after(&self) -> &ColumnShape {
+        self.after.as_ref().unwrap_or(&self.before)
+    }
+}
+
+#[derive(Clone, Copy)]
+struct SampledHybridColumn<'a> {
+    view: HybridColumnView<'a>,
+    terrain_asl_m: f64,
+    surface_pressure_pa: f64,
+    top: HybridLevelGeometry,
+    bottom: HybridLevelGeometry,
+    physical_model_top_asl_m: Option<f64>,
+}
+
+impl<'a> SampledHybridColumn<'a> {
+    fn new(view: HybridColumnView<'a>) -> Result<Self, EngineError> {
+        let levels = view.level_count();
+        if levels < 2 {
+            return Err(EngineError::InvalidPreparedState);
+        }
+        let top = view.level_geometry(0).map_err(EngineError::Vertical)?;
+        let bottom = view
+            .level_geometry(levels - 1)
+            .map_err(EngineError::Vertical)?;
+        Ok(Self {
+            view,
+            terrain_asl_m: view.terrain_asl_m().map_err(EngineError::Vertical)?,
+            surface_pressure_pa: view.surface_pressure_pa().map_err(EngineError::Vertical)?,
+            top,
+            bottom,
+            physical_model_top_asl_m: view.carries_physical_top().then_some(top.height_asl_m),
+        })
+    }
+}
+
+struct TargetHybridColumn<'a> {
+    before: SampledHybridColumn<'a>,
+    after: Option<SampledHybridColumn<'a>>,
+    terrain_asl_m: f64,
+    surface_pressure_pa: f64,
+    top: HybridLevelGeometry,
+    bottom: HybridLevelGeometry,
+    physical_model_top_asl_m: Option<f64>,
+    restrictive_transport_top_asl_m: f64,
+    restrictive_transport_top_pressure_pa: f64,
+}
+
+impl TargetHybridColumn<'_> {
+    fn after(&self) -> SampledHybridColumn<'_> {
+        self.after.unwrap_or(self.before)
+    }
+
+    fn level_count(&self) -> usize {
+        self.before.view.level_count()
+    }
+
+    fn level_geometry(
+        &self,
+        window: &PreparedWindow,
+        level: usize,
+    ) -> Result<HybridLevelGeometry, EngineError> {
+        Ok(HybridLevelGeometry {
+            pressure_pa: self.pressure_pa(window, level)?,
+            height_asl_m: self.height_asl_m(window, level)?,
+        })
+    }
+
+    fn pressure_pa(&self, window: &PreparedWindow, level: usize) -> Result<f64, EngineError> {
+        let before = self
+            .before
+            .view
+            .pressure_pa(level)
+            .map_err(EngineError::Vertical)?;
+        if window.is_exact_frame() {
+            return Ok(before);
+        }
+        let after = self
+            .after()
+            .view
+            .pressure_pa(level)
+            .map_err(EngineError::Vertical)?;
+        blend_value(before, after, window)
+    }
+
+    fn height_asl_m(&self, window: &PreparedWindow, level: usize) -> Result<f64, EngineError> {
+        let before = self
+            .before
+            .view
+            .height_asl_m(level)
+            .map_err(EngineError::Vertical)?;
+        if window.is_exact_frame() {
+            return Ok(before);
+        }
+        let after = self
+            .after()
+            .view
+            .height_asl_m(level)
+            .map_err(EngineError::Vertical)?;
+        blend_value(before, after, window)
+    }
+}
+
+fn target_hybrid_column<'a>(
+    window: &PreparedWindow,
+    stencils: &'a PreparedStencils,
+    cell: crate::grid::CellId,
+    weights: HorizontalWeights,
+) -> Result<Option<TargetHybridColumn<'a>>, EngineError> {
+    let before_stencils = frame_stencils(stencils, &window.frames.before)?;
+    let Some(before_view) = before_stencils
+        .stencil(cell)?
+        .hybrid_view_with_weights(&before_stencils.frame.metadata().id, cell, weights)
+        .map_err(EngineError::Vertical)?
+    else {
+        return Ok(None);
+    };
+    let before = SampledHybridColumn::new(before_view)?;
+    if window.is_exact_frame() {
+        return Ok(Some(TargetHybridColumn {
+            terrain_asl_m: before.terrain_asl_m,
+            surface_pressure_pa: before.surface_pressure_pa,
+            top: before.top,
+            bottom: before.bottom,
+            physical_model_top_asl_m: before.physical_model_top_asl_m,
+            restrictive_transport_top_asl_m: before.top.height_asl_m,
+            restrictive_transport_top_pressure_pa: before.top.pressure_pa,
+            before,
+            after: None,
+        }));
+    }
+    let after_stencils = frame_stencils(stencils, &window.frames.after)?;
+    let after_view = after_stencils
+        .stencil(cell)?
+        .hybrid_view_with_weights(&after_stencils.frame.metadata().id, cell, weights)
+        .map_err(EngineError::Vertical)?
+        .ok_or(EngineError::InvalidPreparedState)?;
+    let after = SampledHybridColumn::new(after_view)?;
+    if before.view.level_count() != after.view.level_count() {
+        return Err(EngineError::InvalidPreparedState);
+    }
+    let top = HybridLevelGeometry {
+        pressure_pa: blend_value(before.top.pressure_pa, after.top.pressure_pa, window)?,
+        height_asl_m: blend_value(before.top.height_asl_m, after.top.height_asl_m, window)?,
+    };
+    let bottom = HybridLevelGeometry {
+        pressure_pa: blend_value(before.bottom.pressure_pa, after.bottom.pressure_pa, window)?,
+        height_asl_m: blend_value(
+            before.bottom.height_asl_m,
+            after.bottom.height_asl_m,
+            window,
+        )?,
+    };
+    Ok(Some(TargetHybridColumn {
+        terrain_asl_m: blend_value(before.terrain_asl_m, after.terrain_asl_m, window)?,
+        surface_pressure_pa: blend_value(
+            before.surface_pressure_pa,
+            after.surface_pressure_pa,
+            window,
+        )?,
+        top,
+        bottom,
+        physical_model_top_asl_m: match (
+            before.physical_model_top_asl_m,
+            after.physical_model_top_asl_m,
+        ) {
+            (Some(before), Some(after)) => Some(blend_value(before, after, window)?),
+            _ => None,
+        },
+        restrictive_transport_top_asl_m: before.top.height_asl_m.min(after.top.height_asl_m),
+        restrictive_transport_top_pressure_pa: before.top.pressure_pa.max(after.top.pressure_pa),
+        before,
+        after: Some(after),
+    }))
 }
 
 fn target_column(
@@ -1297,7 +1521,9 @@ fn target_column(
         return Ok(TargetColumnGeometry {
             restrictive_transport_top_asl_m: before.height_asl_m()[top],
             restrictive_transport_top_pressure_pa: before.pressure_pa()[top],
-            geometry: before,
+            geometry: before.clone(),
+            after: before.clone(),
+            before,
         });
     }
     let after = frame_stencils(stencils, &window.frames.after)?.column(
@@ -1314,14 +1540,50 @@ fn target_column(
         restrictive_transport_top_pressure_pa: before.pressure_pa()[top]
             .max(after.pressure_pa()[top]),
         geometry,
+        before,
+        after,
     })
 }
 
-fn blend_boundary_columns(
-    before: &BoundaryColumnGeometry,
-    after: &BoundaryColumnGeometry,
+fn target_transport_column(
     window: &PreparedWindow,
-) -> Result<BoundaryColumnGeometry, EngineError> {
+    stencils: &PreparedStencils,
+    cell: crate::grid::CellId,
+    weights: HorizontalWeights,
+) -> Result<TargetTransportColumn, EngineError> {
+    let before =
+        frame_stencils(stencils, &window.frames.before)?.shape_with_weights(cell, weights)?;
+    if window.is_exact_frame() {
+        let top = before.first_valid_index().map_err(EngineError::Vertical)?;
+        return Ok(TargetTransportColumn {
+            restrictive_transport_top_asl_m: before.height_asl_m()[top],
+            restrictive_transport_top_pressure_pa: before.pressure_pa()[top],
+            before,
+            after: None,
+            blended: None,
+        });
+    }
+    let after =
+        frame_stencils(stencils, &window.frames.after)?.shape_with_weights(cell, weights)?;
+    let blended = blend_shapes(&before, &after, window)?;
+    let top = blended.first_valid_index().map_err(EngineError::Vertical)?;
+    let restrictive_transport_top_asl_m = before.height_asl_m()[top].min(after.height_asl_m()[top]);
+    let restrictive_transport_top_pressure_pa =
+        before.pressure_pa()[top].max(after.pressure_pa()[top]);
+    Ok(TargetTransportColumn {
+        before,
+        after: Some(after),
+        blended: Some(blended),
+        restrictive_transport_top_asl_m,
+        restrictive_transport_top_pressure_pa,
+    })
+}
+
+fn blend_shapes(
+    before: &ColumnShape,
+    after: &ColumnShape,
+    window: &PreparedWindow,
+) -> Result<ColumnShape, EngineError> {
     if before.pressure_pa().len() != after.pressure_pa().len() {
         return Err(EngineError::InvalidPreparedState);
     }
@@ -1352,7 +1614,7 @@ fn blend_boundary_columns(
         (Some(left), Some(right)) => Some(blend_value(left, right, window)?),
         _ => None,
     };
-    BoundaryColumnGeometry::new(
+    Ok(ColumnShape::from_sampled(
         pressure_pa,
         height_asl_m,
         valid,
@@ -1363,12 +1625,11 @@ fn blend_boundary_columns(
             window,
         )?,
         physical_top,
-    )
-    .map_err(EngineError::Vertical)
+    ))
 }
 
 struct TargetBoundaryColumnGeometry {
-    geometry: BoundaryColumnGeometry,
+    geometry: ColumnShape,
     restrictive_transport_top_asl_m: f64,
     restrictive_transport_top_pressure_pa: f64,
 }
@@ -1380,7 +1641,7 @@ fn target_boundary_column(
     longitude_degrees: f64,
     latitude_degrees: f64,
 ) -> Result<TargetBoundaryColumnGeometry, EngineError> {
-    let before = frame_stencils(stencils, &window.frames.before)?.boundary_column(
+    let before = frame_stencils(stencils, &window.frames.before)?.shape(
         cell,
         longitude_degrees,
         latitude_degrees,
@@ -1393,12 +1654,12 @@ fn target_boundary_column(
             geometry: before,
         });
     }
-    let after = frame_stencils(stencils, &window.frames.after)?.boundary_column(
+    let after = frame_stencils(stencils, &window.frames.after)?.shape(
         cell,
         longitude_degrees,
         latitude_degrees,
     )?;
-    let geometry = blend_boundary_columns(&before, &after, window)?;
+    let geometry = blend_shapes(&before, &after, window)?;
     let top = geometry
         .first_valid_index()
         .map_err(EngineError::Vertical)?;
@@ -1416,8 +1677,8 @@ fn target_boundary_column_with_weights(
     cell: crate::grid::CellId,
     weights: HorizontalWeights,
 ) -> Result<TargetBoundaryColumnGeometry, EngineError> {
-    let before = frame_stencils(stencils, &window.frames.before)?
-        .boundary_column_with_weights(cell, weights)?;
+    let before =
+        frame_stencils(stencils, &window.frames.before)?.shape_with_weights(cell, weights)?;
     if window.is_exact_frame() {
         let top = before.first_valid_index().map_err(EngineError::Vertical)?;
         return Ok(TargetBoundaryColumnGeometry {
@@ -1426,9 +1687,9 @@ fn target_boundary_column_with_weights(
             geometry: before,
         });
     }
-    let after = frame_stencils(stencils, &window.frames.after)?
-        .boundary_column_with_weights(cell, weights)?;
-    let geometry = blend_boundary_columns(&before, &after, window)?;
+    let after =
+        frame_stencils(stencils, &window.frames.after)?.shape_with_weights(cell, weights)?;
+    let geometry = blend_shapes(&before, &after, window)?;
     let top = geometry
         .first_valid_index()
         .map_err(EngineError::Vertical)?;
@@ -1452,19 +1713,198 @@ fn vertical_bracket(
     }
 }
 
-fn interpolate_logarithmic(bracket: VerticalBracket, values: &[f64]) -> Result<f64, EngineError> {
-    let logarithms = values
-        .iter()
-        .map(|value| {
-            if !value.is_finite() || *value <= 0.0 {
-                return Err(EngineError::NumericalFailure);
+fn vertical_bracket_shape(
+    column: &ColumnShape,
+    coordinate: VerticalQuery,
+    value: f64,
+) -> Result<VerticalBracket, VerticalError> {
+    match coordinate {
+        VerticalQuery::AboveSeaLevel => column.locate_height_asl_m(value),
+        VerticalQuery::AboveGround => column.locate_height_agl_m(value),
+        VerticalQuery::Pressure => column.locate_pressure_pa(value),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn locate_hybrid_vertical(
+    levels: usize,
+    terrain_asl_m: f64,
+    surface_pressure_pa: f64,
+    physical_model_top_asl_m: Option<f64>,
+    top: HybridLevelGeometry,
+    bottom: HybridLevelGeometry,
+    coordinate: VerticalQuery,
+    value: f64,
+    mut level_coordinate: impl FnMut(usize) -> Result<f64, EngineError>,
+) -> Result<VerticalBracket, EngineError> {
+    if levels < 2 {
+        return Err(EngineError::InvalidPreparedState);
+    }
+    let (query, descending) = match coordinate {
+        VerticalQuery::AboveSeaLevel => (value, true),
+        VerticalQuery::AboveGround => (terrain_asl_m + value, true),
+        VerticalQuery::Pressure => (value, false),
+    };
+    if !query.is_finite() || (!descending && query <= 0.0) {
+        return Err(EngineError::Vertical(VerticalError::NumericalFailure));
+    }
+    if descending {
+        if query <= terrain_asl_m {
+            return Err(EngineError::Vertical(VerticalError::BelowGround));
+        }
+        if physical_model_top_asl_m.is_some_and(|top| query > top) {
+            return Err(EngineError::Vertical(VerticalError::AboveModelTop));
+        }
+        if query > top.height_asl_m {
+            return Err(EngineError::Vertical(VerticalError::AboveAvailableTop));
+        }
+        if query < bottom.height_asl_m {
+            return Err(EngineError::Vertical(VerticalError::SurfaceLayerRequired));
+        }
+    } else {
+        if query > surface_pressure_pa {
+            return Err(EngineError::Vertical(VerticalError::BelowGround));
+        }
+        if query < top.pressure_pa {
+            return Err(EngineError::Vertical(VerticalError::AboveAvailableTop));
+        }
+        if query > bottom.pressure_pa {
+            return Err(EngineError::Vertical(VerticalError::SurfaceLayerRequired));
+        }
+    }
+
+    let mut low = 0usize;
+    let mut high = levels;
+    while low < high {
+        let middle = low + (high - low) / 2;
+        let coordinate = level_coordinate(middle)?;
+        if (descending && coordinate > query) || (!descending && coordinate < query) {
+            low = middle + 1;
+        } else {
+            high = middle;
+        }
+    }
+    if low >= levels {
+        return Err(EngineError::Vertical(VerticalError::NoValidBracket));
+    }
+    let second_coordinate = level_coordinate(low)?;
+    if second_coordinate == query {
+        return Ok(VerticalBracket {
+            first: low,
+            second: low,
+            second_weight: 0.0,
+        });
+    }
+    if low == 0 {
+        return Err(EngineError::Vertical(VerticalError::NoValidBracket));
+    }
+    let first = low - 1;
+    let first_coordinate = level_coordinate(first)?;
+    let second_weight = if descending {
+        (first_coordinate - query) / (first_coordinate - second_coordinate)
+    } else {
+        let lower_log = first_coordinate.ln();
+        let upper_log = second_coordinate.ln();
+        (query.ln() - lower_log) / (upper_log - lower_log)
+    };
+    if !second_weight.is_finite() {
+        return Err(EngineError::Vertical(VerticalError::NumericalFailure));
+    }
+    Ok(VerticalBracket {
+        first,
+        second: low,
+        second_weight,
+    })
+}
+
+fn locate_sampled_hybrid_vertical(
+    column: SampledHybridColumn<'_>,
+    coordinate: VerticalQuery,
+    value: f64,
+) -> Result<VerticalBracket, EngineError> {
+    locate_hybrid_vertical(
+        column.view.level_count(),
+        column.terrain_asl_m,
+        column.surface_pressure_pa,
+        column.physical_model_top_asl_m,
+        column.top,
+        column.bottom,
+        coordinate,
+        value,
+        |level| match coordinate {
+            VerticalQuery::Pressure => column
+                .view
+                .pressure_pa(level)
+                .map_err(EngineError::Vertical),
+            VerticalQuery::AboveSeaLevel | VerticalQuery::AboveGround => column
+                .view
+                .height_asl_m(level)
+                .map_err(EngineError::Vertical),
+        },
+    )
+}
+
+fn locate_target_hybrid_vertical(
+    window: &PreparedWindow,
+    column: &TargetHybridColumn<'_>,
+    coordinate: VerticalQuery,
+    value: f64,
+) -> Result<VerticalBracket, EngineError> {
+    locate_hybrid_vertical(
+        column.level_count(),
+        column.terrain_asl_m,
+        column.surface_pressure_pa,
+        column.physical_model_top_asl_m,
+        column.top,
+        column.bottom,
+        coordinate,
+        value,
+        |level| match coordinate {
+            VerticalQuery::Pressure => column.pressure_pa(window, level),
+            VerticalQuery::AboveSeaLevel | VerticalQuery::AboveGround => {
+                column.height_asl_m(window, level)
             }
-            Ok(value.ln())
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    let logarithm = bracket
-        .interpolate(&logarithms)
-        .map_err(EngineError::Vertical)?;
+        },
+    )
+}
+
+fn interpolate_logarithmic(bracket: VerticalBracket, values: &[f64]) -> Result<f64, EngineError> {
+    let first = values
+        .get(bracket.first)
+        .copied()
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .ok_or(EngineError::NumericalFailure)?;
+    let second = if bracket.first == bracket.second {
+        first
+    } else {
+        values
+            .get(bracket.second)
+            .copied()
+            .filter(|value| value.is_finite() && *value > 0.0)
+            .ok_or(EngineError::NumericalFailure)?
+    };
+    interpolate_logarithmic_pair(first, second, bracket.second_weight)
+}
+
+fn interpolate_logarithmic_pair(
+    first: f64,
+    second: f64,
+    second_weight: f64,
+) -> Result<f64, EngineError> {
+    if !first.is_finite()
+        || first <= 0.0
+        || !second.is_finite()
+        || second <= 0.0
+        || !second_weight.is_finite()
+    {
+        return Err(EngineError::NumericalFailure);
+    }
+    let first = first.ln();
+    let logarithm = if second_weight == 0.0 {
+        first
+    } else {
+        (second.ln() - first).mul_add(second_weight, first)
+    };
     let value = logarithm.exp();
     value
         .is_finite()
@@ -1544,6 +1984,29 @@ fn sample_level_vector(
     if !column.validity().valid.get(level).copied().unwrap_or(false) {
         return Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn));
     }
+    let query_basis = spherical_vector_query_basis(longitude_degrees, latitude_degrees)
+        .map_err(EngineError::Grid)?;
+    sample_level_vector_with_weights(
+        frame_stencils,
+        cell,
+        query_basis,
+        level,
+        column.level_horizontal_weights()[level],
+        eastward_field,
+        northward_field,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_level_vector_with_weights(
+    frame_stencils: &PreparedFrameStencils,
+    cell: crate::grid::CellId,
+    query_basis: SphericalBasis,
+    level: usize,
+    horizontal_weights: [f64; 4],
+    eastward_field: CanonicalField,
+    northward_field: CanonicalField,
+) -> Result<(f64, f64), EngineError> {
     let stencil = frame_stencils.stencil(cell)?;
     let eastward = frame_stencils
         .frame
@@ -1564,7 +2027,7 @@ fn sample_level_vector(
     for (corner, point) in stencil.points().iter().copied().enumerate() {
         let (u, u_valid) = field_3d_value(eastward, level, point)?;
         let (v, v_valid) = field_3d_value(northward, level, point)?;
-        if column.level_horizontal_weights()[level][corner] > 0.0 && (!u_valid || !v_valid) {
+        if horizontal_weights[corner] > 0.0 && (!u_valid || !v_valid) {
             return Err(EngineError::Vertical(
                 VerticalError::InvalidHorizontalSupport,
             ));
@@ -1572,16 +2035,12 @@ fn sample_level_vector(
         eastward_values[corner] = u;
         northward_values[corner] = v;
     }
-    let (source_longitude_degrees, source_latitude_degrees) =
-        source_coordinates(&frame_stencils.frame, stencil.points());
-    interpolate_spherical_vector(
-        source_longitude_degrees,
-        source_latitude_degrees,
+    interpolate_spherical_vector_with_bases(
+        stencil.source_bases(),
+        query_basis,
         eastward_values,
         northward_values,
-        column.level_horizontal_weights()[level],
-        longitude_degrees,
-        latitude_degrees,
+        horizontal_weights,
     )
     .map_err(EngineError::Grid)
 }
@@ -1593,6 +2052,25 @@ fn sample_level_scalar(
     level: usize,
     field: CanonicalField,
 ) -> Result<f64, EngineError> {
+    if !column.validity().valid.get(level).copied().unwrap_or(false) {
+        return Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn));
+    }
+    sample_level_scalar_with_weights(
+        frame_stencils,
+        cell,
+        level,
+        column.level_horizontal_weights()[level],
+        field,
+    )
+}
+
+fn sample_level_scalar_with_weights(
+    frame_stencils: &PreparedFrameStencils,
+    cell: crate::grid::CellId,
+    level: usize,
+    horizontal_weights: [f64; 4],
+    field: CanonicalField,
+) -> Result<f64, EngineError> {
     let source = frame_stencils
         .frame
         .fields()
@@ -1602,7 +2080,7 @@ fn sample_level_scalar(
     let mut value = 0.0;
     for (corner, point) in stencil.points().iter().copied().enumerate() {
         let (corner_value, valid) = field_3d_value(source, level, point)?;
-        let weight = column.level_horizontal_weights()[level][corner];
+        let weight = horizontal_weights[corner];
         if weight > 0.0 && !valid {
             return Err(EngineError::Vertical(
                 VerticalError::InvalidHorizontalSupport,
@@ -1625,8 +2103,29 @@ fn sample_frame_point(
     vertical_value: f64,
 ) -> Result<FramePointSample, EngineError> {
     let column = frame_stencils.column(cell, longitude_degrees, latitude_degrees)?;
+    sample_frame_point_from_column(
+        frame_stencils,
+        &column,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        coordinate,
+        vertical_value,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_frame_point_from_column(
+    frame_stencils: &PreparedFrameStencils,
+    column: &ColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+) -> Result<FramePointSample, EngineError> {
     let bracket =
-        vertical_bracket(&column, coordinate, vertical_value).map_err(EngineError::Vertical)?;
+        vertical_bracket(column, coordinate, vertical_value).map_err(EngineError::Vertical)?;
     let pressure_pa = if coordinate == VerticalQuery::Pressure {
         vertical_value
     } else {
@@ -1638,12 +2137,21 @@ fn sample_frame_point(
     let specific_humidity = bracket
         .interpolate(column.specific_humidity())
         .map_err(EngineError::Vertical)?;
-    let physical_specific_humidity = bracket
-        .interpolate(column.physical_specific_humidity())
+    let first_physical_humidity = column
+        .physical_specific_humidity_at(bracket.first)
         .map_err(EngineError::Vertical)?;
+    let physical_specific_humidity = if bracket.first == bracket.second {
+        first_physical_humidity
+    } else {
+        let second_physical_humidity = column
+            .physical_specific_humidity_at(bracket.second)
+            .map_err(EngineError::Vertical)?;
+        (second_physical_humidity - first_physical_humidity)
+            .mul_add(bracket.second_weight, first_physical_humidity)
+    };
     let first_vector = sample_level_vector(
         frame_stencils,
-        &column,
+        column,
         cell,
         longitude_degrees,
         latitude_degrees,
@@ -1656,7 +2164,7 @@ fn sample_frame_point(
     } else {
         sample_level_vector(
             frame_stencils,
-            &column,
+            column,
             cell,
             longitude_degrees,
             latitude_degrees,
@@ -1672,6 +2180,164 @@ fn sample_frame_point(
     Ok(FramePointSample {
         eastward_wind_m_s,
         northward_wind_m_s,
+        pressure_pa,
+        temperature_k,
+        specific_humidity,
+        physical_specific_humidity,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_frame_point_from_shape(
+    frame_stencils: &PreparedFrameStencils,
+    shape: &ColumnShape,
+    weights: HorizontalWeights,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+) -> Result<FramePointSample, EngineError> {
+    let query_basis = spherical_vector_query_basis(longitude_degrees, latitude_degrees)
+        .map_err(EngineError::Grid)?;
+    let bracket =
+        vertical_bracket_shape(shape, coordinate, vertical_value).map_err(EngineError::Vertical)?;
+    let pressure_pa = if coordinate == VerticalQuery::Pressure {
+        vertical_value
+    } else {
+        interpolate_logarithmic(bracket, shape.pressure_pa())?
+    };
+    let first = frame_stencils.level_sample_with_weights(cell, weights, shape, bracket.first)?;
+    let second = if bracket.first == bracket.second {
+        first
+    } else {
+        frame_stencils.level_sample_with_weights(cell, weights, shape, bracket.second)?
+    };
+    let temperature_k = (second.temperature_k - first.temperature_k)
+        .mul_add(bracket.second_weight, first.temperature_k);
+    let specific_humidity = (second.specific_humidity - first.specific_humidity)
+        .mul_add(bracket.second_weight, first.specific_humidity);
+    let first_physical_humidity = project_specific_humidity_nonnegative(first.specific_humidity)
+        .map_err(|_| EngineError::NumericalFailure)?;
+    let second_physical_humidity = project_specific_humidity_nonnegative(second.specific_humidity)
+        .map_err(|_| EngineError::NumericalFailure)?;
+    let physical_specific_humidity = (second_physical_humidity - first_physical_humidity)
+        .mul_add(bracket.second_weight, first_physical_humidity);
+    let first_vector = sample_level_vector_with_weights(
+        frame_stencils,
+        cell,
+        query_basis,
+        bracket.first,
+        first.horizontal_weights,
+        CanonicalField::EastwardWind,
+        CanonicalField::NorthwardWind,
+    )?;
+    let second_vector = if bracket.first == bracket.second {
+        first_vector
+    } else {
+        sample_level_vector_with_weights(
+            frame_stencils,
+            cell,
+            query_basis,
+            bracket.second,
+            second.horizontal_weights,
+            CanonicalField::EastwardWind,
+            CanonicalField::NorthwardWind,
+        )?
+    };
+    Ok(FramePointSample {
+        eastward_wind_m_s: (second_vector.0 - first_vector.0)
+            .mul_add(bracket.second_weight, first_vector.0),
+        northward_wind_m_s: (second_vector.1 - first_vector.1)
+            .mul_add(bracket.second_weight, first_vector.1),
+        pressure_pa,
+        temperature_k,
+        specific_humidity,
+        physical_specific_humidity,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_hybrid_frame_point(
+    frame_stencils: &PreparedFrameStencils,
+    column: SampledHybridColumn<'_>,
+    cell: crate::grid::CellId,
+    query_basis: SphericalBasis,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+    bracket: Result<VerticalBracket, EngineError>,
+) -> Result<FramePointSample, EngineError> {
+    let bracket = bracket?;
+    let first_geometry = column
+        .view
+        .level_geometry(bracket.first)
+        .map_err(EngineError::Vertical)?;
+    let second_geometry = if bracket.first == bracket.second {
+        first_geometry
+    } else {
+        column
+            .view
+            .level_geometry(bracket.second)
+            .map_err(EngineError::Vertical)?
+    };
+    let pressure_pa = if coordinate == VerticalQuery::Pressure {
+        vertical_value
+    } else {
+        interpolate_logarithmic_pair(
+            first_geometry.pressure_pa,
+            second_geometry.pressure_pa,
+            bracket.second_weight,
+        )?
+    };
+    let first = column
+        .view
+        .level_sample(bracket.first)
+        .map_err(EngineError::Vertical)?;
+    let second = if bracket.first == bracket.second {
+        first
+    } else {
+        column
+            .view
+            .level_sample(bracket.second)
+            .map_err(EngineError::Vertical)?
+    };
+    let temperature_k = (second.temperature_k - first.temperature_k)
+        .mul_add(bracket.second_weight, first.temperature_k);
+    let specific_humidity = (second.specific_humidity - first.specific_humidity)
+        .mul_add(bracket.second_weight, first.specific_humidity);
+    let first_physical_humidity = project_specific_humidity_nonnegative(first.specific_humidity)
+        .map_err(|_| EngineError::NumericalFailure)?;
+    let second_physical_humidity = project_specific_humidity_nonnegative(second.specific_humidity)
+        .map_err(|_| EngineError::NumericalFailure)?;
+    let physical_specific_humidity = (second_physical_humidity - first_physical_humidity)
+        .mul_add(bracket.second_weight, first_physical_humidity);
+    let first_vector = sample_level_vector_with_weights(
+        frame_stencils,
+        cell,
+        query_basis,
+        bracket.first,
+        first.horizontal_weights,
+        CanonicalField::EastwardWind,
+        CanonicalField::NorthwardWind,
+    )?;
+    let second_vector = if bracket.first == bracket.second {
+        first_vector
+    } else {
+        sample_level_vector_with_weights(
+            frame_stencils,
+            cell,
+            query_basis,
+            bracket.second,
+            second.horizontal_weights,
+            CanonicalField::EastwardWind,
+            CanonicalField::NorthwardWind,
+        )?
+    };
+    Ok(FramePointSample {
+        eastward_wind_m_s: (second_vector.0 - first_vector.0)
+            .mul_add(bracket.second_weight, first_vector.0),
+        northward_wind_m_s: (second_vector.1 - first_vector.1)
+            .mul_add(bracket.second_weight, first_vector.1),
         pressure_pa,
         temperature_k,
         specific_humidity,
@@ -2031,16 +2697,33 @@ fn target_level_geometry(
     latitude_degrees: f64,
     level: usize,
 ) -> Result<(crate::vertical::NativeLevelGeometry, f64, f64), EngineError> {
+    let grid = RegularLatLonGrid::new(window.frames.before.metadata().grid.clone())
+        .map_err(EngineError::Grid)?;
+    let (located, weights) = grid
+        .locate_cell_and_weights(longitude_degrees, latitude_degrees)
+        .map_err(EngineError::Grid)?;
+    if located != cell {
+        return Err(EngineError::InvalidPreparedState);
+    }
+    target_level_geometry_with_weights(window, stencils, cell, weights, latitude_degrees, level)
+}
+
+fn target_level_geometry_with_weights(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    cell: crate::grid::CellId,
+    weights: HorizontalWeights,
+    latitude_degrees: f64,
+    level: usize,
+) -> Result<(crate::vertical::NativeLevelGeometry, f64, f64), EngineError> {
     let before_stencils = frame_stencils(stencils, &window.frames.before)?;
     let before_geometry = before_stencils
         .stencil(cell)?
-        .level_geometry(
-            point_column_request(
-                &before_stencils.frame,
-                cell,
-                longitude_degrees,
-                latitude_degrees,
-            ),
+        .level_geometry_with_weights(
+            &before_stencils.frame,
+            cell,
+            weights,
+            latitude_degrees,
             level,
         )
         .map_err(EngineError::Vertical)?;
@@ -2048,13 +2731,11 @@ fn target_level_geometry(
         let after_stencils = frame_stencils(stencils, &window.frames.after)?;
         let after_geometry = after_stencils
             .stencil(cell)?
-            .level_geometry(
-                point_column_request(
-                    &after_stencils.frame,
-                    cell,
-                    longitude_degrees,
-                    latitude_degrees,
-                ),
+            .level_geometry_with_weights(
+                &after_stencils.frame,
+                cell,
+                weights,
+                latitude_degrees,
                 level,
             )
             .map_err(EngineError::Vertical)?;
@@ -2100,27 +2781,17 @@ fn target_level_geometry(
     let next_stencils = frame_stencils(stencils, next)?;
     let previous_geometry = previous_stencils
         .stencil(cell)?
-        .level_geometry(
-            point_column_request(
-                &previous_stencils.frame,
-                cell,
-                longitude_degrees,
-                latitude_degrees,
-            ),
+        .level_geometry_with_weights(
+            &previous_stencils.frame,
+            cell,
+            weights,
+            latitude_degrees,
             level,
         )
         .map_err(EngineError::Vertical)?;
     let next_geometry = next_stencils
         .stencil(cell)?
-        .level_geometry(
-            point_column_request(
-                &next_stencils.frame,
-                cell,
-                longitude_degrees,
-                latitude_degrees,
-            ),
-            level,
-        )
+        .level_geometry_with_weights(&next_stencils.frame, cell, weights, latitude_degrees, level)
         .map_err(EngineError::Vertical)?;
     let left_seconds = seconds_between(
         previous.metadata().valid_time,
@@ -2139,126 +2810,665 @@ fn target_level_geometry(
     ))
 }
 
+struct GeometricWContext<'a> {
+    window: &'a PreparedWindow,
+    stencils: &'a PreparedStencils,
+    target_column: &'a ColumnGeometry,
+    before_column: &'a ColumnGeometry,
+    after_column: &'a ColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    coordinate_kind: NativeCoordinateKind,
+    native_coordinate: &'a [f64],
+    vertical_field: CanonicalField,
+}
+
+fn vertical_velocity_field(
+    frame_stencils: &PreparedFrameStencils,
+    coordinate_kind: NativeCoordinateKind,
+) -> CanonicalField {
+    match coordinate_kind {
+        NativeCoordinateKind::PressurePa => CanonicalField::PressureVerticalVelocity,
+        NativeCoordinateKind::HybridEta
+            if frame_stencils
+                .frame
+                .fields()
+                .get(&FieldKey::Canonical(CanonicalField::HybridVerticalVelocity))
+                .is_some() =>
+        {
+            CanonicalField::HybridVerticalVelocity
+        }
+        NativeCoordinateKind::HybridEta => CanonicalField::PressureVerticalVelocity,
+    }
+}
+
+fn prepare_geometric_w_context<'a>(
+    window: &'a PreparedWindow,
+    stencils: &'a PreparedStencils,
+    target_column: &'a TargetColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+) -> Result<GeometricWContext<'a>, EngineError> {
+    let before_stencils = frame_stencils(stencils, &window.frames.before)?;
+    let stencil = before_stencils.stencil(cell)?;
+    let (coordinate_kind, native_coordinate) = stencil.native_coordinate();
+    if native_coordinate.len() != target_column.geometry.pressure_pa().len() {
+        return Err(EngineError::InvalidPreparedState);
+    }
+    let vertical_field = vertical_velocity_field(before_stencils, coordinate_kind);
+    Ok(GeometricWContext {
+        window,
+        stencils,
+        target_column: &target_column.geometry,
+        before_column: &target_column.before,
+        after_column: &target_column.after,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        coordinate_kind,
+        native_coordinate,
+        vertical_field,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn derive_geometric_w_at_level(
+    coordinate_kind: NativeCoordinateKind,
+    vertical_field: CanonicalField,
+    geometry: crate::vertical::NativeLevelGeometry,
+    height_time_derivative_m_s: f64,
+    pressure_time_derivative_pa_s: f64,
+    eastward_wind_m_s: f64,
+    northward_wind_m_s: f64,
+    source_vertical_velocity: f64,
+    height_coordinate_derivative: f64,
+    pressure_coordinate_derivative: Option<f64>,
+) -> Result<f64, EngineError> {
+    let coordinate_velocity = match coordinate_kind {
+        NativeCoordinateKind::PressurePa => source_vertical_velocity,
+        NativeCoordinateKind::HybridEta
+            if vertical_field == CanonicalField::HybridVerticalVelocity =>
+        {
+            source_vertical_velocity
+        }
+        NativeCoordinateKind::HybridEta => native_coordinate_velocity_from_omega(
+            source_vertical_velocity,
+            pressure_time_derivative_pa_s,
+            eastward_wind_m_s,
+            northward_wind_m_s,
+            geometry.pressure_eastward_gradient_pa_m,
+            geometry.pressure_northward_gradient_pa_m,
+            pressure_coordinate_derivative.ok_or(EngineError::InvalidPreparedState)?,
+        )
+        .map_err(|_| EngineError::NumericalFailure)?,
+    };
+    geometric_vertical_velocity_m_s(KinematicVerticalVelocityInput {
+        height_time_derivative_m_s,
+        eastward_wind_m_s,
+        northward_wind_m_s,
+        height_eastward_gradient: geometry.height_eastward_gradient,
+        height_northward_gradient: geometry.height_northward_gradient,
+        coordinate_velocity,
+        height_coordinate_derivative,
+    })
+    .map_err(|_| EngineError::NumericalFailure)
+}
+
+fn geometric_w_level(
+    context: &GeometricWContext<'_>,
+    level: usize,
+) -> Result<Option<f64>, EngineError> {
+    if !context
+        .target_column
+        .validity()
+        .valid
+        .get(level)
+        .copied()
+        .unwrap_or(false)
+    {
+        return Ok(None);
+    }
+    let result = (|| {
+        let (geometry, height_time_derivative_m_s, pressure_time_derivative_pa_s) =
+            target_level_geometry(
+                context.window,
+                context.stencils,
+                context.cell,
+                context.longitude_degrees,
+                context.latitude_degrees,
+                level,
+            )?;
+        let (eastward_wind_m_s, northward_wind_m_s) = time_level_vector(
+            context.window,
+            context.stencils,
+            context.before_column,
+            context.after_column,
+            context.cell,
+            context.longitude_degrees,
+            context.latitude_degrees,
+            level,
+        )?;
+        let source_vertical_velocity = time_level_scalar(
+            context.window,
+            context.stencils,
+            context.before_column,
+            context.after_column,
+            context.cell,
+            level,
+            context.vertical_field,
+        )?;
+        let height_coordinate_derivative = derivative_at(
+            context.target_column.height_asl_m(),
+            context.native_coordinate,
+            level,
+        )?;
+        let pressure_coordinate_derivative = (context.coordinate_kind
+            == NativeCoordinateKind::HybridEta
+            && context.vertical_field != CanonicalField::HybridVerticalVelocity)
+            .then(|| {
+                derivative_at(
+                    context.target_column.pressure_pa(),
+                    context.native_coordinate,
+                    level,
+                )
+            })
+            .transpose()?;
+        derive_geometric_w_at_level(
+            context.coordinate_kind,
+            context.vertical_field,
+            geometry,
+            height_time_derivative_m_s,
+            pressure_time_derivative_pa_s,
+            eastward_wind_m_s,
+            northward_wind_m_s,
+            source_vertical_velocity,
+            height_coordinate_derivative,
+            pressure_coordinate_derivative,
+        )
+    })();
+    match result {
+        Ok(value) => Ok(Some(value)),
+        Err(error) if local_status_for_error(&error).is_some() => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
 fn geometric_w_profile(
     window: &PreparedWindow,
     stencils: &PreparedStencils,
-    target_column: &ColumnGeometry,
+    target_column: &TargetColumnGeometry,
     cell: crate::grid::CellId,
     longitude_degrees: f64,
     latitude_degrees: f64,
 ) -> Result<(Vec<f64>, Vec<bool>), EngineError> {
-    let before_stencils = frame_stencils(stencils, &window.frames.before)?;
-    let before_column = before_stencils.column(cell, longitude_degrees, latitude_degrees)?;
-    let after_column = if window.is_exact_frame() {
-        before_column.clone()
-    } else {
-        frame_stencils(stencils, &window.frames.after)?.column(
-            cell,
-            longitude_degrees,
-            latitude_degrees,
-        )?
-    };
-    let stencil = before_stencils.stencil(cell)?;
-    let (coordinate_kind, native_coordinate) = stencil.native_coordinate();
-    if native_coordinate.len() != target_column.pressure_pa().len() {
-        return Err(EngineError::InvalidPreparedState);
-    }
-    let vertical_field = match coordinate_kind {
-        NativeCoordinateKind::PressurePa => CanonicalField::PressureVerticalVelocity,
-        NativeCoordinateKind::HybridEta => {
-            if before_stencils
-                .frame
-                .fields()
-                .get(&FieldKey::Canonical(CanonicalField::HybridVerticalVelocity))
-                .is_some()
-            {
-                CanonicalField::HybridVerticalVelocity
-            } else {
-                CanonicalField::PressureVerticalVelocity
-            }
-        }
-    };
-    let levels = target_column.pressure_pa().len();
+    let context = prepare_geometric_w_context(
+        window,
+        stencils,
+        target_column,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    let levels = target_column.geometry.pressure_pa().len();
     let mut values = vec![0.0; levels];
     let mut valid = vec![false; levels];
     for level in 0..levels {
-        if !target_column.validity().valid[level] {
-            continue;
-        }
-        let result = (|| {
-            let (geometry, height_time_derivative_m_s, pressure_time_derivative_pa_s) =
-                target_level_geometry(
-                    window,
-                    stencils,
-                    cell,
-                    longitude_degrees,
-                    latitude_degrees,
-                    level,
-                )?;
-            let (eastward_wind_m_s, northward_wind_m_s) = time_level_vector(
-                window,
-                stencils,
-                &before_column,
-                &after_column,
-                cell,
-                longitude_degrees,
-                latitude_degrees,
-                level,
-            )?;
-            let source_vertical_velocity = time_level_scalar(
-                window,
-                stencils,
-                &before_column,
-                &after_column,
-                cell,
-                level,
-                vertical_field,
-            )?;
-            let height_coordinate_derivative =
-                derivative_at(target_column.height_asl_m(), native_coordinate, level)?;
-            let coordinate_velocity = match coordinate_kind {
-                NativeCoordinateKind::PressurePa => source_vertical_velocity,
-                NativeCoordinateKind::HybridEta
-                    if vertical_field == CanonicalField::HybridVerticalVelocity =>
-                {
-                    source_vertical_velocity
-                }
-                NativeCoordinateKind::HybridEta => {
-                    let pressure_coordinate_derivative =
-                        derivative_at(target_column.pressure_pa(), native_coordinate, level)?;
-                    native_coordinate_velocity_from_omega(
-                        source_vertical_velocity,
-                        pressure_time_derivative_pa_s,
-                        eastward_wind_m_s,
-                        northward_wind_m_s,
-                        geometry.pressure_eastward_gradient_pa_m,
-                        geometry.pressure_northward_gradient_pa_m,
-                        pressure_coordinate_derivative,
-                    )
-                    .map_err(|_| EngineError::NumericalFailure)?
-                }
-            };
-            geometric_vertical_velocity_m_s(KinematicVerticalVelocityInput {
-                height_time_derivative_m_s,
-                eastward_wind_m_s,
-                northward_wind_m_s,
-                height_eastward_gradient: geometry.height_eastward_gradient,
-                height_northward_gradient: geometry.height_northward_gradient,
-                coordinate_velocity,
-                height_coordinate_derivative,
-            })
-            .map_err(|_| EngineError::NumericalFailure)
-        })();
-        match result {
-            Ok(value) => {
-                values[level] = value;
-                valid[level] = true;
-            }
-            Err(error) if local_status_for_error(&error).is_some() => {}
-            Err(error) => return Err(error),
+        if let Some(value) = geometric_w_level(&context, level)? {
+            values[level] = value;
+            valid[level] = true;
         }
     }
     Ok((values, valid))
+}
+
+fn geometric_w_at_bracket(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    target_column: &TargetColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    bracket: VerticalBracket,
+) -> Result<Option<f64>, EngineError> {
+    let context = prepare_geometric_w_context(
+        window,
+        stencils,
+        target_column,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    let Some(first) = geometric_w_level(&context, bracket.first)? else {
+        return Ok(None);
+    };
+    if bracket.first == bracket.second {
+        return Ok(Some(first));
+    }
+    let Some(second) = geometric_w_level(&context, bracket.second)? else {
+        return Ok(None);
+    };
+    let value = (second - first).mul_add(bracket.second_weight, first);
+    value
+        .is_finite()
+        .then_some(Some(value))
+        .ok_or(EngineError::NumericalFailure)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn time_level_vector_from_shapes(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    column: &TargetTransportColumn,
+    weights: HorizontalWeights,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    level: usize,
+) -> Result<(f64, f64), EngineError> {
+    let query_basis = spherical_vector_query_basis(longitude_degrees, latitude_degrees)
+        .map_err(EngineError::Grid)?;
+    let before_stencils = frame_stencils(stencils, &window.frames.before)?;
+    let before_weights = before_stencils.level_horizontal_weights_with_weights(
+        cell,
+        weights,
+        &column.before,
+        level,
+    )?;
+    let before = sample_level_vector_with_weights(
+        before_stencils,
+        cell,
+        query_basis,
+        level,
+        before_weights,
+        CanonicalField::EastwardWind,
+        CanonicalField::NorthwardWind,
+    )?;
+    if window.is_exact_frame() {
+        return Ok(before);
+    }
+    let after_stencils = frame_stencils(stencils, &window.frames.after)?;
+    let after_weights = after_stencils.level_horizontal_weights_with_weights(
+        cell,
+        weights,
+        column.after(),
+        level,
+    )?;
+    let after = sample_level_vector_with_weights(
+        after_stencils,
+        cell,
+        query_basis,
+        level,
+        after_weights,
+        CanonicalField::EastwardWind,
+        CanonicalField::NorthwardWind,
+    )?;
+    Ok((
+        blend_value(before.0, after.0, window)?,
+        blend_value(before.1, after.1, window)?,
+    ))
+}
+
+fn time_level_scalar_from_shapes(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    column: &TargetTransportColumn,
+    weights: HorizontalWeights,
+    cell: crate::grid::CellId,
+    level: usize,
+    field: CanonicalField,
+) -> Result<f64, EngineError> {
+    let before_stencils = frame_stencils(stencils, &window.frames.before)?;
+    let before_weights = before_stencils.level_horizontal_weights_with_weights(
+        cell,
+        weights,
+        &column.before,
+        level,
+    )?;
+    let before =
+        sample_level_scalar_with_weights(before_stencils, cell, level, before_weights, field)?;
+    if window.is_exact_frame() {
+        return Ok(before);
+    }
+    let after_stencils = frame_stencils(stencils, &window.frames.after)?;
+    let after_weights = after_stencils.level_horizontal_weights_with_weights(
+        cell,
+        weights,
+        column.after(),
+        level,
+    )?;
+    let after =
+        sample_level_scalar_with_weights(after_stencils, cell, level, after_weights, field)?;
+    blend_value(before, after, window)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn time_level_vector_from_hybrid(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    weights: HorizontalWeights,
+    cell: crate::grid::CellId,
+    query_basis: SphericalBasis,
+    level: usize,
+) -> Result<(f64, f64), EngineError> {
+    let before = sample_level_vector_with_weights(
+        frame_stencils(stencils, &window.frames.before)?,
+        cell,
+        query_basis,
+        level,
+        weights.weights,
+        CanonicalField::EastwardWind,
+        CanonicalField::NorthwardWind,
+    )?;
+    if window.is_exact_frame() {
+        return Ok(before);
+    }
+    let after = sample_level_vector_with_weights(
+        frame_stencils(stencils, &window.frames.after)?,
+        cell,
+        query_basis,
+        level,
+        weights.weights,
+        CanonicalField::EastwardWind,
+        CanonicalField::NorthwardWind,
+    )?;
+    Ok((
+        blend_value(before.0, after.0, window)?,
+        blend_value(before.1, after.1, window)?,
+    ))
+}
+
+fn time_level_scalar_from_hybrid(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    weights: HorizontalWeights,
+    cell: crate::grid::CellId,
+    level: usize,
+    field: CanonicalField,
+) -> Result<f64, EngineError> {
+    let before = sample_level_scalar_with_weights(
+        frame_stencils(stencils, &window.frames.before)?,
+        cell,
+        level,
+        weights.weights,
+        field,
+    )?;
+    if window.is_exact_frame() {
+        return Ok(before);
+    }
+    let after = sample_level_scalar_with_weights(
+        frame_stencils(stencils, &window.frames.after)?,
+        cell,
+        level,
+        weights.weights,
+        field,
+    )?;
+    blend_value(before, after, window)
+}
+
+fn target_hybrid_coordinate_derivatives(
+    window: &PreparedWindow,
+    column: &TargetHybridColumn<'_>,
+    level: usize,
+) -> Result<(f64, f64), EngineError> {
+    let coordinate = column.before.view.native_coordinate();
+    if coordinate.len() != column.level_count() || coordinate.len() < 2 || level >= coordinate.len()
+    {
+        return Err(EngineError::InvalidPreparedState);
+    }
+    let (left, right) = if level == 0 {
+        (0, 1)
+    } else if level + 1 == coordinate.len() {
+        (level - 1, level)
+    } else {
+        (level - 1, level + 1)
+    };
+    let denominator = coordinate[right] - coordinate[left];
+    if !denominator.is_finite() || denominator == 0.0 {
+        return Err(EngineError::NumericalFailure);
+    }
+    let left = column.level_geometry(window, left)?;
+    let right = column.level_geometry(window, right)?;
+    let height = (right.height_asl_m - left.height_asl_m) / denominator;
+    let pressure = (right.pressure_pa - left.pressure_pa) / denominator;
+    if !height.is_finite() || !pressure.is_finite() {
+        return Err(EngineError::NumericalFailure);
+    }
+    Ok((height, pressure))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn geometric_w_level_from_hybrid(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    column: &TargetHybridColumn<'_>,
+    weights: HorizontalWeights,
+    cell: crate::grid::CellId,
+    query_basis: SphericalBasis,
+    latitude_degrees: f64,
+    level: usize,
+) -> Result<Option<f64>, EngineError> {
+    let result = (|| {
+        let before_stencils = frame_stencils(stencils, &window.frames.before)?;
+        let (coordinate_kind, native_coordinate) =
+            before_stencils.stencil(cell)?.native_coordinate();
+        if coordinate_kind != NativeCoordinateKind::HybridEta
+            || native_coordinate.len() != column.level_count()
+        {
+            return Err(EngineError::InvalidPreparedState);
+        }
+        let vertical_field = vertical_velocity_field(before_stencils, coordinate_kind);
+        let (geometry, height_time_derivative_m_s, pressure_time_derivative_pa_s) =
+            target_level_geometry_with_weights(
+                window,
+                stencils,
+                cell,
+                weights,
+                latitude_degrees,
+                level,
+            )?;
+        let (eastward_wind_m_s, northward_wind_m_s) =
+            time_level_vector_from_hybrid(window, stencils, weights, cell, query_basis, level)?;
+        let source_vertical_velocity =
+            time_level_scalar_from_hybrid(window, stencils, weights, cell, level, vertical_field)?;
+        let (height_coordinate_derivative, pressure_coordinate_derivative) =
+            target_hybrid_coordinate_derivatives(window, column, level)?;
+        derive_geometric_w_at_level(
+            coordinate_kind,
+            vertical_field,
+            geometry,
+            height_time_derivative_m_s,
+            pressure_time_derivative_pa_s,
+            eastward_wind_m_s,
+            northward_wind_m_s,
+            source_vertical_velocity,
+            height_coordinate_derivative,
+            (vertical_field != CanonicalField::HybridVerticalVelocity)
+                .then_some(pressure_coordinate_derivative),
+        )
+    })();
+    match result {
+        Ok(value) => Ok(Some(value)),
+        Err(error) if local_status_for_error(&error).is_some() => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn geometric_w_at_bracket_from_hybrid(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    column: &TargetHybridColumn<'_>,
+    weights: HorizontalWeights,
+    cell: crate::grid::CellId,
+    query_basis: SphericalBasis,
+    latitude_degrees: f64,
+    bracket: VerticalBracket,
+) -> Result<Option<f64>, EngineError> {
+    let Some(first) = geometric_w_level_from_hybrid(
+        window,
+        stencils,
+        column,
+        weights,
+        cell,
+        query_basis,
+        latitude_degrees,
+        bracket.first,
+    )?
+    else {
+        return Ok(None);
+    };
+    if bracket.first == bracket.second {
+        return Ok(Some(first));
+    }
+    let Some(second) = geometric_w_level_from_hybrid(
+        window,
+        stencils,
+        column,
+        weights,
+        cell,
+        query_basis,
+        latitude_degrees,
+        bracket.second,
+    )?
+    else {
+        return Ok(None);
+    };
+    let value = (second - first).mul_add(bracket.second_weight, first);
+    value
+        .is_finite()
+        .then_some(Some(value))
+        .ok_or(EngineError::NumericalFailure)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn geometric_w_level_from_shapes(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    column: &TargetTransportColumn,
+    weights: HorizontalWeights,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    level: usize,
+) -> Result<Option<f64>, EngineError> {
+    if !column
+        .geometry()
+        .validity()
+        .get(level)
+        .copied()
+        .unwrap_or(false)
+    {
+        return Ok(None);
+    }
+    let result = (|| {
+        let before_stencils = frame_stencils(stencils, &window.frames.before)?;
+        let stencil = before_stencils.stencil(cell)?;
+        let (coordinate_kind, native_coordinate) = stencil.native_coordinate();
+        if native_coordinate.len() != column.geometry().pressure_pa().len() {
+            return Err(EngineError::InvalidPreparedState);
+        }
+        let vertical_field = vertical_velocity_field(before_stencils, coordinate_kind);
+        let (geometry, height_time_derivative_m_s, pressure_time_derivative_pa_s) =
+            target_level_geometry_with_weights(
+                window,
+                stencils,
+                cell,
+                weights,
+                latitude_degrees,
+                level,
+            )?;
+        let (eastward_wind_m_s, northward_wind_m_s) = time_level_vector_from_shapes(
+            window,
+            stencils,
+            column,
+            weights,
+            cell,
+            longitude_degrees,
+            latitude_degrees,
+            level,
+        )?;
+        let source_vertical_velocity = time_level_scalar_from_shapes(
+            window,
+            stencils,
+            column,
+            weights,
+            cell,
+            level,
+            vertical_field,
+        )?;
+        let height_coordinate_derivative =
+            derivative_at(column.geometry().height_asl_m(), native_coordinate, level)?;
+        let pressure_coordinate_derivative = (coordinate_kind == NativeCoordinateKind::HybridEta
+            && vertical_field != CanonicalField::HybridVerticalVelocity)
+            .then(|| derivative_at(column.geometry().pressure_pa(), native_coordinate, level))
+            .transpose()?;
+        derive_geometric_w_at_level(
+            coordinate_kind,
+            vertical_field,
+            geometry,
+            height_time_derivative_m_s,
+            pressure_time_derivative_pa_s,
+            eastward_wind_m_s,
+            northward_wind_m_s,
+            source_vertical_velocity,
+            height_coordinate_derivative,
+            pressure_coordinate_derivative,
+        )
+    })();
+    match result {
+        Ok(value) => Ok(Some(value)),
+        Err(error) if local_status_for_error(&error).is_some() => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn geometric_w_at_bracket_from_shapes(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    column: &TargetTransportColumn,
+    weights: HorizontalWeights,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    bracket: VerticalBracket,
+) -> Result<Option<f64>, EngineError> {
+    let Some(first) = geometric_w_level_from_shapes(
+        window,
+        stencils,
+        column,
+        weights,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        bracket.first,
+    )?
+    else {
+        return Ok(None);
+    };
+    if bracket.first == bracket.second {
+        return Ok(Some(first));
+    }
+    let Some(second) = geometric_w_level_from_shapes(
+        window,
+        stencils,
+        column,
+        weights,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        bracket.second,
+    )?
+    else {
+        return Ok(None);
+    };
+    let value = (second - first).mul_add(bracket.second_weight, first);
+    value
+        .is_finite()
+        .then_some(Some(value))
+        .ok_or(EngineError::NumericalFailure)
 }
 
 fn terrain_vertical_velocity(
@@ -3027,34 +4237,11 @@ fn build_execution_metadata(
     Ok(metadata)
 }
 
-fn target_frame_point(
+fn blend_frame_points(
+    before: FramePointSample,
+    after: FramePointSample,
     window: &PreparedWindow,
-    stencils: &PreparedStencils,
-    cell: crate::grid::CellId,
-    longitude_degrees: f64,
-    latitude_degrees: f64,
-    coordinate: VerticalQuery,
-    vertical_value: f64,
 ) -> Result<FramePointSample, EngineError> {
-    let before = sample_frame_point(
-        frame_stencils(stencils, &window.frames.before)?,
-        cell,
-        longitude_degrees,
-        latitude_degrees,
-        coordinate,
-        vertical_value,
-    )?;
-    if window.is_exact_frame() {
-        return Ok(before);
-    }
-    let after = sample_frame_point(
-        frame_stencils(stencils, &window.frames.after)?,
-        cell,
-        longitude_degrees,
-        latitude_degrees,
-        coordinate,
-        vertical_value,
-    )?;
     Ok(FramePointSample {
         eastward_wind_m_s: blend_value(before.eastward_wind_m_s, after.eastward_wind_m_s, window)?,
         northward_wind_m_s: blend_value(
@@ -3071,6 +4258,116 @@ fn target_frame_point(
             window,
         )?,
     })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn target_frame_point_from_columns(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    before_column: &ColumnGeometry,
+    after_column: &ColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+) -> Result<FramePointSample, EngineError> {
+    let before = sample_frame_point_from_column(
+        frame_stencils(stencils, &window.frames.before)?,
+        before_column,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        coordinate,
+        vertical_value,
+    )?;
+    if window.is_exact_frame() {
+        return Ok(before);
+    }
+    let after = sample_frame_point_from_column(
+        frame_stencils(stencils, &window.frames.after)?,
+        after_column,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        coordinate,
+        vertical_value,
+    )?;
+    blend_frame_points(before, after, window)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn target_frame_point_from_shapes(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    column: &TargetTransportColumn,
+    weights: HorizontalWeights,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+) -> Result<FramePointSample, EngineError> {
+    let before = sample_frame_point_from_shape(
+        frame_stencils(stencils, &window.frames.before)?,
+        &column.before,
+        weights,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        coordinate,
+        vertical_value,
+    )?;
+    if window.is_exact_frame() {
+        return Ok(before);
+    }
+    let after = sample_frame_point_from_shape(
+        frame_stencils(stencils, &window.frames.after)?,
+        column.after(),
+        weights,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        coordinate,
+        vertical_value,
+    )?;
+    blend_frame_points(before, after, window)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn target_hybrid_frame_point(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    column: &TargetHybridColumn<'_>,
+    cell: crate::grid::CellId,
+    query_basis: SphericalBasis,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+    before_bracket: Result<VerticalBracket, EngineError>,
+    after_bracket: Result<VerticalBracket, EngineError>,
+) -> Result<FramePointSample, EngineError> {
+    let before = sample_hybrid_frame_point(
+        frame_stencils(stencils, &window.frames.before)?,
+        column.before,
+        cell,
+        query_basis,
+        coordinate,
+        vertical_value,
+        before_bracket,
+    )?;
+    if window.is_exact_frame() {
+        return Ok(before);
+    }
+    let after = sample_hybrid_frame_point(
+        frame_stencils(stencils, &window.frames.after)?,
+        column.after(),
+        cell,
+        query_basis,
+        coordinate,
+        vertical_value,
+        after_bracket,
+    )?;
+    blend_frame_points(before, after, window)
 }
 
 fn vertical_bounds_for_point(
@@ -3109,6 +4406,50 @@ fn complete_transport_bounds_for_point(
         longitude_degrees,
         latitude_degrees,
     )?;
+    restrict_vertical_bounds_to_complete_transport(
+        bounds,
+        column.restrictive_transport_top_asl_m,
+        column.restrictive_transport_top_pressure_pa,
+    )
+}
+
+fn complete_transport_bounds_for_shape(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    column: &TargetTransportColumn,
+    cell: crate::grid::CellId,
+    weights: HorizontalWeights,
+) -> Result<VerticalBounds, EngineError> {
+    let minimum = minimum_transport_agl_with_weights(window, stencils, cell, weights)?;
+    let bounds = column
+        .geometry()
+        .vertical_bounds(minimum)
+        .map_err(|_| EngineError::Vertical(VerticalError::InvalidVerticalColumn))?;
+    restrict_vertical_bounds_to_complete_transport(
+        bounds,
+        column.restrictive_transport_top_asl_m,
+        column.restrictive_transport_top_pressure_pa,
+    )
+}
+
+fn complete_transport_bounds_for_hybrid(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    column: &TargetHybridColumn<'_>,
+    cell: crate::grid::CellId,
+    weights: HorizontalWeights,
+) -> Result<VerticalBounds, EngineError> {
+    let minimum = minimum_transport_agl_with_weights(window, stencils, cell, weights)?;
+    let bounds = VerticalBounds::new(
+        column.terrain_asl_m,
+        minimum,
+        column.terrain_asl_m + minimum,
+        column.top.height_asl_m,
+        column.physical_model_top_asl_m,
+        column.top.pressure_pa,
+        column.surface_pressure_pa,
+    )
+    .map_err(|_| EngineError::Vertical(VerticalError::InvalidVerticalColumn))?;
     restrict_vertical_bounds_to_complete_transport(
         bounds,
         column.restrictive_transport_top_asl_m,
@@ -3156,7 +4497,7 @@ fn minimum_transport_agl_for_point(
     minimum_transport_height_agl_m(roughness).map_err(|_| EngineError::NumericalFailure)
 }
 
-fn minimum_transport_agl_for_boundary_point(
+fn minimum_transport_agl_with_weights(
     window: &PreparedWindow,
     stencils: &PreparedStencils,
     cell: crate::grid::CellId,
@@ -3176,7 +4517,7 @@ fn minimum_transport_agl_for_boundary_point(
 fn sample_upper_transport(
     window: &PreparedWindow,
     stencils: &PreparedStencils,
-    target_column: &ColumnGeometry,
+    target_column: &TargetColumnGeometry,
     cell: crate::grid::CellId,
     longitude_degrees: f64,
     latitude_degrees: f64,
@@ -3186,31 +4527,29 @@ fn sample_upper_transport(
     bounds: VerticalBounds,
     metadata: &[FieldMetadata; TRANSPORT_FIELD_COUNT],
 ) -> Result<TransportPointResult, EngineError> {
-    let state = target_frame_point(
+    let state = target_frame_point_from_columns(
         window,
         stencils,
+        &target_column.before,
+        &target_column.after,
         cell,
         longitude_degrees,
         latitude_degrees,
         coordinate,
         vertical_value,
     )?;
-    let (w_profile, w_valid) = geometric_w_profile(
+    let Some(geometric_vertical_velocity_m_s) = geometric_w_at_bracket(
         window,
         stencils,
         target_column,
         cell,
         longitude_degrees,
         latitude_degrees,
-    )?;
-    if !w_valid.get(bracket.first).copied().unwrap_or(false)
-        || !w_valid.get(bracket.second).copied().unwrap_or(false)
-    {
+        bracket,
+    )?
+    else {
         return Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn));
-    }
-    let geometric_vertical_velocity_m_s = bracket
-        .interpolate(&w_profile)
-        .map_err(EngineError::Vertical)?;
+    };
     let density = moist_air_density_kg_m3(
         state.pressure_pa,
         state.temperature_k,
@@ -3226,7 +4565,139 @@ fn sample_upper_transport(
             state.temperature_k,
             state.specific_humidity,
             density,
-            target_column.terrain_asl_m(),
+            target_column.geometry.terrain_asl_m(),
+        ],
+        valid: [true; TRANSPORT_FIELD_COUNT],
+        quality: std::array::from_fn(|index| metadata[index].quality),
+        provenance: std::array::from_fn(|index| metadata[index].provenance),
+        status: SampleStatus::Ok,
+        bounds: Some(bounds),
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_upper_transport_from_shapes(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    target_column: &TargetTransportColumn,
+    weights: HorizontalWeights,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+    bracket: VerticalBracket,
+    bounds: VerticalBounds,
+    metadata: &[FieldMetadata; TRANSPORT_FIELD_COUNT],
+) -> Result<TransportPointResult, EngineError> {
+    let state = target_frame_point_from_shapes(
+        window,
+        stencils,
+        target_column,
+        weights,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        coordinate,
+        vertical_value,
+    )?;
+    let Some(geometric_vertical_velocity_m_s) = geometric_w_at_bracket_from_shapes(
+        window,
+        stencils,
+        target_column,
+        weights,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        bracket,
+    )?
+    else {
+        return Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn));
+    };
+    let density = moist_air_density_kg_m3(
+        state.pressure_pa,
+        state.temperature_k,
+        state.physical_specific_humidity,
+    )
+    .map_err(|_| EngineError::NumericalFailure)?;
+    Ok(TransportPointResult {
+        values: [
+            state.eastward_wind_m_s,
+            state.northward_wind_m_s,
+            geometric_vertical_velocity_m_s,
+            state.pressure_pa,
+            state.temperature_k,
+            state.specific_humidity,
+            density,
+            target_column.geometry().terrain_asl_m(),
+        ],
+        valid: [true; TRANSPORT_FIELD_COUNT],
+        quality: std::array::from_fn(|index| metadata[index].quality),
+        provenance: std::array::from_fn(|index| metadata[index].provenance),
+        status: SampleStatus::Ok,
+        bounds: Some(bounds),
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_upper_transport_from_hybrid(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    target_column: &TargetHybridColumn<'_>,
+    weights: HorizontalWeights,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    coordinate: VerticalQuery,
+    vertical_value: f64,
+    bracket: VerticalBracket,
+    before_bracket: Result<VerticalBracket, EngineError>,
+    after_bracket: Result<VerticalBracket, EngineError>,
+    bounds: VerticalBounds,
+    metadata: &[FieldMetadata; TRANSPORT_FIELD_COUNT],
+) -> Result<TransportPointResult, EngineError> {
+    let query_basis = spherical_vector_query_basis(longitude_degrees, latitude_degrees)
+        .map_err(EngineError::Grid)?;
+    let state = target_hybrid_frame_point(
+        window,
+        stencils,
+        target_column,
+        cell,
+        query_basis,
+        coordinate,
+        vertical_value,
+        before_bracket,
+        after_bracket,
+    )?;
+    let Some(geometric_vertical_velocity_m_s) = geometric_w_at_bracket_from_hybrid(
+        window,
+        stencils,
+        target_column,
+        weights,
+        cell,
+        query_basis,
+        latitude_degrees,
+        bracket,
+    )?
+    else {
+        return Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn));
+    };
+    let density = moist_air_density_kg_m3(
+        state.pressure_pa,
+        state.temperature_k,
+        state.physical_specific_humidity,
+    )
+    .map_err(|_| EngineError::NumericalFailure)?;
+    Ok(TransportPointResult {
+        values: [
+            state.eastward_wind_m_s,
+            state.northward_wind_m_s,
+            geometric_vertical_velocity_m_s,
+            state.pressure_pa,
+            state.temperature_k,
+            state.specific_humidity,
+            density,
+            target_column.terrain_asl_m,
         ],
         valid: [true; TRANSPORT_FIELD_COUNT],
         quality: std::array::from_fn(|index| metadata[index].quality),
@@ -3403,7 +4874,7 @@ fn sample_surface_transport(
     plan: &QueryPlan,
     window: &PreparedWindow,
     stencils: &PreparedStencils,
-    target_column: &ColumnGeometry,
+    target_column: &TargetColumnGeometry,
     cell: crate::grid::CellId,
     longitude_degrees: f64,
     latitude_degrees: f64,
@@ -3412,6 +4883,7 @@ fn sample_surface_transport(
     bounds: VerticalBounds,
     metadata: &[FieldMetadata; TRANSPORT_FIELD_COUNT],
 ) -> Result<TransportPointResult, EngineError> {
+    let geometry = &target_column.geometry;
     let roughness = sample_surface_scalar_time(
         window,
         stencils,
@@ -3424,20 +4896,6 @@ fn sample_surface_transport(
         .map_err(|_| EngineError::NumericalFailure)?;
     let minimum = minimum_transport_height_agl_m(physical_roughness)
         .map_err(|_| EngineError::NumericalFailure)?;
-    let before_column = frame_stencils(stencils, &window.frames.before)?.column(
-        cell,
-        longitude_degrees,
-        latitude_degrees,
-    )?;
-    let after_column = if window.is_exact_frame() {
-        before_column.clone()
-    } else {
-        frame_stencils(stencils, &window.frames.after)?.column(
-            cell,
-            longitude_degrees,
-            latitude_degrees,
-        )?
-    };
     let (w_profile, w_valid) = geometric_w_profile(
         window,
         stencils,
@@ -3449,17 +4907,17 @@ fn sample_surface_transport(
     let (lowest, lowest_wind) = lowest_complete_time_transport_anchor(
         window,
         stencils,
-        target_column,
-        &before_column,
-        &after_column,
+        geometry,
+        &target_column.before,
+        &target_column.after,
         &w_valid,
         cell,
         longitude_degrees,
         latitude_degrees,
     )?;
-    let lowest_height_agl_m = target_column.height_asl_m()[lowest] - target_column.terrain_asl_m();
+    let lowest_height_agl_m = geometry.height_asl_m()[lowest] - geometry.terrain_asl_m();
     let query_height_agl_m =
-        surface_query_height_agl_m(target_column, coordinate, vertical_value, lowest)?;
+        surface_query_height_agl_m(geometry, coordinate, vertical_value, lowest)?;
     if !query_height_agl_m.is_finite()
         || query_height_agl_m < minimum
         || query_height_agl_m > lowest_height_agl_m
@@ -3500,7 +4958,7 @@ fn sample_surface_transport(
         cell,
         longitude_degrees,
         latitude_degrees,
-        target_column.surface_pressure_pa(),
+        geometry.surface_pressure_pa(),
         two_metre_temperature_k,
         two_metre_specific_humidity,
     )?;
@@ -3536,8 +4994,10 @@ fn sample_surface_transport(
             lowest_model_height_agl_m: &[lowest_height_agl_m],
             lowest_model_eastward_wind_m_s: &[lowest_wind.0],
             lowest_model_northward_wind_m_s: &[lowest_wind.1],
-            lowest_model_air_temperature_k: &[target_column.temperature_k()[lowest]],
-            lowest_model_specific_humidity: &[target_column.physical_specific_humidity()[lowest]],
+            lowest_model_air_temperature_k: &[geometry.temperature_k()[lowest]],
+            lowest_model_specific_humidity: &[geometry
+                .physical_specific_humidity_at(lowest)
+                .map_err(EngineError::Vertical)?],
             terrain_vertical_velocity_m_s: &[terrain_w],
             lowest_model_geometric_vertical_velocity_m_s: &[w_profile[lowest]],
         })
@@ -3567,7 +5027,7 @@ fn sample_surface_transport(
         SurfaceLayerStatus::Ok => {}
     }
     let pressure_pa = surface_query_pressure_pa(
-        target_column,
+        geometry,
         coordinate,
         vertical_value,
         query_height_agl_m,
@@ -3588,7 +5048,7 @@ fn sample_surface_transport(
             output.air_temperature_k[0],
             output.specific_humidity[0],
             density,
-            target_column.terrain_asl_m(),
+            geometry.terrain_asl_m(),
         ],
         valid: [true; TRANSPORT_FIELD_COUNT],
         quality: std::array::from_fn(|index| metadata[index].quality),
@@ -3766,7 +5226,9 @@ fn sample_surface_transport_endpoint(
             lowest_model_eastward_wind_m_s: &[lowest_wind.0],
             lowest_model_northward_wind_m_s: &[lowest_wind.1],
             lowest_model_air_temperature_k: &[column.temperature_k()[lowest]],
-            lowest_model_specific_humidity: &[column.physical_specific_humidity()[lowest]],
+            lowest_model_specific_humidity: &[column
+                .physical_specific_humidity_at(lowest)
+                .map_err(EngineError::Vertical)?],
             terrain_vertical_velocity_m_s: &[terrain_w],
             lowest_model_geometric_vertical_velocity_m_s: &[lowest_w],
         })
@@ -3993,41 +5455,274 @@ fn endpoint_routes_are_mixed(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
-fn temporal_mixed_columns(
+fn temporal_mixed_columns<'a>(
     window: &PreparedWindow,
-    stencils: &PreparedStencils,
-    cell: crate::grid::CellId,
-    longitude_degrees: f64,
-    latitude_degrees: f64,
+    column: &'a TargetColumnGeometry,
     coordinate: VerticalQuery,
     vertical_value: f64,
     target_bracket: &Result<VerticalBracket, VerticalError>,
-) -> Result<Option<(ColumnGeometry, ColumnGeometry)>, EngineError> {
+) -> Option<(&'a ColumnGeometry, &'a ColumnGeometry)> {
     if window.is_exact_frame()
         || !matches!(
             target_bracket,
             Ok(_) | Err(VerticalError::SurfaceLayerRequired)
         )
     {
-        return Ok(None);
+        return None;
     }
-    let before = frame_stencils(stencils, &window.frames.before)?.column(
-        cell,
-        longitude_degrees,
-        latitude_degrees,
-    )?;
-    let after = frame_stencils(stencils, &window.frames.after)?.column(
-        cell,
-        longitude_degrees,
-        latitude_degrees,
-    )?;
-    let before_bracket = vertical_bracket(&before, coordinate, vertical_value);
-    let after_bracket = vertical_bracket(&after, coordinate, vertical_value);
-    Ok(endpoint_routes_are_mixed(&before_bracket, &after_bracket).then_some((before, after)))
+    let before_bracket = vertical_bracket(&column.before, coordinate, vertical_value);
+    let after_bracket = vertical_bracket(&column.after, coordinate, vertical_value);
+    endpoint_routes_are_mixed(&before_bracket, &after_bracket)
+        .then_some((&column.before, &column.after))
 }
 
+#[allow(clippy::too_many_arguments)]
+fn sample_pressure_transport_point(
+    plan: &QueryPlan,
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    batch: &QueryBatch,
+    cell: crate::grid::CellId,
+    original_index: usize,
+    weights: HorizontalWeights,
+    metadata: &ExecutionMetadata,
+) -> Result<TransportPointResult, EngineError> {
+    let longitude_degrees = batch.points.longitude_degrees[original_index];
+    let latitude_degrees = batch.points.latitude_degrees[original_index];
+    let vertical_value = batch.points.vertical[original_index];
+    let column = target_transport_column(window, stencils, cell, weights)?;
+    let bounds = complete_transport_bounds_for_shape(window, stencils, &column, cell, weights)?;
+    let target_bracket =
+        vertical_bracket_shape(column.geometry(), batch.vertical_coordinate, vertical_value);
+    let bracket = match target_bracket {
+        Ok(bracket) => {
+            let endpoint_routes_mixed = !window.is_exact_frame()
+                && endpoint_routes_are_mixed(
+                    &vertical_bracket_shape(
+                        &column.before,
+                        batch.vertical_coordinate,
+                        vertical_value,
+                    ),
+                    &vertical_bracket_shape(
+                        column.after(),
+                        batch.vertical_coordinate,
+                        vertical_value,
+                    ),
+                );
+            let boundary_adjacent = column
+                .geometry()
+                .last_valid_index()
+                .map_err(EngineError::Vertical)?
+                == bracket.second;
+            if endpoint_routes_mixed || boundary_adjacent {
+                return sample_boundary_adjacent_transport_point(
+                    plan,
+                    window,
+                    stencils,
+                    batch,
+                    cell,
+                    original_index,
+                    metadata,
+                );
+            }
+            bracket
+        }
+        Err(VerticalError::SurfaceLayerRequired) => {
+            return sample_boundary_adjacent_transport_point(
+                plan,
+                window,
+                stencils,
+                batch,
+                cell,
+                original_index,
+                metadata,
+            );
+        }
+        Err(error) => {
+            return Ok(TransportPointResult::invalid(
+                sample_status_for_vertical_error(&error),
+                Some(bounds),
+                &metadata.upper_transport,
+            ));
+        }
+    };
+    resolve_local_transport_result(
+        sample_upper_transport_from_shapes(
+            window,
+            stencils,
+            &column,
+            weights,
+            cell,
+            longitude_degrees,
+            latitude_degrees,
+            batch.vertical_coordinate,
+            vertical_value,
+            bracket,
+            bounds,
+            &metadata.upper_transport,
+        ),
+        bounds,
+        &metadata.upper_transport,
+    )
+}
+
+fn hybrid_endpoint_routes_are_mixed(
+    before: &Result<VerticalBracket, EngineError>,
+    after: &Result<VerticalBracket, EngineError>,
+) -> bool {
+    matches!(
+        (before, after),
+        (
+            Ok(_),
+            Err(EngineError::Vertical(VerticalError::SurfaceLayerRequired))
+        ) | (
+            Err(EngineError::Vertical(VerticalError::SurfaceLayerRequired)),
+            Ok(_)
+        )
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_hybrid_transport_point(
+    plan: &QueryPlan,
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    batch: &QueryBatch,
+    cell: crate::grid::CellId,
+    original_index: usize,
+    weights: HorizontalWeights,
+    metadata: &ExecutionMetadata,
+    column: TargetHybridColumn<'_>,
+) -> Result<TransportPointResult, EngineError> {
+    let longitude_degrees = batch.points.longitude_degrees[original_index];
+    let latitude_degrees = batch.points.latitude_degrees[original_index];
+    let vertical_value = batch.points.vertical[original_index];
+    let bounds = complete_transport_bounds_for_hybrid(window, stencils, &column, cell, weights)?;
+    let target_bracket =
+        locate_target_hybrid_vertical(window, &column, batch.vertical_coordinate, vertical_value);
+    let bracket = match target_bracket {
+        Ok(bracket) => bracket,
+        Err(EngineError::Vertical(VerticalError::SurfaceLayerRequired)) => {
+            return sample_boundary_adjacent_transport_point(
+                plan,
+                window,
+                stencils,
+                batch,
+                cell,
+                original_index,
+                metadata,
+            );
+        }
+        Err(EngineError::Vertical(error)) => {
+            return Ok(TransportPointResult::invalid(
+                sample_status_for_vertical_error(&error),
+                Some(bounds),
+                &metadata.upper_transport,
+            ));
+        }
+        Err(error) => return Err(error),
+    };
+    let before_bracket = if window.is_exact_frame() {
+        Ok(bracket)
+    } else {
+        locate_sampled_hybrid_vertical(column.before, batch.vertical_coordinate, vertical_value)
+    };
+    let after_bracket = if window.is_exact_frame() {
+        Ok(bracket)
+    } else {
+        locate_sampled_hybrid_vertical(column.after(), batch.vertical_coordinate, vertical_value)
+    };
+    if hybrid_endpoint_routes_are_mixed(&before_bracket, &after_bracket)
+        || bracket.second + 1 == column.level_count()
+    {
+        return sample_boundary_adjacent_transport_point(
+            plan,
+            window,
+            stencils,
+            batch,
+            cell,
+            original_index,
+            metadata,
+        );
+    }
+    resolve_local_transport_result(
+        sample_upper_transport_from_hybrid(
+            window,
+            stencils,
+            &column,
+            weights,
+            cell,
+            longitude_degrees,
+            latitude_degrees,
+            batch.vertical_coordinate,
+            vertical_value,
+            bracket,
+            before_bracket,
+            after_bracket,
+            bounds,
+            &metadata.upper_transport,
+        ),
+        bounds,
+        &metadata.upper_transport,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
 fn sample_transport_point(
+    plan: &QueryPlan,
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    batch: &QueryBatch,
+    cell: crate::grid::CellId,
+    original_index: usize,
+    weights: HorizontalWeights,
+    metadata: &ExecutionMetadata,
+) -> Result<TransportPointResult, EngineError> {
+    if let Some(column) = target_hybrid_column(window, stencils, cell, weights)? {
+        sample_hybrid_transport_point(
+            plan,
+            window,
+            stencils,
+            batch,
+            cell,
+            original_index,
+            weights,
+            metadata,
+            column,
+        )
+    } else {
+        sample_pressure_transport_point(
+            plan,
+            window,
+            stencils,
+            batch,
+            cell,
+            original_index,
+            weights,
+            metadata,
+        )
+    }
+}
+
+fn resolve_local_transport_result(
+    result: Result<TransportPointResult, EngineError>,
+    bounds: VerticalBounds,
+    metadata: &[FieldMetadata; TRANSPORT_FIELD_COUNT],
+) -> Result<TransportPointResult, EngineError> {
+    match result {
+        Ok(value) => Ok(value),
+        Err(error) => match local_status_for_error(&error) {
+            Some(status) => Ok(TransportPointResult::invalid(
+                status,
+                Some(bounds),
+                metadata,
+            )),
+            None => Err(error),
+        },
+    }
+}
+
+fn sample_boundary_adjacent_transport_point(
     plan: &QueryPlan,
     window: &PreparedWindow,
     stencils: &PreparedStencils,
@@ -4052,22 +5747,19 @@ fn sample_transport_point(
         vertical_bracket(&column.geometry, batch.vertical_coordinate, vertical_value);
     let mixed_columns = temporal_mixed_columns(
         window,
-        stencils,
-        cell,
-        longitude_degrees,
-        latitude_degrees,
+        &column,
         batch.vertical_coordinate,
         vertical_value,
         &target_bracket,
-    )?;
+    );
     let result = if let Some((before_column, after_column)) = mixed_columns {
         sample_temporal_mixed_transport(
             plan,
             window,
             stencils,
             &column.geometry,
-            &before_column,
-            &after_column,
+            before_column,
+            after_column,
             cell,
             longitude_degrees,
             latitude_degrees,
@@ -4082,7 +5774,7 @@ fn sample_transport_point(
                 let upper = sample_upper_transport(
                     window,
                     stencils,
-                    &column.geometry,
+                    &column,
                     cell,
                     longitude_degrees,
                     latitude_degrees,
@@ -4103,7 +5795,7 @@ fn sample_transport_point(
                             plan,
                             window,
                             stencils,
-                            &column.geometry,
+                            &column,
                             cell,
                             longitude_degrees,
                             latitude_degrees,
@@ -4129,7 +5821,7 @@ fn sample_transport_point(
                 plan,
                 window,
                 stencils,
-                &column.geometry,
+                &column,
                 cell,
                 longitude_degrees,
                 latitude_degrees,
@@ -4145,16 +5837,7 @@ fn sample_transport_point(
             )),
         }
     };
-    match result {
-        Err(error) if local_status_for_error(&error).is_some() => {
-            Ok(TransportPointResult::invalid(
-                local_status_for_error(&error).unwrap_or(SampleStatus::NumericalFailure),
-                Some(bounds),
-                &metadata.upper_transport,
-            ))
-        }
-        other => other,
-    }
+    resolve_local_transport_result(result, bounds, &metadata.upper_transport)
 }
 
 fn sample_boundary_point(
@@ -4193,7 +5876,7 @@ fn sample_boundary_point_with_weights(
         target_boundary_column_with_weights(window, stencils, cell, weights)?
     };
     let _performance = PerformanceScope::enter(PerformanceStage::BoundarySurfaceBounds);
-    let minimum = minimum_transport_agl_for_boundary_point(window, stencils, cell, weights)?;
+    let minimum = minimum_transport_agl_with_weights(window, stencils, cell, weights)?;
     finish_boundary_point(column, minimum, batch.vertical_coordinate, vertical_value)
 }
 
@@ -4259,7 +5942,7 @@ fn finish_boundary_point(
 }
 
 fn boundary_surface_query_height_agl_m(
-    column: &BoundaryColumnGeometry,
+    column: &ColumnShape,
     coordinate: VerticalQuery,
     vertical_value: f64,
     lowest: usize,
@@ -4358,28 +6041,25 @@ fn explain_record_for_point(
         && plan.surface_layer_model().is_some()
         && temporal_mixed_columns(
             window,
-            stencils,
-            cell,
-            longitude_degrees,
-            latitude_degrees,
+            &column,
             batch.vertical_coordinate,
             vertical_value,
             &target_bracket,
-        )?
+        )
         .is_some();
     let incomplete_bottom_surface_route = if transport_mode && !mixed_route {
         match &target_bracket {
             Ok(bracket) if column.geometry.lowest_valid_index().ok() == Some(bracket.second) => {
-                let (_, w_valid) = geometric_w_profile(
+                geometric_w_at_bracket(
                     window,
                     stencils,
-                    &column.geometry,
+                    &column,
                     cell,
                     longitude_degrees,
                     latitude_degrees,
-                )?;
-                !w_valid.get(bracket.first).copied().unwrap_or(false)
-                    || !w_valid.get(bracket.second).copied().unwrap_or(false)
+                    *bracket,
+                )?
+                .is_none()
             }
             _ => false,
         }
@@ -4609,7 +6289,7 @@ fn sample_generic_surface_point(
     plan: &QueryPlan,
     window: &PreparedWindow,
     stencils: &PreparedStencils,
-    column: &ColumnGeometry,
+    column: &TargetColumnGeometry,
     cell: crate::grid::CellId,
     longitude_degrees: f64,
     latitude_degrees: f64,
@@ -4639,7 +6319,7 @@ fn sample_generic_surface_point(
         plan,
         window,
         stencils,
-        column,
+        &column.geometry,
         cell,
         longitude_degrees,
         latitude_degrees,
@@ -4856,21 +6536,18 @@ fn sample_generic_point(
     if generic_needs_surface_model(plan) && plan.surface_layer_model().is_some() {
         if let Some((before_column, after_column)) = temporal_mixed_columns(
             window,
-            stencils,
-            cell,
-            longitude_degrees,
-            latitude_degrees,
+            &column,
             batch.vertical_coordinate,
             vertical_value,
             &target_bracket,
-        )? {
+        ) {
             return sample_generic_temporal_mixed_point(
                 plan,
                 window,
                 stencils,
                 &column.geometry,
-                &before_column,
-                &after_column,
+                before_column,
+                after_column,
                 cell,
                 longitude_degrees,
                 latitude_degrees,
@@ -4888,7 +6565,7 @@ fn sample_generic_point(
                 plan,
                 window,
                 stencils,
-                &column.geometry,
+                &column,
                 cell,
                 longitude_degrees,
                 latitude_degrees,
@@ -4917,9 +6594,11 @@ fn sample_generic_point(
             });
         }
     };
-    let state = target_frame_point(
+    let state = target_frame_point_from_columns(
         window,
         stencils,
+        &column.before,
+        &column.after,
         cell,
         longitude_degrees,
         latitude_degrees,
@@ -4937,21 +6616,17 @@ fn sample_generic_point(
         .iter()
         .any(|field| field == &FieldKey::Canonical(CanonicalField::GeometricVerticalVelocity));
     let w = if needs_w {
-        let (profile, valid) = geometric_w_profile(
-            window,
-            stencils,
-            &column.geometry,
-            cell,
-            longitude_degrees,
-            latitude_degrees,
-        )?;
-        if !valid[bracket.first] || !valid[bracket.second] {
-            return Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn));
-        }
         Some(
-            bracket
-                .interpolate(&profile)
-                .map_err(EngineError::Vertical)?,
+            geometric_w_at_bracket(
+                window,
+                stencils,
+                &column,
+                cell,
+                longitude_degrees,
+                latitude_degrees,
+                bracket,
+            )?
+            .ok_or(EngineError::Vertical(VerticalError::InvalidVerticalColumn))?,
         )
     } else {
         None
@@ -5088,6 +6763,12 @@ fn sample_transport_chunk(
     let sample = |internal_index: usize| {
         let original_index = prepared.layout.permutation.forward[internal_index];
         let cell = prepared.layout.cell_ids[internal_index];
+        let weights = prepared
+            .horizontal_support
+            .get(original_index)
+            .copied()
+            .flatten()
+            .ok_or(EngineError::InvalidPreparedState)?;
         sample_transport_point(
             prepared.plan.query_plan(),
             &prepared.window,
@@ -5095,6 +6776,7 @@ fn sample_transport_chunk(
             &prepared.batch,
             cell,
             original_index,
+            weights,
             metadata,
         )
     };
@@ -5326,6 +7008,7 @@ pub struct PreparedTransportBatch {
     pub layout: BatchLayout,
     /// Preparation-time local statuses; executable points remain `Ok`.
     pub initial_status: Vec<SampleStatus>,
+    horizontal_support: Vec<Option<HorizontalWeights>>,
     stencils: PreparedStencils,
     query_counter: Option<Arc<QueryCallCounters>>,
     exact_query_key: Option<ExactQueryKey>,
@@ -5340,8 +7023,11 @@ impl PreparedTransportBatch {
         &self,
         context: &dyn ExecutionContext,
         _workspace: &mut BatchWorkspace,
-    ) -> Result<TransportOutput, EngineError> {
+    ) -> Result<Arc<TransportOutput>, EngineError> {
         validate_execution_state(context, &self.layout, self.initial_status.len())?;
+        if self.horizontal_support.len() != self.initial_status.len() {
+            return Err(EngineError::InvalidPreparedState);
+        }
         if let Some(cache) = &self.transport_cache {
             let cached = cache
                 .lock()
@@ -5353,7 +7039,15 @@ impl PreparedTransportBatch {
                         .selection_from_cached(&cached.key)
                         .map(|selection| (cached, selection))
                 })
-                .map(|(cached, selection)| cached.output.select_rows(&selection))
+                .map(|(cached, selection)| {
+                    if selection.len() == cached.output.status().len()
+                        && selection.iter().copied().eq(0..selection.len())
+                    {
+                        Ok(Arc::clone(&cached.output))
+                    } else {
+                        cached.output.select_rows(&selection).map(Arc::new)
+                    }
+                })
                 .transpose()
                 .map_err(EngineError::Output)?;
             if let Some(output) = output {
@@ -5442,23 +7136,25 @@ impl PreparedTransportBatch {
             )
             .map_err(EngineError::Output)
         };
-        let output = TransportOutput::new(
-            TransportColumns {
-                eastward_wind_m_s: build_column(0)?,
-                northward_wind_m_s: build_column(1)?,
-                geometric_vertical_velocity_m_s: build_column(2)?,
-                air_pressure_pa: build_column(3)?,
-                air_temperature_k: build_column(4)?,
-                specific_humidity: build_column(5)?,
-                air_density_kg_m3: build_column(6)?,
-                terrain_height_asl_m: build_column(7)?,
-            },
-            StatusColumn::new(status),
-            BoundsColumn::new(bounds),
-            metadata.table,
-            explain,
-        )
-        .map_err(EngineError::Output)?;
+        let output = Arc::new(
+            TransportOutput::new(
+                TransportColumns {
+                    eastward_wind_m_s: build_column(0)?,
+                    northward_wind_m_s: build_column(1)?,
+                    geometric_vertical_velocity_m_s: build_column(2)?,
+                    air_pressure_pa: build_column(3)?,
+                    air_temperature_k: build_column(4)?,
+                    specific_humidity: build_column(5)?,
+                    air_density_kg_m3: build_column(6)?,
+                    terrain_height_asl_m: build_column(7)?,
+                },
+                StatusColumn::new(status),
+                BoundsColumn::new(bounds),
+                metadata.table,
+                explain,
+            )
+            .map_err(EngineError::Output)?,
+        );
         if self.populate_transport_cache
             && let Some(cache) = &self.transport_cache
         {
@@ -5466,7 +7162,7 @@ impl PreparedTransportBatch {
                 .lock()
                 .map_err(|_| EngineError::TransportCachePoisoned)? = Some(CachedTransportQuery {
                 key: self.transport_cache_key.clone(),
-                output: output.clone(),
+                output: Arc::clone(&output),
             });
         }
         Ok(output)
@@ -6329,13 +8025,10 @@ mod tests {
         drop(second_pin);
 
         let stencils = PreparedStencils {
-            by_frame: BTreeMap::from([(
-                frame.metadata().id.clone(),
-                PreparedFrameStencils {
-                    frame,
-                    by_cell: BTreeMap::from([(CellId(0), first_pin)]),
-                },
-            )]),
+            frames: vec![PreparedFrameStencils {
+                frame,
+                by_cell: BTreeMap::from([(CellId(0), first_pin)]),
+            }],
             resident_bytes: stencil_bytes,
         };
         let mut workspace = BatchWorkspace::default();
@@ -6423,7 +8116,7 @@ mod tests {
                 .execute(&context, &mut workspace)
                 .unwrap()
         };
-        assert_eq!(subset, full.select_rows(&[0, 2]).unwrap());
+        assert_eq!(subset.as_ref(), &full.select_rows(&[0, 2]).unwrap());
 
         let snapshot = counters.snapshot();
         assert_eq!(snapshot.logical_requests, 3);
@@ -6817,7 +8510,7 @@ mod tests {
         let mut workspace = BatchWorkspace::default();
         let run = |use_eta_dot: bool,
                    workspace: &mut BatchWorkspace|
-         -> (TransportOutput, Arc<RawMetFrame>) {
+         -> (Arc<TransportOutput>, Arc<RawMetFrame>) {
             let before = analytic_hybrid_frame(0, use_eta_dot);
             let after = analytic_hybrid_frame(3_600, use_eta_dot);
             let mut window = PreparedWindow::between(

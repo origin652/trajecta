@@ -339,7 +339,7 @@ pub struct CatalogRunnerControl {
     worker_start_token: String,
     sample_interval: Duration,
     started: Instant,
-    last_heartbeat: Option<Instant>,
+    last_sample: Option<Instant>,
 }
 
 impl CatalogRunnerControl {
@@ -355,13 +355,15 @@ impl CatalogRunnerControl {
                 "worker control token or sample interval is invalid".into(),
             ));
         }
+        let catalog = LocalJobCatalog::open(catalog_path)?;
+        catalog.configure_worker_telemetry()?;
         Ok(Self {
-            catalog: LocalJobCatalog::open(catalog_path)?,
+            catalog,
             run_id,
             worker_start_token,
             sample_interval,
             started: Instant::now(),
-            last_heartbeat: None,
+            last_sample: None,
         })
     }
 }
@@ -371,39 +373,39 @@ impl RunnerControl for CatalogRunnerControl {
         &mut self,
         progress: RunnerProgress,
     ) -> Result<RunnerControlDecision, String> {
+        let now = Instant::now();
+        if self
+            .last_sample
+            .is_some_and(|last| now.duration_since(last) < self.sample_interval)
+        {
+            return Ok(RunnerControlDecision::Continue);
+        }
         let control = self
             .catalog
             .worker_control(&self.run_id, &self.worker_start_token)
             .map_err(|error| error.to_string())?;
-        let now = Instant::now();
-        let heartbeat_due = self
-            .last_heartbeat
-            .is_none_or(|last| now.duration_since(last) >= self.sample_interval)
-            || control != WorkerControl::Continue;
-        if heartbeat_due {
-            let at = system_timestamp().map_err(|error| error.to_string())?;
-            self.catalog
-                .heartbeat(
-                    &self.run_id,
-                    &self.worker_start_token,
-                    at,
-                    Some(JobProgress {
-                        completed_macro_steps: progress.completed_macro_steps,
-                        simulation_time: Some(progress.simulation_time),
-                        active_particles: progress.active_particles,
-                        normal_terminations: progress.normal_terminations,
-                        abnormal_terminations: progress.abnormal_terminations,
-                    }),
-                    Some(ResourceObservation {
-                        wall_time_ms: u64::try_from(self.started.elapsed().as_millis())
-                            .unwrap_or(u64::MAX),
-                        cpu_time_ms: None,
-                        rss_bytes: None,
-                    }),
-                )
-                .map_err(|error| error.to_string())?;
-            self.last_heartbeat = Some(now);
-        }
+        let at = system_timestamp().map_err(|error| error.to_string())?;
+        self.catalog
+            .heartbeat(
+                &self.run_id,
+                &self.worker_start_token,
+                at,
+                Some(JobProgress {
+                    completed_macro_steps: progress.completed_macro_steps,
+                    simulation_time: Some(progress.simulation_time),
+                    active_particles: progress.active_particles,
+                    normal_terminations: progress.normal_terminations,
+                    abnormal_terminations: progress.abnormal_terminations,
+                }),
+                Some(ResourceObservation {
+                    wall_time_ms: u64::try_from(self.started.elapsed().as_millis())
+                        .unwrap_or(u64::MAX),
+                    cpu_time_ms: None,
+                    rss_bytes: None,
+                }),
+            )
+            .map_err(|error| error.to_string())?;
+        self.last_sample = Some(now);
         match control {
             WorkerControl::Continue => Ok(RunnerControlDecision::Continue),
             WorkerControl::SafeCancel => Ok(RunnerControlDecision::Cancel),
@@ -696,6 +698,69 @@ mod tests {
         assert_eq!(
             backend.status(&receipt.job_series_id).unwrap().state,
             JobState::Starting
+        );
+    }
+
+    #[test]
+    fn runner_control_observes_safe_cancel_at_the_configured_sample_interval() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        let catalog_path = temp.path().join("jobs.sqlite");
+        let mut catalog = LocalJobCatalog::open(&catalog_path).unwrap();
+        let receipt = catalog.submit(request(root, 1, 256)).unwrap();
+        dispatch_once(
+            &mut catalog,
+            capacity(),
+            "daemon-a",
+            false,
+            Timestamp::UNIX_EPOCH,
+            &mut FakeProcesses {
+                next_pid: 100,
+                ..FakeProcesses::default()
+            },
+        )
+        .unwrap();
+        let token = catalog
+            .worker_lease(&receipt.run_id)
+            .unwrap()
+            .unwrap()
+            .worker_start_token;
+        catalog
+            .mark_worker_running(&receipt.run_id, &token, system_timestamp().unwrap())
+            .unwrap();
+
+        let sample_interval = Duration::from_secs(60);
+        let mut control = CatalogRunnerControl::open(
+            &catalog_path,
+            receipt.run_id.clone(),
+            token,
+            sample_interval,
+        )
+        .unwrap();
+        let progress = RunnerProgress {
+            completed_macro_steps: 1,
+            simulation_time: Timestamp::UNIX_EPOCH,
+            active_particles: 1,
+            normal_terminations: 0,
+            abnormal_terminations: 0,
+        };
+
+        assert_eq!(
+            control.macro_step_boundary(progress).unwrap(),
+            RunnerControlDecision::Continue
+        );
+        catalog
+            .cancel(&receipt.job_series_id, CancelMode::Safe)
+            .unwrap();
+        assert_eq!(
+            control.macro_step_boundary(progress).unwrap(),
+            RunnerControlDecision::Continue
+        );
+
+        control.last_sample = Some(Instant::now() - sample_interval);
+        assert_eq!(
+            control.macro_step_boundary(progress).unwrap(),
+            RunnerControlDecision::Cancel
         );
     }
 }

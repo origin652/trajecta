@@ -140,6 +140,9 @@ pub trait BoundaryPolicy: Send + Sync {
     /// Returns the stable policy identifier.
     fn policy_id(&self) -> &'static str;
 
+    /// Whether a path certified clear of every physical boundary needs no call.
+    fn skips_certified_clear_path(&self) -> bool;
+
     /// Applies a deterministic policy to one complete proposed motion.
     fn apply(
         &self,
@@ -156,6 +159,10 @@ pub struct SurfaceReflect;
 impl BoundaryPolicy for SurfaceReflect {
     fn policy_id(&self) -> &'static str {
         crate::science::SURFACE_REFLECT_ID
+    }
+
+    fn skips_certified_clear_path(&self) -> bool {
+        true
     }
 
     fn apply(
@@ -270,6 +277,10 @@ impl BoundaryPolicy for ModelTopTerminate {
         crate::science::MODEL_TOP_TERMINATE_ID
     }
 
+    fn skips_certified_clear_path(&self) -> bool {
+        true
+    }
+
     fn apply(
         &self,
         start: &ParticleState,
@@ -320,6 +331,10 @@ impl BoundaryPolicy for LimitedDomainTerminate {
         crate::science::LIMITED_DOMAIN_TERMINATE_ID
     }
 
+    fn skips_certified_clear_path(&self) -> bool {
+        true
+    }
+
     fn apply(
         &self,
         start: &ParticleState,
@@ -361,6 +376,10 @@ pub struct GlobalPeriodicBoundary;
 impl BoundaryPolicy for GlobalPeriodicBoundary {
     fn policy_id(&self) -> &'static str {
         crate::science::GLOBAL_PERIODIC_ID
+    }
+
+    fn skips_certified_clear_path(&self) -> bool {
+        false
     }
 
     fn apply(
@@ -664,7 +683,7 @@ fn normalize_longitude(longitude_degrees: f64) -> f64 {
     (longitude_degrees + 180.0).rem_euclid(360.0) - 180.0
 }
 
-fn surface_clearance(surface_height_asl_m: f64) -> f64 {
+pub(crate) fn surface_clearance(surface_height_asl_m: f64) -> f64 {
     let ulp = ulp_size(surface_height_asl_m.abs().max(1.0));
     crate::science::M4_CONSTANTS
         .surface_clearance_min_m

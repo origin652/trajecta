@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schemas/M5_FLEXPART_COMPARISON.schema.json",
+  "title": "Trajecta M5-A5 FLEXPART comparison aggregate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "contract",
+    "host",
+    "trajecta",
+    "flexpart",
+    "meteorology_equivalence",
+    "orders",
+    "records",
+    "scientific_reports",
+    "performance",
+    "scientific",
+    "gates",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": { "const": "trajecta.m5-a5-flexpart-comparison/v1" },
+    "status": { "enum": ["passed", "failed"] },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "particle_counts",
+        "warmups_per_count",
+        "formal_repetitions_per_count",
+        "simulation_seconds",
+        "time_step_seconds",
+        "output_interval_seconds",
+        "cpu_set",
+        "workers_or_threads",
+        "core_ratio_limit",
+        "version"
+      ],
+      "properties": {
+        "particle_counts": {
+          "type": "array",
+          "prefixItems": [{ "const": 10000 }, { "const": 50000 }],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "warmups_per_count": { "const": 1 },
+        "formal_repetitions_per_count": { "const": 3 },
+        "simulation_seconds": { "const": 3600 },
+        "time_step_seconds": { "const": 600 },
+        "output_interval_seconds": { "const": 1200 },
+        "cpu_set": { "type": "string", "minLength": 1 },
+        "workers_or_threads": { "const": 4 },
+        "core_ratio_limit": { "const": 1.5 },
+        "version": { "const": "0.0.0" }
+      }
+    },
+    "host": { "type": "object", "minProperties": 1 },
+    "trajecta": { "$ref": "#/$defs/product_identity" },
+    "flexpart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "source", "binary", "adapter_patch", "species", "compiler", "eccodes", "netcdf_fortran"],
+      "properties": {
+        "commit": { "pattern": "^[0-9a-f]{40}$" },
+        "source": { "type": "string", "minLength": 1 },
+        "binary": { "$ref": "#/$defs/file_identity" },
+        "adapter_patch": { "$ref": "#/$defs/file_identity" },
+        "species": { "$ref": "#/$defs/file_identity" },
+        "compiler": { "type": "string", "minLength": 1 },
+        "eccodes": { "type": "string", "minLength": 1 },
+        "netcdf_fortran": { "type": "string", "minLength": 1 }
+      }
+    },
+    "meteorology_equivalence": { "$ref": "#/$defs/path_identity" },
+    "orders": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["warmup", "formal"],
+      "properties": {
+        "warmup": { "$ref": "#/$defs/mode_order" },
+        "formal": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mode_order" },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "particles",
+          "phase",
+          "repetition",
+          "order_index",
+          "mode",
+          "result_path",
+          "result_sha256",
+          "case_root",
+          "time_verbose",
+          "wall_nanoseconds"
+        ],
+        "properties": {
+          "particles": { "enum": [10000, 50000] },
+          "phase": { "enum": ["warmup", "formal"] },
+          "repetition": { "type": "integer", "minimum": 0, "maximum": 3 },
+          "order_index": { "type": "integer", "minimum": 0, "maximum": 2 },
+          "mode": { "$ref": "#/$defs/mode" },
+          "result_path": { "type": "string", "minLength": 1 },
+          "result_sha256": { "$ref": "#/$defs/sha256" },
+          "case_root": { "type": "string", "minLength": 1 },
+          "time_verbose": { "type": "object", "minProperties": 1 },
+          "wall_nanoseconds": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "scientific_reports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["particles", "repetition", "path", "sha256"],
+        "properties": {
+          "particles": { "enum": [10000, 50000] },
+          "repetition": { "type": "integer", "minimum": 1, "maximum": 3 },
+          "path": { "type": "string", "minLength": 1 },
+          "sha256": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["10000", "50000", "scaling"],
+      "properties": {
+        "10000": { "$ref": "#/$defs/performance_count" },
+        "50000": { "$ref": "#/$defs/performance_count" },
+        "scaling": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "flexpart_core_50k_over_10k",
+            "trajecta_core_50k_over_10k",
+            "flexpart_product_50k_over_10k",
+            "trajecta_product_50k_over_10k"
+          ],
+          "properties": {
+            "flexpart_core_50k_over_10k": { "type": "number", "exclusiveMinimum": 0 },
+            "trajecta_core_50k_over_10k": { "type": "number", "exclusiveMinimum": 0 },
+            "flexpart_product_50k_over_10k": { "type": "number", "exclusiveMinimum": 0 },
+            "trajecta_product_50k_over_10k": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        }
+      }
+    },
+    "scientific": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["10000", "50000", "comparability"],
+      "properties": {
+        "10000": { "$ref": "#/$defs/scientific_count" },
+        "50000": { "$ref": "#/$defs/scientific_count" },
+        "comparability": {
+          "type": "object",
+          "additionalProperties": { "enum": ["exact", "aligned", "aggregate-only", "not-comparable"] }
+        }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "meteorology_equivalence",
+        "all_runs_passed",
+        "all_scientific_reports_passed",
+        "core_ratio_10k",
+        "core_ratio_50k",
+        "trajecta_10000_sqlite_sql_sha256",
+        "trajecta_10000_path_normalized_provenance_content_sha256",
+        "trajecta_10000_path_normalized_canonical_output_sha256",
+        "trajecta_50000_sqlite_sql_sha256",
+        "trajecta_50000_path_normalized_provenance_content_sha256",
+        "trajecta_50000_path_normalized_canonical_output_sha256"
+      ],
+      "properties": {
+        "meteorology_equivalence": { "type": "boolean" },
+        "all_runs_passed": { "type": "boolean" },
+        "all_scientific_reports_passed": { "type": "boolean" },
+        "core_ratio_10k": { "type": "boolean" },
+        "core_ratio_50k": { "type": "boolean" },
+        "trajecta_10000_sqlite_sql_sha256": { "type": "boolean" },
+        "trajecta_10000_path_normalized_provenance_content_sha256": { "type": "boolean" },
+        "trajecta_10000_path_normalized_canonical_output_sha256": { "type": "boolean" },
+        "trajecta_50000_sqlite_sql_sha256": { "type": "boolean" },
+        "trajecta_50000_path_normalized_provenance_content_sha256": { "type": "boolean" },
+        "trajecta_50000_path_normalized_canonical_output_sha256": { "type": "boolean" }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timing_csv", "science_csv", "charts"],
+      "properties": {
+        "timing_csv": { "$ref": "#/$defs/path_identity" },
+        "science_csv": { "$ref": "#/$defs/path_identity" },
+        "charts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "core-wall-time.svg",
+            "complete-product-wall-time.svg",
+            "throughput-scaling.svg",
+            "peak-rss.svg",
+            "scientific-comparison.svg"
+          ],
+          "properties": {
+            "core-wall-time.svg": { "$ref": "#/$defs/sha256" },
+            "complete-product-wall-time.svg": { "$ref": "#/$defs/sha256" },
+            "throughput-scaling.svg": { "$ref": "#/$defs/sha256" },
+            "peak-rss.svg": { "$ref": "#/$defs/sha256" },
+            "scientific-comparison.svg": { "$ref": "#/$defs/sha256" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "file_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "size_bytes", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "size_bytes": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "path_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "product_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package_root", "source_tree_sha256", "build_manifest_sha256", "binary_sha256"],
+      "properties": {
+        "package_root": { "type": "string", "minLength": 1 },
+        "source_tree_sha256": { "$ref": "#/$defs/sha256" },
+        "build_manifest_sha256": { "$ref": "#/$defs/sha256" },
+        "binary_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "mode": { "enum": ["flexpart-core", "flexpart-product", "trajecta-product"] },
+    "mode_order": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/mode" },
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true
+    },
+    "performance_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flexpart_core_median_seconds",
+        "trajecta_equivalent_core_median_seconds",
+        "equivalent_core_ratio_trajecta_over_flexpart",
+        "equivalent_core_gate_passed",
+        "flexpart_product_median_seconds",
+        "trajecta_product_median_seconds",
+        "flexpart_core_throughput_particles_per_second",
+        "trajecta_core_throughput_particles_per_second",
+        "flexpart_product_throughput_particles_per_second",
+        "trajecta_product_throughput_particles_per_second",
+        "flexpart_core_peak_rss_median_bytes",
+        "flexpart_product_peak_rss_median_bytes",
+        "trajecta_product_peak_rss_median_bytes",
+        "formal_repetitions"
+      ],
+      "properties": {
+        "flexpart_core_median_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "trajecta_equivalent_core_median_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "equivalent_core_ratio_trajecta_over_flexpart": { "type": "number", "exclusiveMinimum": 0 },
+        "equivalent_core_gate_passed": { "type": "boolean" },
+        "flexpart_product_median_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "trajecta_product_median_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "flexpart_core_throughput_particles_per_second": { "type": "number", "exclusiveMinimum": 0 },
+        "trajecta_core_throughput_particles_per_second": { "type": "number", "exclusiveMinimum": 0 },
+        "flexpart_product_throughput_particles_per_second": { "type": "number", "exclusiveMinimum": 0 },
+        "trajecta_product_throughput_particles_per_second": { "type": "number", "exclusiveMinimum": 0 },
+        "flexpart_core_peak_rss_median_bytes": { "type": "integer", "minimum": 1 },
+        "flexpart_product_peak_rss_median_bytes": { "type": "integer", "minimum": 1 },
+        "trajecta_product_peak_rss_median_bytes": { "type": "integer", "minimum": 1 },
+        "formal_repetitions": { "const": 3 }
+      }
+    },
+    "scientific_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["median_cross_model_by_time"],
+      "properties": {
+        "median_cross_model_by_time": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["physical_time_unix", "horizontal_centroid_separation_m", "vertical_centroid_difference_m"],
+            "properties": {
+              "physical_time_unix": { "type": "integer" },
+              "horizontal_centroid_separation_m": { "type": "number", "minimum": 0 },
+              "vertical_centroid_difference_m": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

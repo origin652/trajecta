@@ -1,0 +1,39 @@
+diff --git a/src/windfields_mod.f90 b/src/windfields_mod.f90
+--- a/src/windfields_mod.f90
++++ b/src/windfields_mod.f90
+@@ -479,6 +479,8 @@ subroutine gridcheck_ecmwf
+         is6=201031 
+       elseif (parCat .eq. 3 .and. parNum .eq. 0 .and. typSfc .eq. 1) then !SP
+         is6=134 
++      elseif (parCat .eq. 2 .and. parNum .eq. 8 .and. typSfc .eq. 105) then ! native omega
++        is6=135
+       elseif (parCat .eq. 2 .and. parNum .eq. 32) then ! W, actually eta dot
+         is6=135 
+       elseif (parCat .eq. 128 .and. parNum .eq. 77) then ! W, actually eta dot
+@@ -1606,6 +1608,8 @@ subroutine gridcheck_nests
+           is6=201031 
+         elseif (parCat .eq. 3 .and. parNum .eq. 0 .and. typSfc .eq. 1) then !SP
+           is6=134 
++        elseif (parCat .eq. 2 .and. parNum .eq. 8 .and. typSfc .eq. 105) then ! native omega
++          is6=135
+         elseif (parCat .eq. 2 .and. parNum .eq. 32) then ! W, actually eta dot
+           is6=135 
+         elseif (parCat .eq. 128 .and. parNum .eq. 77) then ! W, actually eta dot
+@@ -2121,6 +2125,8 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
+       is6=201031 
+     elseif (parCat .eq. 3 .and. parNum .eq. 0 .and. typSfc .eq. 1) then !SP
+       is6=134 
++    elseif (parCat .eq. 2 .and. parNum .eq. 8 .and. typSfc .eq. 105) then ! native omega
++      is6=135
+     elseif (parCat .eq. 2 .and. parNum .eq. 32) then ! W, actually eta dot
+       is6=135 
+     elseif (parCat .eq. 128 .and. parNum .eq. 77) then ! W, actually eta dot
+@@ -3648,6 +3654,8 @@ subroutine readwind_nest(indj,n,uuhn,vvhn,wwhn)
+           is6=201031 
+         elseif (parCat .eq. 3 .and. parNum .eq. 0 .and. typSfc .eq. 1) then !SP
+           is6=134 
++        elseif (parCat .eq. 2 .and. parNum .eq. 8 .and. typSfc .eq. 105) then ! native omega
++          is6=135
+         elseif (parCat .eq. 2 .and. parNum .eq. 32) then ! W, actually eta dot
+           is6=135 
+         elseif (parCat .eq. 128 .and. parNum .eq. 77) then ! W, actually eta dot

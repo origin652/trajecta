@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use trajecta_case::document::{ResolvedCase, ResolvedRunProfile};
 use trajecta_case::model::meteorology::DomainId;
 use trajecta_case::model::time::{Direction, Timestamp};
-use trajecta_met::performance::{PerformanceScope, PerformanceStage};
+use trajecta_met::performance::{PerformanceBatchScope, PerformanceScope, PerformanceStage};
 use trajecta_met::query::cache::CacheMetrics;
 use trajecta_met::query::engine::{BatchWorkspace, EngineError, ExecutionContext, MetEngine};
 use trajecta_met::query::metrics::{QueryOrigin, QueryOriginScope};
@@ -86,10 +86,48 @@ pub struct BoundarySamplerRequest<'a> {
     pub domain: Option<&'a DomainId>,
 }
 
+/// Coordinate-only request used by the bulk boundary certificate.
+#[derive(Clone, Copy, Debug)]
+pub struct BoundaryCertificateRequest<'a> {
+    /// Physical step start.
+    pub start_time: Timestamp,
+    /// Physical step end.
+    pub end_time: Timestamp,
+    /// Start longitude in degrees east.
+    pub start_longitude_degrees: f64,
+    /// Start latitude in degrees north.
+    pub start_latitude_degrees: f64,
+    /// Start geometric height above mean sea level in metres.
+    pub start_height_asl_m: f64,
+    /// Proposed longitude in degrees east.
+    pub proposed_longitude_degrees: f64,
+    /// Proposed latitude in degrees north.
+    pub proposed_latitude_degrees: f64,
+    /// Proposed geometric height above mean sea level in metres.
+    pub proposed_height_asl_m: f64,
+    /// Selected meteorological domain.
+    pub domain: Option<&'a DomainId>,
+}
+
 /// Constructs an exact path sampler for one particle proposal.
 pub trait BoundaryPathSamplerFactory: Send {
-    /// Returns an owned or runtime-borrowing sampler for one full step.
-    fn build<'a>(
+    /// Starts one runner boundary batch and discards batch-local scratch.
+    fn begin_batch(&mut self);
+
+    /// Releases pins and scratch retained across one completed boundary batch.
+    fn end_batch(&mut self);
+
+    /// Certifies a path that cannot reach any configured physical boundary.
+    fn certify_clear(
+        &mut self,
+        request: BoundaryCertificateRequest<'_>,
+        meteorology: &mut MetEngine,
+        query_plan: &TransportPlan,
+        execution: &dyn ExecutionContext,
+    ) -> Result<bool, BoundaryError>;
+
+    /// Builds the exact sampler for one unresolved near-boundary path.
+    fn build_residual<'a>(
         &'a mut self,
         request: BoundarySamplerRequest<'_>,
         meteorology: &'a mut MetEngine,
@@ -337,11 +375,15 @@ impl SimulationRunner {
         &mut self,
         control: &mut dyn RunnerControl,
     ) -> Result<RunLoopCompletion, RunError> {
-        for output in &mut self.outputs {
-            output
-                .product
-                .begin(&self.manifest)
-                .map_err(|error| RunError::Output(format!("{error:?}")))?;
+        {
+            let _output_performance = PerformanceScope::enter(PerformanceStage::RunnerOutput);
+            let _performance = PerformanceScope::enter(PerformanceStage::RunnerOutputBegin);
+            for output in &mut self.outputs {
+                output
+                    .product
+                    .begin(&self.manifest)
+                    .map_err(|error| RunError::Output(format!("{error:?}")))?;
+            }
         }
 
         {
@@ -381,17 +423,26 @@ impl SimulationRunner {
         }
 
         while self.state.clock.current != self.end_time {
-            let boundaries = self.collect_step_boundaries()?;
-            let planned = StepPlanner::plan(self.state.clock, self.time_step, &boundaries)
-                .map_err(RunError::Clock)?;
-            let step = *planned.first().ok_or_else(|| {
-                RunError::InvalidConfiguration("step planner made no progress before end".into())
-            })?;
-            let end_time =
-                add_timestamp(self.state.clock.current, step).map_err(RunError::Clock)?;
+            let (step, end_time) = {
+                let _performance = PerformanceScope::enter(PerformanceStage::RunnerStepPlan);
+                let boundaries = self.collect_step_boundaries()?;
+                let planned = StepPlanner::plan(self.state.clock, self.time_step, &boundaries)
+                    .map_err(RunError::Clock)?;
+                let step = *planned.first().ok_or_else(|| {
+                    RunError::InvalidConfiguration(
+                        "step planner made no progress before end".into(),
+                    )
+                })?;
+                let end_time =
+                    add_timestamp(self.state.clock.current, step).map_err(RunError::Clock)?;
+                (step, end_time)
+            };
 
             let macro_start = self.state.clock.current;
-            let existing_particles = self.state.particles.clone();
+            let existing_particles = {
+                let _performance = PerformanceScope::enter(PerformanceStage::RunnerParticleClone);
+                self.state.particles.clone()
+            };
             let existing_particle_count = existing_particles
                 .len()
                 .map_err(|_| RunError::Population("invalid starting particle batch".into()))?;
@@ -427,25 +478,31 @@ impl SimulationRunner {
                 ));
             }
 
-            self.sample_interior_births(&births, end_time)?;
-            let mut start_particles = existing_particles;
-            start_particles
-                .append(births)
-                .map_err(|_| RunError::Population("invalid appended birth cohort".into()))?;
-            let start_particle_count = start_particles
-                .len()
-                .map_err(|_| RunError::Population("invalid starting cohort batch".into()))?;
-            if start_particle_count != existing_particle_count.saturating_add(birth_count) {
-                return Err(RunError::Population(
-                    "birth cohort count does not match appended batch".into(),
-                ));
-            }
-            let mut start_times = vec![macro_start; existing_particle_count];
-            start_times.extend(
-                start_particles.birth_time[existing_particle_count..]
-                    .iter()
-                    .copied(),
-            );
+            let (start_particles, start_particle_count, start_times) = {
+                let _performance = PerformanceScope::enter(PerformanceStage::RunnerStepAssembly);
+                self.sample_interior_births(&births, end_time)?;
+                let mut start_particles = existing_particles;
+                if birth_count != 0 {
+                    start_particles.append(births).map_err(|_| {
+                        RunError::Population("invalid appended birth cohort".into())
+                    })?;
+                }
+                let start_particle_count = start_particles
+                    .len()
+                    .map_err(|_| RunError::Population("invalid starting cohort batch".into()))?;
+                if start_particle_count != existing_particle_count.saturating_add(birth_count) {
+                    return Err(RunError::Population(
+                        "birth cohort count does not match appended batch".into(),
+                    ));
+                }
+                let mut start_times = vec![macro_start; existing_particle_count];
+                start_times.extend(
+                    start_particles.birth_time[existing_particle_count..]
+                        .iter()
+                        .copied(),
+                );
+                (start_particles, start_particle_count, start_times)
+            };
             let step_result = {
                 let _performance = PerformanceScope::enter(PerformanceStage::RunnerIntegrator);
                 self.integrator
@@ -492,69 +549,74 @@ impl SimulationRunner {
                     .complete_cohort_step(&mut context, &mut self.state.particles)
                     .map_err(map_population_error)?;
             }
-            self.state.numerical_step_index = self
-                .state
-                .numerical_step_index
-                .checked_add(1)
-                .ok_or(RunError::ResourceLimit)?;
-            self.sync_population_state();
-            let current_particle_count = self
-                .state
-                .particles
-                .len()
-                .map_err(|_| RunError::Population("invalid current particle batch".into()))?;
-            if current_particle_count != start_particle_count {
-                return Err(RunError::Population(
-                    "cohort integration changed particle row count".into(),
-                ));
-            }
-            let newly_terminated = (0..start_particle_count)
-                .filter(|index| {
-                    matches!(start_particles.status[*index], ParticleStatus::Alive)
-                        && matches!(
-                            self.state.particles.status[*index],
-                            ParticleStatus::Terminated { .. }
-                        )
-                })
-                .collect::<Vec<_>>();
-            for index in &newly_terminated {
-                let ParticleStatus::Terminated { reason } = &self.state.particles.status[*index]
-                else {
-                    return Err(RunError::InvalidConfiguration(
-                        "new termination index is not terminated".into(),
+            let (lifecycle_indices, cancelled) = {
+                let _performance = PerformanceScope::enter(PerformanceStage::RunnerLifecycle);
+                self.state.numerical_step_index = self
+                    .state
+                    .numerical_step_index
+                    .checked_add(1)
+                    .ok_or(RunError::ResourceLimit)?;
+                self.sync_population_state();
+                let current_particle_count =
+                    self.state.particles.len().map_err(|_| {
+                        RunError::Population("invalid current particle batch".into())
+                    })?;
+                if current_particle_count != start_particle_count {
+                    return Err(RunError::Population(
+                        "cohort integration changed particle row count".into(),
                     ));
-                };
-                match reason.class() {
-                    TerminationClass::Normal => {
-                        progress_counts.normal = progress_counts
-                            .normal
-                            .checked_add(1)
-                            .ok_or(RunError::ResourceLimit)?;
-                    }
-                    TerminationClass::Abnormal => {
-                        progress_counts.abnormal = progress_counts
-                            .abnormal
-                            .checked_add(1)
-                            .ok_or(RunError::ResourceLimit)?;
+                }
+                let newly_terminated = (0..start_particle_count)
+                    .filter(|index| {
+                        matches!(start_particles.status[*index], ParticleStatus::Alive)
+                            && matches!(
+                                self.state.particles.status[*index],
+                                ParticleStatus::Terminated { .. }
+                            )
+                    })
+                    .collect::<Vec<_>>();
+                for index in &newly_terminated {
+                    let ParticleStatus::Terminated { reason } =
+                        &self.state.particles.status[*index]
+                    else {
+                        return Err(RunError::InvalidConfiguration(
+                            "new termination index is not terminated".into(),
+                        ));
+                    };
+                    match reason.class() {
+                        TerminationClass::Normal => {
+                            progress_counts.normal = progress_counts
+                                .normal
+                                .checked_add(1)
+                                .ok_or(RunError::ResourceLimit)?;
+                        }
+                        TerminationClass::Abnormal => {
+                            progress_counts.abnormal = progress_counts
+                                .abnormal
+                                .checked_add(1)
+                                .ok_or(RunError::ResourceLimit)?;
+                        }
                     }
                 }
-            }
-            self.sample_interior_terminations(&newly_terminated, end_time)?;
-            let mut lifecycle_indices = newly_terminated
-                .into_iter()
-                .filter(|index| {
-                    self.state.particles.termination[*index]
-                        .as_ref()
-                        .is_none_or(|termination| termination.time == end_time)
-                })
-                .collect::<Vec<_>>();
-            lifecycle_indices.extend(
-                (existing_particle_count..start_particle_count)
-                    .filter(|index| self.state.particles.birth_time[*index] == end_time),
-            );
-            lifecycle_indices.sort_unstable();
-            lifecycle_indices.dedup();
-            let cancelled = poll_runner_control(control, self.progress_snapshot(progress_counts)?)?;
+                self.sample_interior_terminations(&newly_terminated, end_time)?;
+                let mut lifecycle_indices = newly_terminated
+                    .into_iter()
+                    .filter(|index| {
+                        self.state.particles.termination[*index]
+                            .as_ref()
+                            .is_none_or(|termination| termination.time == end_time)
+                    })
+                    .collect::<Vec<_>>();
+                lifecycle_indices.extend(
+                    (existing_particle_count..start_particle_count)
+                        .filter(|index| self.state.particles.birth_time[*index] == end_time),
+                );
+                lifecycle_indices.sort_unstable();
+                lifecycle_indices.dedup();
+                let cancelled =
+                    poll_runner_control(control, self.progress_snapshot(progress_counts)?)?;
+                (lifecycle_indices, cancelled)
+            };
             {
                 let _performance = PerformanceScope::enter(PerformanceStage::RunnerOutput);
                 self.sample_outputs(
@@ -747,10 +809,16 @@ impl SimulationRunner {
         if self.boundaries.is_empty() {
             return Ok(proposed_particles);
         }
+        let _performance_batch = PerformanceBatchScope::enter();
         let factory = self
             .boundary_sampler_factory
             .as_mut()
             .ok_or_else(|| RunError::InvalidConfiguration("missing boundary sampler".into()))?;
+        factory.begin_batch();
+        let skip_certified_clear = self
+            .boundaries
+            .iter()
+            .all(|policy| policy.skips_certified_clear_path());
         let len = proposed_particles
             .len()
             .map_err(|_| RunError::Integration("invalid proposal batch".into()))?;
@@ -760,25 +828,51 @@ impl SimulationRunner {
             ));
         }
         for (index, start_time) in start_times.iter().copied().enumerate() {
+            if start_particles.status[index] != ParticleStatus::Alive
+                || proposed_particles.status[index] != ParticleStatus::Alive
+            {
+                continue;
+            }
+            let certificate = BoundaryCertificateRequest {
+                start_time,
+                end_time,
+                start_longitude_degrees: start_particles.longitude_degrees[index],
+                start_latitude_degrees: start_particles.latitude_degrees[index],
+                start_height_asl_m: start_particles.height_asl_m[index],
+                proposed_longitude_degrees: proposed_particles.longitude_degrees[index],
+                proposed_latitude_degrees: proposed_particles.latitude_degrees[index],
+                proposed_height_asl_m: proposed_particles.height_asl_m[index],
+                domain: self.domain.as_ref(),
+            };
+            if skip_certified_clear
+                && factory
+                    .certify_clear(
+                        certificate,
+                        &mut self.meteorology,
+                        &self.query_plan,
+                        self.execution.as_ref(),
+                    )
+                    .map_err(RunError::Boundary)?
+            {
+                continue;
+            }
             let start = start_particles
                 .state(index)
                 .map_err(|_| RunError::Integration("invalid start batch".into()))?;
             let mut proposed = proposed_particles
                 .state(index)
                 .map_err(|_| RunError::Integration("invalid proposal batch".into()))?;
-            if start.status != ParticleStatus::Alive || proposed.status != ParticleStatus::Alive {
-                continue;
-            }
+            let request = BoundarySamplerRequest {
+                start_time,
+                end_time,
+                start: &start,
+                proposed: &proposed,
+                domain: self.domain.as_ref(),
+            };
             {
                 let mut path = factory
-                    .build(
-                        BoundarySamplerRequest {
-                            start_time,
-                            end_time,
-                            start: &start,
-                            proposed: &proposed,
-                            domain: self.domain.as_ref(),
-                        },
+                    .build_residual(
+                        request,
                         &mut self.meteorology,
                         &self.query_plan,
                         self.execution.as_ref(),
@@ -829,6 +923,7 @@ impl SimulationRunner {
                 .set_state(index, proposed)
                 .map_err(|_| RunError::Integration("invalid bounded particle".into()))?;
         }
+        factory.end_batch();
         Ok(proposed_particles)
     }
 
@@ -1035,6 +1130,7 @@ impl SimulationRunner {
         &mut self,
         disposition: TerminalDisposition,
     ) -> Result<RunOutcome, RunError> {
+        let _performance = PerformanceScope::enter(PerformanceStage::RunnerTerminalFinalize);
         // Freeze terminal timestamp first so any subsequent Failed path is lifecycle-legal.
         // Clock failure is retained and aggregated — never silently dropped.
         let clock_result = self
@@ -1186,6 +1282,7 @@ impl SimulationRunner {
     }
 
     fn persist_manifest(&mut self) -> Result<(), RunError> {
+        let _performance = PerformanceScope::enter(PerformanceStage::RunnerManifestPersist);
         self.manifest
             .validate()
             .map_err(|error| RunError::Manifest(format!("{error:?}")))?;
@@ -1689,7 +1786,21 @@ mod tests {
     struct NoopBoundaryPathSamplerFactory;
 
     impl BoundaryPathSamplerFactory for NoopBoundaryPathSamplerFactory {
-        fn build<'a>(
+        fn begin_batch(&mut self) {}
+
+        fn end_batch(&mut self) {}
+
+        fn certify_clear(
+            &mut self,
+            _request: BoundaryCertificateRequest<'_>,
+            _meteorology: &mut MetEngine,
+            _query_plan: &TransportPlan,
+            _execution: &dyn ExecutionContext,
+        ) -> Result<bool, BoundaryError> {
+            Ok(false)
+        }
+
+        fn build_residual<'a>(
             &'a mut self,
             _request: BoundarySamplerRequest<'_>,
             _meteorology: &'a mut MetEngine,
@@ -1707,6 +1818,10 @@ mod tests {
     impl BoundaryPolicy for FixedFractionTermination {
         fn policy_id(&self) -> &'static str {
             "test_fraction_termination"
+        }
+
+        fn skips_certified_clear_path(&self) -> bool {
+            false
         }
 
         fn apply(

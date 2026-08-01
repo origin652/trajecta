@@ -129,7 +129,7 @@ impl ExactTransportCacheKey {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct CachedTransportQuery {
     pub(crate) key: ExactTransportCacheKey,
-    pub(crate) output: TransportOutput,
+    pub(crate) output: Arc<TransportOutput>,
 }
 
 /// Hard byte budget and fixed reserved resources.

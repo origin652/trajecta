@@ -1,7 +1,7 @@
 # Trajecta package quick start
 
-This archive is a development package. The public version remains `0.0.0`
-until the single M5-A5 prerelease transition.
+This archive contains the `0.1.0-alpha.1` prerelease. It is intended for
+evaluation and clean-package validation before a stable release.
 
 Run `trajecta --help` (or `trajecta.exe --help` on Windows), then create a
 machine-local configuration:

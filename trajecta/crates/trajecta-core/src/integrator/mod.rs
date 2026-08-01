@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 
 use trajecta_case::model::meteorology::DomainId;
 use trajecta_case::model::time::Timestamp;
+use trajecta_met::performance::{PerformanceScope, PerformanceStage};
 use trajecta_met::query::engine::{BatchWorkspace, ExecutionContext, MetEngine};
 use trajecta_met::query::metrics::{QueryOrigin, QueryOriginScope};
 use trajecta_met::query::output::SampleStatus;
@@ -16,9 +17,9 @@ use trajecta_met::query::request::{QueryBatch, QueryPointArrays, TransportPlan, 
 use trajecta_met::vertical::VerticalBounds;
 
 use crate::clock::{SignedDuration, add_timestamp, signed_duration_between};
-use crate::particle::{
-    ParticleBatch, ParticleState, ParticleStatus, ParticleTermination, TerminationReason,
-};
+#[cfg(test)]
+use crate::particle::ParticleState;
+use crate::particle::{ParticleBatch, ParticleStatus, ParticleTermination, TerminationReason};
 use crate::science::M4_CONSTANTS;
 
 /// Immutable particle state and signed step presented to an integrator.
@@ -190,6 +191,53 @@ struct VelocitySample {
     boundary_bridge: bool,
 }
 
+#[derive(Clone, Copy, Debug)]
+struct MotionState {
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    height_asl_m: f64,
+    integration_offset_ns: i64,
+    elapsed_age_ns: u64,
+}
+
+impl MotionState {
+    fn at(particles: &ParticleBatch, index: usize) -> Self {
+        Self {
+            longitude_degrees: particles.longitude_degrees[index],
+            latitude_degrees: particles.latitude_degrees[index],
+            height_asl_m: particles.height_asl_m[index],
+            integration_offset_ns: particles.integration_offset_ns[index],
+            elapsed_age_ns: particles.elapsed_age_ns[index],
+        }
+    }
+
+    fn advanced(
+        self,
+        longitude_degrees: f64,
+        latitude_degrees: f64,
+        height_asl_m: f64,
+        step: SignedDuration,
+    ) -> Option<Self> {
+        if !longitude_degrees.is_finite()
+            || !latitude_degrees.is_finite()
+            || !height_asl_m.is_finite()
+        {
+            return None;
+        }
+        Some(Self {
+            longitude_degrees,
+            latitude_degrees,
+            height_asl_m,
+            integration_offset_ns: self
+                .integration_offset_ns
+                .checked_add(step.as_nanoseconds())?,
+            elapsed_age_ns: self
+                .elapsed_age_ns
+                .checked_add(step.as_nanoseconds().unsigned_abs())?,
+        })
+    }
+}
+
 impl VelocitySample {
     fn velocity(self) -> Option<[f64; 3]> {
         if self.status != SampleStatus::Ok {
@@ -202,7 +250,7 @@ impl VelocitySample {
 fn query_transport(
     context: &mut IntegratorContext<'_>,
     time: Timestamp,
-    particles: &[ParticleState],
+    particles: &[MotionState],
 ) -> Result<Vec<VelocitySample>, IntegratorError> {
     let _query_origin = QueryOriginScope::enter(QueryOrigin::Integrator);
     if particles.is_empty() {
@@ -215,26 +263,27 @@ fn query_transport(
         .meteorology
         .prepare_for_domain(time, domain)
         .map_err(|error| IntegratorError::Meteorology(format!("{error:?}")))?;
+    let points = QueryPointArrays {
+        longitude_degrees: particles
+            .iter()
+            .map(|particle| particle.longitude_degrees)
+            .collect(),
+        latitude_degrees: particles
+            .iter()
+            .map(|particle| particle.latitude_degrees)
+            .collect(),
+        vertical: particles
+            .iter()
+            .map(|particle| particle.height_asl_m)
+            .collect(),
+    };
     let mut workspace = BatchWorkspace::default();
     let prepared = window
         .prepare_transport_batch(
             context.query_plan,
             QueryBatch {
                 vertical_coordinate: VerticalQuery::AboveSeaLevel,
-                points: QueryPointArrays {
-                    longitude_degrees: particles
-                        .iter()
-                        .map(|particle| particle.longitude_degrees)
-                        .collect(),
-                    latitude_degrees: particles
-                        .iter()
-                        .map(|particle| particle.latitude_degrees)
-                        .collect(),
-                    vertical: particles
-                        .iter()
-                        .map(|particle| particle.height_asl_m)
-                        .collect(),
-                },
+                points,
             },
             &mut workspace,
         )
@@ -290,18 +339,23 @@ fn is_boundary_bridge_status(
 fn query_transport_at_times(
     context: &mut IntegratorContext<'_>,
     times: &[Timestamp],
-    particles: &[ParticleState],
+    particles: &[MotionState],
     end_time: Timestamp,
 ) -> Result<Vec<VelocitySample>, IntegratorError> {
     if times.len() != particles.len() {
         return Err(IntegratorError::InvalidParticleBatch);
+    }
+    if let Some(time) = times.first().copied() {
+        if times.iter().all(|candidate| *candidate == time) {
+            return query_transport(context, time, particles);
+        }
     }
     let groups = ordered_transport_time_groups(times, end_time)?;
     let mut output = vec![None; particles.len()];
     for (time, indices) in groups {
         let states = indices
             .iter()
-            .map(|index| particles[*index].clone())
+            .map(|index| particles[*index])
             .collect::<Vec<_>>();
         let samples = query_transport(context, time, &states)?;
         if samples.len() != indices.len() {
@@ -540,7 +594,13 @@ where
             continue;
         };
         let Some((longitude, latitude)) = spherical_displacement_from_midpoint_velocity(
-            &start, &midpoint, eastward, northward, seconds,
+            start.longitude_degrees,
+            start.latitude_degrees,
+            midpoint.longitude_degrees,
+            midpoint.latitude_degrees,
+            eastward,
+            northward,
+            seconds,
         ) else {
             terminate_particle(
                 &mut proposal,
@@ -578,54 +638,59 @@ fn advance_with_timed_transport_query<F>(
     mut query: F,
 ) -> Result<StepResult, IntegratorError>
 where
-    F: FnMut(&[Timestamp], &[ParticleState]) -> Result<Vec<VelocitySample>, IntegratorError>,
+    F: FnMut(&[Timestamp], &[MotionState]) -> Result<Vec<VelocitySample>, IntegratorError>,
 {
-    let count = input
-        .particles
-        .validate()
-        .map_err(|_| IntegratorError::InvalidParticleBatch)?;
+    let count = {
+        let _performance = PerformanceScope::enter(PerformanceStage::IntegratorInputValidate);
+        input
+            .particles
+            .validate()
+            .map_err(|_| IntegratorError::InvalidParticleBatch)?
+    };
     if input.start_times.len() != count {
         return Err(IntegratorError::InvalidParticleBatch);
     }
 
-    let mut proposal = input.particles.clone();
+    let mut proposal = {
+        let _performance = PerformanceScope::enter(PerformanceStage::IntegratorProposalClone);
+        input.particles.clone()
+    };
     let mut active_indices = Vec::new();
     let mut active_states = Vec::new();
     let mut active_start_times = Vec::new();
     let mut active_steps = Vec::new();
     let mut active_seconds = Vec::new();
-    let mut direction_sign = 0_i8;
-    for (index, start_time) in input.start_times.iter().copied().enumerate() {
-        let state = input
-            .particles
-            .state(index)
-            .map_err(|_| IntegratorError::InvalidParticleBatch)?;
-        if state.status != ParticleStatus::Alive {
-            continue;
+    {
+        let _performance = PerformanceScope::enter(PerformanceStage::IntegratorActiveSetup);
+        let mut direction_sign = 0_i8;
+        for (index, start_time) in input.start_times.iter().copied().enumerate() {
+            if input.particles.status[index] != ParticleStatus::Alive {
+                continue;
+            }
+            let step = signed_duration_between(start_time, input.end_time)
+                .map_err(|_| IntegratorError::NumericalInvariant("timestamp overflow".into()))?;
+            if step == SignedDuration::ZERO {
+                continue;
+            }
+            let sign = if step.0 < 0 { -1 } else { 1 };
+            if direction_sign != 0 && direction_sign != sign {
+                return Err(IntegratorError::NumericalInvariant(
+                    "timed batch mixes integration directions".into(),
+                ));
+            }
+            direction_sign = sign;
+            let seconds = step.0 as f64 * 1.0e-9;
+            if !seconds.is_finite() {
+                return Err(IntegratorError::NumericalInvariant(
+                    "signed step cannot be represented in seconds".into(),
+                ));
+            }
+            active_indices.push(index);
+            active_states.push(MotionState::at(input.particles, index));
+            active_start_times.push(start_time);
+            active_steps.push(step);
+            active_seconds.push(seconds);
         }
-        let step = signed_duration_between(start_time, input.end_time)
-            .map_err(|_| IntegratorError::NumericalInvariant("timestamp overflow".into()))?;
-        if step == SignedDuration::ZERO {
-            continue;
-        }
-        let sign = if step.0 < 0 { -1 } else { 1 };
-        if direction_sign != 0 && direction_sign != sign {
-            return Err(IntegratorError::NumericalInvariant(
-                "timed batch mixes integration directions".into(),
-            ));
-        }
-        direction_sign = sign;
-        let seconds = step.0 as f64 * 1.0e-9;
-        if !seconds.is_finite() {
-            return Err(IntegratorError::NumericalInvariant(
-                "signed step cannot be represented in seconds".into(),
-            ));
-        }
-        active_indices.push(index);
-        active_states.push(state);
-        active_start_times.push(start_time);
-        active_steps.push(step);
-        active_seconds.push(seconds);
     }
     if active_indices.is_empty() {
         return Ok(StepResult {
@@ -634,7 +699,10 @@ where
         });
     }
 
-    let start_samples = query(&active_start_times, &active_states)?;
+    let start_samples = {
+        let _performance = PerformanceScope::enter(PerformanceStage::IntegratorStartQuery);
+        query(&active_start_times, &active_states)?
+    };
     if start_samples.len() != active_states.len() {
         return Err(IntegratorError::NumericalInvariant(
             "start transport query returned the wrong row count".into(),
@@ -648,22 +716,52 @@ where
     let mut midpoint_seconds = Vec::new();
     let mut midpoint_start_velocities = Vec::new();
     let mut abnormal_terminated_count = 0;
-    for (((((batch_index, start), start_time), step), seconds), sample) in active_indices
-        .iter()
-        .copied()
-        .zip(&active_states)
-        .zip(active_start_times.iter().copied())
-        .zip(active_steps.iter().copied())
-        .zip(active_seconds.iter().copied())
-        .zip(start_samples)
     {
-        if sample.boundary_bridge {
-            let Some(advanced) = complete_advanced_state(
-                start.clone(),
+        let _performance = PerformanceScope::enter(PerformanceStage::IntegratorMidpointBuild);
+        for (((((batch_index, start), start_time), step), seconds), sample) in active_indices
+            .iter()
+            .copied()
+            .zip(&active_states)
+            .zip(active_start_times.iter().copied())
+            .zip(active_steps.iter().copied())
+            .zip(active_seconds.iter().copied())
+            .zip(start_samples)
+        {
+            if sample.boundary_bridge {
+                let Some(advanced) = start.advanced(
+                    start.longitude_degrees,
+                    start.latitude_degrees,
+                    start.height_asl_m,
+                    step,
+                ) else {
+                    terminate_particle_at(
+                        &mut proposal,
+                        batch_index,
+                        TerminationReason::NumericalFailure,
+                        start_time,
+                    )?;
+                    abnormal_terminated_count += 1;
+                    continue;
+                };
+                apply_motion(&mut proposal, batch_index, advanced);
+                continue;
+            }
+            let Some([eastward, northward, vertical]) = sample.velocity() else {
+                terminate_particle_at(
+                    &mut proposal,
+                    batch_index,
+                    TerminationReason::InvalidMeteorology,
+                    start_time,
+                )?;
+                abnormal_terminated_count += 1;
+                continue;
+            };
+            let Some((longitude, latitude)) = spherical_displacement(
                 start.longitude_degrees,
                 start.latitude_degrees,
-                start.height_asl_m,
-                step,
+                eastward,
+                northward,
+                0.5 * seconds,
             ) else {
                 terminate_particle_at(
                     &mut proposal,
@@ -674,78 +772,53 @@ where
                 abnormal_terminated_count += 1;
                 continue;
             };
-            proposal
-                .set_state(batch_index, advanced)
-                .map_err(|_| IntegratorError::InvalidParticleBatch)?;
-            continue;
+            let height = start.height_asl_m + 0.5 * seconds * vertical;
+            if !height.is_finite() {
+                terminate_particle_at(
+                    &mut proposal,
+                    batch_index,
+                    TerminationReason::NumericalFailure,
+                    start_time,
+                )?;
+                abnormal_terminated_count += 1;
+                continue;
+            }
+            let midpoint_step = SignedDuration(step.0 / 2);
+            let midpoint_time = checked_add_timestamp(start_time, midpoint_step.0)?;
+            let Some(midpoint) = start.advanced(longitude, latitude, height, midpoint_step) else {
+                terminate_particle_at(
+                    &mut proposal,
+                    batch_index,
+                    TerminationReason::NumericalFailure,
+                    start_time,
+                )?;
+                abnormal_terminated_count += 1;
+                continue;
+            };
+            midpoint_states.push(midpoint);
+            midpoint_indices.push(batch_index);
+            midpoint_times.push(midpoint_time);
+            midpoint_steps.push(step);
+            midpoint_seconds.push(seconds);
+            midpoint_start_velocities.push([eastward, northward, vertical]);
         }
-        let Some([eastward, northward, vertical]) = sample.velocity() else {
-            terminate_particle_at(
-                &mut proposal,
-                batch_index,
-                TerminationReason::InvalidMeteorology,
-                start_time,
-            )?;
-            abnormal_terminated_count += 1;
-            continue;
-        };
-        let Some((longitude, latitude)) = spherical_displacement(
-            start.longitude_degrees,
-            start.latitude_degrees,
-            eastward,
-            northward,
-            0.5 * seconds,
-        ) else {
-            terminate_particle_at(
-                &mut proposal,
-                batch_index,
-                TerminationReason::NumericalFailure,
-                start_time,
-            )?;
-            abnormal_terminated_count += 1;
-            continue;
-        };
-        let height = start.height_asl_m + 0.5 * seconds * vertical;
-        if !height.is_finite() {
-            terminate_particle_at(
-                &mut proposal,
-                batch_index,
-                TerminationReason::NumericalFailure,
-                start_time,
-            )?;
-            abnormal_terminated_count += 1;
-            continue;
-        }
-        let midpoint_step = SignedDuration(step.0 / 2);
-        let midpoint_time = checked_add_timestamp(start_time, midpoint_step.0)?;
-        let Some(midpoint) =
-            complete_advanced_state(start.clone(), longitude, latitude, height, midpoint_step)
-        else {
-            terminate_particle_at(
-                &mut proposal,
-                batch_index,
-                TerminationReason::NumericalFailure,
-                start_time,
-            )?;
-            abnormal_terminated_count += 1;
-            continue;
-        };
-        midpoint_states.push(midpoint);
-        midpoint_indices.push(batch_index);
-        midpoint_times.push(midpoint_time);
-        midpoint_steps.push(step);
-        midpoint_seconds.push(seconds);
-        midpoint_start_velocities.push([eastward, northward, vertical]);
     }
 
-    let midpoint_samples = query(&midpoint_times, &midpoint_states)?;
+    let midpoint_samples = {
+        let _performance = PerformanceScope::enter(PerformanceStage::IntegratorMidpointQuery);
+        query(&midpoint_times, &midpoint_states)?
+    };
     if midpoint_samples.len() != midpoint_states.len() {
         return Err(IntegratorError::NumericalInvariant(
             "midpoint transport query returned the wrong row count".into(),
         ));
     }
-    for ((((((batch_index, midpoint), midpoint_time), step), seconds), start_velocity), sample) in
-        midpoint_indices
+    {
+        let _performance = PerformanceScope::enter(PerformanceStage::IntegratorApply);
+        for (
+            (((((batch_index, midpoint), midpoint_time), step), seconds), start_velocity),
+            sample,
+        ) in midpoint_indices
             .into_iter()
             .zip(midpoint_states)
             .zip(midpoint_times)
@@ -753,20 +826,62 @@ where
             .zip(midpoint_seconds)
             .zip(midpoint_start_velocities)
             .zip(midpoint_samples)
-    {
-        let start = input
-            .particles
-            .state(batch_index)
-            .map_err(|_| IntegratorError::InvalidParticleBatch)?;
-        if sample.boundary_bridge {
-            let Some((longitude, latitude)) = spherical_displacement(
+        {
+            let start = MotionState::at(input.particles, batch_index);
+            if sample.boundary_bridge {
+                let Some((longitude, latitude)) = spherical_displacement(
+                    start.longitude_degrees,
+                    start.latitude_degrees,
+                    start_velocity[0],
+                    start_velocity[1],
+                    seconds,
+                ) else {
+                    terminate_particle_motion_at(
+                        &mut proposal,
+                        batch_index,
+                        midpoint,
+                        TerminationReason::NumericalFailure,
+                        midpoint_time,
+                    )?;
+                    abnormal_terminated_count += 1;
+                    continue;
+                };
+                let height = start.height_asl_m + seconds * start_velocity[2];
+                let Some(advanced) = start.advanced(longitude, latitude, height, step) else {
+                    terminate_particle_motion_at(
+                        &mut proposal,
+                        batch_index,
+                        midpoint,
+                        TerminationReason::NumericalFailure,
+                        midpoint_time,
+                    )?;
+                    abnormal_terminated_count += 1;
+                    continue;
+                };
+                apply_motion(&mut proposal, batch_index, advanced);
+                continue;
+            }
+            let Some([eastward, northward, vertical]) = sample.velocity() else {
+                terminate_particle_motion_at(
+                    &mut proposal,
+                    batch_index,
+                    midpoint,
+                    TerminationReason::InvalidMeteorology,
+                    midpoint_time,
+                )?;
+                abnormal_terminated_count += 1;
+                continue;
+            };
+            let Some((longitude, latitude)) = spherical_displacement_from_midpoint_velocity(
                 start.longitude_degrees,
                 start.latitude_degrees,
-                start_velocity[0],
-                start_velocity[1],
+                midpoint.longitude_degrees,
+                midpoint.latitude_degrees,
+                eastward,
+                northward,
                 seconds,
             ) else {
-                terminate_particle_state_at(
+                terminate_particle_motion_at(
                     &mut proposal,
                     batch_index,
                     midpoint,
@@ -776,10 +891,9 @@ where
                 abnormal_terminated_count += 1;
                 continue;
             };
-            let height = start.height_asl_m + seconds * start_velocity[2];
-            let Some(advanced) = complete_advanced_state(start, longitude, latitude, height, step)
-            else {
-                terminate_particle_state_at(
+            let height = start.height_asl_m + seconds * vertical;
+            let Some(advanced) = start.advanced(longitude, latitude, height, step) else {
+                terminate_particle_motion_at(
                     &mut proposal,
                     batch_index,
                     midpoint,
@@ -789,51 +903,8 @@ where
                 abnormal_terminated_count += 1;
                 continue;
             };
-            proposal
-                .set_state(batch_index, advanced)
-                .map_err(|_| IntegratorError::InvalidParticleBatch)?;
-            continue;
+            apply_motion(&mut proposal, batch_index, advanced);
         }
-        let Some([eastward, northward, vertical]) = sample.velocity() else {
-            terminate_particle_state_at(
-                &mut proposal,
-                batch_index,
-                midpoint,
-                TerminationReason::InvalidMeteorology,
-                midpoint_time,
-            )?;
-            abnormal_terminated_count += 1;
-            continue;
-        };
-        let Some((longitude, latitude)) = spherical_displacement_from_midpoint_velocity(
-            &start, &midpoint, eastward, northward, seconds,
-        ) else {
-            terminate_particle_state_at(
-                &mut proposal,
-                batch_index,
-                midpoint,
-                TerminationReason::NumericalFailure,
-                midpoint_time,
-            )?;
-            abnormal_terminated_count += 1;
-            continue;
-        };
-        let height = start.height_asl_m + seconds * vertical;
-        let Some(advanced) = complete_advanced_state(start, longitude, latitude, height, step)
-        else {
-            terminate_particle_state_at(
-                &mut proposal,
-                batch_index,
-                midpoint,
-                TerminationReason::NumericalFailure,
-                midpoint_time,
-            )?;
-            abnormal_terminated_count += 1;
-            continue;
-        };
-        proposal
-            .set_state(batch_index, advanced)
-            .map_err(|_| IntegratorError::InvalidParticleBatch)?;
     }
 
     Ok(StepResult {
@@ -842,6 +913,7 @@ where
     })
 }
 
+#[cfg(test)]
 fn complete_advanced_state(
     mut start: ParticleState,
     longitude_degrees: f64,
@@ -886,27 +958,37 @@ fn terminate_particle_at(
     reason: TerminationReason,
     time: Timestamp,
 ) -> Result<(), IntegratorError> {
-    let state = particles
-        .state(index)
+    let len = particles
+        .len()
         .map_err(|_| IntegratorError::InvalidParticleBatch)?;
-    terminate_particle_state_at(particles, index, state, reason, time)
-}
-
-fn terminate_particle_state_at(
-    particles: &mut ParticleBatch,
-    index: usize,
-    mut state: ParticleState,
-    reason: TerminationReason,
-    time: Timestamp,
-) -> Result<(), IntegratorError> {
-    state.status = ParticleStatus::Terminated { reason };
-    state.termination = Some(ParticleTermination {
+    if index >= len {
+        return Err(IntegratorError::InvalidParticleBatch);
+    }
+    particles.status[index] = ParticleStatus::Terminated { reason };
+    particles.termination[index] = Some(ParticleTermination {
         time,
         intersection_fraction: None,
     });
-    particles
-        .set_state(index, state)
-        .map_err(|_| IntegratorError::InvalidParticleBatch)
+    Ok(())
+}
+
+fn terminate_particle_motion_at(
+    particles: &mut ParticleBatch,
+    index: usize,
+    motion: MotionState,
+    reason: TerminationReason,
+    time: Timestamp,
+) -> Result<(), IntegratorError> {
+    apply_motion(particles, index, motion);
+    terminate_particle_at(particles, index, reason, time)
+}
+
+fn apply_motion(particles: &mut ParticleBatch, index: usize, motion: MotionState) {
+    particles.longitude_degrees[index] = motion.longitude_degrees;
+    particles.latitude_degrees[index] = motion.latitude_degrees;
+    particles.height_asl_m[index] = motion.height_asl_m;
+    particles.integration_offset_ns[index] = motion.integration_offset_ns;
+    particles.elapsed_age_ns[index] = motion.elapsed_age_ns;
 }
 
 fn spherical_displacement(
@@ -932,16 +1014,18 @@ fn spherical_displacement(
 }
 
 fn spherical_displacement_from_midpoint_velocity(
-    start: &ParticleState,
-    midpoint: &ParticleState,
+    start_longitude_degrees: f64,
+    start_latitude_degrees: f64,
+    midpoint_longitude_degrees: f64,
+    midpoint_latitude_degrees: f64,
     eastward_m_s: f64,
     northward_m_s: f64,
     seconds: f64,
 ) -> Option<(f64, f64)> {
-    let position = unit_position(start.longitude_degrees, start.latitude_degrees)?;
+    let position = unit_position(start_longitude_degrees, start_latitude_degrees)?;
     let velocity = tangent_velocity(
-        midpoint.longitude_degrees,
-        midpoint.latitude_degrees,
+        midpoint_longitude_degrees,
+        midpoint_latitude_degrees,
         eastward_m_s,
         northward_m_s,
     )?;

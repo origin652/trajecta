@@ -16,6 +16,8 @@ const HISTOGRAM_BUCKETS: usize = 64;
 thread_local! {
     static ACTIVE_PERFORMANCE_COUNTERS: RefCell<Option<Arc<PerformanceCounters>>> =
         const { RefCell::new(None) };
+    static ACTIVE_PERFORMANCE_BATCH: RefCell<Option<PerformanceBatch>> =
+        const { RefCell::new(None) };
 }
 
 /// Stable wall-clock attribution boundary.
@@ -30,8 +32,36 @@ pub enum PerformanceStage {
     RunnerIntegrator,
     /// Continuous-boundary construction and policy application.
     RunnerBoundary,
+    /// Per-macro-step event collection and clock planning.
+    RunnerStepPlan,
+    /// Snapshot clone retained for integration and lifecycle comparison.
+    RunnerParticleClone,
+    /// Cohort assembly and exact per-row start-time construction.
+    RunnerStepAssembly,
+    /// Post-step lifecycle scans, progress accounting, and control polling.
+    RunnerLifecycle,
+    /// Structural validation at numerical-integrator entry.
+    IntegratorInputValidate,
+    /// Proposal batch clone at numerical-integrator entry.
+    IntegratorProposalClone,
+    /// Active-row collection and per-row step construction.
+    IntegratorActiveSetup,
+    /// First RK2 transport query.
+    IntegratorStartQuery,
+    /// Midpoint state construction after the first query.
+    IntegratorMidpointBuild,
+    /// Second RK2 transport query.
+    IntegratorMidpointQuery,
+    /// Final RK2 displacement and proposal writes.
+    IntegratorApply,
     /// Particle-state meteorology queries and output product sampling.
     RunnerOutput,
+    /// Output-product initialization before the first sample.
+    RunnerOutputBegin,
+    /// Terminal manifest contribution and lifecycle finalization.
+    RunnerTerminalFinalize,
+    /// One validated manifest persistence operation.
+    RunnerManifestPersist,
     /// Complete meteorology query initiated by particle-state output.
     RunnerOutputMeteorology,
     /// Preparation/layout/stencil work for one output meteorology query.
@@ -91,12 +121,26 @@ pub enum PerformanceStage {
 }
 
 impl PerformanceStage {
-    const ALL: [Self; 33] = [
+    const ALL: [Self; 47] = [
         Self::RunnerTotal,
         Self::RunnerPopulation,
         Self::RunnerIntegrator,
         Self::RunnerBoundary,
+        Self::RunnerStepPlan,
+        Self::RunnerParticleClone,
+        Self::RunnerStepAssembly,
+        Self::RunnerLifecycle,
+        Self::IntegratorInputValidate,
+        Self::IntegratorProposalClone,
+        Self::IntegratorActiveSetup,
+        Self::IntegratorStartQuery,
+        Self::IntegratorMidpointBuild,
+        Self::IntegratorMidpointQuery,
+        Self::IntegratorApply,
         Self::RunnerOutput,
+        Self::RunnerOutputBegin,
+        Self::RunnerTerminalFinalize,
+        Self::RunnerManifestPersist,
         Self::RunnerOutputMeteorology,
         Self::RunnerOutputQueryPrepare,
         Self::RunnerOutputQueryExecute,
@@ -135,7 +179,21 @@ impl PerformanceStage {
             Self::RunnerPopulation => "runner_population",
             Self::RunnerIntegrator => "runner_integrator",
             Self::RunnerBoundary => "runner_boundary",
+            Self::RunnerStepPlan => "runner_step_plan",
+            Self::RunnerParticleClone => "runner_particle_clone",
+            Self::RunnerStepAssembly => "runner_step_assembly",
+            Self::RunnerLifecycle => "runner_lifecycle",
+            Self::IntegratorInputValidate => "integrator_input_validate",
+            Self::IntegratorProposalClone => "integrator_proposal_clone",
+            Self::IntegratorActiveSetup => "integrator_active_setup",
+            Self::IntegratorStartQuery => "integrator_start_query",
+            Self::IntegratorMidpointBuild => "integrator_midpoint_build",
+            Self::IntegratorMidpointQuery => "integrator_midpoint_query",
+            Self::IntegratorApply => "integrator_apply",
             Self::RunnerOutput => "runner_output",
+            Self::RunnerOutputBegin => "runner_output_begin",
+            Self::RunnerTerminalFinalize => "runner_terminal_finalize",
+            Self::RunnerManifestPersist => "runner_manifest_persist",
             Self::RunnerOutputMeteorology => "runner_output_meteorology",
             Self::RunnerOutputQueryPrepare => "runner_output_query_prepare",
             Self::RunnerOutputQueryExecute => "runner_output_query_execute",
@@ -237,6 +295,36 @@ impl ObservationState {
         self.histogram[histogram_bucket(value)].fetch_add(1, Ordering::Relaxed);
     }
 
+    fn record_repeated(&self, value: u64, count: u64) {
+        if count == 0 {
+            return;
+        }
+        self.observations.fetch_add(count, Ordering::Relaxed);
+        self.total
+            .fetch_add(value.wrapping_mul(count), Ordering::Relaxed);
+        self.maximum.fetch_max(value, Ordering::Relaxed);
+        self.histogram[histogram_bucket(value)].fetch_add(count, Ordering::Relaxed);
+    }
+
+    fn merge(&self, batch: &ObservationBatch) {
+        if batch.observations == 0 {
+            return;
+        }
+        self.observations
+            .fetch_add(batch.observations, Ordering::Relaxed);
+        if batch.total != 0 {
+            self.total.fetch_add(batch.total, Ordering::Relaxed);
+        }
+        if batch.maximum != 0 {
+            self.maximum.fetch_max(batch.maximum, Ordering::Relaxed);
+        }
+        for (target, count) in self.histogram.iter().zip(&batch.histogram) {
+            if *count != 0 {
+                target.fetch_add(*count, Ordering::Relaxed);
+            }
+        }
+    }
+
     fn snapshot(&self) -> PerformanceObservationSnapshot {
         PerformanceObservationSnapshot {
             observations: self.observations.load(Ordering::Relaxed),
@@ -247,6 +335,95 @@ impl ObservationState {
                 .iter()
                 .map(|value| value.load(Ordering::Relaxed))
                 .collect(),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct ObservationBatch {
+    observations: u64,
+    total: u64,
+    maximum: u64,
+    histogram: [u64; HISTOGRAM_BUCKETS],
+}
+
+impl Default for ObservationBatch {
+    fn default() -> Self {
+        Self {
+            observations: 0,
+            total: 0,
+            maximum: 0,
+            histogram: [0; HISTOGRAM_BUCKETS],
+        }
+    }
+}
+
+impl ObservationBatch {
+    fn record(&mut self, value: u64) {
+        self.observations = self.observations.wrapping_add(1);
+        self.total = self.total.wrapping_add(value);
+        self.maximum = self.maximum.max(value);
+        let bucket = histogram_bucket(value);
+        self.histogram[bucket] = self.histogram[bucket].wrapping_add(1);
+    }
+
+    fn record_repeated(&mut self, value: u64, count: u64) {
+        if count == 0 {
+            return;
+        }
+        self.observations = self.observations.wrapping_add(count);
+        self.total = self.total.wrapping_add(value.wrapping_mul(count));
+        self.maximum = self.maximum.max(value);
+        let bucket = histogram_bucket(value);
+        self.histogram[bucket] = self.histogram[bucket].wrapping_add(count);
+    }
+}
+
+#[derive(Debug)]
+struct PerformanceBatch {
+    counters: Arc<PerformanceCounters>,
+    stages: Vec<ObservationBatch>,
+    distributions: Vec<ObservationBatch>,
+}
+
+impl PerformanceBatch {
+    fn new(counters: Arc<PerformanceCounters>) -> Self {
+        Self {
+            counters,
+            stages: PerformanceStage::ALL
+                .iter()
+                .map(|_| ObservationBatch::default())
+                .collect(),
+            distributions: PerformanceDistribution::ALL
+                .iter()
+                .map(|_| ObservationBatch::default())
+                .collect(),
+        }
+    }
+
+    fn record_stage(&mut self, stage: PerformanceStage, nanoseconds: u64) {
+        self.stages[stage as usize].record(nanoseconds);
+    }
+
+    fn record_distribution(&mut self, distribution: PerformanceDistribution, value: u64) {
+        self.distributions[distribution as usize].record(value);
+    }
+
+    fn record_distribution_repeated(
+        &mut self,
+        distribution: PerformanceDistribution,
+        value: u64,
+        count: u64,
+    ) {
+        self.distributions[distribution as usize].record_repeated(value, count);
+    }
+
+    fn flush(self) {
+        for (target, batch) in self.counters.stages.iter().zip(&self.stages) {
+            target.merge(batch);
+        }
+        for (target, batch) in self.counters.distributions.iter().zip(&self.distributions) {
+            target.merge(batch);
         }
     }
 }
@@ -286,6 +463,15 @@ impl PerformanceCounters {
 
     fn record_distribution(&self, distribution: PerformanceDistribution, value: u64) {
         self.distributions[distribution as usize].record(value);
+    }
+
+    fn record_distribution_repeated(
+        &self,
+        distribution: PerformanceDistribution,
+        value: u64,
+        count: u64,
+    ) {
+        self.distributions[distribution as usize].record_repeated(value, count);
     }
 
     /// Takes an immutable snapshot without resetting counters.
@@ -343,6 +529,18 @@ pub fn clear_performance_counters() {
 
 /// Records one bounded path/root distribution value when attribution is active.
 pub fn record_performance_distribution(distribution: PerformanceDistribution, value: u64) {
+    let buffered = ACTIVE_PERFORMANCE_BATCH.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if let Some(batch) = slot.as_mut() {
+            batch.record_distribution(distribution, value);
+            true
+        } else {
+            false
+        }
+    });
+    if buffered {
+        return;
+    }
     ACTIVE_PERFORMANCE_COUNTERS.with(|slot| {
         if let Some(counters) = slot.borrow().as_ref() {
             counters.record_distribution(distribution, value);
@@ -350,7 +548,73 @@ pub fn record_performance_distribution(distribution: PerformanceDistribution, va
     });
 }
 
+/// Records `count` identical distribution observations in constant time.
+pub fn record_performance_distribution_repeated(
+    distribution: PerformanceDistribution,
+    value: u64,
+    count: u64,
+) {
+    if count == 0 {
+        return;
+    }
+    let buffered = ACTIVE_PERFORMANCE_BATCH.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if let Some(batch) = slot.as_mut() {
+            batch.record_distribution_repeated(distribution, value, count);
+            true
+        } else {
+            false
+        }
+    });
+    if buffered {
+        return;
+    }
+    ACTIVE_PERFORMANCE_COUNTERS.with(|slot| {
+        if let Some(counters) = slot.borrow().as_ref() {
+            counters.record_distribution_repeated(distribution, value, count);
+        }
+    });
+}
+
+/// RAII buffer that coalesces active-thread counter updates without changing observations.
+#[must_use]
+pub struct PerformanceBatchScope {
+    installed: bool,
+}
+
+impl PerformanceBatchScope {
+    /// Starts a batch when counters are active, or reuses an enclosing batch.
+    pub fn enter() -> Self {
+        let counters = ACTIVE_PERFORMANCE_COUNTERS.with(|slot| slot.borrow().clone());
+        let installed = counters.is_some_and(|counters| {
+            ACTIVE_PERFORMANCE_BATCH.with(|slot| {
+                let mut slot = slot.borrow_mut();
+                if slot.is_some() {
+                    false
+                } else {
+                    *slot = Some(PerformanceBatch::new(counters));
+                    true
+                }
+            })
+        });
+        Self { installed }
+    }
+}
+
+impl Drop for PerformanceBatchScope {
+    fn drop(&mut self) {
+        if !self.installed {
+            return;
+        }
+        let batch = ACTIVE_PERFORMANCE_BATCH.with(|slot| slot.borrow_mut().take());
+        if let Some(batch) = batch {
+            batch.flush();
+        }
+    }
+}
+
 /// RAII timer for one stable attribution stage.
+#[derive(Debug)]
 #[must_use]
 pub struct PerformanceScope {
     stage: PerformanceStage,
@@ -374,6 +638,18 @@ impl Drop for PerformanceScope {
             return;
         };
         let nanoseconds = u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX);
+        let buffered = ACTIVE_PERFORMANCE_BATCH.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            if let Some(batch) = slot.as_mut() {
+                batch.record_stage(self.stage, nanoseconds);
+                true
+            } else {
+                false
+            }
+        });
+        if buffered {
+            return;
+        }
         ACTIVE_PERFORMANCE_COUNTERS.with(|slot| {
             if let Some(counters) = slot.borrow().as_ref() {
                 counters.record_stage(self.stage, nanoseconds);
@@ -430,5 +706,61 @@ mod tests {
         assert_eq!(distribution.total, 7);
         assert_eq!(distribution.maximum, 7);
         assert_eq!(distribution.log2_histogram[2], 1);
+    }
+
+    #[test]
+    fn batched_observations_match_direct_atomic_recording() {
+        let direct = ObservationState::default();
+        let merged = ObservationState::default();
+        let mut batch = ObservationBatch::default();
+        for value in [0, 1, 2, 7, 7, u64::MAX] {
+            direct.record(value);
+            batch.record(value);
+        }
+        merged.merge(&batch);
+        assert_eq!(merged.snapshot(), direct.snapshot());
+    }
+
+    #[test]
+    fn repeated_distribution_recording_matches_individual_values() {
+        let direct = ObservationState::default();
+        let repeated = ObservationState::default();
+        for _ in 0..7 {
+            direct.record(3);
+        }
+        repeated.record_repeated(3, 7);
+        assert_eq!(repeated.snapshot(), direct.snapshot());
+    }
+
+    #[test]
+    fn nested_batch_scope_flushes_once_to_installed_counters() {
+        let counters = PerformanceCounters::new();
+        install_performance_counters(Arc::clone(&counters));
+        {
+            let _outer = PerformanceBatchScope::enter();
+            record_performance_distribution(PerformanceDistribution::BoundarySegmentsPerPath, 1);
+            {
+                let _inner = PerformanceBatchScope::enter();
+                record_performance_distribution(
+                    PerformanceDistribution::BoundarySegmentsPerPath,
+                    3,
+                );
+            }
+            assert_eq!(
+                counters.snapshot().distributions
+                    [&PerformanceDistribution::BoundarySegmentsPerPath]
+                    .observations,
+                0
+            );
+        }
+        clear_performance_counters();
+
+        let observation =
+            &counters.snapshot().distributions[&PerformanceDistribution::BoundarySegmentsPerPath];
+        assert_eq!(observation.observations, 2);
+        assert_eq!(observation.total, 4);
+        assert_eq!(observation.maximum, 3);
+        assert_eq!(observation.log2_histogram[0], 1);
+        assert_eq!(observation.log2_histogram[1], 1);
     }
 }

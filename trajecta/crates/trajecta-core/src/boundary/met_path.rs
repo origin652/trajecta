@@ -16,9 +16,10 @@ use std::collections::BTreeMap;
 
 use trajecta_case::model::meteorology::DomainId;
 use trajecta_case::model::time::Timestamp;
-use trajecta_met::grid::DomainGeometry;
+use trajecta_met::grid::{CellId, DomainGeometry, GridBackend, GridError, RegularLatLonGrid};
 use trajecta_met::performance::{
     PerformanceDistribution, PerformanceScope, PerformanceStage, record_performance_distribution,
+    record_performance_distribution_repeated,
 };
 use trajecta_met::profile::graph::ExecutionPlan;
 use trajecta_met::query::engine::{BatchWorkspace, ExecutionContext, MetEngine};
@@ -26,26 +27,184 @@ use trajecta_met::query::metrics::{QueryOrigin, QueryOriginScope};
 use trajecta_met::query::request::{QueryBatch, QueryPointArrays, TransportPlan, VerticalQuery};
 
 use crate::boundary::{
-    BoundaryError, BoundaryPathSampler, BoundaryPathSegment, BoundarySample,
+    BoundaryError, BoundaryPathSampler, BoundaryPathSegment, BoundarySample, surface_clearance,
     validate_ordered_path_segments,
 };
 use crate::particle::ParticleState;
-use crate::runner::{BoundaryPathSamplerFactory, BoundarySamplerRequest};
+use crate::runner::{
+    BoundaryCertificateRequest, BoundaryPathSamplerFactory, BoundarySamplerRequest,
+};
 use crate::science::M4_CONSTANTS;
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct CornerFieldCacheKey {
+    i: i64,
+    j: i64,
+    time: Timestamp,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+enum CellEnvelopeCacheEntry {
+    #[default]
+    Vacant,
+    Sampled {
+        start_time: Timestamp,
+        end_time: Timestamp,
+        value: Option<(f64, f64)>,
+    },
+}
+
+#[derive(Debug)]
+struct CornerFieldSession<'a> {
+    shared: &'a mut BTreeMap<CornerFieldCacheKey, Option<CellCornerFields>>,
+    used: &'a mut Vec<CornerFieldCacheKey>,
+}
+
+impl<'a> CornerFieldSession<'a> {
+    fn new(
+        shared: &'a mut BTreeMap<CornerFieldCacheKey, Option<CellCornerFields>>,
+        used: &'a mut Vec<CornerFieldCacheKey>,
+    ) -> Self {
+        used.clear();
+        Self { shared, used }
+    }
+}
 
 /// Production factory constructing MetEngine-backed path samplers.
 #[derive(Debug, Default)]
-pub struct MetBoundaryPathSamplerFactory;
+pub struct MetBoundaryPathSamplerFactory {
+    grid: Option<(DomainId, RegularLatLonGrid)>,
+    cell_envelopes: Vec<CellEnvelopeCacheEntry>,
+    corner_fields: BTreeMap<CornerFieldCacheKey, Option<CellCornerFields>>,
+    used_corner_fields: Vec<CornerFieldCacheKey>,
+    workspace: BatchWorkspace,
+    certified_paths: u64,
+    certified_corner_counts: Vec<u64>,
+    build_scope: Option<PerformanceScope>,
+    certification_scope: Option<PerformanceScope>,
+}
 
 impl BoundaryPathSamplerFactory for MetBoundaryPathSamplerFactory {
-    fn build<'a>(
+    fn begin_batch(&mut self) {
+        self.corner_fields.clear();
+        self.used_corner_fields.clear();
+        self.workspace = BatchWorkspace::default();
+        self.certified_paths = 0;
+        self.certified_corner_counts.clear();
+        self.build_scope = Some(PerformanceScope::enter(PerformanceStage::BoundaryPathBuild));
+        self.certification_scope = Some(PerformanceScope::enter(
+            PerformanceStage::BoundaryPathCertification,
+        ));
+    }
+
+    fn end_batch(&mut self) {
+        record_performance_distribution_repeated(
+            PerformanceDistribution::BoundarySamplesPerPath,
+            0,
+            self.certified_paths,
+        );
+        record_performance_distribution_repeated(
+            PerformanceDistribution::BoundarySegmentsPerPath,
+            1,
+            self.certified_paths,
+        );
+        record_performance_distribution_repeated(
+            PerformanceDistribution::BoundaryCertificationPassesPerPath,
+            0,
+            self.certified_paths,
+        );
+        for (value, count) in self.certified_corner_counts.iter().copied().enumerate() {
+            record_performance_distribution_repeated(
+                PerformanceDistribution::BoundaryCornerSamplesPerPath,
+                u64::try_from(value).unwrap_or(u64::MAX),
+                count,
+            );
+        }
+        self.certification_scope.take();
+        self.build_scope.take();
+        self.corner_fields.clear();
+        self.used_corner_fields.clear();
+        self.workspace = BatchWorkspace::default();
+    }
+
+    fn certify_clear(
+        &mut self,
+        request: BoundaryCertificateRequest<'_>,
+        meteorology: &mut MetEngine,
+        query_plan: &TransportPlan,
+        execution: &dyn ExecutionContext,
+    ) -> Result<bool, BoundaryError> {
+        let domain = request.domain.ok_or(BoundaryError::MissingContext)?;
+        let Self {
+            grid,
+            cell_envelopes,
+            corner_fields,
+            used_corner_fields,
+            workspace,
+            certified_paths,
+            certified_corner_counts,
+            ..
+        } = self;
+        let grid = cached_grid(
+            grid,
+            cell_envelopes,
+            meteorology,
+            request.start_time,
+            domain,
+        )?;
+        let mut corner_fields = CornerFieldSession::new(corner_fields, used_corner_fields);
+        let start = BoundaryPosition {
+            longitude_degrees: request.start_longitude_degrees,
+            latitude_degrees: request.start_latitude_degrees,
+            height_asl_m: request.start_height_asl_m,
+        };
+        let proposed = BoundaryPosition {
+            longitude_degrees: request.proposed_longitude_degrees,
+            latitude_degrees: request.proposed_latitude_degrees,
+            height_asl_m: request.proposed_height_asl_m,
+        };
+        let certified = certify_clear_path(
+            start,
+            proposed,
+            grid,
+            request.start_time,
+            request.end_time,
+            domain,
+            meteorology,
+            query_plan,
+            execution,
+            workspace,
+            cell_envelopes,
+            &mut corner_fields,
+        )?;
+        if certified {
+            *certified_paths = certified_paths.saturating_add(1);
+            let corner_count = corner_fields.used.len();
+            if certified_corner_counts.len() <= corner_count {
+                certified_corner_counts.resize(corner_count + 1, 0);
+            }
+            certified_corner_counts[corner_count] =
+                certified_corner_counts[corner_count].saturating_add(1);
+        }
+        Ok(certified)
+    }
+
+    fn build_residual<'a>(
         &'a mut self,
         request: BoundarySamplerRequest<'_>,
         meteorology: &'a mut MetEngine,
         query_plan: &'a TransportPlan,
         execution: &'a dyn ExecutionContext,
     ) -> Result<Box<dyn BoundaryPathSampler + 'a>, BoundaryError> {
-        let sampler = MetBoundaryPathSampler::new(request, meteorology, query_plan, execution);
+        let sampler = MetBoundaryPathSampler::new(
+            request,
+            meteorology,
+            query_plan,
+            execution,
+            &mut self.corner_fields,
+            &mut self.used_corner_fields,
+            &mut self.workspace,
+        );
         Ok(Box::new(sampler?))
     }
 }
@@ -63,11 +222,30 @@ struct MetBoundaryPathSampler<'a> {
     meteorology: &'a mut MetEngine,
     query_plan: &'a TransportPlan,
     execution: &'a dyn ExecutionContext,
-    workspace: BatchWorkspace,
+    workspace: &'a mut BatchWorkspace,
     samples: BTreeMap<u64, BoundarySample>,
-    corner_fields: BTreeMap<(i64, i64, u64), Option<CellCornerFields>>,
+    corner_fields: CornerFieldSession<'a>,
     certification_passes: u64,
     observation_ready: bool,
+}
+
+const SAFE_BOUNDARY_ENVELOPE_MARGIN_M: f64 = 50.0;
+
+#[derive(Clone, Copy, Debug)]
+struct BoundaryPosition {
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    height_asl_m: f64,
+}
+
+impl From<&ParticleState> for BoundaryPosition {
+    fn from(state: &ParticleState) -> Self {
+        Self {
+            longitude_degrees: state.longitude_degrees,
+            latitude_degrees: state.latitude_degrees,
+            height_asl_m: state.height_asl_m,
+        }
+    }
 }
 
 impl<'a> MetBoundaryPathSampler<'a> {
@@ -76,8 +254,10 @@ impl<'a> MetBoundaryPathSampler<'a> {
         meteorology: &'a mut MetEngine,
         query_plan: &'a TransportPlan,
         execution: &'a dyn ExecutionContext,
+        corner_fields: &'a mut BTreeMap<CornerFieldCacheKey, Option<CellCornerFields>>,
+        used_corner_fields: &'a mut Vec<CornerFieldCacheKey>,
+        workspace: &'a mut BatchWorkspace,
     ) -> Result<Self, BoundaryError> {
-        let _performance = PerformanceScope::enter(PerformanceStage::BoundaryPathBuild);
         let domain = request
             .domain
             .cloned()
@@ -95,9 +275,9 @@ impl<'a> MetBoundaryPathSampler<'a> {
             meteorology,
             query_plan,
             execution,
-            workspace: BatchWorkspace::default(),
+            workspace,
             samples: BTreeMap::new(),
-            corner_fields: BTreeMap::new(),
+            corner_fields: CornerFieldSession::new(corner_fields, used_corner_fields),
             certification_passes: 0,
             observation_ready: false,
         };
@@ -106,7 +286,6 @@ impl<'a> MetBoundaryPathSampler<'a> {
     }
 
     fn rebuild_segments(&mut self) -> Result<(), BoundaryError> {
-        let _performance = PerformanceScope::enter(PerformanceStage::BoundaryPathCertification);
         let (cuts, certification_passes) = certify_path_cuts(
             &self.start,
             &self.proposed,
@@ -118,7 +297,7 @@ impl<'a> MetBoundaryPathSampler<'a> {
             self.meteorology,
             self.query_plan,
             self.execution,
-            &mut self.workspace,
+            self.workspace,
             &mut self.corner_fields,
         )?;
         let mut segments = Vec::with_capacity(cuts.len().saturating_sub(1));
@@ -148,7 +327,7 @@ impl<'a> MetBoundaryPathSampler<'a> {
         );
         record_performance_distribution(
             PerformanceDistribution::BoundaryCornerSamplesPerPath,
-            u64::try_from(self.corner_fields.len()).unwrap_or(u64::MAX),
+            u64::try_from(self.corner_fields.used.len()).unwrap_or(u64::MAX),
         );
         record_performance_distribution(
             PerformanceDistribution::BoundarySegmentsPerPath,
@@ -232,7 +411,7 @@ impl<'a> MetBoundaryPathSampler<'a> {
                     },
                 },
                 self.execution,
-                &mut self.workspace,
+                self.workspace,
             )
             .map_err(|_| BoundaryError::MissingContext)?;
         let row = output.row(0).ok_or(BoundaryError::MissingContext)?;
@@ -298,7 +477,7 @@ impl BoundaryPathSampler for MetBoundaryPathSampler<'_> {
         self.proposed = proposed.clone();
         self.local_zero_global_fraction = start_fraction;
         self.samples.clear();
-        self.corner_fields.clear();
+        self.corner_fields.used.clear();
         self.rebuild_segments()?;
         // Contract check: residual sample(0) must equal the collision position.
         let zero = self.sample_cached(0.0)?;
@@ -318,6 +497,33 @@ impl Drop for MetBoundaryPathSampler<'_> {
     }
 }
 
+fn cached_grid<'a>(
+    cached: &'a mut Option<(DomainId, RegularLatLonGrid)>,
+    cell_envelopes: &mut Vec<CellEnvelopeCacheEntry>,
+    meteorology: &mut MetEngine,
+    time: Timestamp,
+    domain: &DomainId,
+) -> Result<&'a RegularLatLonGrid, BoundaryError> {
+    if cached
+        .as_ref()
+        .is_none_or(|(cached_domain, _)| cached_domain != domain)
+    {
+        let geometry = domain_geometry(meteorology, time, domain)?;
+        let cell_count = geometry
+            .nx
+            .checked_mul(geometry.ny)
+            .ok_or(BoundaryError::MissingContext)?;
+        let grid = RegularLatLonGrid::new(geometry).map_err(|_| BoundaryError::MissingContext)?;
+        *cached = Some((domain.clone(), grid));
+        cell_envelopes.clear();
+        cell_envelopes.resize(cell_count, CellEnvelopeCacheEntry::Vacant);
+    }
+    cached
+        .as_ref()
+        .map(|(_, grid)| grid)
+        .ok_or(BoundaryError::MissingContext)
+}
+
 fn domain_geometry(
     meteorology: &mut MetEngine,
     time: Timestamp,
@@ -327,6 +533,273 @@ fn domain_geometry(
         .prepare_for_domain(time, domain)
         .map_err(|_| BoundaryError::MissingContext)?;
     Ok(window.frames.before.metadata().grid.clone())
+}
+
+fn certify_clear_path(
+    start: BoundaryPosition,
+    proposed: BoundaryPosition,
+    backend: &RegularLatLonGrid,
+    step_start_time: Timestamp,
+    step_end_time: Timestamp,
+    domain: &DomainId,
+    meteorology: &mut MetEngine,
+    query_plan: &TransportPlan,
+    execution: &dyn ExecutionContext,
+    workspace: &mut BatchWorkspace,
+    cell_envelopes: &mut [CellEnvelopeCacheEntry],
+    corner_fields: &mut CornerFieldSession<'_>,
+) -> Result<bool, BoundaryError> {
+    let grid = backend.geometry();
+    let start_cell = match backend.locate_cell(start.longitude_degrees, start.latitude_degrees) {
+        Ok(cell) => cell,
+        Err(GridError::OutOfDomain | GridError::PolarSingularity) => return Ok(false),
+        Err(_) => return Err(BoundaryError::MissingContext),
+    };
+    let proposed_cell =
+        match backend.locate_cell(proposed.longitude_degrees, proposed.latitude_degrees) {
+            Ok(cell) => cell,
+            Err(GridError::OutOfDomain | GridError::PolarSingularity) => return Ok(false),
+            Err(_) => return Err(BoundaryError::MissingContext),
+        };
+
+    if start_cell == proposed_cell && arc_stays_in_cell(start, proposed, start_cell, grid)? {
+        let Some((surface_upper_asl_m, model_top_lower_asl_m)) = sample_cell_envelope_cached(
+            start_cell,
+            step_start_time,
+            step_end_time,
+            domain,
+            meteorology,
+            query_plan,
+            execution,
+            workspace,
+            grid,
+            cell_envelopes,
+            corner_fields,
+        )?
+        else {
+            return Ok(false);
+        };
+        return Ok(envelope_clears_path(
+            start,
+            proposed,
+            surface_upper_asl_m,
+            model_top_lower_asl_m,
+        ));
+    }
+
+    if !domain_boundary_crossings(start, proposed, grid)?.is_empty() {
+        return Ok(false);
+    }
+
+    let mut cuts = vec![0.0, 1.0];
+    for fraction in grid_line_crossings(start, proposed, grid)? {
+        insert_cut(&mut cuts, fraction);
+    }
+    finalize_cuts(&mut cuts);
+
+    let mut surface_upper_asl_m = f64::NEG_INFINITY;
+    let mut model_top_lower_asl_m = f64::INFINITY;
+    for leaf in cuts.windows(2) {
+        let midpoint = 0.5 * (leaf[0] + leaf[1]);
+        let (longitude, latitude) = path_lonlat(start, proposed, midpoint)?;
+        let cell = match backend.locate_cell(longitude, latitude) {
+            Ok(cell) => cell,
+            Err(GridError::OutOfDomain | GridError::PolarSingularity) => return Ok(false),
+            Err(_) => return Err(BoundaryError::MissingContext),
+        };
+        let Some((cell_surface_upper_asl_m, cell_model_top_lower_asl_m)) =
+            sample_cell_envelope_cached(
+                cell,
+                step_start_time,
+                step_end_time,
+                domain,
+                meteorology,
+                query_plan,
+                execution,
+                workspace,
+                grid,
+                cell_envelopes,
+                corner_fields,
+            )?
+        else {
+            return Ok(false);
+        };
+        surface_upper_asl_m = surface_upper_asl_m.max(cell_surface_upper_asl_m);
+        model_top_lower_asl_m = model_top_lower_asl_m.min(cell_model_top_lower_asl_m);
+    }
+
+    if !surface_upper_asl_m.is_finite() || !model_top_lower_asl_m.is_finite() {
+        return Ok(false);
+    }
+    Ok(envelope_clears_path(
+        start,
+        proposed,
+        surface_upper_asl_m,
+        model_top_lower_asl_m,
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_cell_envelope_cached(
+    cell: CellId,
+    step_start_time: Timestamp,
+    step_end_time: Timestamp,
+    domain: &DomainId,
+    meteorology: &mut MetEngine,
+    query_plan: &TransportPlan,
+    execution: &dyn ExecutionContext,
+    workspace: &mut BatchWorkspace,
+    grid: &DomainGeometry,
+    cache: &mut [CellEnvelopeCacheEntry],
+    corner_fields: &mut CornerFieldSession<'_>,
+) -> Result<Option<(f64, f64)>, BoundaryError> {
+    let index = usize::try_from(cell.0).map_err(|_| BoundaryError::MissingContext)?;
+    let entry = cache.get(index).ok_or(BoundaryError::MissingContext)?;
+    if let CellEnvelopeCacheEntry::Sampled {
+        start_time,
+        end_time,
+        value,
+    } = entry
+        && *start_time == step_start_time
+        && *end_time == step_end_time
+    {
+        return Ok(*value);
+    }
+    let value = sample_cell_envelope(
+        cell,
+        step_start_time,
+        step_end_time,
+        0.0,
+        domain,
+        meteorology,
+        query_plan,
+        execution,
+        workspace,
+        grid,
+        corner_fields,
+    )?;
+    cache[index] = CellEnvelopeCacheEntry::Sampled {
+        start_time: step_start_time,
+        end_time: step_end_time,
+        value,
+    };
+    Ok(value)
+}
+
+fn arc_stays_in_cell(
+    start: BoundaryPosition,
+    proposed: BoundaryPosition,
+    cell: CellId,
+    grid: &DomainGeometry,
+) -> Result<bool, BoundaryError> {
+    let nx = u64::try_from(grid.nx).map_err(|_| BoundaryError::MissingContext)?;
+    if nx == 0 {
+        return Err(BoundaryError::MissingContext);
+    }
+    let j = cell.0 / nx;
+    let latitude0 = grid.latitude_origin_degrees + grid.latitude_spacing_degrees * j as f64;
+    let latitude1 = latitude0 + grid.latitude_spacing_degrees;
+    let cell_minimum = latitude0.min(latitude1);
+    let cell_maximum = latitude0.max(latitude1);
+    let tolerance = 1.0e-12 * cell_minimum.abs().max(cell_maximum.abs()).max(1.0);
+
+    // Latitude is 1-Lipschitz in spherical distance. At each arc fraction the
+    // tighter of the bounds from the two endpoints applies. Their intersection
+    // gives the whole-arc envelope below, with |dlat| + |dlon| as a conservative
+    // upper bound on the short-arc length.
+    let arc_length_upper_degrees = (proposed.latitude_degrees - start.latitude_degrees).abs()
+        + shortest_delta_lon(start.longitude_degrees, proposed.longitude_degrees).abs();
+    let path_minimum_bound =
+        0.5 * (start.latitude_degrees + proposed.latitude_degrees - arc_length_upper_degrees);
+    let path_maximum_bound =
+        0.5 * (start.latitude_degrees + proposed.latitude_degrees + arc_length_upper_degrees);
+    if arc_length_upper_degrees.is_finite()
+        && path_minimum_bound >= cell_minimum - tolerance
+        && path_maximum_bound <= cell_maximum + tolerance
+    {
+        return Ok(true);
+    }
+
+    let a = unit_vector(start.longitude_degrees, start.latitude_degrees)?;
+    let b = unit_vector(proposed.longitude_degrees, proposed.latitude_degrees)?;
+    let omega = great_circle_angle(a, b)?;
+    if omega <= 1.0e-15 {
+        return Ok(true);
+    }
+    if omega >= std::f64::consts::PI - 1.0e-12 {
+        return Err(BoundaryError::InvalidParticleState);
+    }
+    let (path_minimum, path_maximum) = gc_latitude_envelope(a, b, omega)?;
+    Ok(path_minimum >= cell_minimum - tolerance && path_maximum <= cell_maximum + tolerance)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_cell_envelope(
+    cell: CellId,
+    step_start_time: Timestamp,
+    step_end_time: Timestamp,
+    local_zero_global: f64,
+    domain: &DomainId,
+    meteorology: &mut MetEngine,
+    query_plan: &TransportPlan,
+    execution: &dyn ExecutionContext,
+    workspace: &mut BatchWorkspace,
+    grid: &DomainGeometry,
+    corner_fields: &mut CornerFieldSession<'_>,
+) -> Result<Option<(f64, f64)>, BoundaryError> {
+    let nx = u64::try_from(grid.nx).map_err(|_| BoundaryError::MissingContext)?;
+    if nx == 0 {
+        return Err(BoundaryError::MissingContext);
+    }
+    let i = i64::try_from(cell.0 % nx).map_err(|_| BoundaryError::MissingContext)?;
+    let j = i64::try_from(cell.0 / nx).map_err(|_| BoundaryError::MissingContext)?;
+    let mut surface_upper_asl_m = f64::NEG_INFINITY;
+    let mut model_top_lower_asl_m = f64::INFINITY;
+    for fraction in [0.0, 1.0] {
+        let Some(fields) = sample_cell_corner_fields_cached(
+            i,
+            j,
+            fraction,
+            step_start_time,
+            step_end_time,
+            local_zero_global,
+            domain,
+            meteorology,
+            query_plan,
+            execution,
+            workspace,
+            grid,
+            corner_fields,
+        )?
+        else {
+            return Ok(None);
+        };
+        surface_upper_asl_m = fields
+            .terrain
+            .into_iter()
+            .fold(surface_upper_asl_m, f64::max);
+        let Some(model_top) = fields.model_top else {
+            return Ok(None);
+        };
+        model_top_lower_asl_m = model_top.into_iter().fold(model_top_lower_asl_m, f64::min);
+    }
+    if !surface_upper_asl_m.is_finite() || !model_top_lower_asl_m.is_finite() {
+        return Ok(None);
+    }
+    Ok(Some((surface_upper_asl_m, model_top_lower_asl_m)))
+}
+
+fn envelope_clears_path(
+    start: BoundaryPosition,
+    proposed: BoundaryPosition,
+    surface_upper_asl_m: f64,
+    model_top_lower_asl_m: f64,
+) -> bool {
+    let minimum_height = start.height_asl_m.min(proposed.height_asl_m);
+    let maximum_height = start.height_asl_m.max(proposed.height_asl_m);
+    let surface_margin = surface_clearance(surface_upper_asl_m) + SAFE_BOUNDARY_ENVELOPE_MARGIN_M;
+    minimum_height > surface_upper_asl_m + surface_margin
+        && maximum_height + SAFE_BOUNDARY_ENVELOPE_MARGIN_M < model_top_lower_asl_m
 }
 
 /// Build ordered cut fractions in local [0,1] for path segmentation.
@@ -358,14 +831,16 @@ fn certify_path_cuts(
     query_plan: &TransportPlan,
     execution: &dyn ExecutionContext,
     workspace: &mut BatchWorkspace,
-    corner_fields: &mut BTreeMap<(i64, i64, u64), Option<CellCornerFields>>,
+    corner_fields: &mut CornerFieldSession<'_>,
 ) -> Result<(Vec<f64>, u32), BoundaryError> {
+    let start_position = BoundaryPosition::from(start);
+    let proposed_position = BoundaryPosition::from(proposed);
     let mut cuts = vec![0.0, 1.0];
-    let grid_crossings = grid_line_crossings(start, proposed, grid);
+    let grid_crossings = grid_line_crossings(start_position, proposed_position, grid);
     for fraction in grid_crossings? {
         insert_cut(&mut cuts, fraction);
     }
-    let turning_points = gc_turning_point_fractions(start, proposed);
+    let turning_points = gc_turning_point_fractions(start_position, proposed_position);
     for fraction in turning_points? {
         insert_cut(&mut cuts, fraction);
     }
@@ -373,7 +848,7 @@ fn certify_path_cuts(
 
     // Domain inside/outside: cut at exact safe-domain boundary meridians/parallels
     // (halo-aware). No midpoint heuristic on SampleStatus.
-    let domain_crossings = domain_boundary_crossings(start, proposed, grid);
+    let domain_crossings = domain_boundary_crossings(start_position, proposed_position, grid);
     for fraction in domain_crossings? {
         insert_cut(&mut cuts, fraction);
     }
@@ -439,8 +914,8 @@ fn finalize_cuts(cuts: &mut Vec<f64>) {
 
 /// All grid-line crossings of the short great-circle arc in open fraction `(0,1)`.
 fn grid_line_crossings(
-    start: &ParticleState,
-    proposed: &ParticleState,
+    start: BoundaryPosition,
+    proposed: BoundaryPosition,
     grid: &DomainGeometry,
 ) -> Result<Vec<f64>, BoundaryError> {
     let a = unit_vector(start.longitude_degrees, start.latitude_degrees)?;
@@ -526,8 +1001,8 @@ fn grid_line_crossings(
 
 /// GC latitude / longitude turning points on the open short arc (for monotonic leaves).
 fn gc_turning_point_fractions(
-    start: &ParticleState,
-    proposed: &ParticleState,
+    start: BoundaryPosition,
+    proposed: BoundaryPosition,
 ) -> Result<Vec<f64>, BoundaryError> {
     let a = unit_vector(start.longitude_degrees, start.latitude_degrees)?;
     let b = unit_vector(proposed.longitude_degrees, proposed.latitude_degrees)?;
@@ -851,7 +1326,7 @@ fn scalar_field_extremum_cuts(
     execution: &dyn ExecutionContext,
     workspace: &mut BatchWorkspace,
     grid: &DomainGeometry,
-    corner_fields: &mut BTreeMap<(i64, i64, u64), Option<CellCornerFields>>,
+    corner_fields: &mut CornerFieldSession<'_>,
 ) -> Result<Vec<f64>, BoundaryError> {
     if f1 - f0 <= 1.0e-15 {
         return Ok(Vec::new());
@@ -865,13 +1340,16 @@ fn scalar_field_extremum_cuts(
     // so bind the leaf to its interior midpoint cell and validate both endpoints
     // against that same cell instead of recursively bisecting the endpoint forever.
     let midpoint = 0.5 * (f0 + f1);
-    let (mid_lon, mid_lat) = path_lonlat(start, proposed, midpoint)?;
+    let start_position = BoundaryPosition::from(start);
+    let proposed_position = BoundaryPosition::from(proposed);
+    let (mid_lon, mid_lat) = path_lonlat(start_position, proposed_position, midpoint)?;
     let (i0, _, j0, _) = cell_fraction(mid_lon, mid_lat, grid)?;
     let periodic_span = grid
         .periodic_longitude
         .then_some(grid.longitude_spacing_degrees * grid.nx as f64);
     for fraction in [f0, f1] {
-        let (longitude_degrees, latitude_degrees) = path_lonlat(start, proposed, fraction)?;
+        let (longitude_degrees, latitude_degrees) =
+            path_lonlat(start_position, proposed_position, fraction)?;
         local_cell_fraction(
             longitude_degrees,
             grid.longitude_origin_degrees,
@@ -929,8 +1407,6 @@ fn scalar_field_extremum_cuts(
         i0,
         j0,
         f0,
-        start,
-        proposed,
         step_start_time,
         step_end_time,
         local_zero_global,
@@ -949,8 +1425,6 @@ fn scalar_field_extremum_cuts(
         i0,
         j0,
         f1,
-        start,
-        proposed,
         step_start_time,
         step_end_time,
         local_zero_global,
@@ -1828,8 +2302,8 @@ fn bilinear_field_path_deriv_timed(
 }
 
 fn path_lonlat(
-    start: &ParticleState,
-    proposed: &ParticleState,
+    start: BoundaryPosition,
+    proposed: BoundaryPosition,
     f: f64,
 ) -> Result<(f64, f64), BoundaryError> {
     interpolate_great_circle(
@@ -1843,8 +2317,8 @@ fn path_lonlat(
 
 /// Exact domain-boundary meridians/parallels (halo-shrunk outer edges).
 fn domain_boundary_crossings(
-    start: &ParticleState,
-    proposed: &ParticleState,
+    start: BoundaryPosition,
+    proposed: BoundaryPosition,
     grid: &DomainGeometry,
 ) -> Result<Vec<f64>, BoundaryError> {
     let a = unit_vector(start.longitude_degrees, start.latitude_degrees)?;
@@ -1981,7 +2455,7 @@ fn cell_fraction(
     Ok((i, fx_all - i as f64, j, fy_all - j as f64))
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct CellCornerFields {
     terrain: [f64; 4],
     model_top: Option<[f64; 4]>,
@@ -1991,8 +2465,6 @@ fn sample_cell_corner_fields_cached(
     i: i64,
     j: i64,
     local_fraction: f64,
-    start: &ParticleState,
-    proposed: &ParticleState,
     step_start_time: Timestamp,
     step_end_time: Timestamp,
     local_zero_global: f64,
@@ -2002,21 +2474,21 @@ fn sample_cell_corner_fields_cached(
     execution: &dyn ExecutionContext,
     workspace: &mut BatchWorkspace,
     grid: &DomainGeometry,
-    cache: &mut BTreeMap<(i64, i64, u64), Option<CellCornerFields>>,
+    cache: &mut CornerFieldSession<'_>,
 ) -> Result<Option<CellCornerFields>, BoundaryError> {
-    let key = (i, j, local_fraction.to_bits());
-    if let Some(fields) = cache.get(&key) {
+    let global = local_zero_global + (1.0 - local_zero_global) * local_fraction;
+    let time = lerp_timestamp(step_start_time, step_end_time, global)?;
+    let key = CornerFieldCacheKey { i, j, time };
+    if !cache.used.contains(&key) {
+        cache.used.push(key);
+    }
+    if let Some(fields) = cache.shared.get(&key) {
         return Ok(*fields);
     }
     let fields = sample_cell_corner_fields(
         i,
         j,
-        local_fraction,
-        start,
-        proposed,
-        step_start_time,
-        step_end_time,
-        local_zero_global,
+        time,
         domain,
         meteorology,
         query_plan,
@@ -2024,19 +2496,14 @@ fn sample_cell_corner_fields_cached(
         workspace,
         grid,
     )?;
-    cache.insert(key, fields);
+    cache.shared.insert(key, fields);
     Ok(fields)
 }
 
 fn sample_cell_corner_fields(
     i: i64,
     j: i64,
-    local_fraction: f64,
-    start: &ParticleState,
-    proposed: &ParticleState,
-    step_start_time: Timestamp,
-    step_end_time: Timestamp,
-    local_zero_global: f64,
+    time: Timestamp,
     domain: &DomainId,
     meteorology: &mut MetEngine,
     query_plan: &TransportPlan,
@@ -2046,7 +2513,6 @@ fn sample_cell_corner_fields(
 ) -> Result<Option<CellCornerFields>, BoundaryError> {
     let _performance = PerformanceScope::enter(PerformanceStage::BoundaryCornerSample);
     let _query_origin = QueryOriginScope::enter(QueryOrigin::BoundaryCorners);
-    let height_asl_m = lerp(start.height_asl_m, proposed.height_asl_m, local_fraction);
     let mut longitude_degrees = Vec::with_capacity(4);
     let mut latitude_degrees = Vec::with_capacity(4);
     for (di, dj) in [(0_i64, 0_i64), (1, 0), (0, 1), (1, 1)] {
@@ -2058,8 +2524,6 @@ fn sample_cell_corner_fields(
         longitude_degrees.push(lon);
         latitude_degrees.push(lat);
     }
-    let global = local_zero_global + (1.0 - local_zero_global) * local_fraction;
-    let time = lerp_timestamp(step_start_time, step_end_time, global)?;
     let window = meteorology
         .prepare_for_domain(time, domain)
         .map_err(|_| BoundaryError::MissingContext)?;
@@ -2071,7 +2535,7 @@ fn sample_cell_corner_fields(
                 points: QueryPointArrays {
                     longitude_degrees,
                     latitude_degrees,
-                    vertical: vec![height_asl_m; 4],
+                    vertical: vec![0.0; 4],
                 },
             },
             execution,
@@ -2390,6 +2854,70 @@ mod tests {
     }
 
     #[test]
+    fn same_cell_arc_certificate_accepts_contained_short_arc() {
+        let grid = DomainGeometry {
+            domain: DomainId("d".into()),
+            longitude_origin_degrees: -2.0,
+            latitude_origin_degrees: -2.0,
+            longitude_spacing_degrees: 1.0,
+            latitude_spacing_degrees: 1.0,
+            nx: 5,
+            ny: 5,
+            periodic_longitude: false,
+            halo_cells: 0,
+        };
+        assert!(
+            arc_stays_in_cell(
+                BoundaryPosition {
+                    longitude_degrees: 0.2,
+                    latitude_degrees: 0.2,
+                    height_asl_m: 1_000.0,
+                },
+                BoundaryPosition {
+                    longitude_degrees: 0.3,
+                    latitude_degrees: 0.3,
+                    height_asl_m: 1_000.0,
+                },
+                CellId(2 * 5 + 2),
+                &grid,
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn same_cell_arc_certificate_rejects_interior_latitude_exit() {
+        let grid = DomainGeometry {
+            domain: DomainId("d".into()),
+            longitude_origin_degrees: -60.0,
+            latitude_origin_degrees: 0.0,
+            longitude_spacing_degrees: 120.0,
+            latitude_spacing_degrees: 10.0,
+            nx: 3,
+            ny: 4,
+            periodic_longitude: true,
+            halo_cells: 0,
+        };
+        assert!(
+            !arc_stays_in_cell(
+                BoundaryPosition {
+                    longitude_degrees: -50.0,
+                    latitude_degrees: 9.0,
+                    height_asl_m: 1_000.0,
+                },
+                BoundaryPosition {
+                    longitude_degrees: 50.0,
+                    latitude_degrees: 9.0,
+                    height_asl_m: 1_000.0,
+                },
+                CellId(0),
+                &grid,
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
     fn retarget_maps_local_zero_to_collision_without_stacking_fractions() {
         // Pure kinematic check of residual path binding (no MetEngine).
         let start = particle(0.0, 0.0, 10.0);
@@ -2466,7 +2994,7 @@ mod tests {
             periodic_longitude: false,
             halo_cells: 0,
         };
-        let cuts = grid_line_crossings(&start, &proposed, &grid).unwrap();
+        let cuts = grid_line_crossings((&start).into(), (&proposed).into(), &grid).unwrap();
         assert!(cuts.iter().any(|f| *f > 0.0 && *f < 1.0));
     }
 
@@ -2510,7 +3038,7 @@ mod tests {
         // Above the peak: no roots.
         assert!(gc_parallel_fractions(a, b, omega, 85.0).unwrap().is_empty());
 
-        let cuts = grid_line_crossings(&start, &proposed, &grid).unwrap();
+        let cuts = grid_line_crossings((&start).into(), (&proposed).into(), &grid).unwrap();
         // 4 parallels × 2 roots = 8 parallel cuts, plus many meridians.
         let mut parallel_hits = 0_u32;
         for parallel in [65.0, 70.0, 75.0, 80.0] {
@@ -2578,8 +3106,8 @@ mod tests {
             );
         }
         assert!(gc_parallel_fractions(a, b, omega, 85.0).unwrap().is_empty());
-        let cuts_pos = grid_line_crossings(&start, &proposed, &grid_pos).unwrap();
-        let cuts_neg = grid_line_crossings(&start, &proposed, &grid_neg).unwrap();
+        let cuts_pos = grid_line_crossings((&start).into(), (&proposed).into(), &grid_pos).unwrap();
+        let cuts_neg = grid_line_crossings((&start).into(), (&proposed).into(), &grid_neg).unwrap();
         for parallel in [65.0_f64, 70.0, 75.0, 80.0] {
             for f in gc_parallel_fractions(a, b, omega, parallel).unwrap() {
                 assert!(
@@ -2790,7 +3318,7 @@ mod tests {
             periodic_longitude: true,
             halo_cells: 0,
         };
-        let cuts = grid_line_crossings(&start, &proposed, &grid).unwrap();
+        let cuts = grid_line_crossings((&start).into(), (&proposed).into(), &grid).unwrap();
         assert!(cuts.iter().any(|f| *f > 0.0 && *f < 1.0), "{cuts:?}");
     }
 }

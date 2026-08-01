@@ -3,3 +3,4 @@
 *.toml text eol=lf
 *.md text eol=lf
 Cargo.lock text eol=lf
+trajecta/tools/flexpart_11_1_native_omega.patch -whitespace

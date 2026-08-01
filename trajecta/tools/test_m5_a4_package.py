@@ -41,7 +41,7 @@ def write(path: Path, value: bytes) -> None:
 
 
 def fake_stage(root: Path) -> tuple[Path, dict[str, object]]:
-    stage = root / "trajecta-0.0.0-linux-x86_64"
+    stage = root / "trajecta-0.1.0-alpha.1-linux-x86_64"
     stage.mkdir()
     write(stage / "trajecta", b"#!/bin/sh\nexit 0\n")
     (stage / "trajecta").chmod(0o755)
@@ -68,7 +68,7 @@ def fake_stage(root: Path) -> tuple[Path, dict[str, object]]:
     manifest: dict[str, object] = {
         "schema_version": "trajecta.build-manifest/v1",
         "product": "trajecta",
-        "version": "0.0.0",
+        "version": "0.1.0-alpha.1",
         "platform": {
             "label": "linux-x86_64",
             "target_triple": "x86_64-unknown-linux-gnu",

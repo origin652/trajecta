@@ -107,6 +107,7 @@ def validate_schema_examples() -> None:
         ("M5_TRAJECTORY_STREAM.schema.json", "M5_TRAJECTORY_STREAM.example.json"),
         ("M5_BUILD_MANIFEST.schema.json", "M5_BUILD_MANIFEST.example.json"),
         ("M5_PRODUCT_CELL.schema.json", "M5_PRODUCT_CELL.example.json"),
+        ("M5_FLEXPART_COMPARISON.schema.json", "M5_FLEXPART_COMPARISON.example.json"),
     ]
     for schema_name, example_name in pairs:
         validator(schema_name).validate(load_json(example_name))
@@ -142,7 +143,11 @@ def validate_schema_examples() -> None:
 
 
 def validate_build_manifest(manifest: dict[str, object]) -> None:
-    require(manifest["version"] == "0.0.0", "A4 must not bump the development version")
+    workspace = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))
+    require(
+        manifest["version"] == workspace["workspace"]["package"]["version"],
+        "build-manifest example version must match the workspace",
+    )
     build = manifest["build"]
     require(
         build["features"] == ["native-eccodes", "native-netcdf"],

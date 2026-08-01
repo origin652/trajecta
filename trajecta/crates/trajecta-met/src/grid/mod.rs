@@ -364,39 +364,102 @@ pub fn interpolate_spherical_vector(
     query_longitude_degrees: f64,
     query_latitude_degrees: f64,
 ) -> Result<(f64, f64), GridError> {
-    let all_values = source_longitude_degrees
+    if source_longitude_degrees
         .into_iter()
         .chain(source_latitude_degrees)
-        .chain(eastward_m_s)
-        .chain(northward_m_s)
-        .chain(weights);
-    if all_values.into_iter().any(|value| !value.is_finite()) {
+        .any(|value| !value.is_finite())
+    {
         return Err(GridError::InvalidCoordinate);
     }
     if query_latitude_degrees == 90.0 || query_latitude_degrees == -90.0 {
         return Err(GridError::PolarSingularity);
     }
-    let weight_sum = weights.into_iter().sum::<f64>();
-    if (weight_sum - 1.0).abs() > 1.0e-12 || weights.into_iter().any(|weight| weight < 0.0) {
-        return Err(GridError::InvalidWeights);
-    }
-    let mut cartesian = [0.0; 3];
-    for index in 0..4 {
-        let basis = SphericalBasis::at_degrees(
-            source_longitude_degrees[index],
-            source_latitude_degrees[index],
-        )?;
-        let vector = basis.embed(eastward_m_s[index], northward_m_s[index]);
-        for component in 0..3 {
-            cartesian[component] += weights[index] * vector[component];
-        }
-    }
+    validate_spherical_vector_values(eastward_m_s, northward_m_s, weights)?;
+    let source_bases = [
+        SphericalBasis::at_degrees(source_longitude_degrees[0], source_latitude_degrees[0])?,
+        SphericalBasis::at_degrees(source_longitude_degrees[1], source_latitude_degrees[1])?,
+        SphericalBasis::at_degrees(source_longitude_degrees[2], source_latitude_degrees[2])?,
+        SphericalBasis::at_degrees(source_longitude_degrees[3], source_latitude_degrees[3])?,
+    ];
     let query_basis = SphericalBasis::at_degrees(query_longitude_degrees, query_latitude_degrees)?;
-    let result = query_basis.project(cartesian);
+    let result = interpolate_spherical_vector_in_bases(
+        &source_bases,
+        query_basis,
+        eastward_m_s,
+        northward_m_s,
+        weights,
+    );
     if !result.0.is_finite() || !result.1.is_finite() {
         return Err(GridError::NumericalFailure);
     }
     Ok(result)
+}
+
+pub(crate) fn spherical_vector_query_basis(
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+) -> Result<SphericalBasis, GridError> {
+    if latitude_degrees == 90.0 || latitude_degrees == -90.0 {
+        return Err(GridError::PolarSingularity);
+    }
+    SphericalBasis::at_degrees(longitude_degrees, latitude_degrees)
+}
+
+pub(crate) fn interpolate_spherical_vector_with_bases(
+    source_bases: &[SphericalBasis; 4],
+    query_basis: SphericalBasis,
+    eastward_m_s: [f64; 4],
+    northward_m_s: [f64; 4],
+    weights: [f64; 4],
+) -> Result<(f64, f64), GridError> {
+    validate_spherical_vector_values(eastward_m_s, northward_m_s, weights)?;
+    let result = interpolate_spherical_vector_in_bases(
+        source_bases,
+        query_basis,
+        eastward_m_s,
+        northward_m_s,
+        weights,
+    );
+    if !result.0.is_finite() || !result.1.is_finite() {
+        return Err(GridError::NumericalFailure);
+    }
+    Ok(result)
+}
+
+fn validate_spherical_vector_values(
+    eastward_m_s: [f64; 4],
+    northward_m_s: [f64; 4],
+    weights: [f64; 4],
+) -> Result<(), GridError> {
+    if eastward_m_s
+        .into_iter()
+        .chain(northward_m_s)
+        .any(|value| !value.is_finite())
+    {
+        return Err(GridError::InvalidCoordinate);
+    }
+    let weight_sum = weights.into_iter().sum::<f64>();
+    if (weight_sum - 1.0).abs() > 1.0e-12 || weights.into_iter().any(|weight| weight < 0.0) {
+        return Err(GridError::InvalidWeights);
+    }
+    Ok(())
+}
+
+fn interpolate_spherical_vector_in_bases(
+    source_bases: &[SphericalBasis; 4],
+    query_basis: SphericalBasis,
+    eastward_m_s: [f64; 4],
+    northward_m_s: [f64; 4],
+    weights: [f64; 4],
+) -> (f64, f64) {
+    let mut cartesian = [0.0; 3];
+    for index in 0..4 {
+        let vector = source_bases[index].embed(eastward_m_s[index], northward_m_s[index]);
+        for component in 0..3 {
+            cartesian[component] += weights[index] * vector[component];
+        }
+    }
+    query_basis.project(cartesian)
 }
 
 fn dot(left: [f64; 3], right: [f64; 3]) -> f64 {
@@ -571,5 +634,37 @@ mod tests {
         .unwrap();
         assert!((left.0 - right.0).abs() < 1.0e-12);
         assert!((left.1 - right.1).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn precomputed_spherical_bases_preserve_vector_interpolation_exactly() {
+        let source_lon = [179.0, -179.0, 179.0, -179.0];
+        let source_lat = [10.0, 10.0, 11.0, 11.0];
+        let eastward = [10.0, -2.0, 4.0, 8.0];
+        let northward = [2.0, 3.0, -1.0, 5.0];
+        let weights = [0.21, 0.29, 0.24, 0.26];
+        let expected = interpolate_spherical_vector(
+            source_lon, source_lat, eastward, northward, weights, 180.0, 10.5,
+        )
+        .unwrap();
+        let source_bases = [
+            SphericalBasis::at_degrees(source_lon[0], source_lat[0]).unwrap(),
+            SphericalBasis::at_degrees(source_lon[1], source_lat[1]).unwrap(),
+            SphericalBasis::at_degrees(source_lon[2], source_lat[2]).unwrap(),
+            SphericalBasis::at_degrees(source_lon[3], source_lat[3]).unwrap(),
+        ];
+        let query_basis = spherical_vector_query_basis(180.0, 10.5).unwrap();
+
+        assert_eq!(
+            interpolate_spherical_vector_with_bases(
+                &source_bases,
+                query_basis,
+                eastward,
+                northward,
+                weights,
+            )
+            .unwrap(),
+            expected
+        );
     }
 }

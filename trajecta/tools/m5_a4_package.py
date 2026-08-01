@@ -33,6 +33,7 @@ SBOM_NAME = "SBOM.cdx.json"
 LICENSE_INVENTORY_NAME = "THIRD-PARTY-LICENSES.json"
 BUILD_RESULT_NAME = "M5_A4_PACKAGE_BUILD_RESULT.json"
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
 
 
 class PackageError(RuntimeError):
@@ -178,8 +179,8 @@ def source_tree_identity() -> dict[str, Any]:
 def workspace_version() -> str:
     document = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))
     version = document["workspace"]["package"]["version"]
-    if version != "0.0.0":
-        raise PackageError(f"M5-A4 requires development version 0.0.0, got {version}")
+    if not isinstance(version, str) or VERSION_PATTERN.fullmatch(version) is None:
+        raise PackageError(f"workspace package version is invalid: {version!r}")
     return version
 
 
@@ -1056,8 +1057,17 @@ def validate_build_manifest(root: Path) -> dict[str, Any]:
         raise PackageError("build manifest top-level fields drifted")
     if manifest["schema_version"] != "trajecta.build-manifest/v1":
         raise PackageError("build manifest schema identity drifted")
-    if manifest["product"] != "trajecta" or manifest["version"] != "0.0.0":
-        raise PackageError("build manifest product or development version drifted")
+    version = manifest["version"]
+    if (
+        manifest["product"] != "trajecta"
+        or not isinstance(version, str)
+        or VERSION_PATTERN.fullmatch(version) is None
+    ):
+        raise PackageError("build manifest product or version is invalid")
+    platform_label = manifest["platform"].get("label")
+    expected_root = f"trajecta-{version}-{platform_label}"
+    if root.name != expected_root:
+        raise PackageError("build manifest version/platform does not match archive root")
     build = manifest["build"]
     if build.get("features") != FEATURES or build.get("default_reader_backend") != "rust":
         raise PackageError("build manifest feature/default reader contract drifted")

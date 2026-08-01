@@ -1244,6 +1244,14 @@ impl PopulationStrategy for ReleaseDrivenPopulation {
         clock: SimulationClock,
         requested: SignedDuration,
     ) -> Result<Vec<StepBoundary>, PopulationError> {
+        if matches!(
+            self.state,
+            PopulationState::ReleaseDriven {
+                emitted_birth_count
+            } if emitted_birth_count == self.births.len()
+        ) {
+            return Ok(Vec::new());
+        }
         let target =
             add_timestamp(clock.current, requested).map_err(|_| PopulationError::TimeOverflow)?;
         let mut by_time = BTreeMap::<Timestamp, String>::new();
@@ -1338,10 +1346,7 @@ impl PopulationStrategy for ReleaseDrivenPopulation {
         _context: &mut PopulationContext<'_>,
         particles: &ParticleBatch,
     ) -> Result<(), PopulationError> {
-        particles
-            .validate()
-            .map(|_| ())
-            .map_err(|_| PopulationError::InvalidParticleBatch)
+        validate_release_batch_shape(particles)
     }
 
     fn emit_particles(
@@ -1393,20 +1398,10 @@ impl PopulationStrategy for ReleaseDrivenPopulation {
             if horizontal.len() != request.count || sampled_vertical.len() != request.count {
                 return Err(PopulationError::InvalidConfiguration);
             }
-            let birth_times = (0..request.count)
-                .map(|offset| {
-                    release_birth_time(
-                        &self.specification.id,
-                        event,
-                        context.random_seed,
-                        first.ordinal + offset as u64,
-                    )
-                    .map_err(PopulationError::Release)
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            if birth_times.iter().any(|time| *time != context.time) {
-                return Err(PopulationError::InvalidConfiguration);
-            }
+            let birth_times = pending[cursor..end]
+                .iter()
+                .map(|index| self.births[*index].time)
+                .collect::<Vec<_>>();
             let height_asl_m = self.vertical_resolver.resolve_asl(
                 event,
                 &birth_times,
@@ -1414,26 +1409,37 @@ impl PopulationStrategy for ReleaseDrivenPopulation {
                 &sampled_vertical,
                 context,
             )?;
-            emitted_batch
-                .append(
-                    ReleaseAllocator::allocate(ReleaseAllocationRequest {
-                        population_id: &self.specification.id,
-                        event,
-                        seed: context.random_seed,
-                        first_ordinal: first.ordinal,
-                        horizontal: &horizontal,
-                        height_asl_m: &height_asl_m,
-                    })
-                    .map_err(PopulationError::Release)?,
-                )
-                .map_err(|_| PopulationError::InvalidParticleBatch)?;
+            let allocated = ReleaseAllocator::allocate(ReleaseAllocationRequest {
+                population_id: &self.specification.id,
+                event,
+                seed: context.random_seed,
+                first_ordinal: first.ordinal,
+                horizontal: &horizontal,
+                height_asl_m: &height_asl_m,
+            })
+            .map_err(PopulationError::Release)?;
+            if emitted_batch.is_empty() {
+                emitted_batch = allocated;
+            } else {
+                emitted_batch
+                    .append(allocated)
+                    .map_err(|_| PopulationError::InvalidParticleBatch)?;
+            }
             cursor = end;
         }
+        let emitted_birth_count = match self.state {
+            PopulationState::ReleaseDriven {
+                emitted_birth_count,
+            } => emitted_birth_count
+                .checked_add(pending.len())
+                .ok_or(PopulationError::ResourceLimit)?,
+            _ => return Err(PopulationError::InvalidConfiguration),
+        };
         for index in pending {
             self.emitted[index] = true;
         }
         self.state = PopulationState::ReleaseDriven {
-            emitted_birth_count: self.emitted.iter().filter(|value| **value).count(),
+            emitted_birth_count,
         };
         Ok(emitted_batch)
     }
@@ -1443,10 +1449,7 @@ impl PopulationStrategy for ReleaseDrivenPopulation {
         _context: &mut PopulationContext<'_>,
         particles: &ParticleBatch,
     ) -> Result<(), PopulationError> {
-        particles
-            .validate()
-            .map(|_| ())
-            .map_err(|_| PopulationError::InvalidParticleBatch)
+        validate_release_batch_shape(particles)
     }
 
     fn apply_boundary_maintenance(
@@ -1454,10 +1457,7 @@ impl PopulationStrategy for ReleaseDrivenPopulation {
         _context: &mut PopulationContext<'_>,
         particles: &mut ParticleBatch,
     ) -> Result<(), PopulationError> {
-        particles
-            .validate()
-            .map(|_| ())
-            .map_err(|_| PopulationError::InvalidParticleBatch)
+        validate_release_batch_shape(particles)
     }
 
     fn finalize(
@@ -1473,6 +1473,13 @@ impl PopulationStrategy for ReleaseDrivenPopulation {
             .map(|_| ())
             .map_err(|_| PopulationError::InvalidParticleBatch)
     }
+}
+
+fn validate_release_batch_shape(particles: &ParticleBatch) -> Result<(), PopulationError> {
+    particles
+        .len()
+        .map(|_| ())
+        .map_err(|_| PopulationError::InvalidParticleBatch)
 }
 
 fn validate_release_schedule_identity(

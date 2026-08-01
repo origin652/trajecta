@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::ffi::OsString;
-use std::fs;
+use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command as ProcessCommand, Stdio};
@@ -42,6 +42,10 @@ use trajecta_local_ipc::{
     ProcessIdentity, available_memory_bytes, current_process_identity, process_identity_matches,
     suppress_standard_handle_inheritance,
 };
+use trajecta_met::performance::{
+    PerformanceCounters, PerformanceSnapshot, clear_performance_counters,
+    install_performance_counters,
+};
 use uuid::Uuid;
 
 use crate::app::AppOutcome;
@@ -57,6 +61,7 @@ const DAEMON_CONNECT_TIMEOUT: Duration = Duration::from_millis(300);
 const DAEMON_START_TIMEOUT: Duration = Duration::from_secs(10);
 const WORKER_ATTACH_TIMEOUT: Duration = Duration::from_secs(10);
 const MIB: u64 = 1024 * 1024;
+const PERFORMANCE_ATTRIBUTION_PATH_ENV: &str = "TRAJECTA_PERFORMANCE_ATTRIBUTION_PATH";
 
 pub(crate) fn internal_entry(arguments: &[OsString]) -> Option<i32> {
     match arguments.get(1).and_then(|value| value.to_str()) {
@@ -1555,7 +1560,25 @@ fn run_worker(config_path: &Path, run_id: RunId) -> Result<(), RuntimeError> {
         )
         .map_err(RuntimeError::backend)
     );
-    let (terminal, code, message) = match runner.run_with_control(&mut control) {
+    let performance = std::env::var_os(PERFORMANCE_ATTRIBUTION_PATH_ENV)
+        .filter(|value| !value.is_empty())
+        .map(|path| (PathBuf::from(path), PerformanceCounters::new()));
+    if let Some((_, counters)) = &performance {
+        install_performance_counters(Arc::clone(counters));
+    }
+    let run_result = runner.run_with_control(&mut control);
+    if let Some((path, counters)) = performance {
+        clear_performance_counters();
+        if let Err(error) =
+            write_performance_attribution(&path, &counters.snapshot(), process_peak_rss_bytes())
+        {
+            eprintln!(
+                "trajecta: performance attribution write failed for {}: {error}",
+                path.display()
+            );
+        }
+    }
+    let (terminal, code, message) = match run_result {
         Ok(RunOutcome::Complete) => (
             JobState::Complete,
             "worker.complete",
@@ -1587,6 +1610,84 @@ fn run_worker(config_path: &Path, run_id: RunId) -> Result<(), RuntimeError> {
         eprintln!("trajecta: derived report refresh failed: {}", error.message);
     }
     Ok(())
+}
+
+fn write_performance_attribution(
+    path: &Path,
+    snapshot: &PerformanceSnapshot,
+    process_peak_rss_bytes: Option<u64>,
+) -> io::Result<()> {
+    if !path.is_absolute() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "performance attribution path must be absolute",
+        ));
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let stages = snapshot
+        .stages
+        .iter()
+        .map(|(stage, observation)| {
+            (
+                stage.code(),
+                serde_json::json!({
+                    "observations": observation.observations,
+                    "total": observation.total,
+                    "maximum": observation.maximum,
+                    "log2_histogram": observation.log2_histogram,
+                }),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let distributions = snapshot
+        .distributions
+        .iter()
+        .map(|(distribution, observation)| {
+            (
+                distribution.code(),
+                serde_json::json!({
+                    "observations": observation.observations,
+                    "total": observation.total,
+                    "maximum": observation.maximum,
+                    "log2_histogram": observation.log2_histogram,
+                }),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let payload = serde_json::json!({
+        "schema_version": "trajecta.performance-attribution/v1",
+        "stage_duration_unit": "ns",
+        "process_peak_rss_bytes": process_peak_rss_bytes,
+        "stages": stages,
+        "distributions": distributions,
+    });
+    let mut bytes = serde_json::to_vec_pretty(&payload)
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+    bytes.push(b'\n');
+    let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
+    file.write_all(&bytes)?;
+    file.flush()?;
+    file.sync_all()
+}
+
+#[cfg(target_os = "linux")]
+fn process_peak_rss_bytes() -> Option<u64> {
+    let status = fs::read_to_string("/proc/self/status").ok()?;
+    let kibibytes = status.lines().find_map(|line| {
+        line.strip_prefix("VmHWM:")?
+            .split_whitespace()
+            .next()?
+            .parse::<u64>()
+            .ok()
+    })?;
+    kibibytes.checked_mul(1024)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn process_peak_rss_bytes() -> Option<u64> {
+    None
 }
 
 struct WorkerResolution {
@@ -2051,6 +2152,34 @@ mod tests {
             WorkerRecoveryDisposition::ReconcileTerminal(JobState::Failed)
         );
         assert_eq!(fs::read(path).unwrap(), before);
+    }
+
+    #[test]
+    fn performance_attribution_sidecar_is_stable_and_never_overwritten() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp
+            .path()
+            .canonicalize()
+            .unwrap()
+            .join("performance-attribution.json");
+        let snapshot = PerformanceCounters::new().snapshot();
+
+        write_performance_attribution(&path, &snapshot, Some(12_345)).unwrap();
+        let value: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(
+            value["schema_version"],
+            "trajecta.performance-attribution/v1"
+        );
+        assert_eq!(value["stage_duration_unit"], "ns");
+        assert_eq!(value["process_peak_rss_bytes"], 12_345);
+        assert_eq!(value["stages"]["runner_total"]["observations"], 0);
+        assert_eq!(
+            value["distributions"]["boundary_samples_per_path"]["total"],
+            0
+        );
+
+        let error = write_performance_attribution(&path, &snapshot, None).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
     }
 
     #[cfg(windows)]

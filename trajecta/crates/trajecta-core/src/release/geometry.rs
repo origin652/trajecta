@@ -114,171 +114,301 @@ impl crate::release::GeometrySampler for SphericalGeometrySampler {
         request: ReleaseSamplingRequest<'_>,
     ) -> Result<Vec<(f64, f64)>, ReleaseError> {
         request.validate()?;
+        if request.count == 0 {
+            return Ok(Vec::new());
+        }
         let population = StableRandomId::from_text(&request.population_id.0);
         let event = StableRandomId::from_text(&request.event.id.0);
+        let plan = SamplingPlan::new(&self.geometry)?;
         let mut out = Vec::with_capacity(request.count);
         for offset in 0..request.count {
             let ordinal = request
                 .first_ordinal
                 .checked_add(u64::try_from(offset).map_err(|_| ReleaseError::CountOverflow)?)
                 .ok_or(ReleaseError::CountOverflow)?;
-            let point = sample_one(&self.geometry, request.seed, population, event, ordinal)?;
+            let point = plan.sample(request.seed, population, event, ordinal)?;
             out.push(point);
-        }
-        for (longitude, latitude) in &out {
-            if !point_in_geometry(&self.geometry, *longitude, *latitude)? {
-                return Err(ReleaseError::InvalidGeometry);
-            }
         }
         Ok(out)
     }
 }
 
-fn sample_one(
-    geometry: &GeoJsonGeometry,
-    seed: u64,
-    population: StableRandomId,
-    event: StableRandomId,
-    ordinal: u64,
-) -> Result<(f64, f64), ReleaseError> {
-    let key = |dimension: u32, draw_index: u32| RandomKey {
-        seed,
-        population,
-        lifecycle_event: event,
-        particle: ParticleId(ordinal),
-        sampling_dimension: dimension,
-        draw_index,
-    };
-    match geometry {
-        GeoJsonGeometry::Point(point) => Ok((point[0], point[1])),
-        GeoJsonGeometry::MultiPoint(points) => {
-            if points.is_empty() {
-                return Err(ReleaseError::InvalidGeometry);
+struct PolygonSamplingPlan {
+    area_m2: f64,
+    triangles: Vec<([[f64; 2]; 3], f64)>,
+    triangle_area_m2: f64,
+}
+
+#[derive(Clone, Copy)]
+struct LatLonRectangle {
+    west_degrees: f64,
+    east_degrees: f64,
+    south_sine: f64,
+    north_sine: f64,
+}
+
+enum SamplingPlan<'a> {
+    Point([f64; 2]),
+    MultiPoint(&'a [[f64; 2]]),
+    LatLonRectangle(LatLonRectangle),
+    Lines {
+        segments: Vec<([f64; 2], [f64; 2], f64)>,
+        total_length_m: f64,
+    },
+    Polygons {
+        components: Vec<PolygonSamplingPlan>,
+        total_area_m2: f64,
+    },
+}
+
+impl<'a> SamplingPlan<'a> {
+    fn new(geometry: &'a GeoJsonGeometry) -> Result<Self, ReleaseError> {
+        match geometry {
+            GeoJsonGeometry::Point(point) => Ok(Self::Point(*point)),
+            GeoJsonGeometry::MultiPoint(points) => {
+                if points.is_empty() {
+                    return Err(ReleaseError::InvalidGeometry);
+                }
+                Ok(Self::MultiPoint(points))
             }
-            let component = CounterRng::sample_unit(key(RELEASE_HORIZONTAL_COMPONENT_DIMENSION, 0));
-            let index = ((component * points.len() as f64) as usize).min(points.len() - 1);
-            Ok((points[index][0], points[index][1]))
-        }
-        GeoJsonGeometry::LineString(line) => sample_lines(&[line.as_slice()], key),
-        GeoJsonGeometry::MultiLineString(lines) => {
-            let refs: Vec<&[[f64; 2]]> = lines.iter().map(Vec::as_slice).collect();
-            sample_lines(&refs, key)
-        }
-        GeoJsonGeometry::Polygon(rings) => sample_polygons(&[rings.as_slice()], key),
-        GeoJsonGeometry::MultiPolygon(polygons) => {
-            let refs: Vec<&[Vec<[f64; 2]>]> = polygons.iter().map(Vec::as_slice).collect();
-            sample_polygons(&refs, key)
-        }
-    }
-}
-
-fn sample_lines<F>(lines: &[&[[f64; 2]]], key: F) -> Result<(f64, f64), ReleaseError>
-where
-    F: Fn(u32, u32) -> RandomKey,
-{
-    let mut segments = Vec::new();
-    let mut total = 0.0;
-    for line in lines {
-        for window in line.windows(2) {
-            let length = great_circle_length_m(window[0], window[1])?;
-            if length > 0.0 {
-                total += length;
-                segments.push((window[0], window[1], length));
+            GeoJsonGeometry::LineString(line) => Self::lines(&[line.as_slice()]),
+            GeoJsonGeometry::MultiLineString(lines) => {
+                let refs: Vec<&[[f64; 2]]> = lines.iter().map(Vec::as_slice).collect();
+                Self::lines(&refs)
+            }
+            GeoJsonGeometry::Polygon(rings) => lat_lon_rectangle(rings)
+                .map(Self::LatLonRectangle)
+                .map_or_else(|| Self::polygons(&[rings.as_slice()]), Ok),
+            GeoJsonGeometry::MultiPolygon(polygons) => {
+                let refs: Vec<&[Vec<[f64; 2]>]> = polygons.iter().map(Vec::as_slice).collect();
+                Self::polygons(&refs)
             }
         }
     }
-    if segments.is_empty() || total <= 0.0 {
-        return Err(ReleaseError::InvalidGeometry);
-    }
-    let u = CounterRng::sample_unit(key(RELEASE_HORIZONTAL_U_DIMENSION, 0));
-    let target = u * total;
-    let mut acc = 0.0;
-    for (start, end, length) in &segments {
-        if acc + length >= target {
-            let local = if *length > 0.0 {
-                ((target - acc) / *length).clamp(0.0, 1.0)
-            } else {
-                0.0
-            };
-            return interpolate_great_circle(*start, *end, local);
-        }
-        acc += length;
-    }
-    let (start, end, _) = segments
-        .last()
-        .copied()
-        .ok_or(ReleaseError::InvalidGeometry)?;
-    interpolate_great_circle(start, end, 1.0)
-}
 
-fn sample_polygons<F>(polygons: &[&[Vec<[f64; 2]>]], key: F) -> Result<(f64, f64), ReleaseError>
-where
-    F: Fn(u32, u32) -> RandomKey,
-{
-    let mut components = Vec::new();
-    let mut total = 0.0;
-    for polygon in polygons {
-        let area = polygon_area_m2(polygon)?;
-        if area > 0.0 {
-            total += area;
-            components.push((*polygon, area));
+    fn lines(lines: &[&[[f64; 2]]]) -> Result<Self, ReleaseError> {
+        let mut segments = Vec::new();
+        let mut total_length_m = 0.0;
+        for line in lines {
+            for window in line.windows(2) {
+                let length_m = great_circle_length_m(window[0], window[1])?;
+                if length_m > 0.0 {
+                    total_length_m += length_m;
+                    segments.push((window[0], window[1], length_m));
+                }
+            }
         }
-    }
-    if components.is_empty() || total <= 0.0 {
-        return Err(ReleaseError::InvalidGeometry);
-    }
-    let component_u = CounterRng::sample_unit(key(RELEASE_HORIZONTAL_COMPONENT_DIMENSION, 0));
-    let target = component_u * total;
-    let mut acc = 0.0;
-    let mut selected = components[0].0;
-    for (polygon, area) in &components {
-        acc += *area;
-        if acc >= target {
-            selected = *polygon;
-            break;
-        }
-        selected = *polygon;
-    }
-    sample_polygon_triangle(selected, key)
-}
-
-fn sample_polygon_triangle<F>(rings: &[Vec<[f64; 2]>], key: F) -> Result<(f64, f64), ReleaseError>
-where
-    F: Fn(u32, u32) -> RandomKey,
-{
-    // Exact area-uniform sampling: mesh exterior\holes into spherical triangles,
-    // pick by area weight, then sample the chosen triangle with a single (u,v)
-    // draw. No rejection loop and no centroid fallback.
-    let triangles = mesh_polygon_region(rings)?;
-    if triangles.is_empty() {
-        return Err(ReleaseError::InvalidGeometry);
-    }
-    let mut areas = Vec::with_capacity(triangles.len());
-    let mut total = 0.0;
-    for triangle in &triangles {
-        let area = triangle_area_m2(*triangle)?;
-        if area <= 0.0 {
+        if segments.is_empty() || total_length_m <= 0.0 {
             return Err(ReleaseError::InvalidGeometry);
         }
-        total += area;
-        areas.push(area);
+        Ok(Self::Lines {
+            segments,
+            total_length_m,
+        })
     }
-    if total <= 0.0 {
-        return Err(ReleaseError::InvalidGeometry);
+
+    fn polygons(polygons: &[&[Vec<[f64; 2]>]]) -> Result<Self, ReleaseError> {
+        let mut weighted = Vec::new();
+        let mut total_area_m2 = 0.0;
+        for polygon in polygons {
+            let area_m2 = polygon_area_m2(polygon)?;
+            if area_m2 > 0.0 {
+                total_area_m2 += area_m2;
+                weighted.push((*polygon, area_m2));
+            }
+        }
+        if weighted.is_empty() || total_area_m2 <= 0.0 {
+            return Err(ReleaseError::InvalidGeometry);
+        }
+
+        let mut components = Vec::with_capacity(weighted.len());
+        for (rings, area_m2) in weighted {
+            let mesh = mesh_polygon_region(rings)?;
+            let mut triangles = Vec::with_capacity(mesh.len());
+            let mut total_triangle_area_m2 = 0.0;
+            for triangle in mesh {
+                let area = triangle_area_m2(triangle)?;
+                if area <= 0.0 {
+                    return Err(ReleaseError::InvalidGeometry);
+                }
+                total_triangle_area_m2 += area;
+                triangles.push((triangle, area));
+            }
+            if triangles.is_empty() || total_triangle_area_m2 <= 0.0 {
+                return Err(ReleaseError::InvalidGeometry);
+            }
+            components.push(PolygonSamplingPlan {
+                area_m2,
+                triangles,
+                triangle_area_m2: total_triangle_area_m2,
+            });
+        }
+
+        Ok(Self::Polygons {
+            components,
+            total_area_m2,
+        })
     }
-    let component = CounterRng::sample_unit(key(RELEASE_HORIZONTAL_COMPONENT_DIMENSION, 0));
-    let mut acc = 0.0;
-    let mut chosen = triangles.len() - 1;
-    for (index, area) in areas.iter().enumerate() {
-        acc += *area / total;
-        if component < acc {
-            chosen = index;
-            break;
+
+    fn sample(
+        &self,
+        seed: u64,
+        population: StableRandomId,
+        event: StableRandomId,
+        ordinal: u64,
+    ) -> Result<(f64, f64), ReleaseError> {
+        let key = |dimension: u32, draw_index: u32| RandomKey {
+            seed,
+            population,
+            lifecycle_event: event,
+            particle: ParticleId(ordinal),
+            sampling_dimension: dimension,
+            draw_index,
+        };
+        match self {
+            Self::Point(point) => Ok((point[0], point[1])),
+            Self::MultiPoint(points) => {
+                let component =
+                    CounterRng::sample_unit(key(RELEASE_HORIZONTAL_COMPONENT_DIMENSION, 0));
+                let index = ((component * points.len() as f64) as usize).min(points.len() - 1);
+                Ok((points[index][0], points[index][1]))
+            }
+            Self::LatLonRectangle(rectangle) => {
+                let u = CounterRng::sample_unit(key(RELEASE_HORIZONTAL_U_DIMENSION, 0));
+                let v = CounterRng::sample_unit(key(RELEASE_HORIZONTAL_V_DIMENSION, 0));
+                let longitude =
+                    rectangle.west_degrees + (rectangle.east_degrees - rectangle.west_degrees) * u;
+                let sine_latitude =
+                    rectangle.south_sine + (rectangle.north_sine - rectangle.south_sine) * v;
+                Ok((longitude, sine_latitude.asin().to_degrees()))
+            }
+            Self::Lines {
+                segments,
+                total_length_m,
+            } => {
+                let u = CounterRng::sample_unit(key(RELEASE_HORIZONTAL_U_DIMENSION, 0));
+                let target = u * total_length_m;
+                let mut acc = 0.0;
+                for (start, end, length_m) in segments {
+                    if acc + length_m >= target {
+                        let local = ((target - acc) / length_m).clamp(0.0, 1.0);
+                        return interpolate_great_circle(*start, *end, local);
+                    }
+                    acc += length_m;
+                }
+                let (start, end, _) = segments
+                    .last()
+                    .copied()
+                    .ok_or(ReleaseError::InvalidGeometry)?;
+                interpolate_great_circle(start, end, 1.0)
+            }
+            Self::Polygons {
+                components,
+                total_area_m2,
+            } => {
+                let component =
+                    CounterRng::sample_unit(key(RELEASE_HORIZONTAL_COMPONENT_DIMENSION, 0));
+                let selected = if components.len() == 1 {
+                    &components[0]
+                } else {
+                    let target = component * total_area_m2;
+                    let mut acc = 0.0;
+                    let mut selected = &components[0];
+                    for candidate in components {
+                        acc += candidate.area_m2;
+                        selected = candidate;
+                        if acc >= target {
+                            break;
+                        }
+                    }
+                    selected
+                };
+
+                let mut acc = 0.0;
+                let mut chosen = selected.triangles.len() - 1;
+                for (index, (_, area_m2)) in selected.triangles.iter().enumerate() {
+                    acc += area_m2 / selected.triangle_area_m2;
+                    if component < acc {
+                        chosen = index;
+                        break;
+                    }
+                }
+                let u = CounterRng::sample_unit(key(RELEASE_HORIZONTAL_U_DIMENSION, 0));
+                let v = CounterRng::sample_unit(key(RELEASE_HORIZONTAL_V_DIMENSION, 0));
+                sample_spherical_triangle_uniform(selected.triangles[chosen].0, u, v)
+            }
         }
     }
-    let u = CounterRng::sample_unit(key(RELEASE_HORIZONTAL_U_DIMENSION, 0));
-    let v = CounterRng::sample_unit(key(RELEASE_HORIZONTAL_V_DIMENSION, 0));
-    sample_spherical_triangle_uniform(triangles[chosen], u, v)
+}
+
+fn lat_lon_rectangle(rings: &[Vec<[f64; 2]>]) -> Option<LatLonRectangle> {
+    if rings.len() != 1 {
+        return None;
+    }
+    let ring = rings.first()?;
+    if ring.len() != 5 || ring.first() != ring.last() {
+        return None;
+    }
+    let corners = &ring[..4];
+    let west = corners
+        .iter()
+        .map(|point| point[0])
+        .fold(f64::INFINITY, f64::min);
+    let east = corners
+        .iter()
+        .map(|point| point[0])
+        .fold(f64::NEG_INFINITY, f64::max);
+    let south = corners
+        .iter()
+        .map(|point| point[1])
+        .fold(f64::INFINITY, f64::min);
+    let north = corners
+        .iter()
+        .map(|point| point[1])
+        .fold(f64::NEG_INFINITY, f64::max);
+    if !west.is_finite()
+        || !east.is_finite()
+        || !south.is_finite()
+        || !north.is_finite()
+        || west >= east
+        || south >= north
+        || east - west >= 180.0
+    {
+        return None;
+    }
+    let mut present = [false; 4];
+    for point in corners {
+        let longitude_index = if point[0] == west {
+            0
+        } else if point[0] == east {
+            1
+        } else {
+            return None;
+        };
+        let latitude_index = if point[1] == south {
+            0
+        } else if point[1] == north {
+            1
+        } else {
+            return None;
+        };
+        present[latitude_index * 2 + longitude_index] = true;
+    }
+    if !present.into_iter().all(|value| value)
+        || ring.windows(2).any(|edge| {
+            let same_longitude = edge[0][0] == edge[1][0];
+            let same_latitude = edge[0][1] == edge[1][1];
+            same_longitude == same_latitude
+        })
+    {
+        return None;
+    }
+    Some(LatLonRectangle {
+        west_degrees: west,
+        east_degrees: east,
+        south_sine: south.to_radians().sin(),
+        north_sine: north.to_radians().sin(),
+    })
 }
 
 fn mesh_polygon_region(rings: &[Vec<[f64; 2]>]) -> Result<Vec<[[f64; 2]; 3]>, ReleaseError> {
@@ -3049,6 +3179,37 @@ mod tests {
     }
 
     #[test]
+    fn axis_aligned_rectangle_uses_direct_equal_area_sampling() {
+        let geometry = GeoJsonGeometry::Polygon(vec![vec![
+            [5.0, 49.0],
+            [5.5, 49.0],
+            [5.5, 49.5],
+            [5.0, 49.5],
+            [5.0, 49.0],
+        ]]);
+        let event = point_event(geometry.clone());
+        let population = PopulationId("pop".into());
+        let sampler = SphericalGeometrySampler::new(geometry).unwrap();
+        assert!(matches!(
+            SamplingPlan::new(sampler.geometry()).unwrap(),
+            SamplingPlan::LatLonRectangle(_)
+        ));
+        let all = sampler
+            .sample_horizontal(request(&population, &event, 7, 0, 8))
+            .unwrap();
+        let left = sampler
+            .sample_horizontal(request(&population, &event, 7, 0, 3))
+            .unwrap();
+        let right = sampler
+            .sample_horizontal(request(&population, &event, 7, 3, 5))
+            .unwrap();
+        assert_eq!([left, right].concat(), all);
+        assert!(all.iter().all(|(longitude, latitude)| {
+            (5.0..5.5).contains(longitude) && (49.0..49.5).contains(latitude)
+        }));
+    }
+
+    #[test]
     fn rejects_exact_180_degree_edges() {
         let err = normalize_geometry(&GeoJsonGeometry::LineString(vec![[0.0, 0.0], [180.0, 0.0]]));
         assert!(err.is_err());
@@ -3092,9 +3253,10 @@ mod tests {
         };
         let pop = crate::rng::StableRandomId::from_text("p");
         let ev = crate::rng::StableRandomId::from_text("e0");
+        let plan = SamplingPlan::new(&canonical.geometry).unwrap();
         let mut samples = Vec::new();
         for ordinal in 0..32u64 {
-            let pt = sample_one(&canonical.geometry, 42, pop, ev, ordinal).unwrap();
+            let pt = plan.sample(42, pop, ev, ordinal).unwrap();
             let inside = point_in_geometry(&canonical.geometry, pt.0, pt.1).unwrap();
             let in_ext = point_in_ring(&rings[0], pt.0, pt.1, true).unwrap();
             let in_hole = point_in_ring(&rings[1], pt.0, pt.1, false).unwrap();

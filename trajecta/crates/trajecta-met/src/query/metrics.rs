@@ -66,11 +66,11 @@ impl QueryOrigin {
     /// Whether a completed request may replace the engine's bulk transport
     /// cache entry.
     ///
-    /// Lifecycle/helper queries may still consume an exact cached result, but
-    /// admitting their typically tiny, one-off batches would evict the full
-    /// scheduled output needed by the next macro-step integrator start.
+    /// Every caller may consume an exact cached result. Only scheduled output
+    /// publishes one: integrator midpoint results have no later consumer and
+    /// would otherwise clone a complete eight-field batch before being evicted.
     pub(crate) const fn populates_transport_cache(self) -> bool {
-        matches!(self, Self::Unclassified | Self::Integrator | Self::Output)
+        matches!(self, Self::Unclassified | Self::Output)
     }
 }
 

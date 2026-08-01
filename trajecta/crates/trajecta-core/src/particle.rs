@@ -4,7 +4,7 @@
 //! Physical mass is always non-negative. Backward integration changes the
 //! signed integration offset, never mass or elapsed age.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -340,7 +340,7 @@ impl ParticleBatch {
     /// Performs complete structural and finite-value validation.
     pub fn validate(&self) -> Result<usize, ParticleError> {
         let len = self.len()?;
-        let mut ids = BTreeSet::new();
+        let mut ids = HashSet::with_capacity(len);
         for index in 0..len {
             if !ids.insert(self.id[index]) {
                 return Err(ParticleError::DuplicateParticleId(self.id[index]));
@@ -542,9 +542,11 @@ impl ParticleBatch {
     pub fn append(&mut self, other: ParticleBatch) -> Result<(), ParticleError> {
         let original_len = self.validate()?;
         let added_len = other.validate()?;
-        let mut ids = self.id.iter().copied().collect::<BTreeSet<_>>();
-        if let Some(duplicate) = other.id.iter().copied().find(|id| !ids.insert(*id)) {
-            return Err(ParticleError::DuplicateParticleId(duplicate));
+        if original_len != 0 {
+            let mut ids = self.id.iter().copied().collect::<HashSet<_>>();
+            if let Some(duplicate) = other.id.iter().copied().find(|id| !ids.insert(*id)) {
+                return Err(ParticleError::DuplicateParticleId(duplicate));
+            }
         }
 
         let all_substances = self
@@ -586,7 +588,6 @@ impl ParticleBatch {
         self.sensitivity_weight.extend(other.sensitivity_weight);
         self.status.extend(other.status);
         self.termination.extend(other.termination);
-        self.validate()?;
         Ok(())
     }
 

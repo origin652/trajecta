@@ -1,7 +1,7 @@
 {
   "schema_version": "trajecta.build-manifest/v1",
   "product": "trajecta",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.1",
   "platform": {
     "label": "windows-x86_64",
     "target_triple": "x86_64-pc-windows-gnu",
@@ -23,9 +23,9 @@
     "source_date_epoch": 1785283200
   },
   "archive": {
-    "file_name": "trajecta-0.0.0-windows-x86_64.zip",
+    "file_name": "trajecta-0.1.0-alpha.1-windows-x86_64.zip",
     "format": "zip",
-    "root_directory": "trajecta-0.0.0-windows-x86_64"
+    "root_directory": "trajecta-0.1.0-alpha.1-windows-x86_64"
   },
   "binary": {
     "path": "trajecta.exe",

@@ -437,7 +437,7 @@ fn build_runner_inner(
         population,
         integrator: Box::new(Rk2Spherical),
         boundaries,
-        boundary_sampler_factory: Some(Box::new(MetBoundaryPathSamplerFactory)),
+        boundary_sampler_factory: Some(Box::new(MetBoundaryPathSamplerFactory::default())),
         outputs,
         manifest,
         manifest_store: manifest_store

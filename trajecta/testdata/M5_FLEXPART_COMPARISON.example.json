@@ -1,0 +1,120 @@
+{
+  "schema_version": "trajecta.m5-a5-flexpart-comparison/v1",
+  "status": "passed",
+  "contract": {
+    "particle_counts": [10000, 50000],
+    "warmups_per_count": 1,
+    "formal_repetitions_per_count": 3,
+    "simulation_seconds": 3600,
+    "time_step_seconds": 600,
+    "output_interval_seconds": 1200,
+    "cpu_set": "0-3",
+    "workers_or_threads": 4,
+    "core_ratio_limit": 1.5,
+    "version": "0.0.0"
+  },
+  "host": { "platform": "Linux" },
+  "trajecta": {
+    "package_root": "/tmp/trajecta",
+    "source_tree_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "build_manifest_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "binary_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "flexpart": {
+    "commit": "dace3affa2ba71677f12f3858b04aaf59f8ee51e",
+    "source": "/src/flexpart",
+    "binary": { "path": "/tmp/FLEXPART_ETA", "size_bytes": 1, "sha256": "3333333333333333333333333333333333333333333333333333333333333333" },
+    "adapter_patch": { "path": "/src/native-omega.patch", "size_bytes": 1, "sha256": "4444444444444444444444444444444444444444444444444444444444444444" },
+    "species": { "path": "/src/SPECIES_024", "size_bytes": 1, "sha256": "5555555555555555555555555555555555555555555555555555555555555555" },
+    "compiler": "GNU Fortran",
+    "eccodes": "2.34.1",
+    "netcdf_fortran": "4.6.1"
+  },
+  "meteorology_equivalence": { "path": "/tmp/met.json", "sha256": "6666666666666666666666666666666666666666666666666666666666666666" },
+  "orders": {
+    "warmup": ["flexpart-core", "trajecta-product", "flexpart-product"],
+    "formal": [
+      ["flexpart-core", "flexpart-product", "trajecta-product"],
+      ["trajecta-product", "flexpart-core", "flexpart-product"],
+      ["flexpart-product", "trajecta-product", "flexpart-core"]
+    ]
+  },
+  "records": [],
+  "scientific_reports": [],
+  "performance": {
+    "10000": {
+      "flexpart_core_median_seconds": 1,
+      "trajecta_equivalent_core_median_seconds": 1,
+      "equivalent_core_ratio_trajecta_over_flexpart": 1,
+      "equivalent_core_gate_passed": true,
+      "flexpart_product_median_seconds": 1,
+      "trajecta_product_median_seconds": 1,
+      "flexpart_core_throughput_particles_per_second": 10000,
+      "trajecta_core_throughput_particles_per_second": 10000,
+      "flexpart_product_throughput_particles_per_second": 10000,
+      "trajecta_product_throughput_particles_per_second": 10000,
+      "flexpart_core_peak_rss_median_bytes": 1048576,
+      "flexpart_product_peak_rss_median_bytes": 1048576,
+      "trajecta_product_peak_rss_median_bytes": 1048576,
+      "formal_repetitions": 3
+    },
+    "50000": {
+      "flexpart_core_median_seconds": 5,
+      "trajecta_equivalent_core_median_seconds": 5,
+      "equivalent_core_ratio_trajecta_over_flexpart": 1,
+      "equivalent_core_gate_passed": true,
+      "flexpart_product_median_seconds": 5,
+      "trajecta_product_median_seconds": 5,
+      "flexpart_core_throughput_particles_per_second": 10000,
+      "trajecta_core_throughput_particles_per_second": 10000,
+      "flexpart_product_throughput_particles_per_second": 10000,
+      "trajecta_product_throughput_particles_per_second": 10000,
+      "flexpart_core_peak_rss_median_bytes": 2097152,
+      "flexpart_product_peak_rss_median_bytes": 2097152,
+      "trajecta_product_peak_rss_median_bytes": 2097152,
+      "formal_repetitions": 3
+    },
+    "scaling": { "flexpart_core_50k_over_10k": 5, "trajecta_core_50k_over_10k": 5, "flexpart_product_50k_over_10k": 5, "trajecta_product_50k_over_10k": 5 }
+  },
+  "scientific": {
+    "10000": {
+      "median_cross_model_by_time": [
+        { "physical_time_unix": 1543634400, "horizontal_centroid_separation_m": 1, "vertical_centroid_difference_m": 1 },
+        { "physical_time_unix": 1543635600, "horizontal_centroid_separation_m": 1, "vertical_centroid_difference_m": 1 },
+        { "physical_time_unix": 1543636800, "horizontal_centroid_separation_m": 1, "vertical_centroid_difference_m": 1 }
+      ]
+    },
+    "50000": {
+      "median_cross_model_by_time": [
+        { "physical_time_unix": 1543634400, "horizontal_centroid_separation_m": 1, "vertical_centroid_difference_m": 1 },
+        { "physical_time_unix": 1543635600, "horizontal_centroid_separation_m": 1, "vertical_centroid_difference_m": 1 },
+        { "physical_time_unix": 1543636800, "horizontal_centroid_separation_m": 1, "vertical_centroid_difference_m": 1 }
+      ]
+    },
+    "comparability": { "ensemble_metrics": "aggregate-only" }
+  },
+  "gates": {
+    "meteorology_equivalence": true,
+    "all_runs_passed": true,
+    "all_scientific_reports_passed": true,
+    "core_ratio_10k": true,
+    "core_ratio_50k": true,
+    "trajecta_10000_sqlite_sql_sha256": true,
+    "trajecta_10000_path_normalized_provenance_content_sha256": true,
+    "trajecta_10000_path_normalized_canonical_output_sha256": true,
+    "trajecta_50000_sqlite_sql_sha256": true,
+    "trajecta_50000_path_normalized_provenance_content_sha256": true,
+    "trajecta_50000_path_normalized_canonical_output_sha256": true
+  },
+  "artifacts": {
+    "timing_csv": { "path": "/tmp/timing.csv", "sha256": "7777777777777777777777777777777777777777777777777777777777777777" },
+    "science_csv": { "path": "/tmp/science.csv", "sha256": "8888888888888888888888888888888888888888888888888888888888888888" },
+    "charts": {
+      "core-wall-time.svg": "9999999999999999999999999999999999999999999999999999999999999999",
+      "complete-product-wall-time.svg": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "throughput-scaling.svg": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "peak-rss.svg": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "scientific-comparison.svg": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+  }
+}

@@ -154,6 +154,14 @@ impl LocalJobCatalog {
         Self::initialize(connection)
     }
 
+    /// Uses WAL-normal durability for advisory worker heartbeats and progress.
+    /// Daemon-owned queue transitions keep their independent FULL connection.
+    pub(crate) fn configure_worker_telemetry(&self) -> Result<(), JobBackendError> {
+        self.connection
+            .pragma_update(None, "synchronous", "NORMAL")
+            .map_err(storage_error)
+    }
+
     fn initialize(connection: Connection) -> Result<Self, JobBackendError> {
         connection
             .busy_timeout(std::time::Duration::from_secs(5))

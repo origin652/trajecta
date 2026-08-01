@@ -291,6 +291,10 @@ pub fn release_birth_time(
             particle_count: event.particle_count,
         });
     }
+    let duration_ns = event_duration_ns(event)?;
+    if duration_ns == 0 {
+        return Ok(event.start);
+    }
     let particle_id = ParticleId::for_release(population_id, &event.id, ordinal);
     release_birth_time_with_ids(
         event,
@@ -299,7 +303,7 @@ pub fn release_birth_time(
         StableRandomId::from_text(&event.id.0),
         particle_id,
         ordinal,
-        event_duration_ns(event)?,
+        duration_ns,
     )
 }
 
@@ -313,6 +317,9 @@ fn release_birth_time_with_ids(
     ordinal: u64,
     duration_ns: u64,
 ) -> Result<Timestamp, ReleaseError> {
+    if duration_ns == 0 {
+        return Ok(event.start);
+    }
     let random = CounterRng::sample_u64(RandomKey {
         seed,
         population: population_random_id,

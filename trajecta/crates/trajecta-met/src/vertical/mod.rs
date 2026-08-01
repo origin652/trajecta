@@ -13,13 +13,12 @@ use crate::derive::height::{
     geopotential_to_geometric_height_m, hydrostatic_full_level_geopotential,
 };
 use crate::derive::pressure::hybrid_pressure_column;
-use crate::derive::thermo::{
-    moist_air_density_from_source_humidity_kg_m3, project_specific_humidity_nonnegative,
-};
+use crate::derive::thermo::project_specific_humidity_nonnegative;
 use crate::field::{CanonicalField, FieldKey};
 use crate::frame::{ArrayLayout, RawField, RawMetFrame};
 use crate::grid::{
     CellId, DomainGeometry, GridBackend, GridPoint, HorizontalWeights, RegularLatLonGrid,
+    SphericalBasis,
 };
 use crate::io::inventory::LogicalFrameId;
 use crate::science::M3_CONSTANTS;
@@ -481,8 +480,8 @@ mod tests {
 
         assert_eq!(column.validity().valid.as_ref(), &[true, true]);
         assert_eq!(column.specific_humidity().as_ref(), &[0.001, -1.0e-9]);
-        assert_eq!(column.physical_specific_humidity().as_ref(), &[0.001, 0.0]);
-        assert!(column.density_kg_m3().iter().all(|value| *value > 0.0));
+        assert_eq!(column.physical_specific_humidity_at(0), Ok(0.001));
+        assert_eq!(column.physical_specific_humidity_at(1), Ok(0.0));
     }
 
     #[test]
@@ -510,7 +509,6 @@ mod tests {
             .unwrap();
         assert_eq!(column.pressure_pa().as_ref(), &[25_000.0, 75_000.0]);
         assert!(column.height_asl_m()[0] > column.height_asl_m()[1]);
-        assert!(column.density_kg_m3().iter().all(|value| *value > 0.0));
         assert_eq!(
             column.physical_model_top_asl_m(),
             Some(column.height_asl_m()[0])
@@ -541,8 +539,6 @@ pub struct ColumnGeometry {
     height_asl_m: Arc<[f64]>,
     temperature_k: Arc<[f64]>,
     specific_humidity: Arc<[f64]>,
-    physical_specific_humidity: Arc<[f64]>,
-    density_kg_m3: Arc<[f64]>,
     level_horizontal_weights: Arc<[[f64; 4]]>,
     validity: VerticalValidity,
     terrain_asl_m: f64,
@@ -550,13 +546,13 @@ pub struct ColumnGeometry {
     physical_model_top_asl_m: Option<f64>,
 }
 
-/// Minimal local vertical column used by continuous boundary geometry.
+/// Minimal local vertical shape used by transport and continuous boundaries.
 ///
 /// It preserves the pressure/height ordering and structural validity needed
 /// for the exact transport bounds, while intentionally omitting temperature,
 /// humidity, density, and horizontal-weight columns.
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct BoundaryColumnGeometry {
+pub(crate) struct ColumnShape {
     pressure_pa: Vec<f64>,
     height_asl_m: Vec<f64>,
     valid: Vec<bool>,
@@ -565,55 +561,36 @@ pub(crate) struct BoundaryColumnGeometry {
     physical_model_top_asl_m: Option<f64>,
 }
 
-impl BoundaryColumnGeometry {
-    pub(crate) fn new(
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct ColumnLevelSample {
+    pub(crate) temperature_k: f64,
+    pub(crate) specific_humidity: f64,
+    pub(crate) horizontal_weights: [f64; 4],
+}
+
+impl ColumnShape {
+    pub(crate) fn from_sampled(
         pressure_pa: Vec<f64>,
         height_asl_m: Vec<f64>,
         valid: Vec<bool>,
         terrain_asl_m: f64,
         surface_pressure_pa: f64,
         physical_model_top_asl_m: Option<f64>,
-    ) -> Result<Self, VerticalError> {
-        let levels = pressure_pa.len();
-        if levels == 0 || height_asl_m.len() != levels || valid.len() != levels {
-            return Err(VerticalError::InvalidTopology);
-        }
-        if !terrain_asl_m.is_finite()
-            || !surface_pressure_pa.is_finite()
-            || surface_pressure_pa <= 0.0
-            || physical_model_top_asl_m.is_some_and(|value| !value.is_finite())
-            || pressure_pa
-                .iter()
-                .any(|value| !value.is_finite() || *value <= 0.0)
-            || pressure_pa.windows(2).any(|values| values[1] <= values[0])
-            || height_asl_m.iter().any(|value| !value.is_finite())
-            || height_asl_m.windows(2).any(|values| values[1] >= values[0])
-        {
-            return Err(VerticalError::NonMonotonicColumn);
-        }
-        let first_valid = valid
-            .iter()
-            .position(|value| *value)
-            .ok_or(VerticalError::InvalidValidityMask)?;
-        for index in 0..levels {
-            if valid[index]
-                && (height_asl_m[index] <= terrain_asl_m
-                    || pressure_pa[index] > surface_pressure_pa)
-            {
-                return Err(VerticalError::InvalidValidityMask);
-            }
-        }
-        if physical_model_top_asl_m.is_some_and(|top| top < height_asl_m[first_valid]) {
-            return Err(VerticalError::InvalidPhysicalAnchor);
-        }
-        Ok(Self {
+    ) -> Self {
+        debug_assert!(!pressure_pa.is_empty());
+        debug_assert_eq!(height_asl_m.len(), pressure_pa.len());
+        debug_assert_eq!(valid.len(), pressure_pa.len());
+        debug_assert!(valid.iter().any(|value| *value));
+        debug_assert!(pressure_pa.windows(2).all(|values| values[1] > values[0]));
+        debug_assert!(height_asl_m.windows(2).all(|values| values[1] < values[0]));
+        Self {
             pressure_pa,
             height_asl_m,
             valid,
             terrain_asl_m,
             surface_pressure_pa,
             physical_model_top_asl_m,
-        })
+        }
     }
 
     #[must_use]
@@ -680,7 +657,10 @@ impl BoundaryColumnGeometry {
         )
     }
 
-    pub(crate) fn locate_height_asl_m(&self, query_asl_m: f64) -> Result<(), VerticalError> {
+    pub(crate) fn locate_height_asl_m(
+        &self,
+        query_asl_m: f64,
+    ) -> Result<VerticalBracket, VerticalError> {
         if !query_asl_m.is_finite() {
             return Err(VerticalError::NumericalFailure);
         }
@@ -701,17 +681,23 @@ impl BoundaryColumnGeometry {
         if query_asl_m < self.height_asl_m[last] {
             return Err(VerticalError::SurfaceLayerRequired);
         }
-        Ok(())
+        locate_descending_linear(&self.height_asl_m, &self.valid, query_asl_m)
     }
 
-    pub(crate) fn locate_height_agl_m(&self, query_agl_m: f64) -> Result<(), VerticalError> {
+    pub(crate) fn locate_height_agl_m(
+        &self,
+        query_agl_m: f64,
+    ) -> Result<VerticalBracket, VerticalError> {
         if !query_agl_m.is_finite() {
             return Err(VerticalError::NumericalFailure);
         }
         self.locate_height_asl_m(self.terrain_asl_m + query_agl_m)
     }
 
-    pub(crate) fn locate_pressure_pa(&self, query_pressure_pa: f64) -> Result<(), VerticalError> {
+    pub(crate) fn locate_pressure_pa(
+        &self,
+        query_pressure_pa: f64,
+    ) -> Result<VerticalBracket, VerticalError> {
         if !query_pressure_pa.is_finite() || query_pressure_pa <= 0.0 {
             return Err(VerticalError::NumericalFailure);
         }
@@ -726,7 +712,7 @@ impl BoundaryColumnGeometry {
         if query_pressure_pa > self.pressure_pa[last] {
             return Err(VerticalError::SurfaceLayerRequired);
         }
-        Ok(())
+        locate_ascending_log_pressure(&self.pressure_pa, &self.valid, query_pressure_pa)
     }
 }
 
@@ -782,21 +768,6 @@ impl ColumnGeometry {
         {
             return Err(VerticalError::NonMonotonicColumn);
         }
-        let physical_specific_humidity = specific_humidity
-            .iter()
-            .copied()
-            .map(project_specific_humidity_nonnegative)
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|_| VerticalError::NonMonotonicColumn)?;
-        let density_kg_m3 = pressure_pa
-            .iter()
-            .zip(temperature_k.iter())
-            .zip(specific_humidity.iter())
-            .map(|((pressure, temperature), humidity)| {
-                moist_air_density_from_source_humidity_kg_m3(*pressure, *temperature, *humidity)
-                    .map_err(|_| VerticalError::NumericalFailure)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
         let mut valid_count = 0_usize;
         let mut available_top = None;
         for index in 0..levels {
@@ -822,8 +793,6 @@ impl ColumnGeometry {
             height_asl_m,
             temperature_k,
             specific_humidity,
-            physical_specific_humidity: Arc::from(physical_specific_humidity),
-            density_kg_m3: Arc::from(density_kg_m3),
             level_horizontal_weights,
             validity,
             terrain_asl_m,
@@ -856,16 +825,15 @@ impl ColumnGeometry {
         &self.specific_humidity
     }
 
-    /// Returns non-negative humidity used only by physical consumers.
-    #[must_use]
-    pub const fn physical_specific_humidity(&self) -> &Arc<[f64]> {
-        &self.physical_specific_humidity
-    }
-
-    /// Returns moist-air density in the same full-level order.
-    #[must_use]
-    pub const fn density_kg_m3(&self) -> &Arc<[f64]> {
-        &self.density_kg_m3
+    pub(crate) fn physical_specific_humidity_at(&self, level: usize) -> Result<f64, VerticalError> {
+        self.specific_humidity
+            .get(level)
+            .copied()
+            .ok_or(VerticalError::InvalidTopology)
+            .and_then(|value| {
+                project_specific_humidity_nonnegative(value)
+                    .map_err(|_| VerticalError::NumericalFailure)
+            })
     }
 
     /// Returns the exact four-corner weights used for each local full level.
@@ -904,7 +872,7 @@ impl ColumnGeometry {
         let floating = self
             .pressure_pa
             .len()
-            .saturating_mul(6)
+            .saturating_mul(4)
             .saturating_mul(std::mem::size_of::<f64>());
         let validity = self
             .validity
@@ -1188,6 +1156,7 @@ pub struct ColumnStencil {
     frame: LogicalFrameId,
     cell: CellId,
     points: [GridPoint; 4],
+    source_bases: [SphericalBasis; 4],
     kind: ColumnStencilKind,
 }
 
@@ -1207,6 +1176,78 @@ struct HybridColumnStencil {
     terrain_asl_m: [f64; 4],
     surface_pressure_pa: [f64; 4],
     carries_physical_top: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct HybridLevelGeometry {
+    pub(crate) pressure_pa: f64,
+    pub(crate) height_asl_m: f64,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct HybridColumnView<'a> {
+    stencil: &'a HybridColumnStencil,
+    weights: [f64; 4],
+}
+
+impl<'a> HybridColumnView<'a> {
+    #[must_use]
+    pub(crate) fn level_count(self) -> usize {
+        self.stencil.pressure_pa[0].len()
+    }
+
+    #[must_use]
+    pub(crate) fn native_coordinate(self) -> &'a [f64] {
+        &self.stencil.native_coordinate
+    }
+
+    pub(crate) fn level_geometry(self, level: usize) -> Result<HybridLevelGeometry, VerticalError> {
+        Ok(HybridLevelGeometry {
+            pressure_pa: self.pressure_pa(level)?,
+            height_asl_m: self.height_asl_m(level)?,
+        })
+    }
+
+    pub(crate) fn pressure_pa(self, level: usize) -> Result<f64, VerticalError> {
+        bilinear(
+            &corners_at_level(&self.stencil.pressure_pa, level)?,
+            &self.weights,
+        )
+    }
+
+    pub(crate) fn height_asl_m(self, level: usize) -> Result<f64, VerticalError> {
+        bilinear(
+            &corners_at_level(&self.stencil.height_asl_m, level)?,
+            &self.weights,
+        )
+    }
+
+    pub(crate) fn level_sample(self, level: usize) -> Result<ColumnLevelSample, VerticalError> {
+        Ok(ColumnLevelSample {
+            temperature_k: bilinear(
+                &corners_at_level(&self.stencil.temperature_k, level)?,
+                &self.weights,
+            )?,
+            specific_humidity: bilinear(
+                &corners_at_level(&self.stencil.specific_humidity, level)?,
+                &self.weights,
+            )?,
+            horizontal_weights: self.weights,
+        })
+    }
+
+    pub(crate) fn terrain_asl_m(self) -> Result<f64, VerticalError> {
+        bilinear(&self.stencil.terrain_asl_m, &self.weights)
+    }
+
+    pub(crate) fn surface_pressure_pa(self) -> Result<f64, VerticalError> {
+        bilinear(&self.stencil.surface_pressure_pa, &self.weights)
+    }
+
+    #[must_use]
+    pub(crate) fn carries_physical_top(self) -> bool {
+        self.stencil.carries_physical_top
+    }
 }
 
 /// Native coordinate used by the complete kinematic vertical-velocity chain.
@@ -1259,6 +1300,25 @@ pub struct TerrainGeometry {
     pub northward_gradient: f64,
 }
 
+fn source_bases(
+    geometry: &DomainGeometry,
+    points: &[GridPoint; 4],
+) -> Result<[SphericalBasis; 4], VerticalError> {
+    let at = |point: GridPoint| {
+        SphericalBasis::at_degrees(
+            geometry.longitude_origin_degrees + geometry.longitude_spacing_degrees * point.x as f64,
+            geometry.latitude_origin_degrees + geometry.latitude_spacing_degrees * point.y as f64,
+        )
+        .map_err(|_| VerticalError::InvalidHorizontalSupport)
+    };
+    Ok([
+        at(points[0])?,
+        at(points[1])?,
+        at(points[2])?,
+        at(points[3])?,
+    ])
+}
+
 impl ColumnStencil {
     /// Builds one cacheable cell stencil from an arbitrary point in the cell.
     pub fn build(request: ColumnRequest<'_>) -> Result<Self, VerticalError> {
@@ -1278,6 +1338,11 @@ impl ColumnStencil {
     #[must_use]
     pub const fn points(&self) -> &[GridPoint; 4] {
         &self.points
+    }
+
+    #[must_use]
+    pub(crate) const fn source_bases(&self) -> &[SphericalBasis; 4] {
+        &self.source_bases
     }
 
     /// Returns the native full-level count represented by this stencil.
@@ -1330,12 +1395,12 @@ impl ColumnStencil {
     }
 
     /// Samples only the local vertical geometry required by boundary policies.
-    pub(crate) fn sample_boundary(
+    pub(crate) fn sample_shape(
         &self,
         request: ColumnRequest<'_>,
-    ) -> Result<BoundaryColumnGeometry, VerticalError> {
+    ) -> Result<ColumnShape, VerticalError> {
         let (_, weights) = self.weights_for_request(request)?;
-        self.sample_boundary_with_weights(&request.frame.metadata().id, request.cell, weights)
+        self.sample_shape_with_weights(&request.frame.metadata().id, request.cell, weights)
     }
 
     /// Samples boundary-only geometry from already validated horizontal support.
@@ -1343,22 +1408,108 @@ impl ColumnStencil {
     /// Continuous-boundary probing locates each point before pinning stencils.
     /// Reusing that support avoids rebuilding and revalidating the same grid for
     /// the before frame, after frame, and surface scalar.
-    pub(crate) fn sample_boundary_with_weights(
+    pub(crate) fn sample_shape_with_weights(
         &self,
         frame: &LogicalFrameId,
         cell: CellId,
         weights: HorizontalWeights,
-    ) -> Result<BoundaryColumnGeometry, VerticalError> {
+    ) -> Result<ColumnShape, VerticalError> {
+        self.validate_sample_identity(frame, cell, weights)?;
+        match &self.kind {
+            ColumnStencilKind::Hybrid(stencil) => stencil.sample_shape(weights),
+            ColumnStencilKind::Pressure(stencil) => stencil.sample_shape(weights),
+        }
+    }
+
+    pub(crate) fn hybrid_view_with_weights(
+        &self,
+        frame: &LogicalFrameId,
+        cell: CellId,
+        weights: HorizontalWeights,
+    ) -> Result<Option<HybridColumnView<'_>>, VerticalError> {
+        self.validate_sample_identity(frame, cell, weights)?;
+        Ok(match &self.kind {
+            ColumnStencilKind::Hybrid(stencil) => Some(HybridColumnView {
+                stencil,
+                weights: weights.weights,
+            }),
+            ColumnStencilKind::Pressure(_) => None,
+        })
+    }
+
+    pub(crate) fn sample_level_with_weights(
+        &self,
+        frame: &LogicalFrameId,
+        cell: CellId,
+        weights: HorizontalWeights,
+        shape: &ColumnShape,
+        level: usize,
+    ) -> Result<ColumnLevelSample, VerticalError> {
+        let horizontal_weights =
+            self.level_horizontal_weights_with_weights(frame, cell, weights, shape, level)?;
+        match &self.kind {
+            ColumnStencilKind::Hybrid(stencil) => Ok(ColumnLevelSample {
+                temperature_k: bilinear(
+                    &corners_at_level(&stencil.temperature_k, level)?,
+                    &horizontal_weights,
+                )?,
+                specific_humidity: bilinear(
+                    &corners_at_level(&stencil.specific_humidity, level)?,
+                    &horizontal_weights,
+                )?,
+                horizontal_weights,
+            }),
+            ColumnStencilKind::Pressure(stencil) => Ok(ColumnLevelSample {
+                temperature_k: bilinear(
+                    &corners_at_level(&stencil.temperature_k, level)?,
+                    &horizontal_weights,
+                )?,
+                specific_humidity: bilinear(
+                    &corners_at_level(&stencil.specific_humidity, level)?,
+                    &horizontal_weights,
+                )?,
+                horizontal_weights,
+            }),
+        }
+    }
+
+    pub(crate) fn level_horizontal_weights_with_weights(
+        &self,
+        frame: &LogicalFrameId,
+        cell: CellId,
+        weights: HorizontalWeights,
+        shape: &ColumnShape,
+        level: usize,
+    ) -> Result<[f64; 4], VerticalError> {
+        self.validate_sample_identity(frame, cell, weights)?;
+        if shape.pressure_pa.len() != self.level_count()
+            || !shape.valid.get(level).copied().unwrap_or(false)
+        {
+            return Err(VerticalError::InvalidVerticalColumn);
+        }
+        match &self.kind {
+            ColumnStencilKind::Hybrid(_) => Ok(weights.weights),
+            ColumnStencilKind::Pressure(stencil) => {
+                let valid = std::array::from_fn(|corner| stencil.level_valid[corner][level]);
+                valid_triangle_weights(&weights.weights, &valid)
+                    .ok_or(VerticalError::InvalidHorizontalSupport)
+            }
+        }
+    }
+
+    fn validate_sample_identity(
+        &self,
+        frame: &LogicalFrameId,
+        cell: CellId,
+        weights: HorizontalWeights,
+    ) -> Result<(), VerticalError> {
         if frame != &self.frame {
             return Err(VerticalError::FrameMismatch);
         }
         if cell != self.cell || weights.points != self.points {
             return Err(VerticalError::CellMismatch);
         }
-        match &self.kind {
-            ColumnStencilKind::Hybrid(stencil) => stencil.sample_boundary(weights),
-            ColumnStencilKind::Pressure(stencil) => stencil.sample_boundary(weights),
-        }
+        Ok(())
     }
 
     /// Samples one native full-level surface and its exact horizontal slopes.
@@ -1367,7 +1518,25 @@ impl ColumnStencil {
         request: ColumnRequest<'_>,
         level: usize,
     ) -> Result<NativeLevelGeometry, VerticalError> {
-        let (grid, weights) = self.weights_for_request(request)?;
+        let (_, weights) = self.weights_for_request(request)?;
+        self.level_geometry_with_weights(
+            request.frame,
+            request.cell,
+            weights,
+            request.latitude_degrees,
+            level,
+        )
+    }
+
+    pub(crate) fn level_geometry_with_weights(
+        &self,
+        frame: &RawMetFrame,
+        cell: CellId,
+        weights: HorizontalWeights,
+        latitude_degrees: f64,
+        level: usize,
+    ) -> Result<NativeLevelGeometry, VerticalError> {
+        self.validate_sample_identity(&frame.metadata().id, cell, weights)?;
         match &self.kind {
             ColumnStencilKind::Hybrid(stencil) => {
                 let pressure = corners_at_level(&stencil.pressure_pa, level)?;
@@ -1376,15 +1545,15 @@ impl ColumnStencil {
                     &pressure,
                     &[true; 4],
                     &weights,
-                    grid.geometry(),
-                    request.latitude_degrees,
+                    &frame.metadata().grid,
+                    latitude_degrees,
                 )?;
                 let height_gradient = horizontal_gradient(
                     &height,
                     &[true; 4],
                     &weights,
-                    grid.geometry(),
-                    request.latitude_degrees,
+                    &frame.metadata().grid,
+                    latitude_degrees,
                 )?;
                 Ok(NativeLevelGeometry {
                     pressure_pa: bilinear(&pressure, &weights.weights)?,
@@ -1407,8 +1576,8 @@ impl ColumnStencil {
                     &height,
                     &valid,
                     &weights,
-                    grid.geometry(),
-                    request.latitude_degrees,
+                    &frame.metadata().grid,
+                    latitude_degrees,
                 )?;
                 Ok(NativeLevelGeometry {
                     pressure_pa: stencil.pressure_pa[level],
@@ -1427,7 +1596,23 @@ impl ColumnStencil {
         &self,
         request: ColumnRequest<'_>,
     ) -> Result<TerrainGeometry, VerticalError> {
-        let (grid, weights) = self.weights_for_request(request)?;
+        let (_, weights) = self.weights_for_request(request)?;
+        self.terrain_geometry_with_weights(
+            request.frame,
+            request.cell,
+            weights,
+            request.latitude_degrees,
+        )
+    }
+
+    pub(crate) fn terrain_geometry_with_weights(
+        &self,
+        frame: &RawMetFrame,
+        cell: CellId,
+        weights: HorizontalWeights,
+        latitude_degrees: f64,
+    ) -> Result<TerrainGeometry, VerticalError> {
+        self.validate_sample_identity(&frame.metadata().id, cell, weights)?;
         let (values, valid) = match &self.kind {
             ColumnStencilKind::Hybrid(stencil) => (stencil.terrain_asl_m, [true; 4]),
             ColumnStencilKind::Pressure(stencil) => (stencil.terrain_asl_m, stencil.terrain_valid),
@@ -1438,8 +1623,8 @@ impl ColumnStencil {
             &values,
             &valid,
             &weights,
-            grid.geometry(),
-            request.latitude_degrees,
+            &frame.metadata().grid,
+            latitude_degrees,
         )?;
         Ok(TerrainGeometry {
             height_asl_m: bilinear(&values, &interpolation_weights)?,
@@ -1475,7 +1660,8 @@ impl ColumnStencil {
                     .saturating_add(levels.saturating_mul(std::mem::size_of::<f64>()))
                     .saturating_add(std::mem::size_of::<PressureColumnStencil>())
             }
-        };
+        }
+        .saturating_add(std::mem::size_of::<[SphericalBasis; 4]>());
         u64::try_from(bytes).unwrap_or(u64::MAX)
     }
 
@@ -1579,6 +1765,7 @@ impl ColumnStencil {
             frame: request.frame.metadata().id.clone(),
             cell: request.cell,
             points: weights.points,
+            source_bases: source_bases(grid.geometry(), &weights.points)?,
             kind: ColumnStencilKind::Hybrid(HybridColumnStencil {
                 native_coordinate: Arc::from(native_coordinate),
                 pressure_pa,
@@ -1694,6 +1881,7 @@ impl ColumnStencil {
             frame: request.frame.metadata().id.clone(),
             cell: request.cell,
             points: weights.points,
+            source_bases: source_bases(grid.geometry(), &weights.points)?,
             kind: ColumnStencilKind::Pressure(PressureColumnStencil {
                 pressure_pa: topology.pressure_pa.clone(),
                 height_asl_m,
@@ -1728,6 +1916,10 @@ impl ColumnStencil {
                 GridPoint { x: 0, y: 1 },
                 GridPoint { x: 1, y: 1 },
             ],
+            source_bases: [SphericalBasis {
+                east: [0.0, 1.0, 0.0],
+                north: [0.0, 0.0, 1.0],
+            }; 4],
             kind: ColumnStencilKind::Hybrid(HybridColumnStencil {
                 native_coordinate: Arc::from([0.1]),
                 pressure_pa,
@@ -1785,10 +1977,7 @@ impl HybridColumnStencil {
         )
     }
 
-    fn sample_boundary(
-        &self,
-        weights: HorizontalWeights,
-    ) -> Result<BoundaryColumnGeometry, VerticalError> {
+    fn sample_shape(&self, weights: HorizontalWeights) -> Result<ColumnShape, VerticalError> {
         let terrain_asl_m = bilinear(&self.terrain_asl_m, &weights.weights)?;
         let surface_pressure_pa = bilinear(&self.surface_pressure_pa, &weights.weights)?;
         let levels = self.pressure_pa[0].len();
@@ -1805,14 +1994,14 @@ impl HybridColumnStencil {
             )?);
         }
         let physical_top = self.carries_physical_top.then_some(height_asl_m[0]);
-        BoundaryColumnGeometry::new(
+        Ok(ColumnShape::from_sampled(
             pressure_pa,
             height_asl_m,
             vec![true; levels],
             terrain_asl_m,
             surface_pressure_pa,
             physical_top,
-        )
+        ))
     }
 }
 
@@ -1877,10 +2066,7 @@ impl PressureColumnStencil {
         )
     }
 
-    fn sample_boundary(
-        &self,
-        weights: HorizontalWeights,
-    ) -> Result<BoundaryColumnGeometry, VerticalError> {
+    fn sample_shape(&self, weights: HorizontalWeights) -> Result<ColumnShape, VerticalError> {
         let terrain_weights = valid_triangle_weights(&weights.weights, &self.terrain_valid)
             .ok_or(VerticalError::InvalidHorizontalSupport)?;
         let pressure_weights =
@@ -1908,14 +2094,14 @@ impl PressureColumnStencil {
             height_options[level] = Some(height);
             valid[level] = true;
         }
-        BoundaryColumnGeometry::new(
+        Ok(ColumnShape::from_sampled(
             self.pressure_pa.to_vec(),
             fill_invalid_descending(&height_options)?,
             valid,
             terrain_asl_m,
             surface_pressure_pa,
             None,
-        )
+        ))
     }
 }
 
