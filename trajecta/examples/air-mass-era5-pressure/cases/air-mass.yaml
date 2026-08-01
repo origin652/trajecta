@@ -1,0 +1,29 @@
+schema_version: 0
+kind: case
+metadata: { name: air-mass-era5-pressure }
+time:
+  start: { seconds_since_unix_epoch: 1543644000, nanosecond: 0 }
+  end: { seconds_since_unix_epoch: 1543644600, nanosecond: 0 }
+  direction: forward
+meteorology:
+  domains:
+    - id: limited
+      dataset: era5-pressure
+      priority: 1
+      horizontal_halo_cells: 1
+particle_population:
+  strategy: domain_fill_air_mass
+  id: air
+  domain_id: limited
+  target_particle_count: 1000
+substances: []
+numerics:
+  time_step: { value: 300, unit: s }
+  integrator: { model: rk2_spherical/v0 }
+  boundaries:
+    policies: [surface_reflect/v0, model_top_terminate/v0, limited_domain_terminate/v0]
+  random_seed: 4202
+outputs:
+  - product: particle_state/v1
+    schedule: { mode: endpoints }
+    sink: { model: particle_state_sqlite/v1 }

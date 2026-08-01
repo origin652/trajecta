@@ -1,0 +1,34 @@
+{
+  "schema_version": "trajecta.demo-data-manifest/v1",
+  "asset": "trajecta-demo-cfsr-20090101-v1",
+  "dataset": "NCEP Climate Forecast System Reanalysis (CFSR) GRBLOW 6-hourly low-resolution product",
+  "provider": "NOAA National Centers for Environmental Information",
+  "source_overview": "https://www.ncei.noaa.gov/products/weather-climate-models/climate-forecast-system",
+  "source_metadata": "https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C00765",
+  "source_root": "https://www.ncei.noaa.gov/data/climate-forecast-system/access/reanalysis/6-hourly-low-resolution/2009/200901/20090101/",
+  "terms": "https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C00765",
+  "open_data_policy": "https://www.noaa.gov/information-technology/open-data-dissemination",
+  "citation": "Saha et al. (2010), The NCEP Climate Forecast System Reanalysis, https://doi.org/10.1175/2010BAMS3001.1",
+  "files": [
+    {
+      "path": "data/pgbl00.gdas.2009010100.grb2",
+      "size_bytes": 5465079,
+      "sha256": "fd3949957d371b720617c0ebf4b984fdee27cd15a12733a03dedd883dd34d65c"
+    },
+    {
+      "path": "data/pgbl00.gdas.2009010106.grb2",
+      "size_bytes": 5436947,
+      "sha256": "00a6340960a47502b3ca043c77a02bb7e3381a0f30dc18b77203ad989d3c591b"
+    },
+    {
+      "path": "data/pgbl00.gdas.2009010112.grb2",
+      "size_bytes": 5452202,
+      "sha256": "f3cf06669e267fa69ed8d389d9180f0cfe395918a34baa2ab6bdcdf59373c5c5"
+    },
+    {
+      "path": "data/pgbl00.gdas.2009010118.grb2",
+      "size_bytes": 5494468,
+      "sha256": "a10c5bddf9e01a5c519fbb45461ac019e2b3916661467b07c940ea99ee4ddade"
+    }
+  ]
+}

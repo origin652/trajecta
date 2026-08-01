@@ -286,7 +286,7 @@ fn physical_memory_mib() -> Option<u64> {
                 .then(|| parts.next()?.parse::<u64>().ok())
                 .flatten()
         })?;
-        return Some(kib / 1024);
+        Some(kib / 1024)
     }
     #[cfg(windows)]
     {

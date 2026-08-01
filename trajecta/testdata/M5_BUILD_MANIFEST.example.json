@@ -95,16 +95,34 @@
       "role": "native_library"
     },
     {
-      "path": "examples/minimal/trajecta-project.yaml",
+      "path": "examples/domain-fill-cfsr/trajecta-project.yaml",
       "sha256": "7777777777777777777777777777777777777777777777777777777777777777",
       "bytes": 1,
       "role": "example"
+    },
+    {
+      "path": "requirements-data.txt",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "bytes": 1,
+      "role": "documentation"
     },
     {
       "path": "share/eccodes/definitions/boot.def",
       "sha256": "9999999999999999999999999999999999999999999999999999999999999999",
       "bytes": 1,
       "role": "native_data"
+    },
+    {
+      "path": "tools/fetch_trajecta_data.py",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "bytes": 1,
+      "role": "documentation"
+    },
+    {
+      "path": "tools/run_m5_1_quickstart.py",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "bytes": 1,
+      "role": "documentation"
     },
     {
       "path": "trajecta.exe",

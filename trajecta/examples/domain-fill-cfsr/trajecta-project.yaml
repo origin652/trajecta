@@ -1,0 +1,10 @@
+schema_version: trajecta.project-index/v1
+name: domain-fill-cfsr
+cases:
+  moisture: cases/moisture.yaml
+profiles:
+  product:
+    path: profiles/product.yaml
+    dataset_profiles:
+      cfsr: cfsr-pgbl-pressure-v0
+default_profile: product

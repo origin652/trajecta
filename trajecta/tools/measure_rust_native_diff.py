@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Measure pure-Rust dual-load and native backends (no self-adjudication).
 
-Uses the Windows native environment from docs/TRAJECTA_NATIVE_NETCDF_WINDOWS.md when present.
+Uses the Windows native environment from
+docs/engineering/TRAJECTA_NATIVE_NETCDF_WINDOWS.md when present.
 Writes target/native-diff/*.json with per-variable exact mismatch / max abs / max rel / worst index.
 
 Never claims tolerance pass. adjudication always unvalidated_measurement.
@@ -150,7 +151,7 @@ def probe_features(env: dict) -> dict:
         },
         "adjudication": "unvalidated_measurement",
         "notes": [
-            "Loads docs/TRAJECTA_NATIVE_NETCDF_WINDOWS.md paths when present.",
+            "Loads docs/engineering/TRAJECTA_NATIVE_NETCDF_WINDOWS.md paths when present.",
             "Does not self-certify numerical tolerances.",
         ],
     }

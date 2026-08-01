@@ -381,6 +381,7 @@ def run_self_tests() -> bool:
         return False
     finally:
         server.shutdown()
+        server.server_close()
 
 
 if __name__ == "__main__":

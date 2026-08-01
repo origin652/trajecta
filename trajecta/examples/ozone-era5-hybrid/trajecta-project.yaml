@@ -1,0 +1,10 @@
+schema_version: trajecta.project-index/v1
+name: ozone-era5-hybrid
+cases:
+  ozone: cases/ozone.yaml
+profiles:
+  product:
+    path: profiles/product.yaml
+    dataset_profiles:
+      era5-hybrid: era5-cds-hybrid137-v0
+default_profile: product

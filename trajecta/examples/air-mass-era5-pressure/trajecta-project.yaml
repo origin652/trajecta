@@ -1,0 +1,10 @@
+schema_version: trajecta.project-index/v1
+name: air-mass-era5-pressure
+cases:
+  air-mass: cases/air-mass.yaml
+profiles:
+  product:
+    path: profiles/product.yaml
+    dataset_profiles:
+      era5-pressure: era5-cf-pressure-netcdf-v0
+default_profile: product

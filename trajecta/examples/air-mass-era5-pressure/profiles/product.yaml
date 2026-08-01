@@ -1,0 +1,15 @@
+schema_version: 0
+kind: run_profile
+metadata: { name: product }
+case_path: ../cases/air-mass.yaml
+output_root: ../runs
+datasets:
+  - dataset: era5-pressure
+    lockfile: ../locks/era5-pressure.lock.json
+    data_roots: { met: ../data }
+    reader_backend: rust
+execution:
+  worker_threads: 1
+  memory_budget_bytes: 1073741824
+  executor: cpu
+  meteorology_reader: rust

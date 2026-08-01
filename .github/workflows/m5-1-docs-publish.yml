@@ -1,0 +1,128 @@
+name: Publish M5.1 documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - README.zh-CN.md
+      - trajecta/docs/user/**
+      - trajecta/docs/site-overrides/**
+      - trajecta/examples/**
+      - trajecta/mkdocs.yml
+      - trajecta/mkdocs.dev.yml
+      - trajecta/requirements-docs.txt
+      - trajecta/testdata/M5_CLI_CONTRACT.v1.json
+      - trajecta/testdata/*.schema.json
+      - trajecta/tools/generate_m5_1_reference.py
+      - trajecta/tools/validate_m5_1_docs.py
+      - .github/workflows/m5-1-docs-publish.yml
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      publish_release_snapshot:
+        description: Publish the immutable 0.1.0-alpha.1 documentation snapshot
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: m5-1-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: trajecta
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: trajecta/requirements-docs.txt
+      - name: Select the workspace Rust toolchain
+        run: |
+          rustup toolchain install 1.85.0 --profile minimal
+          rustup override set 1.85.0
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            trajecta/target
+          key: m5-1-publish-${{ runner.os }}-${{ hashFiles('trajecta/Cargo.lock') }}
+      - name: Build documentation inputs
+        run: |
+          python -m pip install -r requirements-docs.txt
+          cargo build --locked -p trajecta-cli
+          python tools/generate_m5_1_reference.py --binary target/debug/trajecta-cli --check
+          python tools/validate_m5_1_validation_assets.py
+      - name: Build release and dev artifacts
+        run: |
+          mkdocs build --strict
+          python tools/validate_m5_1_docs.py --binary target/debug/trajecta-cli --site-dir site
+          python tools/build_m5_1_root_seo.py --site-dir site --output target/m5-1-root-seo
+          mkdocs build --strict -f mkdocs.dev.yml -d site-dev
+          python tools/validate_m5_1_docs.py --binary target/debug/trajecta-cli --site-dir site-dev --expect-noindex
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m5-1-static-sites-${{ github.run_id }}
+          path: |
+            trajecta/site
+            trajecta/site-dev
+          if-no-files-found: error
+          retention-days: 30
+      - name: Configure the Pages commit identity
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git fetch origin gh-pages:gh-pages || true
+      - name: Publish mutable dev documentation
+        if: github.event_name != 'release' && inputs.publish_release_snapshot != true
+        run: mike deploy --config-file mkdocs.dev.yml --push --allow-empty dev
+      - name: Validate the release tag
+        if: github.event_name == 'release' || inputs.publish_release_snapshot == true
+        shell: bash
+        run: |
+          workspace_version="$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')"
+          if [[ "$GITHUB_EVENT_NAME" == "release" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$workspace_version"
+          fi
+          test "$version" = "$workspace_version"
+          test "$version" = "0.1.0-alpha.1"
+          echo "DOCS_VERSION=$version" >> "$GITHUB_ENV"
+      - name: Publish the immutable release snapshot
+        if: github.event_name == 'release' || inputs.publish_release_snapshot == true
+        shell: bash
+        run: |
+          if git cat-file -e "gh-pages:$DOCS_VERSION/index.html" 2>/dev/null; then
+            echo "documentation snapshot already exists: $DOCS_VERSION" >&2
+            exit 1
+          fi
+          mike deploy --config-file mkdocs.yml --update-aliases "$DOCS_VERSION" latest
+          mike set-default --config-file mkdocs.yml "$DOCS_VERSION"
+      - name: Publish root crawler assets
+        if: github.event_name == 'release' || inputs.publish_release_snapshot == true
+        shell: bash
+        run: |
+          pages="$RUNNER_TEMP/trajecta-gh-pages"
+          git worktree add "$pages" gh-pages
+          cp target/m5-1-root-seo/robots.txt "$pages/robots.txt"
+          cp target/m5-1-root-seo/sitemap.xml "$pages/sitemap.xml"
+          touch "$pages/.nojekyll"
+          git -C "$pages" add robots.txt sitemap.xml .nojekyll
+          git -C "$pages" diff --cached --quiet || git -C "$pages" commit -m "docs: update root crawler assets"
+          git worktree remove "$pages"
+          git push origin gh-pages

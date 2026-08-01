@@ -1,0 +1,109 @@
+name: M5.1 documentation checks
+
+on:
+  pull_request:
+    paths:
+      - README.md
+      - README.zh-CN.md
+      - trajecta/**
+      - .github/workflows/m5-1-*.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m5-1-docs-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  documentation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: trajecta
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            trajecta/requirements-docs.txt
+            trajecta/requirements-data.txt
+      - name: Select the workspace Rust toolchain
+        run: |
+          rustup toolchain install 1.85.0 --profile minimal
+          rustup override set 1.85.0
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            trajecta/target
+          key: m5-1-docs-${{ runner.os }}-${{ hashFiles('trajecta/Cargo.lock') }}
+      - name: Install documentation dependencies
+        run: python -m pip install -r requirements-docs.txt
+      - name: Build the real CLI reference source
+        run: cargo build --locked -p trajecta-cli
+      - name: Check helper and package contracts
+        run: |
+          python tools/test_fetch_trajecta_data.py
+          python tools/test_build_m5_1_demo_asset.py
+          python tools/test_m5_a4_package.py
+          python tools/validate_m5_1_validation_assets.py
+      - name: Check generated references and bilingual source
+        run: |
+          python tools/generate_m5_1_reference.py --binary target/debug/trajecta-cli --check
+          python tools/validate_m5_1_docs.py --binary target/debug/trajecta-cli
+      - name: Build and inspect the release site
+        run: |
+          mkdocs build --strict
+          python tools/validate_m5_1_docs.py --binary target/debug/trajecta-cli --site-dir site
+      - name: Build and inspect the noindex dev site
+        run: |
+          mkdocs build --strict -f mkdocs.dev.yml -d site-dev
+          python tools/validate_m5_1_docs.py --binary target/debug/trajecta-cli --site-dir site-dev --expect-noindex
+      - name: Fetch the frozen quickstart inputs
+        env:
+          TRAJECTA_BIN: ${{ github.workspace }}/trajecta/target/debug/trajecta-cli
+        run: |
+          mkdir -p target/m5-1-ci-download
+          target/debug/trajecta-cli --format json --project examples/domain-fill-cfsr project data-plan --output target/m5-1-ci-download/data-plan.json
+          python tools/fetch_trajecta_data.py --project examples/domain-fill-cfsr --plan target/m5-1-ci-download/data-plan.json --execute
+      - name: Run the documented domain-fill quickstart
+        run: |
+          python tools/run_m5_1_quickstart.py \
+            --package-root . \
+            --binary target/debug/trajecta-cli \
+            --data examples/domain-fill-cfsr/data \
+            --artifact-root target/m5-1-ci-quickstart
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: m5-1-docs-and-quickstart
+          path: |
+            trajecta/site
+            trajecta/site-dev
+            trajecta/target/m5-1-ci-quickstart
+          if-no-files-found: error
+          retention-days: 14
+
+  external-links:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --max-retries 3
+            --retry-wait-time 2
+            --accept 200,206,429
+            './README.md'
+            './README.zh-CN.md'
+            './trajecta/README.md'
+            './trajecta/docs/user/**/*.md'
+          fail: true

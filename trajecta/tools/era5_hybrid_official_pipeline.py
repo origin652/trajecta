@@ -16,19 +16,111 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
+import struct
 import subprocess
 import sys
 from pathlib import Path
 
-import cdsapi
-
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUT = ROOT / "target/test-data/era5-cds-hybrid137-official"
 # A-frozen expanded box: N, W, S, E
-AREA = [53, 0, 45, 10]
-DATE = "2018-12-01"
+DEFAULT_AREA = [53.0, 0.0, 45.0, 10.0]
+DEFAULT_DATE = "2018-12-01"
 TIMES = ["00:00", "03:00", "06:00"]
+
+
+def request_plan(date: str, times: list[str], area: list[float]) -> list[dict]:
+    """Return exact CDS requests without reading credentials or using the network."""
+    year, month, day = date.split("-")
+    stamp = f"{year}{month}{day}"
+    mars_common = {
+        "class": "ea",
+        "date": date,
+        "expver": "1",
+        "stream": "oper",
+        "type": "an",
+        "area": "/".join(str(x) for x in area),
+        "grid": "0.25/0.25",
+    }
+    single_common = {
+        "product_type": "reanalysis",
+        "year": year,
+        "month": month,
+        "day": day,
+        "time": times,
+        "area": area,
+        "data_format": "netcdf",
+        "download_format": "unarchived",
+    }
+    mars_times = "/".join(time.removesuffix(":00") for time in times)
+    return [
+        {
+            "dataset": "reanalysis-era5-complete",
+            "request": mars_common
+            | {
+                "levelist": "/".join(str(level) for level in range(1, 138)),
+                "levtype": "ml",
+                "param": "130/131/132/133/135",
+                "time": mars_times,
+                "format": "netcdf",
+            },
+            "target": f"raw/era5_hybrid137_{stamp}.nc",
+        },
+        {
+            "dataset": "reanalysis-era5-complete",
+            "request": mars_common
+            | {
+                "levelist": "1",
+                "levtype": "ml",
+                "param": "152",
+                "time": mars_times,
+                "format": "netcdf",
+            },
+            "target": f"raw/era5_lnsp_{stamp}.nc",
+        },
+        {
+            "dataset": "reanalysis-era5-single-levels",
+            "request": single_common
+            | {
+                "variable": [
+                    "geopotential",
+                    "10m_u_component_of_wind",
+                    "10m_v_component_of_wind",
+                    "2m_temperature",
+                    "2m_dewpoint_temperature",
+                    "forecast_surface_roughness",
+                    "boundary_layer_height",
+                    "friction_velocity",
+                ]
+            },
+            "target": f"raw/era5_hybrid_surface_base_{stamp}.nc",
+        },
+        {
+            "dataset": "reanalysis-era5-single-levels",
+            "request": single_common
+            | {
+                "variable": [
+                    "instantaneous_surface_sensible_heat_flux",
+                    "instantaneous_moisture_flux",
+                ]
+            },
+            "target": f"raw/era5_hybrid_surface_flux_{stamp}.nc",
+        },
+        {
+            "dataset": "reanalysis-era5-complete",
+            "request": mars_common
+            | {
+                "levelist": "137",
+                "levtype": "ml",
+                "param": "130",
+                "time": times[0].removesuffix(":00"),
+                "format": "grib",
+            },
+            "target": "raw/era5_hybrid_pv_probe.grib",
+        },
+    ]
 
 
 def sha256_file(path: Path) -> str:
@@ -235,130 +327,28 @@ def retrieve(
     client.retrieve(dataset, request, str(part))
     promote_part(part, target, exp_size=exp_size, exp_sha=exp_sha)
 
-def fetch_all(out: Path, times: list[str], *, force: bool) -> None:
+def fetch_all(
+    out: Path,
+    times: list[str],
+    *,
+    date: str,
+    area: list[float],
+    force: bool,
+) -> None:
+    import cdsapi
+
     raw = out / "raw"
     raw.mkdir(parents=True, exist_ok=True)
     client = cdsapi.Client()
-    year, month, day = DATE.split("-")
-
-    # Hybrid 3D on model levels 1-137 (t/u/v/q/w). lnsp is separate file (level 1).
-    retrieve(
-        client,
-        "reanalysis-era5-complete",
-        {
-            "class": "ea",
-            "date": DATE,
-            "expver": "1",
-            "levelist": "/".join(str(i) for i in range(1, 138)),
-            "levtype": "ml",
-            "param": "130/131/132/133/135",
-            "stream": "oper",
-            "time": "/".join(t.removesuffix(":00") for t in times),
-            "type": "an",
-            "area": "/".join(str(x) for x in AREA),
-            "grid": "0.25/0.25",
-            "format": "netcdf",
-        },
-        raw / "era5_hybrid137_20181201.nc",
-        root=out,
-        force=force,
-    )
-
-    # lnsp (param 152) on model level 1
-    retrieve(
-        client,
-        "reanalysis-era5-complete",
-        {
-            "class": "ea",
-            "date": DATE,
-            "expver": "1",
-            "levelist": "1",
-            "levtype": "ml",
-            "param": "152",
-            "stream": "oper",
-            "time": "/".join(t.removesuffix(":00") for t in times),
-            "type": "an",
-            "area": "/".join(str(x) for x in AREA),
-            "grid": "0.25/0.25",
-            "format": "netcdf",
-        },
-        raw / "era5_lnsp_20181201.nc",
-        root=out,
-        force=force,
-    )
-
-    # Surface companions aligned to the requested model-level frames.
-    retrieve(
-        client,
-        "reanalysis-era5-single-levels",
-        {
-            "product_type": "reanalysis",
-            "variable": [
-                "geopotential",
-                "10m_u_component_of_wind",
-                "10m_v_component_of_wind",
-                "2m_temperature",
-                "2m_dewpoint_temperature",
-                "forecast_surface_roughness",
-                "boundary_layer_height",
-                "friction_velocity",
-            ],
-            "year": year,
-            "month": month,
-            "day": day,
-            "time": times,
-            "area": AREA,
-            "data_format": "netcdf",
-            "download_format": "unarchived",
-        },
-        raw / "era5_hybrid_surface_base_20181201.nc",
-        root=out,
-        force=force,
-    )
-    retrieve(
-        client,
-        "reanalysis-era5-single-levels",
-        {
-            "product_type": "reanalysis",
-            "variable": [
-                "instantaneous_surface_sensible_heat_flux",
-                "instantaneous_moisture_flux",
-            ],
-            "year": year,
-            "month": month,
-            "day": day,
-            "time": times,
-            "area": AREA,
-            "data_format": "netcdf",
-            "download_format": "unarchived",
-        },
-        raw / "era5_hybrid_surface_flux_20181201.nc",
-        root=out,
-        force=force,
-    )
-
-    # Tiny GRIB PV probe for official A/B coefficients (service bytes).
-    retrieve(
-        client,
-        "reanalysis-era5-complete",
-        {
-            "class": "ea",
-            "date": DATE,
-            "expver": "1",
-            "levelist": "137",
-            "levtype": "ml",
-            "param": "130",
-            "stream": "oper",
-            "time": "00",
-            "type": "an",
-            "area": "/".join(str(x) for x in AREA),
-            "grid": "0.25/0.25",
-            "format": "grib",
-        },
-        raw / "era5_hybrid_pv_probe.grib",
-        root=out,
-        force=force,
-    )
+    for item in request_plan(date, times, area):
+        retrieve(
+            client,
+            item["dataset"],
+            item["request"],
+            out / item["target"],
+            root=out,
+            force=force,
+        )
 
     files = []
     for path in sorted(raw.iterdir()):
@@ -376,7 +366,8 @@ def fetch_all(out: Path, times: list[str], *, force: bool) -> None:
         json.dumps(
             {
                 "dataset": "era5_cds_hybrid137_raw",
-                "date": DATE,
+                "date": date,
+                "area_nswe": area,
                 "times_utc": [time.removesuffix(":00") for time in times],
                 "source": "https://cds.climate.copernicus.eu",
                 "files": files,
@@ -393,6 +384,65 @@ def fetch_all(out: Path, times: list[str], *, force: bool) -> None:
     )
 
 
+def grib2_hybrid_coefficients(raw: bytes) -> tuple[list[float], list[float]]:
+    """Extract the GRIB2 Section 4 PV array without Cargo or Python bindings."""
+    candidates: list[tuple[list[float], list[float]]] = []
+    offset = 0
+    while offset < len(raw):
+        if raw[offset : offset + 4] != b"GRIB" or offset + 16 > len(raw):
+            raise ValueError(f"invalid GRIB message boundary at byte {offset}")
+        if raw[offset + 7] != 2:
+            raise ValueError("the ERA5 hybrid PV probe must use GRIB edition 2")
+        message_length = int.from_bytes(raw[offset + 8 : offset + 16], "big")
+        message_end = offset + message_length
+        if message_length < 20 or message_end > len(raw):
+            raise ValueError("truncated GRIB2 message")
+        if raw[message_end - 4 : message_end] != b"7777":
+            raise ValueError("GRIB2 message has no end marker")
+
+        cursor = offset + 16
+        section_limit = message_end - 4
+        while cursor < section_limit:
+            if cursor + 5 > section_limit:
+                raise ValueError("truncated GRIB2 section header")
+            section_length = int.from_bytes(raw[cursor : cursor + 4], "big")
+            section_end = cursor + section_length
+            if section_length < 5 or section_end > section_limit:
+                raise ValueError("invalid GRIB2 section length")
+            if raw[cursor + 4] == 4:
+                if section_length < 9:
+                    raise ValueError("truncated GRIB2 product section")
+                coordinate_count = int.from_bytes(raw[cursor + 5 : cursor + 7], "big")
+                if coordinate_count:
+                    if coordinate_count % 2:
+                        raise ValueError("hybrid PV coordinate count must be even")
+                    coordinate_bytes = coordinate_count * 4
+                    values_start = section_end - coordinate_bytes
+                    if values_start < cursor + 9:
+                        raise ValueError("hybrid PV overlaps the product template")
+                    values = [
+                        float(value)
+                        for (value,) in struct.iter_unpack(
+                            ">f", raw[values_start:section_end]
+                        )
+                    ]
+                    if any(not math.isfinite(value) for value in values):
+                        raise ValueError("hybrid PV contains a non-finite coefficient")
+                    split = coordinate_count // 2
+                    candidates.append((values[:split], values[split:]))
+            cursor = section_end
+        offset = message_end
+
+    if not candidates:
+        raise ValueError("GRIB2 probe contains no hybrid PV coefficients")
+    first = candidates[0]
+    if any(candidate != first for candidate in candidates[1:]):
+        raise ValueError("GRIB2 probe contains inconsistent hybrid PV arrays")
+    if len(first[0]) < 2 or len(first[0]) != len(first[1]):
+        raise ValueError("GRIB2 probe contains an invalid hybrid vertical grid")
+    return first
+
+
 def extract_coefficients(out: Path) -> Path:
     raw_probe = out / "raw" / "era5_hybrid_pv_probe.grib"
     derived = out / "derived"
@@ -400,26 +450,29 @@ def extract_coefficients(out: Path) -> Path:
     coeff = derived / "era5_l137_ab_coefficients.json"
     if not raw_probe.is_file():
         raise SystemExit(f"missing PV probe {raw_probe}")
-    cmd = [
-        "cargo",
-        "run",
-        "--offline",
-        "-p",
-        "trajecta-met",
-        "--example",
-        "dump_grib_hybrid_pv",
-        "--",
-        str(raw_probe),
-        str(coeff),
-    ]
-    print("+", " ".join(cmd), flush=True)
-    proc = subprocess.run(cmd, cwd=ROOT)
-    if proc.returncode != 0:
-        raise SystemExit(proc.returncode)
+    try:
+        a_half_pa, b_half = grib2_hybrid_coefficients(raw_probe.read_bytes())
+    except (OSError, ValueError) as error:
+        raise SystemExit(f"cannot extract hybrid coefficients: {error}") from error
+    payload = {
+        "source_grib": "raw/era5_hybrid_pv_probe.grib",
+        "interface_count": len(a_half_pa),
+        "full_level_count": len(a_half_pa) - 1,
+        "a_half_pa": a_half_pa,
+        "b_half": b_half,
+        "active_full_levels": [len(a_half_pa) - 1],
+        "note": "Coefficients extracted from official CDS ERA5 GRIB PV metadata; not invented.",
+    }
+    coeff.write_text(
+        json.dumps(payload, indent=2) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    print(f"wrote {coeff} interfaces={len(a_half_pa)} levels={len(a_half_pa) - 1}", flush=True)
     return coeff
 
 
-def prepare(out: Path, times: list[str]) -> None:
+def prepare(out: Path, times: list[str], date: str) -> None:
     # Point prepare script at correct layout (coeff in derived/).
     cmd = [
         sys.executable,
@@ -428,6 +481,8 @@ def prepare(out: Path, times: list[str]) -> None:
         str(out),
         "--times",
         *(time.removesuffix(":00") for time in times),
+        "--date",
+        date,
     ]
     print("+", " ".join(cmd), flush=True)
     proc = subprocess.run(cmd, cwd=ROOT)
@@ -439,15 +494,26 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--times", nargs="+", default=TIMES)
+    parser.add_argument("--date", default=DEFAULT_DATE)
+    parser.add_argument(
+        "--area",
+        nargs=4,
+        type=float,
+        metavar=("NORTH", "WEST", "SOUTH", "EAST"),
+        default=DEFAULT_AREA,
+    )
     parser.add_argument("--force-fetch", action="store_true")
     parser.add_argument("--skip-fetch", action="store_true")
     args = parser.parse_args()
+    area = list(args.area)
+    if area[0] <= area[2] or area[1] >= area[3]:
+        raise SystemExit("--area must satisfy north > south and west < east")
     out = args.out_dir.resolve()
     out.mkdir(parents=True, exist_ok=True)
     if not args.skip_fetch:
-        fetch_all(out, args.times, force=args.force_fetch)
+        fetch_all(out, args.times, date=args.date, area=area, force=args.force_fetch)
     extract_coefficients(out)
-    prepare(out, args.times)
+    prepare(out, args.times, args.date)
     print("pipeline complete:", out)
     return 0
 

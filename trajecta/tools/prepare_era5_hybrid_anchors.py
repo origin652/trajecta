@@ -247,12 +247,16 @@ def main() -> int:
         default=Path("target/test-data/era5-cds-hybrid137-official"),
     )
     parser.add_argument("--times", nargs="+", default=["00", "03", "06"])
+    parser.add_argument("--date", default="2018-12-01")
     args = parser.parse_args()
+    stamp = args.date.replace("-", "")
+    if len(stamp) != 8 or not stamp.isdigit():
+        raise SystemExit("--date must be YYYY-MM-DD")
     root = args.root
     raw = root / "raw"
     derived = root / "derived"
-    hybrid_src = raw / "era5_hybrid137_20181201.nc"
-    lnsp_src = raw / "era5_lnsp_20181201.nc"
+    hybrid_src = raw / f"era5_hybrid137_{stamp}.nc"
+    lnsp_src = raw / f"era5_lnsp_{stamp}.nc"
     # Coefficients are derived, never stored as raw service bytes.
     coeff = derived / "era5_l137_ab_coefficients.json"
     if not coeff.is_file():
@@ -261,8 +265,8 @@ def main() -> int:
         if legacy.is_file():
             derived.mkdir(parents=True, exist_ok=True)
             shutil.move(str(legacy), str(coeff))
-    base = raw / "era5_hybrid_surface_base_20181201.nc"
-    flux = raw / "era5_hybrid_surface_flux_20181201.nc"
+    base = raw / f"era5_hybrid_surface_base_{stamp}.nc"
+    flux = raw / f"era5_hybrid_surface_flux_{stamp}.nc"
     for path in (hybrid_src, lnsp_src, base, flux):
         if not path.is_file():
             raise SystemExit(
@@ -273,12 +277,12 @@ def main() -> int:
         raise SystemExit(f"missing derived coefficients {coeff}")
 
     ready = root / "ready"
-    if ready.exists():
-        shutil.rmtree(ready)
-    ready.mkdir(parents=True)
+    ready.mkdir(parents=True, exist_ok=True)
 
-    prepared = ready / "era5_hybrid137_prepared_20181201.nc"
-    surface = ready / "era5_surface_20181201.nc"
+    prepared = ready / f"era5_hybrid137_prepared_{stamp}.nc"
+    surface = ready / f"era5_surface_{stamp}.nc"
+    prepared.unlink(missing_ok=True)
+    surface.unlink(missing_ok=True)
     prepare_hybrid(hybrid_src, lnsp_src, coeff, prepared)
     merge_surface(base, flux, surface)
 
@@ -286,12 +290,12 @@ def main() -> int:
     prepare = {
         "dataset": "era5_cds_hybrid137_ready",
         "dataset_family": FAMILY,
-        "date": "2018-12-01",
+        "date": args.date,
         "times_utc": args.times,
         "model_levels": list(range(1, 138)),
         "primary_files": {
-            "hybrid_prepared": "ready/era5_hybrid137_prepared_20181201.nc",
-            "surface_merged": "ready/era5_surface_20181201.nc",
+            "hybrid_prepared": f"ready/era5_hybrid137_prepared_{stamp}.nc",
+            "surface_merged": f"ready/era5_surface_{stamp}.nc",
             "coefficients": "derived/era5_l137_ab_coefficients.json",
         },
         "files": [file_record(p, root) for p in sorted(ready.glob("*.nc"))]

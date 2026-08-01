@@ -159,13 +159,18 @@ def main() -> int:
         default=Path("target/test-data/era5-cds-pressure-classic"),
     )
     parser.add_argument("--times", nargs="+", default=["00", "06", "12"])
+    parser.add_argument("--date", default="2018-12-01")
+    parser.add_argument("--skip-classic", action="store_true")
     args = parser.parse_args()
+    stamp = args.date.replace("-", "")
+    if len(stamp) != 8 or not stamp.isdigit():
+        raise SystemExit("--date must be YYYY-MM-DD")
     root = args.root
     raw = root / "raw"
     ready = root / "ready"
-    pressure_raw = raw / "era5_pressure_20181201.nc"
-    base_raw = raw / "era5_surface_base_20181201.nc"
-    flux_raw = raw / "era5_surface_flux_20181201.nc"
+    pressure_raw = raw / f"era5_pressure_{stamp}.nc"
+    base_raw = raw / f"era5_surface_base_{stamp}.nc"
+    flux_raw = raw / f"era5_surface_flux_{stamp}.nc"
     for path in (pressure_raw, base_raw, flux_raw):
         if not path.is_file():
             raise SystemExit(
@@ -181,13 +186,16 @@ def main() -> int:
                     "Re-run: python tools/fetch_era5_pressure_cds.py --force"
                 )
 
-    if ready.exists():
-        shutil.rmtree(ready)
-    ready.mkdir(parents=True)
+    ready.mkdir(parents=True, exist_ok=True)
+    for target in (
+        ready / f"era5_pressure_{stamp}.nc",
+        ready / f"era5_surface_{stamp}.nc",
+    ):
+        target.unlink(missing_ok=True)
 
     write_ready_nc(
         pressure_raw,
-        ready / "era5_pressure_20181201.nc",
+        ready / f"era5_pressure_{stamp}.nc",
         role="pressure",
         keep={
             "valid_time",
@@ -202,50 +210,51 @@ def main() -> int:
             "z",
         },
     )
-    merge_surface(base_raw, flux_raw, ready / "era5_surface_20181201.nc")
+    merge_surface(base_raw, flux_raw, ready / f"era5_surface_{stamp}.nc")
 
     # Classic dual-backend fixture keeps 3-D z (role+layout disambiguates).
-    convert_classic(
-        ready / "era5_pressure_20181201.nc",
-        args.classic_dir / "era5_pressure_20181201.nc",
-        [
-            "valid_time",
-            "pressure_level",
-            "latitude",
-            "longitude",
-            "t",
-            "u",
-            "v",
-            "q",
-            "w",
-            "z",
-        ],
-    )
-    convert_classic(
-        ready / "era5_surface_20181201.nc",
-        args.classic_dir / "era5_surface_20181201.nc",
-        [
-            "valid_time",
-            "latitude",
-            "longitude",
-            "sp",
-            "z",
-            "u10",
-            "v10",
-            "t2m",
-            "d2m",
-            "fsr",
-            "blh",
-            "zust",
-            "ishf",
-            "ie",
-        ],
-    )
+    if not args.skip_classic:
+        convert_classic(
+            ready / f"era5_pressure_{stamp}.nc",
+            args.classic_dir / f"era5_pressure_{stamp}.nc",
+            [
+                "valid_time",
+                "pressure_level",
+                "latitude",
+                "longitude",
+                "t",
+                "u",
+                "v",
+                "q",
+                "w",
+                "z",
+            ],
+        )
+        convert_classic(
+            ready / f"era5_surface_{stamp}.nc",
+            args.classic_dir / f"era5_surface_{stamp}.nc",
+            [
+                "valid_time",
+                "latitude",
+                "longitude",
+                "sp",
+                "z",
+                "u10",
+                "v10",
+                "t2m",
+                "d2m",
+                "fsr",
+                "blh",
+                "zust",
+                "ishf",
+                "ie",
+            ],
+        )
 
     fetch = {
         "dataset": "era5_cds_pressure_raw",
         "dataset_family": FAMILY,
-        "date": "2018-12-01",
+        "date": args.date,
         "times_utc": args.times,
         "source": "https://cds.climate.copernicus.eu",
         "product": "reanalysis-era5-pressure-levels + reanalysis-era5-single-levels",
@@ -258,11 +267,11 @@ def main() -> int:
     prepare = {
         "dataset": "era5_cds_pressure_ready",
         "dataset_family": FAMILY,
-        "date": "2018-12-01",
+        "date": args.date,
         "times_utc": args.times,
         "files": [file_record(p, root) for p in sorted(ready.glob("*.nc"))]
         + [file_record(p, args.classic_dir.parent if False else p.parent) for p in []],
-        "classic_files": [
+        "classic_files": [] if args.skip_classic else [
             {
                 "name": p.name,
                 "path": str(p.as_posix()),

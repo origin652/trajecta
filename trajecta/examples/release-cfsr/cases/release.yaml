@@ -1,0 +1,40 @@
+schema_version: 0
+kind: case
+metadata: { name: release-cfsr }
+time:
+  start: { seconds_since_unix_epoch: 1230789600, nanosecond: 0 }
+  end: { seconds_since_unix_epoch: 1230790200, nanosecond: 0 }
+  direction: forward
+meteorology:
+  domains:
+    - id: global
+      dataset: cfsr
+      priority: 1
+      horizontal_halo_cells: 1
+particle_population:
+  strategy: release_driven
+  id: release
+  events:
+    - id: event
+      start: { seconds_since_unix_epoch: 1230789600, nanosecond: 0 }
+      end: { seconds_since_unix_epoch: 1230789600, nanosecond: 0 }
+      particle_count: 1000
+      mass: { water: { value: 1, unit: kg } }
+      geometry:
+        source: inline
+        geometry: { type: Point, coordinates: [0, 0] }
+      vertical:
+        coordinate: above_sea_level
+        lower: { value: 1000, unit: m }
+substances:
+  - { id: water, display_name: Water vapor tracer }
+numerics:
+  time_step: { value: 300, unit: s }
+  integrator: { model: rk2_spherical/v0 }
+  boundaries:
+    policies: [surface_reflect/v0, model_top_terminate/v0, global_periodic/v0]
+  random_seed: 4201
+outputs:
+  - product: particle_state/v1
+    schedule: { mode: endpoints }
+    sink: { model: particle_state_sqlite/v1 }

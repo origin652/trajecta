@@ -1,0 +1,15 @@
+schema_version: 0
+kind: run_profile
+metadata: { name: product }
+case_path: ../cases/ozone.yaml
+output_root: ../runs
+datasets:
+  - dataset: era5-hybrid
+    lockfile: ../locks/era5-hybrid.lock.json
+    data_roots: { met: ../data }
+    reader_backend: rust
+execution:
+  worker_threads: 1
+  memory_budget_bytes: 1073741824
+  executor: cpu
+  meteorology_reader: rust

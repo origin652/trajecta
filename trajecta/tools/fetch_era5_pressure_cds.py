@@ -12,10 +12,8 @@ import os
 import sys
 from pathlib import Path
 
-import cdsapi
-
 # A-frozen expanded box: N, W, S, E (CDS area order)
-AREA_NSWE = [53, 0, 45, 10]
+DEFAULT_AREA_NSWE = [53.0, 0.0, 45.0, 10.0]
 PRESSURE_LEVELS = [
     "1", "2", "3", "5", "7", "10", "20", "30", "50", "70",
     "100", "125", "150", "175", "200", "225", "250", "300", "350", "400",
@@ -46,6 +44,40 @@ SURFACE_FLUX_VARS = [
     "instantaneous_moisture_flux",
 ]
 DEFAULT_TIMES = ["00:00", "06:00", "12:00"]
+
+
+def request_plan(date: str, times: list[str], area: list[float]) -> list[dict]:
+    """Return the exact CDS requests without reading credentials or using the network."""
+    year, month, day = date.split("-")
+    stamp = f"{year}{month}{day}"
+    common = {
+        "product_type": "reanalysis",
+        "year": year,
+        "month": month,
+        "day": day,
+        "time": times,
+        "area": area,
+        "data_format": "netcdf",
+        "download_format": "unarchived",
+    }
+    return [
+        {
+            "dataset": "reanalysis-era5-pressure-levels",
+            "request": common
+            | {"variable": PRESSURE_VARS, "pressure_level": PRESSURE_LEVELS},
+            "target": f"raw/era5_pressure_{stamp}.nc",
+        },
+        {
+            "dataset": "reanalysis-era5-single-levels",
+            "request": common | {"variable": SURFACE_BASE_VARS},
+            "target": f"raw/era5_surface_base_{stamp}.nc",
+        },
+        {
+            "dataset": "reanalysis-era5-single-levels",
+            "request": common | {"variable": SURFACE_FLUX_VARS},
+            "target": f"raw/era5_surface_flux_{stamp}.nc",
+        },
+    ]
 
 
 def sha256_file(path: Path) -> str:
@@ -248,6 +280,8 @@ def retrieve(client: cdsapi.Client, dataset: str, request: dict, target: Path, *
     promote_part(part, target, exp_size=exp_size, exp_sha=exp_sha)
 
 def main() -> int:
+    import cdsapi
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--out-dir",
@@ -258,81 +292,40 @@ def main() -> int:
     parser.add_argument("--date", default="2018-12-01")
     parser.add_argument("--times", nargs="+", default=DEFAULT_TIMES)
     parser.add_argument(
+        "--area",
+        nargs=4,
+        type=float,
+        metavar=("NORTH", "WEST", "SOUTH", "EAST"),
+        default=DEFAULT_AREA_NSWE,
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Re-download even if raw exists (also auto-redownloads stamped files)",
     )
     args = parser.parse_args()
+    area = list(args.area)
+    if area[0] <= area[2] or area[1] >= area[3]:
+        raise SystemExit("--area must satisfy north > south and west < east")
     raw = args.out_dir / "raw"
     raw.mkdir(parents=True, exist_ok=True)
 
     client = cdsapi.Client()
-    year, month, day = args.date.split("-")
-    stamp = f"{year}{month}{day}"
-
-    pressure_target = raw / f"era5_pressure_{stamp}.nc"
-    retrieve(
-        client,
-        "reanalysis-era5-pressure-levels",
-        {
-            "product_type": "reanalysis",
-            "variable": PRESSURE_VARS,
-            "pressure_level": PRESSURE_LEVELS,
-            "year": year,
-            "month": month,
-            "day": day,
-            "time": args.times,
-            "area": AREA_NSWE,
-            "data_format": "netcdf",
-            "download_format": "unarchived",
-        },
-        pressure_target,
-        force=args.force,
-        root=args.out_dir,
-    )
-
-    surface_base = raw / f"era5_surface_base_{stamp}.nc"
-    retrieve(
-        client,
-        "reanalysis-era5-single-levels",
-        {
-            "product_type": "reanalysis",
-            "variable": SURFACE_BASE_VARS,
-            "year": year,
-            "month": month,
-            "day": day,
-            "time": args.times,
-            "area": AREA_NSWE,
-            "data_format": "netcdf",
-            "download_format": "unarchived",
-        },
-        surface_base,
-        force=args.force,
-        root=args.out_dir,
-    )
-
-    surface_flux = raw / f"era5_surface_flux_{stamp}.nc"
-    retrieve(
-        client,
-        "reanalysis-era5-single-levels",
-        {
-            "product_type": "reanalysis",
-            "variable": SURFACE_FLUX_VARS,
-            "year": year,
-            "month": month,
-            "day": day,
-            "time": args.times,
-            "area": AREA_NSWE,
-            "data_format": "netcdf",
-            "download_format": "unarchived",
-        },
-        surface_flux,
-        force=args.force,
-        root=args.out_dir,
-    )
+    targets = []
+    for item in request_plan(args.date, args.times, area):
+        target = args.out_dir / item["target"]
+        retrieve(
+            client,
+            item["dataset"],
+            item["request"],
+            target,
+            force=args.force,
+            root=args.out_dir,
+        )
+        targets.append(target)
 
     records = []
-    for path in (pressure_target, surface_base, surface_flux):
+    for path in targets:
         rec = {
             "name": path.name,
             "relative_path": str(path.relative_to(args.out_dir).as_posix()),
@@ -351,7 +344,7 @@ def main() -> int:
         ],
         "date": args.date,
         "times": args.times,
-        "area_nswe": AREA_NSWE,
+        "area_nswe": area,
         "pressure_levels_hpa": PRESSURE_LEVELS,
         "license": "Copernicus CDS licence (see CDS terms)",
         "attribution": "Generated using Copernicus Climate Change Service information",

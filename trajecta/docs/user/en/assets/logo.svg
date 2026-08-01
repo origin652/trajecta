@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Trajecta">
+  <path fill="#00acc1" d="M32 4C24 17 13 29 13 42a19 19 0 0 0 38 0C51 29 40 17 32 4Z"/>
+  <path fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" d="M21 42c8-12 15 9 24-5"/>
+  <circle cx="22" cy="42" r="3" fill="#fff"/>
+  <circle cx="45" cy="37" r="3" fill="#fff"/>
+</svg>

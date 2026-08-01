@@ -34,6 +34,40 @@ LICENSE_INVENTORY_NAME = "THIRD-PARTY-LICENSES.json"
 BUILD_RESULT_NAME = "M5_A4_PACKAGE_BUILD_RESULT.json"
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
+PACKAGE_TOOLS = (
+    "fetch_trajecta_data.py",
+    "run_m5_1_quickstart.py",
+    "fetch_cfsr_pgbl.py",
+    "fetch_era5_pressure_cds.py",
+    "prepare_era5_pressure_anchors.py",
+    "era5_hybrid_official_pipeline.py",
+    "prepare_era5_hybrid_anchors.py",
+)
+REQUIRED_PACKAGE_FILES = (
+    "requirements-data.txt",
+    *(f"tools/{name}" for name in PACKAGE_TOOLS),
+    "docs/quickstart/QUICKSTART.en.md",
+    "docs/quickstart/QUICKSTART.zh-CN.md",
+    "docs/quickstart/RECOVERY.en.md",
+    "docs/quickstart/RECOVERY.zh-CN.md",
+    "docs/quickstart/SUPPORT.md",
+    "examples/domain-fill-cfsr/README.md",
+    "examples/domain-fill-cfsr/trajecta-project.yaml",
+    "examples/domain-fill-cfsr/cases/moisture.yaml",
+    "examples/domain-fill-cfsr/profiles/product.yaml",
+    "examples/release-cfsr/README.md",
+    "examples/release-cfsr/trajecta-project.yaml",
+    "examples/release-cfsr/cases/release.yaml",
+    "examples/release-cfsr/profiles/product.yaml",
+    "examples/air-mass-era5-pressure/README.md",
+    "examples/air-mass-era5-pressure/trajecta-project.yaml",
+    "examples/air-mass-era5-pressure/cases/air-mass.yaml",
+    "examples/air-mass-era5-pressure/profiles/product.yaml",
+    "examples/ozone-era5-hybrid/README.md",
+    "examples/ozone-era5-hybrid/trajecta-project.yaml",
+    "examples/ozone-era5-hybrid/cases/ozone.yaml",
+    "examples/ozone-era5-hybrid/profiles/product.yaml",
+)
 
 
 class PackageError(RuntimeError):
@@ -715,14 +749,18 @@ def payload_role(relative: str, binary_name: str) -> str:
         return "binary"
     if relative == "LICENSE":
         return "license"
-    if relative == "README.md":
+    if relative in {"README.md", "requirements-data.txt"}:
         return "documentation"
     if relative == SBOM_NAME:
         return "sbom"
     if relative == LICENSE_INVENTORY_NAME:
         return "license_inventory"
-    if relative.startswith("examples/minimal/"):
+    if relative.startswith("examples/"):
         return "example"
+    if relative.startswith("docs/quickstart/"):
+        return "documentation"
+    if relative.startswith("tools/"):
+        return "documentation"
     if relative.startswith("share/eccodes/definitions/"):
         return "native_data"
     if relative.startswith("lib/") or relative.lower().endswith(".dll"):
@@ -757,7 +795,19 @@ def copy_product_payload(
         binary_destination.chmod(0o755)
     shutil.copy2(ROOT / "LICENSE", stage / "LICENSE")
     shutil.copy2(ROOT / "packaging" / "README.md", stage / "README.md")
-    copy_tree_strict(ROOT / "packaging" / "examples", stage / "examples")
+    copy_tree_strict(ROOT / "examples", stage / "examples")
+    copy_tree_strict(ROOT / "packaging" / "docs", stage / "docs" / "quickstart")
+    tools_destination = stage / "tools"
+    tools_destination.mkdir()
+    for name in PACKAGE_TOOLS:
+        source = ROOT / "tools" / name
+        if not source.is_file():
+            raise PackageError(f"required package tool is missing: {source}")
+        shutil.copy2(source, tools_destination / name)
+    data_requirements = ROOT / "requirements-data.txt"
+    if not data_requirements.is_file():
+        raise PackageError(f"required data-helper requirements are missing: {data_requirements}")
+    shutil.copy2(data_requirements, stage / data_requirements.name)
     if platform_contract["label"] == "windows-x86_64":
         if not native_library_directories:
             raise PackageError("Windows packaging requires --native-library-dir")
@@ -1093,6 +1143,11 @@ def validate_build_manifest(root: Path) -> dict[str, Any]:
     if not required_roles <= {entry.get("role") for entry in payload}:
         raise PackageError("build manifest is missing a required payload role")
     listed = set(paths)
+    missing_required = sorted(set(REQUIRED_PACKAGE_FILES) - listed)
+    if missing_required:
+        raise PackageError(
+            f"package is missing required documentation payload: {missing_required}"
+        )
     actual = {
         path.relative_to(root).as_posix()
         for path in root.rglob("*")

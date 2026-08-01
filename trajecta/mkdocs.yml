@@ -1,0 +1,148 @@
+site_name: Trajecta
+site_description: Open-source Lagrangian water-vapor tracking and atmospheric trajectory framework.
+site_url: https://origin652.github.io/trajecta/
+repo_url: https://github.com/origin652/trajecta
+repo_name: origin652/trajecta
+docs_dir: docs/user
+site_dir: site
+strict: true
+use_directory_urls: true
+copyright: Copyright &copy; Trajecta contributors
+
+theme:
+  name: material
+  custom_dir: docs/site-overrides
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  language: en
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue grey
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: folder
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          name: English
+          default: true
+          build: true
+        - locale: zh-CN
+          name: 简体中文
+          build: true
+          theme:
+            language: zh
+          nav_translations:
+            Home: 首页
+            Getting Started: 入门
+            Tutorials: 教程
+            How-to Guides: 操作指南
+            Concepts: 概念
+            Operations: 运维
+            Validation: 验证
+            Reference: 参考
+            Developer Guide: 开发手册
+            Releases: 发布记录
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path:
+        - .
+      check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+extra:
+  noindex: false
+  version:
+    provider: mike
+    default: 0.1.0-alpha.1
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Overview: getting-started/index.md
+      - Fifteen-minute quickstart: getting-started/quickstart.md
+      - Configuration and doctor: getting-started/configuration.md
+      - Demonstration data: getting-started/demo-data.md
+  - Tutorials:
+      - Overview: tutorials/index.md
+      - Domain-fill moisture: tutorials/domain-fill.md
+      - Release workflow: tutorials/release.md
+      - Air-mass workflow: tutorials/air-mass.md
+      - Ozone workflow: tutorials/ozone.md
+      - Data families and direction: tutorials/data-families.md
+  - How-to Guides: how-to/index.md
+  - Concepts:
+      - Product model: concepts/index.md
+      - Domain-fill moisture: concepts/domain-fill.md
+      - Populations: concepts/populations.md
+      - Coverage and identity: concepts/coverage-identity.md
+      - Provenance and results: concepts/provenance.md
+      - Extensibility: concepts/extensibility.md
+  - Operations:
+      - Operations manual: operations/index.md
+      - Recovery and forensics: operations/recovery.md
+      - Troubleshooting index: operations/troubleshooting.md
+  - Validation:
+      - Evidence policy: validation/index.md
+      - Scientific method: validation/science.md
+      - Performance method: validation/performance.md
+      - Comparability: validation/comparability.md
+      - Frozen data and charts: validation/data.md
+  - Reference:
+      - Reference scope: reference/index.md
+      - CLI command tree: reference/cli.md
+      - Configuration: reference/configuration.md
+      - Project, Case, and Profile: reference/documents.md
+      - JSON and JSONL schemas: reference/schemas.md
+      - Diagnostic codes: reference/diagnostics.md
+      - Exit codes: reference/exit-codes.md
+      - Results and SQLite: reference/results-sqlite.md
+      - Platform and reader matrix: reference/platforms.md
+      - Alpha limits: reference/alpha.md
+  - Developer Guide:
+      - Architecture: developer/index.md
+      - Build environment: developer/build.md
+      - Meteorology and numerics: developer/science-path.md
+      - Output and runtime: developer/runtime.md
+      - Tests and fixtures: developer/testing.md
+      - Packaging and release: developer/release.md
+      - Documentation contributions: developer/documentation.md
+      - Rust API: developer/api.md
+  - Releases:
+      - Release policy: releases/index.md
+      - 0.1.0-alpha.1: releases/0.1.0-alpha.1.md

@@ -47,7 +47,8 @@ def fake_stage(root: Path) -> tuple[Path, dict[str, object]]:
     (stage / "trajecta").chmod(0o755)
     write(stage / "LICENSE", b"MIT\n")
     write(stage / "README.md", b"quick start\n")
-    write(stage / "examples/minimal/trajecta-project.yaml", b"name: demo\n")
+    for relative in package.REQUIRED_PACKAGE_FILES:
+        write(stage / relative, f"fixture for {relative}\n".encode())
     write(stage / "lib/libeccodes.so", b"eccodes\n")
     write(stage / "share/eccodes/definitions/boot.def", b"boot\n")
     package.write_json(
@@ -107,6 +108,16 @@ def fake_stage(root: Path) -> tuple[Path, dict[str, object]]:
 
 
 class PackageTests(unittest.TestCase):
+    def test_data_helper_is_classified_as_documentation_support(self) -> None:
+        self.assertEqual(
+            package.payload_role("tools/fetch_trajecta_data.py", "trajecta"),
+            "documentation",
+        )
+        self.assertEqual(
+            package.payload_role("requirements-data.txt", "trajecta"),
+            "documentation",
+        )
+
     def test_porcelain_parser_preserves_first_path_and_expands_records(self) -> None:
         self.assertEqual(
             package.parse_porcelain_paths(
@@ -200,6 +211,20 @@ class PackageTests(unittest.TestCase):
             stage, _ = fake_stage(Path(temporary))
             (stage / "README.md").write_text("changed\n", encoding="utf-8")
             with self.assertRaises(package.PackageError):
+                package.validate_build_manifest(stage)
+
+    def test_required_m5_1_payload_cannot_be_omitted(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            stage, manifest = fake_stage(Path(temporary))
+            missing = "tools/run_m5_1_quickstart.py"
+            (stage / missing).unlink()
+            manifest["payload"] = [
+                entry for entry in manifest["payload"] if entry["path"] != missing
+            ]
+            package.write_json(stage / package.MANIFEST_NAME, manifest)
+            with self.assertRaisesRegex(
+                package.PackageError, "missing required documentation payload"
+            ):
                 package.validate_build_manifest(stage)
 
 

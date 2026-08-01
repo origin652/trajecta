@@ -891,11 +891,45 @@ trajecta — Trajecta command-line interface
 
 Usage:
   trajecta run (--project PATH --profile NAME | --case FILE --run-profile FILE) [--detach]
-  trajecta job list|status|wait|events|cancel ...
-  trajecta result inspect|verify RESULT
-  trajecta result trajectory RESULT (--particle-id ID ... | --all)
-  trajecta met probe --data-root DIR --profile NAME --time UNIX [options]
-  trajecta met replay --data-root DIR --profile NAME --input JSONL [options]
+  trajecta COMMAND [arguments]
+
+Commands:
+  config init
+  config path
+  config list
+  config get KEY
+  config set KEY VALUE
+  config unset KEY
+  config validate
+  project init [PATH] --name NAME
+  project status
+  project show
+  project get SELECTOR
+  project set SELECTOR VALUE
+  project unset SELECTOR
+  project validate
+  project data-plan [--output PATH]
+  project finalize
+  case validate PATH [--intent simulation|met-probe|migration]
+  case resolve PATH
+  data inspect FILE
+  data lock --root DIR --profile NAME --case FILE --output PATH [--replace]
+  met probe --data-root DIR --profile NAME --time UNIX [options]
+  met replay --data-root DIR --profile NAME --input JSONL [options]
+  doctor [--deep]
+  run (--project PATH --profile NAME | --case FILE --run-profile FILE) [--detach]
+  job list
+  job status JOB_ID
+  job wait JOB_ID
+  job events [JOB_ID] [--since SEQUENCE] [--follow]
+  job cancel JOB_ID [--force]
+  job rerun JOB_ID
+  job forget JOB_ID
+  job prune
+  result inspect RESULT
+  result verify RESULT [--full]
+  result trajectory RESULT (--particle-id ID ... | --all)
+  run report --result RESULT
 
 met probe options:
   --points PATH       JSONL points (`-` = stdin); default single Europe sample

@@ -1,6 +1,7 @@
-"""DEPRECATED: use tools/era5_hybrid_official_pipeline.py"""
 #!/usr/bin/env python3
-"""Fetch official CDS ERA5 model-level (hybrid) M3 anchors on a regular lat/lon grid.
+"""Deprecated: use tools/era5_hybrid_official_pipeline.py.
+
+Fetch official CDS ERA5 model-level (hybrid) M3 anchors on a regular lat/lon grid.
 
 Requirements from M3 plan:
 - 2018-12-01 00/03/06 UTC

@@ -1,0 +1,33 @@
+schema_version: 0
+kind: case
+metadata: { name: ozone-era5-hybrid }
+time:
+  start: { seconds_since_unix_epoch: 1543644000, nanosecond: 0 }
+  end: { seconds_since_unix_epoch: 1543643400, nanosecond: 0 }
+  direction: backward
+meteorology:
+  domains:
+    - id: limited
+      dataset: era5-hybrid
+      priority: 1
+      horizontal_halo_cells: 1
+particle_population:
+  strategy: domain_fill_stratospheric_ozone
+  air_mass:
+    id: ozone
+    domain_id: limited
+    target_particle_count: 1000
+  ozone_rule: flexpart_stratospheric_ozone_pv60/v1
+  ozone_substance: ozone
+substances:
+  - { id: ozone, display_name: Ozone }
+numerics:
+  time_step: { value: 300, unit: s }
+  integrator: { model: rk2_spherical/v0 }
+  boundaries:
+    policies: [surface_reflect/v0, model_top_terminate/v0, limited_domain_terminate/v0]
+  random_seed: 4203
+outputs:
+  - product: particle_state/v1
+    schedule: { mode: endpoints }
+    sink: { model: particle_state_sqlite/v1 }

@@ -2,7 +2,7 @@
 //!
 //! Formal, versioned, content-addressed five-field provenance artifact.
 //! Replaces the non-acceptance `provenance-table.json` engineering dump.
-//! See `docs/TRAJECTA_M4_PROVENANCE_BUNDLE_V1.md`.
+//! See `docs/engineering/TRAJECTA_M4_PROVENANCE_BUNDLE_V1.md`.
 
 use std::cell::RefCell;
 use std::cmp::Ordering;

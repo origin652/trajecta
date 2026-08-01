@@ -1,0 +1,10 @@
+schema_version: trajecta.project-index/v1
+name: release-cfsr
+cases:
+  release: cases/release.yaml
+profiles:
+  product:
+    path: profiles/product.yaml
+    dataset_profiles:
+      cfsr: cfsr-pgbl-pressure-v0
+default_profile: product

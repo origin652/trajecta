@@ -632,7 +632,7 @@ def svg_bar_chart(path: Path, title: str, groups: list[str], series: list[tuple[
         legend_x += 220
     parts.append(f'<text x="18" y="{top+plot_height/2}" transform="rotate(-90 18 {top+plot_height/2})" text-anchor="middle" font-family="sans-serif" font-size="13">{html.escape(unit)}</text>')
     parts.append("</svg>")
-    path.write_text("\n".join(parts) + "\n", encoding="utf-8")
+    path.write_text("\n".join(parts) + "\n", encoding="utf-8", newline="\n")
 
 
 def science_svg(path: Path, scientific: dict[str, object]) -> None:
@@ -671,8 +671,10 @@ def science_svg(path: Path, scientific: dict[str, object]) -> None:
         parts.append(f'<text x="{left-12}" y="{top+8}" text-anchor="end" font-family="sans-serif" font-size="12">{high:.1f}</text>')
         parts.append(f'<text x="{left-12}" y="{top+plot_height}" text-anchor="end" font-family="sans-serif" font-size="12">{low:.1f}</text>')
         parts.append(f'<text x="24" y="{top+plot_height/2}" transform="rotate(-90 24 {top+plot_height/2})" text-anchor="middle" font-family="sans-serif" font-size="12">{unit}</text>')
-        for index, minute in enumerate((10, 20, 30, 40, 50, 60)):
-            x = left + plot_width * index / 5
+        time_rows = scientific["10000"]["median_cross_model_by_time"]
+        for index, row in enumerate(time_rows):
+            minute = (int(row["physical_time_unix"]) - comparison.START_UNIX) // 60
+            x = left + plot_width * index / (len(time_rows) - 1)
             parts.append(f'<text x="{x:.2f}" y="{top+plot_height+22}" text-anchor="middle" font-family="sans-serif" font-size="12">{minute}</text>')
     parts.extend(
         [
@@ -682,7 +684,7 @@ def science_svg(path: Path, scientific: dict[str, object]) -> None:
             "</svg>",
         ]
     )
-    path.write_text("\n".join(parts) + "\n", encoding="utf-8")
+    path.write_text("\n".join(parts) + "\n", encoding="utf-8", newline="\n")
 
 
 def create_charts(root: Path, performance: dict[str, object], scientific: dict[str, object]) -> dict[str, str]:

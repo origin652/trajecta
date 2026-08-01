@@ -1,0 +1,141 @@
+name: M5.1 packaged tutorials and public site
+
+on:
+  schedule:
+    - cron: "23 3 * * 1"
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m5-1-product-docs
+  cancel-in-progress: false
+
+jobs:
+  cfsr-package-quickstart:
+    name: ${{ matrix.label }} CFSR package tutorials
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            label: Windows x86_64
+            archive: trajecta-0.1.0-alpha.1-windows-x86_64.zip
+            binary: trajecta.exe
+          - os: ubuntu-24.04
+            label: Ubuntu 24.04 x86_64
+            archive: trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz
+            binary: trajecta
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: trajecta
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PACKAGE_ARCHIVE: ${{ matrix.archive }}
+      PACKAGE_BINARY: ${{ matrix.binary }}
+      DEMO_SHA256: cd2c38083130c014daac4b4fcde0680d3f3d6bc2df43daf22c8cd015e95919f8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download the published package and demo asset
+        run: |
+          New-Item -ItemType Directory -Force target/m5-1-release | Out-Null
+          gh release download v0.1.0-alpha.1 --dir target/m5-1-release --pattern $env:PACKAGE_ARCHIVE --pattern "$($env:PACKAGE_ARCHIVE).sha256" --pattern trajecta-demo-cfsr-20090101-v1.zip
+      - name: Verify and extract the product package
+        run: |
+          python tools/m5_a4_package.py verify --archive "target/m5-1-release/$($env:PACKAGE_ARCHIVE)" --extract-root target/m5-1-package --result target/m5-1-package-verify.json
+          $verified = Get-Content -Raw target/m5-1-package-verify.json | ConvertFrom-Json
+          "PACKAGE_ROOT=$($verified.extracted_root)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Verify and extract demonstration data
+        run: |
+          $asset = Resolve-Path target/m5-1-release/trajecta-demo-cfsr-20090101-v1.zip
+          $actual = (Get-FileHash -Algorithm SHA256 $asset).Hash.ToLowerInvariant()
+          if ($actual -ne $env:DEMO_SHA256) { throw "demo asset SHA-256 mismatch: $actual" }
+          Expand-Archive -LiteralPath $asset -DestinationPath target/m5-1-demo
+          $data = Resolve-Path target/m5-1-demo/trajecta-demo-cfsr-20090101-v1/data
+          "DEMO_DATA=$data" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Run the domain-fill quickstart
+        run: |
+          $binary = Join-Path $env:PACKAGE_ROOT $env:PACKAGE_BINARY
+          python tools/run_m5_1_quickstart.py --package-root $env:PACKAGE_ROOT --binary $binary --data $env:DEMO_DATA --example domain-fill-cfsr --artifact-root target/m5-1-domain-fill
+      - name: Run the release tutorial
+        run: |
+          $binary = Join-Path $env:PACKAGE_ROOT $env:PACKAGE_BINARY
+          python tools/run_m5_1_quickstart.py --package-root $env:PACKAGE_ROOT --binary $binary --data $env:DEMO_DATA --example release-cfsr --artifact-root target/m5-1-release-tutorial
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: m5-1-${{ matrix.os }}-cfsr-tutorials
+          path: |
+            trajecta/target/m5-1-package-verify.json
+            trajecta/target/m5-1-domain-fill
+            trajecta/target/m5-1-release-tutorial
+          if-no-files-found: error
+          retention-days: 30
+
+  era5-package-tutorials:
+    name: Ubuntu 24.04 ERA5 package tutorials
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    defaults:
+      run:
+        working-directory: trajecta
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
+      CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: trajecta/requirements-data.txt
+      - name: Require the documented CDS credential channel
+        run: test -n "$CDSAPI_URL" && test -n "$CDSAPI_KEY"
+      - name: Install ERA5 provider and preparation dependencies
+        run: python -m pip install -r requirements-data.txt
+      - name: Download and verify the Linux package
+        run: |
+          mkdir -p target/m5-1-release
+          gh release download v0.1.0-alpha.1 --dir target/m5-1-release --pattern trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz --pattern trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz.sha256
+          python tools/m5_a4_package.py verify --archive target/m5-1-release/trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz --extract-root target/m5-1-package --result target/m5-1-package-verify.json
+          echo "PACKAGE_ROOT=$(python -c 'import json; print(json.load(open("target/m5-1-package-verify.json"))["extracted_root"])')" >> "$GITHUB_ENV"
+      - name: Run the ERA5 pressure air-mass tutorial
+        run: |
+          python tools/run_m5_1_quickstart.py --package-root "$PACKAGE_ROOT" --binary "$PACKAGE_ROOT/trajecta" --fetch --example air-mass-era5-pressure --artifact-root target/m5-1-air-mass
+      - name: Run the ERA5 hybrid ozone tutorial
+        run: |
+          python tools/run_m5_1_quickstart.py --package-root "$PACKAGE_ROOT" --binary "$PACKAGE_ROOT/trajecta" --fetch --example ozone-era5-hybrid --artifact-root target/m5-1-ozone
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: m5-1-ubuntu-era5-tutorials
+          path: |
+            trajecta/target/m5-1-package-verify.json
+            trajecta/target/m5-1-air-mass
+            trajecta/target/m5-1-ozone
+          if-no-files-found: error
+          retention-days: 30
+
+  public-site:
+    name: Public Pages and crawler contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: trajecta
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python tools/validate_m5_1_public_site.py

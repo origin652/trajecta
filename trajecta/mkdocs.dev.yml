@@ -1,0 +1,8 @@
+INHERIT: mkdocs.yml
+site_url: https://origin652.github.io/trajecta/dev/
+
+extra:
+  noindex: true
+  version:
+    provider: mike
+    default: dev
