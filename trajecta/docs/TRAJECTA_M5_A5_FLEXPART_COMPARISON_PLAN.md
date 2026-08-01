@@ -2,7 +2,7 @@
 
 Date: 2026-08-01
 Status: amended A5.5 contract executed; technical comparison passed
-Release status: user approved `0.1.0-alpha.1` publication closeout
+Release status: `0.1.0-alpha.1` published and post-download smoke passed
 
 ## 1. Purpose
 
