@@ -13,7 +13,7 @@ python -m pip install -r requirements-docs.txt
 mkdocs build --strict
 ```
 
-The published manual is available in [English](https://origin652.github.io/trajecta/)
-and [简体中文](https://origin652.github.io/trajecta/zh-CN/). Historical plans,
+The published manual is available in [English](https://origin652.github.io/trajecta/latest/)
+and [简体中文](https://origin652.github.io/trajecta/latest/zh-CN/). Historical plans,
 execution reports, and model prompts are retained under `docs/engineering` and
 do not enter the public site.

@@ -5,7 +5,7 @@
 [English](README.md)
 
 [![Release](https://img.shields.io/github/v/release/origin652/trajecta?include_prereleases&sort=semver)](https://github.com/origin652/trajecta/releases)
-[![中文文档](https://img.shields.io/badge/docs-简体中文-4051b5)](https://origin652.github.io/trajecta/zh-CN/)
+[![中文文档](https://img.shields.io/badge/docs-简体中文-4051b5)](https://origin652.github.io/trajecta/latest/zh-CN/)
 [![M5.1 docs CI](https://github.com/origin652/trajecta/actions/workflows/m5-1-docs-ci.yml/badge.svg)](https://github.com/origin652/trajecta/actions/workflows/m5-1-docs-ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -51,8 +51,8 @@ Windows 与 Linux 使用同一套命令行工作流。
 
 从解压软件到得到通过核验的结果，验收目标为 15 分钟以内。
 
-- [15 分钟快速入门](https://origin652.github.io/trajecta/zh-CN/getting-started/quickstart/)
-- [English quickstart](https://origin652.github.io/trajecta/getting-started/quickstart/)
+- [15 分钟快速入门](https://origin652.github.io/trajecta/latest/zh-CN/getting-started/quickstart/)
+- [English quickstart](https://origin652.github.io/trajecta/latest/getting-started/quickstart/)
 
 运行任务时，Trajecta 不会自行下载气象资料。资料助手默认只展示请求；加入
 `--execute` 后才会写入 data plan 声明的资料目录。
@@ -65,14 +65,14 @@ python tools/fetch_trajecta_data.py --project examples/domain-fill-cfsr --plan d
 
 | 内容 | 简体中文 | English |
 | --- | --- | --- |
-| 首次运行 | [入门](https://origin652.github.io/trajecta/zh-CN/getting-started/) | [Getting Started](https://origin652.github.io/trajecta/getting-started/) |
-| 科研工作流 | [教程](https://origin652.github.io/trajecta/zh-CN/tutorials/) | [Tutorials](https://origin652.github.io/trajecta/tutorials/) |
-| 任务操作 | [操作指南](https://origin652.github.io/trajecta/zh-CN/how-to/) | [How-to Guides](https://origin652.github.io/trajecta/how-to/) |
-| 模型概念 | [概念](https://origin652.github.io/trajecta/zh-CN/concepts/) | [Concepts](https://origin652.github.io/trajecta/concepts/) |
-| 恢复与维护 | [运行维护](https://origin652.github.io/trajecta/zh-CN/operations/) | [Operations](https://origin652.github.io/trajecta/operations/) |
-| 科学证据 | [验证](https://origin652.github.io/trajecta/zh-CN/validation/) | [Validation](https://origin652.github.io/trajecta/validation/) |
-| 命令与格式 | [参考](https://origin652.github.io/trajecta/zh-CN/reference/) | [Reference](https://origin652.github.io/trajecta/reference/) |
-| 仓库贡献 | [开发手册](https://origin652.github.io/trajecta/zh-CN/developer/) | [Developer Guide](https://origin652.github.io/trajecta/developer/) |
+| 首次运行 | [入门](https://origin652.github.io/trajecta/latest/zh-CN/getting-started/) | [Getting Started](https://origin652.github.io/trajecta/latest/getting-started/) |
+| 科研工作流 | [教程](https://origin652.github.io/trajecta/latest/zh-CN/tutorials/) | [Tutorials](https://origin652.github.io/trajecta/latest/tutorials/) |
+| 任务操作 | [操作指南](https://origin652.github.io/trajecta/latest/zh-CN/how-to/) | [How-to Guides](https://origin652.github.io/trajecta/latest/how-to/) |
+| 模型概念 | [概念](https://origin652.github.io/trajecta/latest/zh-CN/concepts/) | [Concepts](https://origin652.github.io/trajecta/latest/concepts/) |
+| 恢复与维护 | [运行维护](https://origin652.github.io/trajecta/latest/zh-CN/operations/) | [Operations](https://origin652.github.io/trajecta/latest/operations/) |
+| 科学证据 | [验证](https://origin652.github.io/trajecta/latest/zh-CN/validation/) | [Validation](https://origin652.github.io/trajecta/latest/validation/) |
+| 命令与格式 | [参考](https://origin652.github.io/trajecta/latest/zh-CN/reference/) | [Reference](https://origin652.github.io/trajecta/latest/reference/) |
+| 仓库贡献 | [开发手册](https://origin652.github.io/trajecta/latest/zh-CN/developer/) | [Developer Guide](https://origin652.github.io/trajecta/latest/developer/) |
 
 英文手册是规范源。正式发布要求两种语言的页面结构和内容范围保持同步。
 
@@ -141,7 +141,7 @@ mkdocs build --strict
 ```
 
 更多构建细节见
-[开发手册](https://origin652.github.io/trajecta/zh-CN/developer/)。
+[开发手册](https://origin652.github.io/trajecta/latest/zh-CN/developer/)。
 
 ## 参与项目
 

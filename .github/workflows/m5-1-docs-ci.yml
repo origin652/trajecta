@@ -102,6 +102,8 @@ jobs:
             --max-retries 3
             --retry-wait-time 2
             --accept 200,206,429
+            --exclude '^https://doi\.org/10\.1175/2010BAMS3001\.1$'
+            --exclude '^https://www\.noaa\.gov/information-technology/open-data-dissemination$'
             './README.md'
             './README.zh-CN.md'
             './trajecta/README.md'

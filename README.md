@@ -5,8 +5,8 @@
 [简体中文](README.zh-CN.md)
 
 [![Release](https://img.shields.io/github/v/release/origin652/trajecta?include_prereleases&sort=semver)](https://github.com/origin652/trajecta/releases)
-[![Documentation](https://img.shields.io/badge/docs-English-4051b5)](https://origin652.github.io/trajecta/)
-[![中文文档](https://img.shields.io/badge/docs-简体中文-4051b5)](https://origin652.github.io/trajecta/zh-CN/)
+[![Documentation](https://img.shields.io/badge/docs-English-4051b5)](https://origin652.github.io/trajecta/latest/)
+[![中文文档](https://img.shields.io/badge/docs-简体中文-4051b5)](https://origin652.github.io/trajecta/latest/zh-CN/)
 [![M5.1 docs CI](https://github.com/origin652/trajecta/actions/workflows/m5-1-docs-ci.yml/badge.svg)](https://github.com/origin652/trajecta/actions/workflows/m5-1-docs-ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -52,8 +52,8 @@ The walkthrough covers configuration, data inspection, project finalization,
 trajectory reading. Its tested completion target is 15 minutes from extraction
 to a verified result.
 
-- [15-minute quickstart](https://origin652.github.io/trajecta/getting-started/quickstart/)
-- [15 分钟快速入门](https://origin652.github.io/trajecta/zh-CN/getting-started/quickstart/)
+- [15-minute quickstart](https://origin652.github.io/trajecta/latest/getting-started/quickstart/)
+- [15 分钟快速入门](https://origin652.github.io/trajecta/latest/zh-CN/getting-started/quickstart/)
 
 Trajecta does not fetch meteorological data when a run starts. The optional
 data helper previews requests by default and downloads only when `--execute` is
@@ -67,14 +67,14 @@ python tools/fetch_trajecta_data.py --project examples/domain-fill-cfsr --plan d
 
 | Audience | English | 简体中文 |
 | --- | --- | --- |
-| First run | [Getting Started](https://origin652.github.io/trajecta/getting-started/) | [入门](https://origin652.github.io/trajecta/zh-CN/getting-started/) |
-| Scientific workflows | [Tutorials](https://origin652.github.io/trajecta/tutorials/) | [教程](https://origin652.github.io/trajecta/zh-CN/tutorials/) |
-| Task-oriented help | [How-to Guides](https://origin652.github.io/trajecta/how-to/) | [操作指南](https://origin652.github.io/trajecta/zh-CN/how-to/) |
-| Concepts | [Concepts](https://origin652.github.io/trajecta/concepts/) | [概念](https://origin652.github.io/trajecta/zh-CN/concepts/) |
-| Recovery and operations | [Operations](https://origin652.github.io/trajecta/operations/) | [运行维护](https://origin652.github.io/trajecta/zh-CN/operations/) |
-| Scientific evidence | [Validation](https://origin652.github.io/trajecta/validation/) | [验证](https://origin652.github.io/trajecta/zh-CN/validation/) |
-| CLI and file formats | [Reference](https://origin652.github.io/trajecta/reference/) | [参考](https://origin652.github.io/trajecta/zh-CN/reference/) |
-| Contributors | [Developer Guide](https://origin652.github.io/trajecta/developer/) | [开发手册](https://origin652.github.io/trajecta/zh-CN/developer/) |
+| First run | [Getting Started](https://origin652.github.io/trajecta/latest/getting-started/) | [入门](https://origin652.github.io/trajecta/latest/zh-CN/getting-started/) |
+| Scientific workflows | [Tutorials](https://origin652.github.io/trajecta/latest/tutorials/) | [教程](https://origin652.github.io/trajecta/latest/zh-CN/tutorials/) |
+| Task-oriented help | [How-to Guides](https://origin652.github.io/trajecta/latest/how-to/) | [操作指南](https://origin652.github.io/trajecta/latest/zh-CN/how-to/) |
+| Concepts | [Concepts](https://origin652.github.io/trajecta/latest/concepts/) | [概念](https://origin652.github.io/trajecta/latest/zh-CN/concepts/) |
+| Recovery and operations | [Operations](https://origin652.github.io/trajecta/latest/operations/) | [运行维护](https://origin652.github.io/trajecta/latest/zh-CN/operations/) |
+| Scientific evidence | [Validation](https://origin652.github.io/trajecta/latest/validation/) | [验证](https://origin652.github.io/trajecta/latest/zh-CN/validation/) |
+| CLI and file formats | [Reference](https://origin652.github.io/trajecta/latest/reference/) | [参考](https://origin652.github.io/trajecta/latest/zh-CN/reference/) |
+| Contributors | [Developer Guide](https://origin652.github.io/trajecta/latest/developer/) | [开发手册](https://origin652.github.io/trajecta/latest/zh-CN/developer/) |
 
 The English manual is the normative source. Release documentation keeps the
 English and Chinese page trees synchronized.
@@ -147,7 +147,7 @@ python -m pip install -r requirements-docs.txt
 mkdocs build --strict
 ```
 
-See the [Developer Guide](https://origin652.github.io/trajecta/developer/) for
+See the [Developer Guide](https://origin652.github.io/trajecta/latest/developer/) for
 native dependencies, crate responsibilities, test fixtures, and release gates.
 
 ## Contributing and support
