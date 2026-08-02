@@ -782,15 +782,15 @@ impl InterpolatedFields {
                 return Err(AirMassDerivationError::InvalidLayout);
             }
         }
-        if let Some(field) = &potential_vorticity
-            && (field.layout
+        if potential_vorticity.as_ref().is_some_and(|field| {
+            field.layout
                 != (ArrayLayout::Full3D {
                     levels: level_count,
                     ny: grid.ny,
                     nx: grid.nx,
                 })
-                || field.values.len() != expected_full)
-        {
+                || field.values.len() != expected_full
+        }) {
             return Err(AirMassDerivationError::InvalidLayout);
         }
         for (index, value) in surface.values.iter().copied().enumerate() {
@@ -817,8 +817,9 @@ impl InterpolatedFields {
                 return Err(AirMassDerivationError::InvalidFieldMask);
             }
         }
-        if let Some(field) = &surface_geopotential
-            && field.valid.iter().any(|valid| !valid)
+        if surface_geopotential
+            .as_ref()
+            .is_some_and(|field| field.valid.iter().any(|valid| !valid))
         {
             return Err(AirMassDerivationError::InvalidFieldMask);
         }

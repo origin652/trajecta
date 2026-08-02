@@ -667,8 +667,8 @@ fn wait_for_job(
 
     let mut writer = io::stdout().lock();
     let mut sequence = 1_u64;
-    if let Some(receipt) = receipt
-        && emit_stream_value(
+    if receipt.is_some_and(|receipt| {
+        emit_stream_value(
             &mut writer,
             output,
             command,
@@ -676,7 +676,7 @@ fn wait_for_job(
             serialize_or_null(&receipt),
         )
         .is_err()
-    {
+    }) {
         return 1;
     }
     let mut cursor = None;

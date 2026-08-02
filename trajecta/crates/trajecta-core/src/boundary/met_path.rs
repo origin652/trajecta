@@ -655,15 +655,15 @@ fn sample_cell_envelope_cached(
 ) -> Result<Option<(f64, f64)>, BoundaryError> {
     let index = usize::try_from(cell.0).map_err(|_| BoundaryError::MissingContext)?;
     let entry = cache.get(index).ok_or(BoundaryError::MissingContext)?;
-    if let CellEnvelopeCacheEntry::Sampled {
-        start_time,
-        end_time,
-        value,
-    } = entry
-        && *start_time == step_start_time
-        && *end_time == step_end_time
-    {
-        return Ok(*value);
+    match entry {
+        CellEnvelopeCacheEntry::Sampled {
+            start_time,
+            end_time,
+            value,
+        } if *start_time == step_start_time && *end_time == step_end_time => {
+            return Ok(*value);
+        }
+        _ => {}
     }
     let value = sample_cell_envelope(
         cell,

@@ -241,11 +241,15 @@ impl<T: WorkerTerminator> JobBackend for DaemonControlBackend<T> {
     ) -> Result<JobSnapshot, JobBackendError> {
         if mode == CancelMode::Force {
             let current = self.catalog.status(job_series_id)?;
-            if matches!(
+            let lease = if matches!(
                 current.state,
                 JobState::Starting | JobState::Running | JobState::Cancelling
-            ) && let Some(lease) = self.catalog.worker_lease(&current.run_id)?
-            {
+            ) {
+                self.catalog.worker_lease(&current.run_id)?
+            } else {
+                None
+            };
+            if let Some(lease) = lease {
                 self.terminator
                     .force_stop(&lease)
                     .map_err(JobBackendError::Unavailable)?;

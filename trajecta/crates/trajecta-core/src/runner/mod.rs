@@ -954,8 +954,9 @@ impl SimulationRunner {
     ) -> Result<(), RunError> {
         let mut groups = BTreeMap::<Timestamp, Vec<usize>>::new();
         for index in indices.iter().copied() {
-            if let Some(termination) = &self.state.particles.termination[index]
-                && termination.time != macro_end
+            if let Some(termination) = self.state.particles.termination[index]
+                .as_ref()
+                .filter(|termination| termination.time != macro_end)
             {
                 groups.entry(termination.time).or_default().push(index);
             }

@@ -427,9 +427,10 @@ fn wait_for_worker_reattachment(
             )
             .optional()
             .unwrap();
-        if let Some((worker_daemon, worker_pid, worker_start_token, daemon_instance)) = row
-            && worker_daemon == daemon_instance
-            && daemon_instance != previous_daemon_instance_id
+        if let Some((_worker_daemon, worker_pid, worker_start_token, daemon_instance)) =
+            row.filter(|(worker_daemon, _, _, daemon_instance)| {
+                worker_daemon == daemon_instance && daemon_instance != previous_daemon_instance_id
+            })
         {
             return (
                 daemon_instance,

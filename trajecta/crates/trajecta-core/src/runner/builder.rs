@@ -530,8 +530,7 @@ fn resolve_runtime_domain(
             }
             ParticlePopulationSpec::ReleaseDriven(_) => None,
         };
-        if let Some(population_domain) = population_domain
-            && population_domain != domain
+        if let Some(population_domain) = population_domain.filter(|candidate| *candidate != domain)
         {
             return Err(RunError::InvalidConfiguration(format!(
                 "domain-fill domain '{}' does not match synthetic domain '{}'",

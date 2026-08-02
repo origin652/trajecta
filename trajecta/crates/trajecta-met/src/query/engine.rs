@@ -7155,9 +7155,7 @@ impl PreparedTransportBatch {
             )
             .map_err(EngineError::Output)?,
         );
-        if self.populate_transport_cache
-            && let Some(cache) = &self.transport_cache
-        {
+        if let (true, Some(cache)) = (self.populate_transport_cache, &self.transport_cache) {
             *cache
                 .lock()
                 .map_err(|_| EngineError::TransportCachePoisoned)? = Some(CachedTransportQuery {
