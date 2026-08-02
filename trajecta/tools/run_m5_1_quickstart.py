@@ -95,6 +95,7 @@ class Runner:
         script = self.package_root / "tools" / "fetch_trajecta_data.py"
         environment = os.environ.copy()
         environment["TRAJECTA_BIN"] = str(self.binary)
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
         command = [
             sys.executable,
             str(script),
