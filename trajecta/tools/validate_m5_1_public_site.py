@@ -31,7 +31,21 @@ def require(condition: bool, message: str) -> None:
 def validate(base: str, version: str) -> None:
     base = base.rstrip("/") + "/"
     release = urljoin(base, f"{version}/")
-    final_url, home = fetch(base)
+    final_url, root = fetch(base)
+    if final_url.rstrip("/") == base.rstrip("/"):
+        refresh = re.search(
+            r'<meta\s+http-equiv="refresh"\s+content="\d+;\s*url=([^";]+)"',
+            root,
+            re.IGNORECASE,
+        )
+        script = re.search(r'window\.location\.replace\(\s*"([^"]+)"', root)
+        require(refresh is not None, "default page lacks a noscript release redirect")
+        require(script is not None, "default page lacks a browser release redirect")
+        require(urljoin(base, refresh.group(1)) == release, "noscript release redirect drifted")
+        require(urljoin(base, script.group(1)) == release, "browser release redirect drifted")
+        final_url, home = fetch(release)
+    else:
+        home = root
     require(final_url.rstrip("/") == release.rstrip("/"), "default URL does not resolve to the release")
     require("noindex" not in home.casefold(), "release home has noindex")
     require('hreflang="en"' in home and 'hreflang="zh-CN"' in home, "release home lacks hreflang")
