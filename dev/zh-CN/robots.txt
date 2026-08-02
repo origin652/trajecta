@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /trajecta/dev/
+
+Sitemap: https://origin652.github.io/trajecta/sitemap.xml

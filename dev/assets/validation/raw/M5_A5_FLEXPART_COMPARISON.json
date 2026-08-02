@@ -1,0 +1,1256 @@
+{
+  "artifacts": {
+    "charts": {
+      "complete-product-wall-time.svg": "a8e44765a71badd2e71ae60514e4655ffa0523a17d8213dab85f456fdcffb954",
+      "core-wall-time.svg": "c55e708a721dfd26cd1ec6fb2f732a9d60a33a21a83bc8c4558511240787b18b",
+      "peak-rss.svg": "fc79893360e56839799841cb0f4763e4414527e455614723dc7dc4bcc4e0262f",
+      "scientific-comparison.svg": "aef032e936fff5a83a8a767b89ceee050fa0e26fd630897def8f207767774ab9",
+      "throughput-scaling.svg": "409c3df8aa70ce561d2ca7177c423a51f19d5f96130a8b20f93c921991754a1e"
+    },
+    "science_csv": {
+      "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/raw/M5_A5_SCIENCE.csv",
+      "sha256": "5ac0bb8d1797cbcde54ca33ed16ab788b51130c8b95537e384ab60de6b15c3f0"
+    },
+    "timing_csv": {
+      "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/raw/M5_A5_TIMINGS.csv",
+      "sha256": "f666ddf1d8f1c23e270e6b384f8c00254d2134b00e0a47437a86ac2d13ca8965"
+    }
+  },
+  "contract": {
+    "core_ratio_limit": 1.5,
+    "cpu_set": "0-3",
+    "formal_repetitions_per_count": 3,
+    "output_interval_seconds": 1200,
+    "particle_counts": [
+      10000,
+      50000
+    ],
+    "simulation_seconds": 3600,
+    "time_step_seconds": 600,
+    "version": "0.0.0",
+    "warmups_per_count": 1,
+    "workers_or_threads": 4
+  },
+  "flexpart": {
+    "adapter_patch": {
+      "path": "/mnt/e/flexpart/trajecta/tools/flexpart_11_1_native_omega.patch",
+      "sha256": "da025642552e240c09d85429f8083c504c125b502e1a272be5fac5e30751fac4",
+      "size_bytes": 1981
+    },
+    "binary": {
+      "path": "/root/.cache/trajecta/m5-a5/flexpart-dace3af-native-omega-preflight/source/src/FLEXPART_ETA",
+      "sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "size_bytes": 3679192
+    },
+    "commit": "dace3affa2ba71677f12f3858b04aaf59f8ee51e",
+    "compiler": "GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "eccodes": "2.34.1",
+    "netcdf_fortran": "netCDF-Fortran 4.5.4",
+    "source": "/root/.cache/trajecta/m5-a5.5/flexpart-source-clean-attempt-1",
+    "species": {
+      "path": "/root/.cache/trajecta/m5-a5.5/formal-final-attempt-1/runs/p50000/repeat-1/flexpart-core/options/SPECIES/SPECIES_024",
+      "sha256": "aabf59fdd1f51192a4843272b1b5b5d67a9d15cef05663d5fb4fca94a904f723",
+      "size_bytes": 1337
+    }
+  },
+  "gates": {
+    "all_runs_passed": true,
+    "all_scientific_reports_passed": true,
+    "core_ratio_10k": true,
+    "core_ratio_50k": true,
+    "meteorology_equivalence": true,
+    "trajecta_10000_path_normalized_canonical_output_sha256": true,
+    "trajecta_10000_path_normalized_provenance_content_sha256": true,
+    "trajecta_10000_sqlite_sql_sha256": true,
+    "trajecta_50000_path_normalized_canonical_output_sha256": true,
+    "trajecta_50000_path_normalized_provenance_content_sha256": true,
+    "trajecta_50000_sqlite_sql_sha256": true
+  },
+  "host": {
+    "formal_cpu_set": "0-3",
+    "host_affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "machine": "x86_64",
+    "os_release": {
+      "BUG_REPORT_URL": "https://bugs.launchpad.net/ubuntu/",
+      "HOME_URL": "https://www.ubuntu.com/",
+      "ID": "ubuntu",
+      "ID_LIKE": "debian",
+      "LOGO": "ubuntu-logo",
+      "NAME": "Ubuntu",
+      "PRETTY_NAME": "Ubuntu 24.04.1 LTS",
+      "PRIVACY_POLICY_URL": "https://www.ubuntu.com/legal/terms-and-policies/privacy-policy",
+      "SUPPORT_URL": "https://help.ubuntu.com/",
+      "UBUNTU_CODENAME": "noble",
+      "VERSION": "24.04.1 LTS (Noble Numbat)",
+      "VERSION_CODENAME": "noble",
+      "VERSION_ID": "24.04"
+    },
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "meteorology_equivalence": {
+    "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/M5_A5_METEOROLOGY_EQUIVALENCE.json",
+    "sha256": "ac34e71de3c80aec5b5142085c9324e681d3a7c21f4f8d1a44ae437a6be8e953"
+  },
+  "orders": {
+    "formal": [
+      [
+        "flexpart-core",
+        "flexpart-product",
+        "trajecta-product"
+      ],
+      [
+        "trajecta-product",
+        "flexpart-core",
+        "flexpart-product"
+      ],
+      [
+        "flexpart-product",
+        "trajecta-product",
+        "flexpart-core"
+      ]
+    ],
+    "warmup": [
+      "flexpart-core",
+      "trajecta-product",
+      "flexpart-product"
+    ]
+  },
+  "performance": {
+    "10000": {
+      "equivalent_core_gate_passed": true,
+      "equivalent_core_ratio_trajecta_over_flexpart": 0.34993611428571425,
+      "flexpart_core_median_seconds": 1.33,
+      "flexpart_core_peak_rss_median_bytes": 371175424,
+      "flexpart_core_throughput_particles_per_second": 7518.796992481202,
+      "flexpart_product_median_seconds": 1.31,
+      "flexpart_product_peak_rss_median_bytes": 371875840,
+      "flexpart_product_throughput_particles_per_second": 7633.587786259542,
+      "formal_repetitions": 3,
+      "trajecta_core_throughput_particles_per_second": 21486.199010435055,
+      "trajecta_equivalent_core_median_seconds": 0.465415032,
+      "trajecta_product_median_seconds": 2.194965529,
+      "trajecta_product_peak_rss_median_bytes": 88064000,
+      "trajecta_product_throughput_particles_per_second": 4555.880203073567
+    },
+    "50000": {
+      "equivalent_core_gate_passed": true,
+      "equivalent_core_ratio_trajecta_over_flexpart": 1.0965138835820896,
+      "flexpart_core_median_seconds": 1.34,
+      "flexpart_core_peak_rss_median_bytes": 379322368,
+      "flexpart_core_throughput_particles_per_second": 37313.432835820895,
+      "flexpart_product_median_seconds": 1.37,
+      "flexpart_product_peak_rss_median_bytes": 386400256,
+      "flexpart_product_throughput_particles_per_second": 36496.3503649635,
+      "formal_repetitions": 3,
+      "trajecta_core_throughput_particles_per_second": 34029.147641911695,
+      "trajecta_equivalent_core_median_seconds": 1.469328604,
+      "trajecta_product_median_seconds": 8.680348905,
+      "trajecta_product_peak_rss_median_bytes": 171012096,
+      "trajecta_product_throughput_particles_per_second": 5760.137126653896
+    },
+    "scaling": {
+      "flexpart_core_50k_over_10k": 1.0075187969924813,
+      "flexpart_product_50k_over_10k": 1.0458015267175573,
+      "trajecta_core_50k_over_10k": 3.157028679726872,
+      "trajecta_product_50k_over_10k": 3.954662973206082
+    }
+  },
+  "records": [
+    {
+      "artifact_bytes": 18081,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "b9eab65492c9d181f093e1b7fca2051ccd4c1d56bec2c60e392e54e180c9b0e7",
+        "output/RELEASES.namelist": "ea5e78ca6ae085b8a8ad061614ee2ae43c2ed241c63c1981f44a2f8b9e43444c",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "1d0dfb9b10c9e624a1061c22773235e91bfe1d5fdff147ea6d16694c12810d05",
+        "output/totals.nc": "b394e9254c10641b7172f352dcc1235072f56fee9ce0ee087023e493f38b7a63"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/warmup/flexpart-core",
+      "mode": "flexpart-core",
+      "order_index": 0,
+      "particles": 10000,
+      "phase": "warmup",
+      "repetition": 0,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/warmup/flexpart-core/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "b50c6e69f1addb45b87d7194b76c14fcce0b84d0dece98b97cce1d5867e933e7",
+      "time_verbose": {
+        "elapsed_seconds": 1.41,
+        "filesystem_inputs": 1688,
+        "filesystem_outputs": 72,
+        "peak_rss_kib": 362504,
+        "reported_exit_status": 0,
+        "system_seconds": 0.28,
+        "user_seconds": 2.03
+      },
+      "wall_nanoseconds": 1434271251
+    },
+    {
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/warmup/trajecta-product",
+      "digests": {
+        "canonical_output_sha256": "bc9b43177f7091970a7298766baee485b7185a3b088fd093b8f9aa57e6cc5b00",
+        "content_sha256": "ab92432b1b587cf61952dbfb9e6ee97a5c2dad57295c27bb5a3e81be561f00cf",
+        "sqlite_sql_sha256": "600437f35b13581b7c23f9dd1c42f7c06d5ad50b7126aef88d5e9cf83181bd6d"
+      },
+      "mode": "trajecta-product",
+      "order_index": 1,
+      "output_directory": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/warmup/trajecta-product/project/runs/m5-a5-flexpart-comparison-p10000/019fbce3-ce70-7723-b06e-f73fb7a2818c",
+      "particles": 10000,
+      "path_normalized_digests": {
+        "canonical_output_sha256": "ab36d69cc4614e8e81e211b9b002cc40ece7200189af02b80ec89251bc57cbe8",
+        "provenance_content_sha256": "ba62d6ef0b8cd8969a1def4de4b2f403132eaf84ce26400bbaf2aff2e7fea1a9"
+      },
+      "performance": {
+        "equivalent_core_nanoseconds": 568309949,
+        "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/warmup/trajecta-product/performance-attribution.json",
+        "process_peak_rss_bytes": 89370624,
+        "runner_output_nanoseconds": 2060730577,
+        "runner_total_nanoseconds": 2629040526,
+        "sha256": "a86c86f9e8444738ace5ae317553aca361d88274e43a4537ed1df60decf7138a"
+      },
+      "phase": "warmup",
+      "repetition": 0,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/warmup/trajecta-product/M5_A5_TRAJECTA_RUN.json",
+      "result_sha256": "5d6e3d34f25683cbfdfd40901ce9f3b999cd7049ff5b80b5b69221c657473ee2",
+      "runner_milliseconds": 2389,
+      "sqlite": {
+        "journal_mode": "WAL",
+        "relative_path": "particles.sqlite",
+        "row_counts": {
+          "output_event": 4,
+          "particle": 10000,
+          "particle_mass": 10000,
+          "particle_state": 40000,
+          "run": 1,
+          "termination": 0
+        },
+        "schema_version": 1,
+        "synchronous": "NORMAL"
+      },
+      "terminations": {
+        "abnormal_count": 0,
+        "by_reason": {},
+        "normal_count": 0
+      },
+      "time_verbose": {
+        "elapsed_seconds": 6.83,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 8,
+        "peak_rss_kib": 21456,
+        "reported_exit_status": 0,
+        "system_seconds": 0.01,
+        "user_seconds": 0.06
+      },
+      "wall_nanoseconds": 6834642353
+    },
+    {
+      "artifact_bytes": 484402,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "78b22a32023605415231f1e2b4eee3fe7c7131b9cd228b641dc7acc04b495fe2",
+        "output/PARTOPTIONS.namelist": "2487688764b776236a8ed5f912fa5208c7b4385612f1f27885b201f81dc312fe",
+        "output/RELEASES.namelist": "ea5e78ca6ae085b8a8ad061614ee2ae43c2ed241c63c1981f44a2f8b9e43444c",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "1d0dfb9b10c9e624a1061c22773235e91bfe1d5fdff147ea6d16694c12810d05",
+        "output/partoutput_20181201030000_init.nc": "c68da10ea655db2cdaaa2f9758eb7a91ddd7152f74ece0440727798d05003e7d",
+        "output/totals.nc": "b394e9254c10641b7172f352dcc1235072f56fee9ce0ee087023e493f38b7a63"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/warmup/flexpart-product",
+      "mode": "flexpart-product",
+      "order_index": 2,
+      "particles": 10000,
+      "phase": "warmup",
+      "repetition": 0,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/warmup/flexpart-product/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "5669974b64f47edc795ab77dedd904437076d300dadb7e4ca7443ad4209c6452",
+      "time_verbose": {
+        "elapsed_seconds": 1.43,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 992,
+        "peak_rss_kib": 363128,
+        "reported_exit_status": 0,
+        "system_seconds": 0.29,
+        "user_seconds": 2.01
+      },
+      "wall_nanoseconds": 1436819807
+    },
+    {
+      "artifact_bytes": 18081,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "b9eab65492c9d181f093e1b7fca2051ccd4c1d56bec2c60e392e54e180c9b0e7",
+        "output/RELEASES.namelist": "ea5e78ca6ae085b8a8ad061614ee2ae43c2ed241c63c1981f44a2f8b9e43444c",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "1d0dfb9b10c9e624a1061c22773235e91bfe1d5fdff147ea6d16694c12810d05",
+        "output/totals.nc": "b394e9254c10641b7172f352dcc1235072f56fee9ce0ee087023e493f38b7a63"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-1/flexpart-core",
+      "mode": "flexpart-core",
+      "order_index": 0,
+      "particles": 10000,
+      "phase": "formal",
+      "repetition": 1,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-1/flexpart-core/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "bfb7c064b78acdec25b9c70e8da9211ed7399459a546659be3566c599e0a0626",
+      "time_verbose": {
+        "elapsed_seconds": 1.26,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 72,
+        "peak_rss_kib": 362476,
+        "reported_exit_status": 0,
+        "system_seconds": 0.12,
+        "user_seconds": 1.96
+      },
+      "wall_nanoseconds": 1270279065
+    },
+    {
+      "artifact_bytes": 484402,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "78b22a32023605415231f1e2b4eee3fe7c7131b9cd228b641dc7acc04b495fe2",
+        "output/PARTOPTIONS.namelist": "2487688764b776236a8ed5f912fa5208c7b4385612f1f27885b201f81dc312fe",
+        "output/RELEASES.namelist": "ea5e78ca6ae085b8a8ad061614ee2ae43c2ed241c63c1981f44a2f8b9e43444c",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "1d0dfb9b10c9e624a1061c22773235e91bfe1d5fdff147ea6d16694c12810d05",
+        "output/partoutput_20181201030000_init.nc": "c68da10ea655db2cdaaa2f9758eb7a91ddd7152f74ece0440727798d05003e7d",
+        "output/totals.nc": "b394e9254c10641b7172f352dcc1235072f56fee9ce0ee087023e493f38b7a63"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-1/flexpart-product",
+      "mode": "flexpart-product",
+      "order_index": 1,
+      "particles": 10000,
+      "phase": "formal",
+      "repetition": 1,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-1/flexpart-product/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "476fe85cd94be2354f16cef14673509da66983d6630953d0aabb21d0b4af5a2b",
+      "time_verbose": {
+        "elapsed_seconds": 1.32,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 992,
+        "peak_rss_kib": 363140,
+        "reported_exit_status": 0,
+        "system_seconds": 0.21,
+        "user_seconds": 2.03
+      },
+      "wall_nanoseconds": 1329248220
+    },
+    {
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-1/trajecta-product",
+      "digests": {
+        "canonical_output_sha256": "bba03859dea96ee8cadee562671ac47467f771ff2d9eda137572900a6a20ccb5",
+        "content_sha256": "dbe6a682fda2283977aaabbe0683da230c2e279951894f2f526c99353fe762f1",
+        "sqlite_sql_sha256": "600437f35b13581b7c23f9dd1c42f7c06d5ad50b7126aef88d5e9cf83181bd6d"
+      },
+      "mode": "trajecta-product",
+      "order_index": 2,
+      "output_directory": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-1/trajecta-product/project/runs/m5-a5-flexpart-comparison-p10000/019fbce4-1e36-7140-9df1-864201325254",
+      "particles": 10000,
+      "path_normalized_digests": {
+        "canonical_output_sha256": "ab36d69cc4614e8e81e211b9b002cc40ece7200189af02b80ec89251bc57cbe8",
+        "provenance_content_sha256": "ba62d6ef0b8cd8969a1def4de4b2f403132eaf84ce26400bbaf2aff2e7fea1a9"
+      },
+      "performance": {
+        "equivalent_core_nanoseconds": 454556622,
+        "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-1/trajecta-product/performance-attribution.json",
+        "process_peak_rss_bytes": 89485312,
+        "runner_output_nanoseconds": 1740408907,
+        "runner_total_nanoseconds": 2194965529,
+        "sha256": "8123b1e077548a066bb3026f60a1b88f2aed6cda864fda1f6f698334f9038219"
+      },
+      "phase": "formal",
+      "repetition": 1,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-1/trajecta-product/M5_A5_TRAJECTA_RUN.json",
+      "result_sha256": "e8794f837989851aea70eeb7f1682427034c359c4faeba9186183d043e41829f",
+      "runner_milliseconds": 2070,
+      "sqlite": {
+        "journal_mode": "WAL",
+        "relative_path": "particles.sqlite",
+        "row_counts": {
+          "output_event": 4,
+          "particle": 10000,
+          "particle_mass": 10000,
+          "particle_state": 40000,
+          "run": 1,
+          "termination": 0
+        },
+        "schema_version": 1,
+        "synchronous": "NORMAL"
+      },
+      "terminations": {
+        "abnormal_count": 0,
+        "by_reason": {},
+        "normal_count": 0
+      },
+      "time_verbose": {
+        "elapsed_seconds": 5.89,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 8,
+        "peak_rss_kib": 21600,
+        "reported_exit_status": 0,
+        "system_seconds": 0.02,
+        "user_seconds": 0.05
+      },
+      "wall_nanoseconds": 5896781621
+    },
+    {
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-2/trajecta-product",
+      "digests": {
+        "canonical_output_sha256": "9dcd12ae3b0f2aec4aa5152e38f7dbc72811f3c9e9f3fc55818b1bb1462fb52e",
+        "content_sha256": "f92684a43221e54b5ca09d7d1c128162836bd0ba385b7bc3827fe8cf057ae667",
+        "sqlite_sql_sha256": "600437f35b13581b7c23f9dd1c42f7c06d5ad50b7126aef88d5e9cf83181bd6d"
+      },
+      "mode": "trajecta-product",
+      "order_index": 0,
+      "output_directory": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-2/trajecta-product/project/runs/m5-a5-flexpart-comparison-p10000/019fbce4-57a6-7423-8ad7-555ebbf1b5dd",
+      "particles": 10000,
+      "path_normalized_digests": {
+        "canonical_output_sha256": "ab36d69cc4614e8e81e211b9b002cc40ece7200189af02b80ec89251bc57cbe8",
+        "provenance_content_sha256": "ba62d6ef0b8cd8969a1def4de4b2f403132eaf84ce26400bbaf2aff2e7fea1a9"
+      },
+      "performance": {
+        "equivalent_core_nanoseconds": 570031301,
+        "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-2/trajecta-product/performance-attribution.json",
+        "process_peak_rss_bytes": 87629824,
+        "runner_output_nanoseconds": 2331630500,
+        "runner_total_nanoseconds": 2901661801,
+        "sha256": "15a57fccb66075e9dedb83b587a21688cdb445d20487dee07c9c72fd1545b74e"
+      },
+      "phase": "formal",
+      "repetition": 2,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-2/trajecta-product/M5_A5_TRAJECTA_RUN.json",
+      "result_sha256": "9376d6c9d827ea2ae10f3115449f14b6d0f5793d157bf61e83b8cb3bbc886444",
+      "runner_milliseconds": 2764,
+      "sqlite": {
+        "journal_mode": "WAL",
+        "relative_path": "particles.sqlite",
+        "row_counts": {
+          "output_event": 4,
+          "particle": 10000,
+          "particle_mass": 10000,
+          "particle_state": 40000,
+          "run": 1,
+          "termination": 0
+        },
+        "schema_version": 1,
+        "synchronous": "NORMAL"
+      },
+      "terminations": {
+        "abnormal_count": 0,
+        "by_reason": {},
+        "normal_count": 0
+      },
+      "time_verbose": {
+        "elapsed_seconds": 7.14,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 8,
+        "peak_rss_kib": 21140,
+        "reported_exit_status": 0,
+        "system_seconds": 0.01,
+        "user_seconds": 0.06
+      },
+      "wall_nanoseconds": 7145477035
+    },
+    {
+      "artifact_bytes": 18081,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "b9eab65492c9d181f093e1b7fca2051ccd4c1d56bec2c60e392e54e180c9b0e7",
+        "output/RELEASES.namelist": "ea5e78ca6ae085b8a8ad061614ee2ae43c2ed241c63c1981f44a2f8b9e43444c",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "1d0dfb9b10c9e624a1061c22773235e91bfe1d5fdff147ea6d16694c12810d05",
+        "output/totals.nc": "d4c11eea3a1a3662e661a306111eca8fe6d50fa12994aa59e6e53144635bc8b6"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-2/flexpart-core",
+      "mode": "flexpart-core",
+      "order_index": 1,
+      "particles": 10000,
+      "phase": "formal",
+      "repetition": 2,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-2/flexpart-core/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "ba0180d8255ae93a4d5a9008a7556284e5231c291bb4bc9ac7631ca1cad7bcd3",
+      "time_verbose": {
+        "elapsed_seconds": 1.41,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 72,
+        "peak_rss_kib": 362476,
+        "reported_exit_status": 0,
+        "system_seconds": 0.2,
+        "user_seconds": 2.06
+      },
+      "wall_nanoseconds": 1420818700
+    },
+    {
+      "artifact_bytes": 484402,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "78b22a32023605415231f1e2b4eee3fe7c7131b9cd228b641dc7acc04b495fe2",
+        "output/PARTOPTIONS.namelist": "2487688764b776236a8ed5f912fa5208c7b4385612f1f27885b201f81dc312fe",
+        "output/RELEASES.namelist": "ea5e78ca6ae085b8a8ad061614ee2ae43c2ed241c63c1981f44a2f8b9e43444c",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "1d0dfb9b10c9e624a1061c22773235e91bfe1d5fdff147ea6d16694c12810d05",
+        "output/partoutput_20181201030000_init.nc": "8cb2dd3cd86ad605fb5328bb14be248ed9967445945cced81e5f31814402f7c5",
+        "output/totals.nc": "d4c11eea3a1a3662e661a306111eca8fe6d50fa12994aa59e6e53144635bc8b6"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-2/flexpart-product",
+      "mode": "flexpart-product",
+      "order_index": 2,
+      "particles": 10000,
+      "phase": "formal",
+      "repetition": 2,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-2/flexpart-product/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "4a7fcb47b18474f085b93b74e1f49ff9bca532bb5c6c85438ec4ceee8a3d828e",
+      "time_verbose": {
+        "elapsed_seconds": 1.21,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 992,
+        "peak_rss_kib": 363296,
+        "reported_exit_status": 0,
+        "system_seconds": 0.13,
+        "user_seconds": 2.01
+      },
+      "wall_nanoseconds": 1213326025
+    },
+    {
+      "artifact_bytes": 484402,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "78b22a32023605415231f1e2b4eee3fe7c7131b9cd228b641dc7acc04b495fe2",
+        "output/PARTOPTIONS.namelist": "2487688764b776236a8ed5f912fa5208c7b4385612f1f27885b201f81dc312fe",
+        "output/RELEASES.namelist": "ea5e78ca6ae085b8a8ad061614ee2ae43c2ed241c63c1981f44a2f8b9e43444c",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "1d0dfb9b10c9e624a1061c22773235e91bfe1d5fdff147ea6d16694c12810d05",
+        "output/partoutput_20181201030000_init.nc": "8cb2dd3cd86ad605fb5328bb14be248ed9967445945cced81e5f31814402f7c5",
+        "output/totals.nc": "d4c11eea3a1a3662e661a306111eca8fe6d50fa12994aa59e6e53144635bc8b6"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-3/flexpart-product",
+      "mode": "flexpart-product",
+      "order_index": 0,
+      "particles": 10000,
+      "phase": "formal",
+      "repetition": 3,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-3/flexpart-product/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "29c78fe2a2946ddd943d17ba152e153c4c642867e4a4d66ab7680985d0f40520",
+      "time_verbose": {
+        "elapsed_seconds": 1.31,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 992,
+        "peak_rss_kib": 363160,
+        "reported_exit_status": 0,
+        "system_seconds": 0.22,
+        "user_seconds": 2.04
+      },
+      "wall_nanoseconds": 1321724984
+    },
+    {
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-3/trajecta-product",
+      "digests": {
+        "canonical_output_sha256": "715d43e89386bf1181fab206a4987c610c7453fc59b5d7ab0a410bfe459efc79",
+        "content_sha256": "fcccf76e2b5ef95a6e19972467af58981327471ff12e840bfca502f41451abf9",
+        "sqlite_sql_sha256": "600437f35b13581b7c23f9dd1c42f7c06d5ad50b7126aef88d5e9cf83181bd6d"
+      },
+      "mode": "trajecta-product",
+      "order_index": 1,
+      "output_directory": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-3/trajecta-product/project/runs/m5-a5-flexpart-comparison-p10000/019fbce4-a841-7b12-95df-978fcd84e88f",
+      "particles": 10000,
+      "path_normalized_digests": {
+        "canonical_output_sha256": "ab36d69cc4614e8e81e211b9b002cc40ece7200189af02b80ec89251bc57cbe8",
+        "provenance_content_sha256": "ba62d6ef0b8cd8969a1def4de4b2f403132eaf84ce26400bbaf2aff2e7fea1a9"
+      },
+      "performance": {
+        "equivalent_core_nanoseconds": 465415032,
+        "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-3/trajecta-product/performance-attribution.json",
+        "process_peak_rss_bytes": 88064000,
+        "runner_output_nanoseconds": 1624964142,
+        "runner_total_nanoseconds": 2090379174,
+        "sha256": "671b991b9c23ab8591851b64d0777bc6d30d53cf6ede5c43c8f53bf68eac41ab"
+      },
+      "phase": "formal",
+      "repetition": 3,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-3/trajecta-product/M5_A5_TRAJECTA_RUN.json",
+      "result_sha256": "c833f4643e0ca85ebbf72b991aff7302121d469f18d7bac7bfae09e0f30798fd",
+      "runner_milliseconds": 1952,
+      "sqlite": {
+        "journal_mode": "WAL",
+        "relative_path": "particles.sqlite",
+        "row_counts": {
+          "output_event": 4,
+          "particle": 10000,
+          "particle_mass": 10000,
+          "particle_state": 40000,
+          "run": 1,
+          "termination": 0
+        },
+        "schema_version": 1,
+        "synchronous": "NORMAL"
+      },
+      "terminations": {
+        "abnormal_count": 0,
+        "by_reason": {},
+        "normal_count": 0
+      },
+      "time_verbose": {
+        "elapsed_seconds": 5.74,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 8,
+        "peak_rss_kib": 21680,
+        "reported_exit_status": 0,
+        "system_seconds": 0.01,
+        "user_seconds": 0.06
+      },
+      "wall_nanoseconds": 5748738734
+    },
+    {
+      "artifact_bytes": 18081,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "b9eab65492c9d181f093e1b7fca2051ccd4c1d56bec2c60e392e54e180c9b0e7",
+        "output/RELEASES.namelist": "ea5e78ca6ae085b8a8ad061614ee2ae43c2ed241c63c1981f44a2f8b9e43444c",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "1d0dfb9b10c9e624a1061c22773235e91bfe1d5fdff147ea6d16694c12810d05",
+        "output/totals.nc": "d4c11eea3a1a3662e661a306111eca8fe6d50fa12994aa59e6e53144635bc8b6"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-3/flexpart-core",
+      "mode": "flexpart-core",
+      "order_index": 2,
+      "particles": 10000,
+      "phase": "formal",
+      "repetition": 3,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p10000/repeat-3/flexpart-core/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "e87d8958bbc35f2751848f863b727257755e0a55fb92478e6ad66f6f33d2a2e7",
+      "time_verbose": {
+        "elapsed_seconds": 1.33,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 72,
+        "peak_rss_kib": 362692,
+        "reported_exit_status": 0,
+        "system_seconds": 0.25,
+        "user_seconds": 1.94
+      },
+      "wall_nanoseconds": 1333824908
+    },
+    {
+      "artifact_bytes": 18081,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "b9eab65492c9d181f093e1b7fca2051ccd4c1d56bec2c60e392e54e180c9b0e7",
+        "output/RELEASES.namelist": "e04de60b151e63138eaece942d7eda6717cc1d51756da30837e6deda630ae2e5",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "4ba79aebfc445023137f041e2cf5cee2415ee7b12c4923d990ad63caae08777b",
+        "output/totals.nc": "d4c11eea3a1a3662e661a306111eca8fe6d50fa12994aa59e6e53144635bc8b6"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/warmup/flexpart-core",
+      "mode": "flexpart-core",
+      "order_index": 0,
+      "particles": 50000,
+      "phase": "warmup",
+      "repetition": 0,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/warmup/flexpart-core/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "8599d6a011009b17f303357ba87e1957f9d6e726b4a736f80d2fe1e4329545d1",
+      "time_verbose": {
+        "elapsed_seconds": 1.28,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 72,
+        "peak_rss_kib": 370236,
+        "reported_exit_status": 0,
+        "system_seconds": 0.14,
+        "user_seconds": 2.18
+      },
+      "wall_nanoseconds": 1283681010
+    },
+    {
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/warmup/trajecta-product",
+      "digests": {
+        "canonical_output_sha256": "f193925cf851a9e1ec68cc9039b414dc38154bd26c96fdde229d95a1006293d9",
+        "content_sha256": "41aa17af362139121beea14e233031287203bcfc9a4e4bad2878f744828fbb90",
+        "sqlite_sql_sha256": "21cb280b7d33a1f838b93eafe22db8d602a1b15bb676275d488909b805ffd491"
+      },
+      "mode": "trajecta-product",
+      "order_index": 1,
+      "output_directory": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/warmup/trajecta-product/project/runs/m5-a5-flexpart-comparison-p50000/019fbce4-e8b0-7a72-99cb-41a159ca3846",
+      "particles": 50000,
+      "path_normalized_digests": {
+        "canonical_output_sha256": "7a92b214920e1a6588545174e9b22bca177878490d93e9268619b95ddc3bcad9",
+        "provenance_content_sha256": "f18150211206611ecfc88fdb2c9ba4f0a4c7efd3c799265fc72ea8269e774872"
+      },
+      "performance": {
+        "equivalent_core_nanoseconds": 1453284006,
+        "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/warmup/trajecta-product/performance-attribution.json",
+        "process_peak_rss_bytes": 172130304,
+        "runner_output_nanoseconds": 7007005620,
+        "runner_total_nanoseconds": 8460289626,
+        "sha256": "75455ad59480b03f2087f894df309997c3907d62fc5e96aad4409a7dbf713a5b"
+      },
+      "phase": "warmup",
+      "repetition": 0,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/warmup/trajecta-product/M5_A5_TRAJECTA_RUN.json",
+      "result_sha256": "4aca95bebb833b356b9d947f021b7c094d71c5274441f15f3416558f0e394c7c",
+      "runner_milliseconds": 9821,
+      "sqlite": {
+        "journal_mode": "WAL",
+        "relative_path": "particles.sqlite",
+        "row_counts": {
+          "output_event": 4,
+          "particle": 50000,
+          "particle_mass": 50000,
+          "particle_state": 200000,
+          "run": 1,
+          "termination": 0
+        },
+        "schema_version": 1,
+        "synchronous": "NORMAL"
+      },
+      "terminations": {
+        "abnormal_count": 0,
+        "by_reason": {},
+        "normal_count": 0
+      },
+      "time_verbose": {
+        "elapsed_seconds": 14.49,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 8,
+        "peak_rss_kib": 21520,
+        "reported_exit_status": 0,
+        "system_seconds": 0.0,
+        "user_seconds": 0.07
+      },
+      "wall_nanoseconds": 13013228680
+    },
+    {
+      "artifact_bytes": 2180802,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "78b22a32023605415231f1e2b4eee3fe7c7131b9cd228b641dc7acc04b495fe2",
+        "output/PARTOPTIONS.namelist": "2487688764b776236a8ed5f912fa5208c7b4385612f1f27885b201f81dc312fe",
+        "output/RELEASES.namelist": "e04de60b151e63138eaece942d7eda6717cc1d51756da30837e6deda630ae2e5",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "4ba79aebfc445023137f041e2cf5cee2415ee7b12c4923d990ad63caae08777b",
+        "output/partoutput_20181201030000_init.nc": "91d486e95299030a55bd2df034160ee5bc34d05ca49463be2a7071e199a29122",
+        "output/totals.nc": "7b05830aa4f0748bb60b516186d5ec10616a9d67fd671058a78b069aa0efce61"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/warmup/flexpart-product",
+      "mode": "flexpart-product",
+      "order_index": 2,
+      "particles": 50000,
+      "phase": "warmup",
+      "repetition": 0,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/warmup/flexpart-product/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "63e3b8e5eca3134ced7df942cf95bdcd981b72bd4491f78b7f214cb1e54e43b4",
+      "time_verbose": {
+        "elapsed_seconds": 1.43,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 4304,
+        "peak_rss_kib": 377232,
+        "reported_exit_status": 0,
+        "system_seconds": 0.26,
+        "user_seconds": 2.34
+      },
+      "wall_nanoseconds": 1432639083
+    },
+    {
+      "artifact_bytes": 18081,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "b9eab65492c9d181f093e1b7fca2051ccd4c1d56bec2c60e392e54e180c9b0e7",
+        "output/RELEASES.namelist": "e04de60b151e63138eaece942d7eda6717cc1d51756da30837e6deda630ae2e5",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "4ba79aebfc445023137f041e2cf5cee2415ee7b12c4923d990ad63caae08777b",
+        "output/totals.nc": "7b05830aa4f0748bb60b516186d5ec10616a9d67fd671058a78b069aa0efce61"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-1/flexpart-core",
+      "mode": "flexpart-core",
+      "order_index": 0,
+      "particles": 50000,
+      "phase": "formal",
+      "repetition": 1,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-1/flexpart-core/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "7649e8bc98a134aa6f20e4b53e7001ff7bdb6db66517518ed9160d4cbbfc51db",
+      "time_verbose": {
+        "elapsed_seconds": 1.31,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 72,
+        "peak_rss_kib": 370612,
+        "reported_exit_status": 0,
+        "system_seconds": 0.11,
+        "user_seconds": 2.19
+      },
+      "wall_nanoseconds": 1316642567
+    },
+    {
+      "artifact_bytes": 2180802,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "78b22a32023605415231f1e2b4eee3fe7c7131b9cd228b641dc7acc04b495fe2",
+        "output/PARTOPTIONS.namelist": "2487688764b776236a8ed5f912fa5208c7b4385612f1f27885b201f81dc312fe",
+        "output/RELEASES.namelist": "e04de60b151e63138eaece942d7eda6717cc1d51756da30837e6deda630ae2e5",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "4ba79aebfc445023137f041e2cf5cee2415ee7b12c4923d990ad63caae08777b",
+        "output/partoutput_20181201030000_init.nc": "91d486e95299030a55bd2df034160ee5bc34d05ca49463be2a7071e199a29122",
+        "output/totals.nc": "7b05830aa4f0748bb60b516186d5ec10616a9d67fd671058a78b069aa0efce61"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-1/flexpart-product",
+      "mode": "flexpart-product",
+      "order_index": 1,
+      "particles": 50000,
+      "phase": "formal",
+      "repetition": 1,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-1/flexpart-product/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "92be1f882201f7a39f1b293981751a8dd55215adf4560a288bc5ed1a10e20a4e",
+      "time_verbose": {
+        "elapsed_seconds": 1.54,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 4304,
+        "peak_rss_kib": 377488,
+        "reported_exit_status": 0,
+        "system_seconds": 0.24,
+        "user_seconds": 2.31
+      },
+      "wall_nanoseconds": 1544422300
+    },
+    {
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-1/trajecta-product",
+      "digests": {
+        "canonical_output_sha256": "aa7887548f47024e7fde449e4c3dc5218a2583f64418cd6ec011cdb5a1640340",
+        "content_sha256": "5cf8ed0ba1e2a3cb8213b01e39b7b6410f488e1b07fa6167754cf969c6048b59",
+        "sqlite_sql_sha256": "21cb280b7d33a1f838b93eafe22db8d602a1b15bb676275d488909b805ffd491"
+      },
+      "mode": "trajecta-product",
+      "order_index": 2,
+      "output_directory": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-1/trajecta-product/project/runs/m5-a5-flexpart-comparison-p50000/019fbce5-5cec-7f40-8659-034433fb7c14",
+      "particles": 50000,
+      "path_normalized_digests": {
+        "canonical_output_sha256": "7a92b214920e1a6588545174e9b22bca177878490d93e9268619b95ddc3bcad9",
+        "provenance_content_sha256": "f18150211206611ecfc88fdb2c9ba4f0a4c7efd3c799265fc72ea8269e774872"
+      },
+      "performance": {
+        "equivalent_core_nanoseconds": 1501643929,
+        "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-1/trajecta-product/performance-attribution.json",
+        "process_peak_rss_bytes": 170442752,
+        "runner_output_nanoseconds": 7178704976,
+        "runner_total_nanoseconds": 8680348905,
+        "sha256": "4034f1521c96222a2bab1a822761ec662cb760c224ee5c15dbc0bb36019d0f4b"
+      },
+      "phase": "formal",
+      "repetition": 1,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-1/trajecta-product/M5_A5_TRAJECTA_RUN.json",
+      "result_sha256": "46a9841279882197bbdf2885c59fd47a6b0cd0643cb643a52c4d84899a535ad6",
+      "runner_milliseconds": 10017,
+      "sqlite": {
+        "journal_mode": "WAL",
+        "relative_path": "particles.sqlite",
+        "row_counts": {
+          "output_event": 4,
+          "particle": 50000,
+          "particle_mass": 50000,
+          "particle_state": 200000,
+          "run": 1,
+          "termination": 0
+        },
+        "schema_version": 1,
+        "synchronous": "NORMAL"
+      },
+      "terminations": {
+        "abnormal_count": 0,
+        "by_reason": {},
+        "normal_count": 0
+      },
+      "time_verbose": {
+        "elapsed_seconds": 14.59,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 8,
+        "peak_rss_kib": 21732,
+        "reported_exit_status": 0,
+        "system_seconds": 0.0,
+        "user_seconds": 0.07
+      },
+      "wall_nanoseconds": 13076787352
+    },
+    {
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-2/trajecta-product",
+      "digests": {
+        "canonical_output_sha256": "67bd12ae43222f23a3c8b822c41a3e2f7764a24e808951fe7453cd6f66e8b852",
+        "content_sha256": "5b63ff82bafcea61257a162382e0a4a58a092abc26625d0948c4102bee7da190",
+        "sqlite_sql_sha256": "21cb280b7d33a1f838b93eafe22db8d602a1b15bb676275d488909b805ffd491"
+      },
+      "mode": "trajecta-product",
+      "order_index": 0,
+      "output_directory": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-2/trajecta-product/project/runs/m5-a5-flexpart-comparison-p50000/019fbce5-bedc-7cb1-a97b-8de2553cf65a",
+      "particles": 50000,
+      "path_normalized_digests": {
+        "canonical_output_sha256": "7a92b214920e1a6588545174e9b22bca177878490d93e9268619b95ddc3bcad9",
+        "provenance_content_sha256": "f18150211206611ecfc88fdb2c9ba4f0a4c7efd3c799265fc72ea8269e774872"
+      },
+      "performance": {
+        "equivalent_core_nanoseconds": 1469328604,
+        "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-2/trajecta-product/performance-attribution.json",
+        "process_peak_rss_bytes": 171331584,
+        "runner_output_nanoseconds": 7531930465,
+        "runner_total_nanoseconds": 9001259069,
+        "sha256": "ace0f191568f6fe30f38132a11261f78e380216993bc18d58c5e98402bb80351"
+      },
+      "phase": "formal",
+      "repetition": 2,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-2/trajecta-product/M5_A5_TRAJECTA_RUN.json",
+      "result_sha256": "31567dafc07e7bb2a655b1ba98aca50f6269a5c119b54e4f0518249000055598",
+      "runner_milliseconds": 8859,
+      "sqlite": {
+        "journal_mode": "WAL",
+        "relative_path": "particles.sqlite",
+        "row_counts": {
+          "output_event": 4,
+          "particle": 50000,
+          "particle_mass": 50000,
+          "particle_state": 200000,
+          "run": 1,
+          "termination": 0
+        },
+        "schema_version": 1,
+        "synchronous": "NORMAL"
+      },
+      "terminations": {
+        "abnormal_count": 0,
+        "by_reason": {},
+        "normal_count": 0
+      },
+      "time_verbose": {
+        "elapsed_seconds": 12.66,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 8,
+        "peak_rss_kib": 21688,
+        "reported_exit_status": 0,
+        "system_seconds": 0.01,
+        "user_seconds": 0.06
+      },
+      "wall_nanoseconds": 12668167086
+    },
+    {
+      "artifact_bytes": 18081,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "b9eab65492c9d181f093e1b7fca2051ccd4c1d56bec2c60e392e54e180c9b0e7",
+        "output/RELEASES.namelist": "e04de60b151e63138eaece942d7eda6717cc1d51756da30837e6deda630ae2e5",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "4ba79aebfc445023137f041e2cf5cee2415ee7b12c4923d990ad63caae08777b",
+        "output/totals.nc": "698f4e5793fed67345382e8bf93d5bb8ae550323504a2f9e9db39d2617e71d08"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-2/flexpart-core",
+      "mode": "flexpart-core",
+      "order_index": 1,
+      "particles": 50000,
+      "phase": "formal",
+      "repetition": 2,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-2/flexpart-core/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "88153a29750ba67a8b03ef3f830a3f0fd75480e33b6d36249b47f9efb5e376b8",
+      "time_verbose": {
+        "elapsed_seconds": 2.87,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 72,
+        "peak_rss_kib": 370300,
+        "reported_exit_status": 0,
+        "system_seconds": 0.21,
+        "user_seconds": 2.23
+      },
+      "wall_nanoseconds": 1450148600
+    },
+    {
+      "artifact_bytes": 2180802,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "78b22a32023605415231f1e2b4eee3fe7c7131b9cd228b641dc7acc04b495fe2",
+        "output/PARTOPTIONS.namelist": "2487688764b776236a8ed5f912fa5208c7b4385612f1f27885b201f81dc312fe",
+        "output/RELEASES.namelist": "e04de60b151e63138eaece942d7eda6717cc1d51756da30837e6deda630ae2e5",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "4ba79aebfc445023137f041e2cf5cee2415ee7b12c4923d990ad63caae08777b",
+        "output/partoutput_20181201030000_init.nc": "174aba6bc73af87253e9dd6ebb60bb960174d1bce99e8014fd5c09077f258061",
+        "output/totals.nc": "698f4e5793fed67345382e8bf93d5bb8ae550323504a2f9e9db39d2617e71d08"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-2/flexpart-product",
+      "mode": "flexpart-product",
+      "order_index": 2,
+      "particles": 50000,
+      "phase": "formal",
+      "repetition": 2,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-2/flexpart-product/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "8bfc2921b632992adc0bcd79a216f3b2a1d735c15a30475f0c28fc2ae1fe6bf4",
+      "time_verbose": {
+        "elapsed_seconds": 1.33,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 4304,
+        "peak_rss_kib": 377344,
+        "reported_exit_status": 0,
+        "system_seconds": 0.15,
+        "user_seconds": 2.28
+      },
+      "wall_nanoseconds": 1333054608
+    },
+    {
+      "artifact_bytes": 2180802,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "78b22a32023605415231f1e2b4eee3fe7c7131b9cd228b641dc7acc04b495fe2",
+        "output/PARTOPTIONS.namelist": "2487688764b776236a8ed5f912fa5208c7b4385612f1f27885b201f81dc312fe",
+        "output/RELEASES.namelist": "e04de60b151e63138eaece942d7eda6717cc1d51756da30837e6deda630ae2e5",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "4ba79aebfc445023137f041e2cf5cee2415ee7b12c4923d990ad63caae08777b",
+        "output/partoutput_20181201030000_init.nc": "174aba6bc73af87253e9dd6ebb60bb960174d1bce99e8014fd5c09077f258061",
+        "output/totals.nc": "698f4e5793fed67345382e8bf93d5bb8ae550323504a2f9e9db39d2617e71d08"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-3/flexpart-product",
+      "mode": "flexpart-product",
+      "order_index": 0,
+      "particles": 50000,
+      "phase": "formal",
+      "repetition": 3,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-3/flexpart-product/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "3306d42b5aea9265b31b654ea3650f382a0cdcbba7e4cc3bd6e8870ae03ad724",
+      "time_verbose": {
+        "elapsed_seconds": 1.37,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 4304,
+        "peak_rss_kib": 377108,
+        "reported_exit_status": 0,
+        "system_seconds": 0.22,
+        "user_seconds": 2.35
+      },
+      "wall_nanoseconds": 1373482367
+    },
+    {
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-3/trajecta-product",
+      "digests": {
+        "canonical_output_sha256": "ad0d6f40ff99e715147052dc61c5d3cf920bc9349b086eb05985914bd458ce11",
+        "content_sha256": "7dcc647b25daf6bd276336fecf4ad566e38b56d6168ae50894ed4ddabe9896df",
+        "sqlite_sql_sha256": "21cb280b7d33a1f838b93eafe22db8d602a1b15bb676275d488909b805ffd491"
+      },
+      "mode": "trajecta-product",
+      "order_index": 1,
+      "output_directory": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-3/trajecta-product/project/runs/m5-a5-flexpart-comparison-p50000/019fbce6-3385-71e3-97de-5692ca0e484c",
+      "particles": 50000,
+      "path_normalized_digests": {
+        "canonical_output_sha256": "7a92b214920e1a6588545174e9b22bca177878490d93e9268619b95ddc3bcad9",
+        "provenance_content_sha256": "f18150211206611ecfc88fdb2c9ba4f0a4c7efd3c799265fc72ea8269e774872"
+      },
+      "performance": {
+        "equivalent_core_nanoseconds": 1393392158,
+        "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-3/trajecta-product/performance-attribution.json",
+        "process_peak_rss_bytes": 171012096,
+        "runner_output_nanoseconds": 7167293109,
+        "runner_total_nanoseconds": 8560685267,
+        "sha256": "56d8ea99d83591c1ba9524ae8f0e604137a63bf87935c6376561139aa4bcda90"
+      },
+      "phase": "formal",
+      "repetition": 3,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-3/trajecta-product/M5_A5_TRAJECTA_RUN.json",
+      "result_sha256": "cdd71f38197354730c5861b4fb4da9c1b796a7153a4ff4c28fd924ba6af4dc15",
+      "runner_milliseconds": 8428,
+      "sqlite": {
+        "journal_mode": "WAL",
+        "relative_path": "particles.sqlite",
+        "row_counts": {
+          "output_event": 4,
+          "particle": 50000,
+          "particle_mass": 50000,
+          "particle_state": 200000,
+          "run": 1,
+          "termination": 0
+        },
+        "schema_version": 1,
+        "synchronous": "NORMAL"
+      },
+      "terminations": {
+        "abnormal_count": 0,
+        "by_reason": {},
+        "normal_count": 0
+      },
+      "time_verbose": {
+        "elapsed_seconds": 12.63,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 8,
+        "peak_rss_kib": 21464,
+        "reported_exit_status": 0,
+        "system_seconds": 0.01,
+        "user_seconds": 0.06
+      },
+      "wall_nanoseconds": 12641761275
+    },
+    {
+      "artifact_bytes": 18081,
+      "artifact_sha256": {
+        "output/COMMAND.namelist": "b9eab65492c9d181f093e1b7fca2051ccd4c1d56bec2c60e392e54e180c9b0e7",
+        "output/RELEASES.namelist": "e04de60b151e63138eaece942d7eda6717cc1d51756da30837e6deda630ae2e5",
+        "output/SPECIES_024.namelist": "55c674f0193c9d3857d7685b103f549548103b410e3d7243b161b11db7c3967c",
+        "output/header_txt": "c291bb63b71517fe56b4f01cf4b5b85ab93c0442e2b9301115b79b5a7daac628",
+        "output/header_txt_releases": "4ba79aebfc445023137f041e2cf5cee2415ee7b12c4923d990ad63caae08777b",
+        "output/totals.nc": "698f4e5793fed67345382e8bf93d5bb8ae550323504a2f9e9db39d2617e71d08"
+      },
+      "binary_sha256": "5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629",
+      "case_root": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-3/flexpart-core",
+      "mode": "flexpart-core",
+      "order_index": 2,
+      "particles": 50000,
+      "phase": "formal",
+      "repetition": 3,
+      "result_path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/runs/p50000/repeat-3/flexpart-core/M5_A5_FLEXPART_RUN.json",
+      "result_sha256": "46e4e3f223bb3f2d55ad11c7ecc91f12b171979581c29f766817cc6c3b9e6233",
+      "time_verbose": {
+        "elapsed_seconds": 1.34,
+        "filesystem_inputs": 0,
+        "filesystem_outputs": 72,
+        "peak_rss_kib": 370432,
+        "reported_exit_status": 0,
+        "system_seconds": 0.2,
+        "user_seconds": 2.24
+      },
+      "wall_nanoseconds": 1348160819
+    }
+  ],
+  "schema_version": "trajecta.m5-a5-flexpart-comparison/v1",
+  "scientific": {
+    "10000": {
+      "median_cross_model_by_time": [
+        {
+          "dispersion_width_ratio_trajecta_over_flexpart": 1.001163562603317,
+          "horizontal_centroid_separation_m": 214.88613606175537,
+          "occupancy_ratio_trajecta_over_flexpart": 0.9814814814814815,
+          "physical_time_unix": 1543634400,
+          "transport_distance_difference_m": 214.68243527043342,
+          "vertical_centroid_difference_m": -22.45740493326491
+        },
+        {
+          "dispersion_width_ratio_trajecta_over_flexpart": 1.0019064858325955,
+          "horizontal_centroid_separation_m": 229.47912392660714,
+          "occupancy_ratio_trajecta_over_flexpart": 1.018018018018018,
+          "physical_time_unix": 1543635600,
+          "transport_distance_difference_m": 214.21796330896177,
+          "vertical_centroid_difference_m": -37.869396026353115
+        },
+        {
+          "dispersion_width_ratio_trajecta_over_flexpart": 1.0037333188783233,
+          "horizontal_centroid_separation_m": 276.5469695563465,
+          "occupancy_ratio_trajecta_over_flexpart": 0.9829059829059829,
+          "physical_time_unix": 1543636800,
+          "transport_distance_difference_m": 175.45429104375944,
+          "vertical_centroid_difference_m": -49.791626902403664
+        }
+      ]
+    },
+    "50000": {
+      "median_cross_model_by_time": [
+        {
+          "dispersion_width_ratio_trajecta_over_flexpart": 1.0028790450816834,
+          "horizontal_centroid_separation_m": 60.66122381161608,
+          "occupancy_ratio_trajecta_over_flexpart": 0.9818181818181818,
+          "physical_time_unix": 1543634400,
+          "transport_distance_difference_m": 30.44602069836219,
+          "vertical_centroid_difference_m": -19.29147735071308
+        },
+        {
+          "dispersion_width_ratio_trajecta_over_flexpart": 1.003437142102704,
+          "horizontal_centroid_separation_m": 143.45090664989195,
+          "occupancy_ratio_trajecta_over_flexpart": 0.991304347826087,
+          "physical_time_unix": 1543635600,
+          "transport_distance_difference_m": 22.252087790358928,
+          "vertical_centroid_difference_m": -34.642184439130574
+        },
+        {
+          "dispersion_width_ratio_trajecta_over_flexpart": 1.0051421054896348,
+          "horizontal_centroid_separation_m": 271.87589469601784,
+          "occupancy_ratio_trajecta_over_flexpart": 0.9752066115702479,
+          "physical_time_unix": 1543636800,
+          "transport_distance_difference_m": -20.330519642979198,
+          "vertical_centroid_difference_m": -46.42522728384915
+        }
+      ]
+    },
+    "comparability": {
+      "encoded_meteorology_values": "aligned",
+      "ensemble_metrics": "aggregate-only",
+      "input_source_fields": "exact",
+      "longitude_latitude_height_asl": "aligned",
+      "output_instants": "exact",
+      "particle_count_and_mass": "exact",
+      "particle_trajectory_crosswalk": "not-comparable",
+      "sqlite_provenance_overhead": "not-comparable"
+    }
+  },
+  "scientific_reports": [
+    {
+      "particles": 10000,
+      "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/science/p10000-repeat-1.json",
+      "repetition": 1,
+      "sha256": "fcf92a1d328b8da75ad2e3f6f371c9395abc5e872fd5cbbd332c4c31146fe053"
+    },
+    {
+      "particles": 10000,
+      "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/science/p10000-repeat-2.json",
+      "repetition": 2,
+      "sha256": "fcf92a1d328b8da75ad2e3f6f371c9395abc5e872fd5cbbd332c4c31146fe053"
+    },
+    {
+      "particles": 10000,
+      "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/science/p10000-repeat-3.json",
+      "repetition": 3,
+      "sha256": "fcf92a1d328b8da75ad2e3f6f371c9395abc5e872fd5cbbd332c4c31146fe053"
+    },
+    {
+      "particles": 50000,
+      "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/science/p50000-repeat-1.json",
+      "repetition": 1,
+      "sha256": "32cf0d658fc458bb267b231d1274a695e091f0fc98cb08f6290f3382995ab5ad"
+    },
+    {
+      "particles": 50000,
+      "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/science/p50000-repeat-2.json",
+      "repetition": 2,
+      "sha256": "32cf0d658fc458bb267b231d1274a695e091f0fc98cb08f6290f3382995ab5ad"
+    },
+    {
+      "particles": 50000,
+      "path": "/root/.cache/trajecta/m5-a5.5/fair-dt600-formal-attempt-5/science/p50000-repeat-3.json",
+      "repetition": 3,
+      "sha256": "32cf0d658fc458bb267b231d1274a695e091f0fc98cb08f6290f3382995ab5ad"
+    }
+  ],
+  "status": "passed",
+  "trajecta": {
+    "binary_sha256": "266a3c31dfb98e5206ee3e1c1d885d207b667a0ecb9f6e6caee438435a81b24f",
+    "build_manifest_sha256": "7a69d06935ab03219bfc6b3939c5af0cd07ecec22efabda3fa0b9fedc1814bd8",
+    "package_root": "/root/.cache/trajecta/m5-a5.5/batched-boundary-metrics-package-attempt-1/trajecta-0.0.0-linux-x86_64",
+    "source_tree_sha256": "5fe6b857c1c59072b1eae3603fe6a51b77f01171481cdbe1e8313cba74e225c1"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "charts": {
+    "complete-product-wall-time.svg": "a8e44765a71badd2e71ae60514e4655ffa0523a17d8213dab85f456fdcffb954",
+    "core-wall-time.svg": "c55e708a721dfd26cd1ec6fb2f732a9d60a33a21a83bc8c4558511240787b18b",
+    "peak-rss.svg": "fc79893360e56839799841cb0f4763e4414527e455614723dc7dc4bcc4e0262f",
+    "scientific-comparison.svg": "e7d0205836cdcb9335c7023a201ba32971ecc07e93ed9e953a5758393cd48db3",
+    "throughput-scaling.svg": "409c3df8aa70ce561d2ca7177c423a51f19d5f96130a8b20f93c921991754a1e"
+  },
+  "note": "Publication charts regenerated from frozen aggregate. Scientific x-axis labels use the recorded 20, 40, and 60 minute output instants.",
+  "schema_version": "trajecta.validation-publication/v1",
+  "source_aggregate_sha256": "b8d0f5befcf3bcf0c9cbf9ac70faa7ff708b676d906f6c27593d7202ab2a3b39"
+}
