@@ -1,0 +1,555 @@
+{
+  "classifications": {
+    "common_source_fields": "exact",
+    "disabled_precipitation_compatibility_fields": "not-comparable",
+    "flexpart_grib_common_fields": "aligned",
+    "trajecta_ready_common_fields": "exact",
+    "trajecta_surface_flux_fields": "not-comparable"
+  },
+  "flexpart_grib_packing_checks": {
+    "convective_precipitation_disabled": {
+      "maximum_absolute_error": 0.0,
+      "maximum_packing_error": 1.1754943508222875e-38,
+      "message_count": 4,
+      "passed": true,
+      "value_count": 5412,
+      "worst_message": "EA18120109:3063:surface:0"
+    },
+    "d2m": {
+      "maximum_absolute_error": 0.0,
+      "maximum_packing_error": 0.0002593994140625,
+      "message_count": 4,
+      "passed": true,
+      "value_count": 5412,
+      "worst_message": "EA18120109:168:heightAboveGround:2"
+    },
+    "large_scale_precipitation_disabled": {
+      "maximum_absolute_error": 0.0,
+      "maximum_packing_error": 1.1754943508222875e-38,
+      "message_count": 4,
+      "passed": true,
+      "value_count": 5412,
+      "worst_message": "EA18120109:260009:surface:0"
+    },
+    "q": {
+      "maximum_absolute_error": 2.3283064365386963e-10,
+      "maximum_packing_error": 5.972106009721756e-08,
+      "message_count": 548,
+      "passed": true,
+      "value_count": 741444,
+      "worst_message": "EA18120109:133:hybrid:136"
+    },
+    "sp": {
+      "maximum_absolute_error": 0.2499310491984943,
+      "maximum_packing_error": 0.25390625,
+      "message_count": 4,
+      "passed": true,
+      "value_count": 5412,
+      "worst_message": "EA18120106:134:surface:0"
+    },
+    "t": {
+      "maximum_absolute_error": 1.52587890625e-05,
+      "maximum_packing_error": 0.0002593994140625,
+      "message_count": 548,
+      "passed": true,
+      "value_count": 741444,
+      "worst_message": "EA18120109:130:hybrid:104"
+    },
+    "t2m": {
+      "maximum_absolute_error": 0.0,
+      "maximum_packing_error": 0.0002593994140625,
+      "message_count": 4,
+      "passed": true,
+      "value_count": 5412,
+      "worst_message": "EA18120109:167:heightAboveGround:2"
+    },
+    "u": {
+      "maximum_absolute_error": 7.62939453125e-06,
+      "maximum_packing_error": 0.000980377197265625,
+      "message_count": 548,
+      "passed": true,
+      "value_count": 741444,
+      "worst_message": "EA18120106:131:hybrid:14"
+    },
+    "u10": {
+      "maximum_absolute_error": 0.0,
+      "maximum_packing_error": 0.0001221299171447754,
+      "message_count": 4,
+      "passed": true,
+      "value_count": 5412,
+      "worst_message": "EA18120109:165:heightAboveGround:10"
+    },
+    "v": {
+      "maximum_absolute_error": 9.5367431640625e-07,
+      "maximum_packing_error": 0.000492095947265625,
+      "message_count": 548,
+      "passed": true,
+      "value_count": 741444,
+      "worst_message": "EA18120109:132:hybrid:127"
+    },
+    "v10": {
+      "maximum_absolute_error": 0.0,
+      "maximum_packing_error": 0.00012218952178955078,
+      "message_count": 4,
+      "passed": true,
+      "value_count": 5412,
+      "worst_message": "EA18120109:166:heightAboveGround:10"
+    },
+    "w": {
+      "maximum_absolute_error": 5.960464477539063e-08,
+      "maximum_packing_error": 3.063678741455078e-05,
+      "message_count": 548,
+      "passed": true,
+      "value_count": 741444,
+      "worst_message": "EA18120109:135:hybrid:135"
+    },
+    "z": {
+      "maximum_absolute_error": 0.25,
+      "maximum_packing_error": 0.2500019073486328,
+      "message_count": 4,
+      "passed": true,
+      "value_count": 5412,
+      "worst_message": "EA18120109:129:surface:0"
+    }
+  },
+  "flexpart_staged_identities": [
+    {
+      "name": "EA18120100",
+      "sha256": "211a73fc83a61e20e88b8c4411ed75116797e14017a27d34688d3a4df6f9b519",
+      "size_bytes": 2770746
+    },
+    {
+      "name": "EA18120103",
+      "sha256": "b03e235a41eb58dc6ad313fc39591c72d07c2f824e08056fbd17256d50344ad7",
+      "size_bytes": 2770746
+    },
+    {
+      "name": "EA18120106",
+      "sha256": "5d1edf0dc225c38b48ca78ba7dabc6b4c98d105a34931a6e24c63d6ede37e2d0",
+      "size_bytes": 2770746
+    },
+    {
+      "name": "EA18120109",
+      "sha256": "b59b6c287dec4faec48e041ab806f0645da2ed8acdbda46dadd4d5779def1802",
+      "size_bytes": 2770746
+    }
+  ],
+  "notes": [
+    "FLEXPART GRIB values must stay within each message's ecCodes packingError.",
+    "The two zero precipitation messages satisfy FLEXPART input structure only; wet deposition and convection are disabled.",
+    "Trajecta surface flux fields remain official source values but are outside the advection-only comparison quantity set."
+  ],
+  "schema_version": "trajecta.m5-a5-meteorology-equivalence/v1",
+  "source_identities": {
+    "common": [
+      {
+        "path": "/mnt/e/flexpart/trajecta/target/m5-a4/fixtures/era5-hybrid-4frame/raw/era5_hybrid137_20181201.nc",
+        "sha256": "788e4695029c6b11bc6304b855c04d3744933dc24f9c69d8ef9f796a9170f78d",
+        "size_bytes": 8235401
+      },
+      {
+        "path": "/mnt/e/flexpart/trajecta/target/m5-a4/fixtures/era5-hybrid-4frame/raw/era5_lnsp_20181201.nc",
+        "sha256": "0a68ff7bb74962b357c3e0f4ca0852c754c3917e6cb2bdaca7cf39c579fd2e4a",
+        "size_bytes": 39355
+      },
+      {
+        "path": "/mnt/e/flexpart/trajecta/target/m5-a4/fixtures/era5-hybrid-4frame/raw/era5_hybrid_surface_base_20181201.nc",
+        "sha256": "133b3a55408aa251f45491e44ee5ebf541dd52cc0bd807de427ac4f3f36be1a2",
+        "size_bytes": 178528
+      },
+      {
+        "path": "/mnt/e/flexpart/trajecta/target/m5-a4/fixtures/era5-hybrid-4frame/raw/era5_hybrid_pv_probe.grib",
+        "sha256": "ea6e73eb680c31f358259e3dff7175f95cde26631ecb67ae438da9603da5669c",
+        "size_bytes": 4006
+      }
+    ],
+    "trajecta_only": [
+      {
+        "path": "/mnt/e/flexpart/trajecta/target/m5-a4/fixtures/era5-hybrid-4frame/raw/era5_hybrid_surface_flux_20181201.nc",
+        "sha256": "92ab45b3fd70f65a10ba0e14f484f4a67b0d6f72f369b3387235280631ed69d6",
+        "size_bytes": 57602
+      }
+    ]
+  },
+  "status": "passed",
+  "trajecta_ready_exact_checks": {
+    "hybrid.ap": {
+      "left_shape": [
+        138
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        138
+      ],
+      "value_count": 138
+    },
+    "hybrid.b": {
+      "left_shape": [
+        138
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        138
+      ],
+      "value_count": 138
+    },
+    "hybrid.latitude": {
+      "left_shape": [
+        33
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        33
+      ],
+      "value_count": 33
+    },
+    "hybrid.lnsp": {
+      "left_shape": [
+        4,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        33,
+        41
+      ],
+      "value_count": 5412
+    },
+    "hybrid.longitude": {
+      "left_shape": [
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        41
+      ],
+      "value_count": 41
+    },
+    "hybrid.model_level": {
+      "left_shape": [
+        137
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        137
+      ],
+      "value_count": 137
+    },
+    "hybrid.q": {
+      "left_shape": [
+        4,
+        137,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        137,
+        33,
+        41
+      ],
+      "value_count": 741444
+    },
+    "hybrid.sp": {
+      "classification": "aligned-derived",
+      "left_shape": [
+        4,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 1.4551915228366852e-11,
+      "passed": true,
+      "right_shape": [
+        4,
+        33,
+        41
+      ],
+      "roundoff_tolerance": 2.9103830456733704e-11,
+      "value_count": 5412
+    },
+    "hybrid.t": {
+      "left_shape": [
+        4,
+        137,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        137,
+        33,
+        41
+      ],
+      "value_count": 741444
+    },
+    "hybrid.u": {
+      "left_shape": [
+        4,
+        137,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        137,
+        33,
+        41
+      ],
+      "value_count": 741444
+    },
+    "hybrid.v": {
+      "left_shape": [
+        4,
+        137,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        137,
+        33,
+        41
+      ],
+      "value_count": 741444
+    },
+    "hybrid.valid_time": {
+      "left_shape": [
+        4
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4
+      ],
+      "value_count": 4
+    },
+    "hybrid.w": {
+      "left_shape": [
+        4,
+        137,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        137,
+        33,
+        41
+      ],
+      "value_count": 741444
+    },
+    "surface.blh": {
+      "left_shape": [
+        4,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        33,
+        41
+      ],
+      "value_count": 5412
+    },
+    "surface.d2m": {
+      "left_shape": [
+        4,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        33,
+        41
+      ],
+      "value_count": 5412
+    },
+    "surface.fsr": {
+      "left_shape": [
+        4,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        33,
+        41
+      ],
+      "value_count": 5412
+    },
+    "surface.ie": {
+      "left_shape": [
+        4,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        33,
+        41
+      ],
+      "value_count": 5412
+    },
+    "surface.ishf": {
+      "left_shape": [
+        4,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        33,
+        41
+      ],
+      "value_count": 5412
+    },
+    "surface.latitude": {
+      "left_shape": [
+        33
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        33
+      ],
+      "value_count": 33
+    },
+    "surface.longitude": {
+      "left_shape": [
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        41
+      ],
+      "value_count": 41
+    },
+    "surface.t2m": {
+      "left_shape": [
+        4,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        33,
+        41
+      ],
+      "value_count": 5412
+    },
+    "surface.u10": {
+      "left_shape": [
+        4,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        33,
+        41
+      ],
+      "value_count": 5412
+    },
+    "surface.v10": {
+      "left_shape": [
+        4,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        33,
+        41
+      ],
+      "value_count": 5412
+    },
+    "surface.valid_time": {
+      "left_shape": [
+        4
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4
+      ],
+      "value_count": 4
+    },
+    "surface.z": {
+      "left_shape": [
+        4,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        33,
+        41
+      ],
+      "value_count": 5412
+    },
+    "surface.zust": {
+      "left_shape": [
+        4,
+        33,
+        41
+      ],
+      "maximum_absolute_error": 0.0,
+      "passed": true,
+      "right_shape": [
+        4,
+        33,
+        41
+      ],
+      "value_count": 5412
+    }
+  },
+  "trajecta_ready_identities": [
+    {
+      "path": "era5_hybrid137_prepared_20181201.nc",
+      "sha256": "eb8f8554c2ed87e0a49d8a7e5ddf52b7337c96461db7c650a8d890e3f400e0e6",
+      "size_bytes": 14975839
+    },
+    {
+      "path": "era5_surface_20181201.nc",
+      "sha256": "3c21ad12b54e559331710ada547d4fed6cdf8ece1450d7c92ec364691b51a730",
+      "size_bytes": 296204
+    }
+  ]
+}
