@@ -78,7 +78,7 @@ jobs:
             --package-root . \
             --binary target/debug/trajecta-cli \
             --data examples/domain-fill-cfsr/data \
-            --artifact-root target/m5-1-ci-quickstart
+            --artifact-root "$RUNNER_TEMP/m5-1-ci-quickstart"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -86,7 +86,7 @@ jobs:
           path: |
             trajecta/site
             trajecta/site-dev
-            trajecta/target/m5-1-ci-quickstart
+            ${{ runner.temp }}/m5-1-ci-quickstart
           if-no-files-found: error
           retention-days: 14
 
