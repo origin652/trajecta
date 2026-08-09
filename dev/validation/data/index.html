@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Download frozen M5-A5 JSON and CSV evidence and view five reproducible static validation charts.">
+        <meta name="description" content="Download the frozen Trajecta and FLEXPART comparison JSON and CSV files, read five publication charts, and rebuild them locally.">
       
       
       
@@ -642,9 +642,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -653,7 +669,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -919,6 +1131,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1022,7 +1280,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1159,22 +1417,40 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#raw-evidence" class="md-nav__link">
+  <a href="#download-the-raw-files" class="md-nav__link">
     <span class="md-ellipsis">
-      Raw evidence
+      Download the raw files
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#five-publication-charts" class="md-nav__link">
+  <a href="#read-the-timing-csv" class="md-nav__link">
     <span class="md-ellipsis">
-      Five publication charts
+      Read the timing CSV
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Five publication charts">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-the-science-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read the science CSV
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#publication-charts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Publication charts
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Publication charts">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1224,6 +1500,24 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rebuild-the-charts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rebuild the charts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-the-data-in-another-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Use the data in another analysis
+    </span>
+  </a>
   
 </li>
       
@@ -1880,22 +2174,40 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#raw-evidence" class="md-nav__link">
+  <a href="#download-the-raw-files" class="md-nav__link">
     <span class="md-ellipsis">
-      Raw evidence
+      Download the raw files
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#five-publication-charts" class="md-nav__link">
+  <a href="#read-the-timing-csv" class="md-nav__link">
     <span class="md-ellipsis">
-      Five publication charts
+      Read the timing CSV
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Five publication charts">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-the-science-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read the science CSV
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#publication-charts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Publication charts
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Publication charts">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1948,6 +2260,24 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#rebuild-the-charts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rebuild the charts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-the-data-in-another-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Use the data in another analysis
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1968,32 +2298,180 @@
 
 
 <h1 id="frozen-data-and-charts">Frozen data and charts<a class="headerlink" href="#frozen-data-and-charts" title="Permanent link">&para;</a></h1>
-<p>The passing aggregate SHA-256 is
-<code>b8d0f5befcf3bcf0c9cbf9ac70faa7ff708b676d906f6c27593d7202ab2a3b39</code>.
-The publication charts are rebuilt from its <code>performance</code> and <code>scientific</code>
-objects. CI compares every generated byte with <code>PUBLICATION_MANIFEST.json</code>.</p>
-<h2 id="raw-evidence">Raw evidence<a class="headerlink" href="#raw-evidence" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="../../assets/validation/raw/M5_A5_FLEXPART_COMPARISON.json">Comparison aggregate</a></li>
-<li><a href="../../assets/validation/raw/M5_A5_METEOROLOGY_EQUIVALENCE.json">Meteorology equivalence</a></li>
-<li><a href="../../assets/validation/raw/M5_A5_TIMINGS.csv">Timing CSV</a></li>
-<li><a href="../../assets/validation/raw/M5_A5_SCIENCE.csv">Science CSV</a></li>
-<li><a href="../../assets/validation/PUBLICATION_MANIFEST.json">Publication manifest</a></li>
-</ul>
-<p>Rebuild and verify locally:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>python tools/validate_m5_1_validation_assets.py
+<p>The publication bundle contains the aggregate comparison, the meteorological
+alignment record, two analysis-ready CSV files, and five static Scalable Vector
+Graphics (SVG) charts.
+The files are committed with the documentation, so a chart remains tied to the
+same rows when the site is rebuilt.</p>
+<p>The source aggregate has SHA-256:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>b8d0f5befcf3bcf0c9cbf9ac70faa7ff708b676d906f6c27593d7202ab2a3b39
 </code></pre></div>
-<h2 id="five-publication-charts">Five publication charts<a class="headerlink" href="#five-publication-charts" title="Permanent link">&para;</a></h2>
+<h2 id="download-the-raw-files">Download the raw files<a class="headerlink" href="#download-the-raw-files" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../assets/validation/raw/M5_A5_FLEXPART_COMPARISON.json">M5_A5_FLEXPART_COMPARISON.json</a></td>
+<td>Complete host and workload contract, executable identities, all run records, medians, scaling, scientific summaries, and check status</td>
+</tr>
+<tr>
+<td><a href="../../assets/validation/raw/M5_A5_METEOROLOGY_EQUIVALENCE.json">M5_A5_METEOROLOGY_EQUIVALENCE.json</a></td>
+<td>Source and staged file identities, array shapes, common-field classifications, GRIB packing checks, and alignment results</td>
+</tr>
+<tr>
+<td><a href="../../assets/validation/raw/M5_A5_TIMINGS.csv">M5_A5_TIMINGS.csv</a></td>
+<td>One row per warm-up or formal timing sample with wall time, RSS, CPU time, filesystem counters, mode, and order</td>
+</tr>
+<tr>
+<td><a href="../../assets/validation/raw/M5_A5_SCIENCE.csv">M5_A5_SCIENCE.csv</a></td>
+<td>One row per population, repetition, and common output time with the five cross-model ensemble measures</td>
+</tr>
+<tr>
+<td><a href="../../assets/validation/PUBLICATION_MANIFEST.json">PUBLICATION_MANIFEST.json</a></td>
+<td>Source aggregate hash and SHA-256 for every publication chart</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>raw/original-charts</code> directory retains charts emitted by the formal run.
+The publication copies below are regenerated from the aggregate. Their
+scientific x-axis uses the recorded 20, 40, and 60 minute output instants.</p>
+<h2 id="read-the-timing-csv">Read the timing CSV<a class="headerlink" href="#read-the-timing-csv" title="Permanent link">&para;</a></h2>
+<p><code>M5_A5_TIMINGS.csv</code> includes these columns:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>particles</code></td>
+<td>Requested population size</td>
+</tr>
+<tr>
+<td><code>phase</code></td>
+<td><code>warmup</code> or <code>formal</code></td>
+</tr>
+<tr>
+<td><code>repetition</code></td>
+<td>Zero for warm-up; one through three for formal samples</td>
+</tr>
+<tr>
+<td><code>order_index</code></td>
+<td>Position of the mode in that repetition's rotated order</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td><code>flexpart-core</code>, <code>flexpart-product</code>, or <code>trajecta-product</code></td>
+</tr>
+<tr>
+<td><code>core_seconds</code></td>
+<td>Transport-oriented time when the mode exposes that boundary</td>
+</tr>
+<tr>
+<td><code>product_seconds</code></td>
+<td>Complete-product wall time when the mode exposes that boundary</td>
+</tr>
+<tr>
+<td><code>peak_rss_bytes</code></td>
+<td>Maximum resident set size reported for the process</td>
+</tr>
+<tr>
+<td><code>user_seconds</code>, <code>system_seconds</code></td>
+<td>CPU time from <code>/usr/bin/time -v</code></td>
+</tr>
+<tr>
+<td><code>filesystem_inputs</code>, <code>filesystem_outputs</code></td>
+<td>Filesystem counters reported by the same tool</td>
+</tr>
+</tbody>
+</table>
+<p>Blank core or product cells indicate that the selected mode has only the other
+timing boundary. Filter <code>phase == formal</code> before recalculating published
+medians.</p>
+<h2 id="read-the-science-csv">Read the science CSV<a class="headerlink" href="#read-the-science-csv" title="Permanent link">&para;</a></h2>
+<p><code>M5_A5_SCIENCE.csv</code> contains three output rows per repetition. Unix times map to
+the following elapsed times:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;"><code>physical_time_unix</code></th>
+<th style="text-align: right;">Elapsed time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1543634400</td>
+<td style="text-align: right;">20 minutes</td>
+</tr>
+<tr>
+<td style="text-align: right;">1543635600</td>
+<td style="text-align: right;">40 minutes</td>
+</tr>
+<tr>
+<td style="text-align: right;">1543636800</td>
+<td style="text-align: right;">60 minutes</td>
+</tr>
+</tbody>
+</table>
+<p>The remaining columns are measured in metres or dimensionless ratios as stated
+in their names. Definitions and sign conventions are given in the
+<a href="../science/">scientific method</a>.</p>
+<h2 id="publication-charts">Publication charts<a class="headerlink" href="#publication-charts" title="Permanent link">&para;</a></h2>
 <h3 id="equivalent-core-wall-time">Equivalent-core wall time<a class="headerlink" href="#equivalent-core-wall-time" title="Permanent link">&para;</a></h3>
-<p><img alt="Equivalent-core median wall time" src="../../assets/validation/charts/core-wall-time.svg" /></p>
+<p><img alt="Median equivalent-core wall time for 10,000 and 50,000 particles" src="../../assets/validation/charts/core-wall-time.svg" /></p>
+<p>This chart compares the transport-oriented medians. The 10,000-particle values
+are 1.330 seconds and 0.465 seconds; the 50,000-particle values are 1.340
+seconds and 1.469 seconds.</p>
 <h3 id="complete-product-wall-time">Complete-product wall time<a class="headerlink" href="#complete-product-wall-time" title="Permanent link">&para;</a></h3>
-<p><img alt="Complete-product median wall time" src="../../assets/validation/charts/complete-product-wall-time.svg" /></p>
+<p><img alt="Median complete-product wall time for 10,000 and 50,000 particles" src="../../assets/validation/charts/complete-product-wall-time.svg" /></p>
+<p>This chart follows each program's selected product path. At 50,000 particles,
+the values are 1.370 seconds for the particle NetCDF product and 8.680 seconds
+for the Trajecta SQLite and provenance product.</p>
 <h3 id="throughput-scaling">Throughput scaling<a class="headerlink" href="#throughput-scaling" title="Permanent link">&para;</a></h3>
-<p><img alt="Equivalent-core throughput" src="../../assets/validation/charts/throughput-scaling.svg" /></p>
+<p><img alt="Equivalent-core particle throughput at 10,000 and 50,000 particles" src="../../assets/validation/charts/throughput-scaling.svg" /></p>
+<p>Throughput divides particle count by equivalent-core median seconds. The chart
+shows the effect of fixed work in the short case as well as the population-
+dependent transport cost.</p>
 <h3 id="peak-resident-memory">Peak resident memory<a class="headerlink" href="#peak-resident-memory" title="Permanent link">&para;</a></h3>
-<p><img alt="Median peak resident memory" src="../../assets/validation/charts/peak-rss.svg" /></p>
+<p><img alt="Median peak resident memory for core and product modes" src="../../assets/validation/charts/peak-rss.svg" /></p>
+<p>Peak RSS is the median process maximum from the three formal runs. Bytes are
+converted to MiB using 1,048,576 bytes per MiB.</p>
 <h3 id="scientific-ensemble-comparison">Scientific ensemble comparison<a class="headerlink" href="#scientific-ensemble-comparison" title="Permanent link">&para;</a></h3>
-<p><img alt="Ensemble scientific comparison" src="../../assets/validation/charts/scientific-comparison.svg" /></p>
+<p><img alt="Horizontal and vertical ensemble differences at 20, 40, and 60 minutes" src="../../assets/validation/charts/scientific-comparison.svg" /></p>
+<p>The scientific chart displays horizontal centroid separation and signed
+vertical centroid difference for both particle counts. Detailed dispersion,
+transport-distance, and occupancy values remain in the CSV.</p>
+<h2 id="rebuild-the-charts">Rebuild the charts<a class="headerlink" href="#rebuild-the-charts" title="Permanent link">&para;</a></h2>
+<p>From the repository's <code>trajecta</code> directory, use the Python environment prepared
+for the workspace tools:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python tools/validate_m5_1_validation_assets.py
+</code></pre></div>
+<p>The command performs four checks:</p>
+<ol>
+<li>the frozen aggregate status and source artifact hashes are read;</li>
+<li>publication charts are regenerated in a temporary directory;</li>
+<li>every generated chart hash is compared with <code>PUBLICATION_MANIFEST.json</code>;</li>
+<li>English and Chinese validation asset trees are compared byte for byte.</li>
+</ol>
+<p>It leaves the committed charts unchanged. A planned chart update begins with a
+new frozen aggregate or a reviewed rendering change, followed by regeneration
+and an updated publication manifest in the same commit.</p>
+<h2 id="use-the-data-in-another-analysis">Use the data in another analysis<a class="headerlink" href="#use-the-data-in-another-analysis" title="Permanent link">&para;</a></h2>
+<p>The CSV files can be loaded directly by R, Python, Julia, a spreadsheet, or a
+command-line table tool. Keep <code>particles</code>, <code>phase</code>, <code>repetition</code>, and <code>mode</code> as
+grouping columns when recalculating performance summaries. For scientific
+rows, group by particle count and physical time; repetitions are separate
+observations even when their current values match.</p>
+<p>When citing a table or derived plot, record the aggregate SHA-256 shown at the
+top of this page. It identifies the exact workload, executables, raw rows, and
+derived values used by this publication bundle.</p>
 
 
 

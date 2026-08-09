@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Deterministic product archives, native runtime inventory, release evidence, version policy, and GitHub publication flow.">
+        <meta name="description" content="Deterministic product archives, native runtime inventory, supply-chain files, documentation snapshots, and GitHub release flow.">
       
       
       
@@ -642,9 +642,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -653,7 +669,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -919,6 +1131,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1020,7 +1278,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1627,6 +1885,114 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#release-artifact-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      Release artifact set
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#package-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      Package contents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#host-requirements-for-a-formal-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      Host requirements for a formal build
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deterministic-archive-construction" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deterministic archive construction
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#native-library-collection-and-probe" class="md-nav__link">
+    <span class="md-ellipsis">
+      Native library collection and probe
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-manifest-and-supply-chain-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build manifest and supply-chain inventory
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#package-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      Package verification
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#demonstration-data-asset" class="md-nav__link">
+    <span class="md-ellipsis">
+      Demonstration-data asset
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pre-release-gates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pre-release gates
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#github-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      GitHub workflows
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation-publication" class="md-nav__link">
+    <span class="md-ellipsis">
+      Documentation publication
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#credentials-and-publication-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Credentials and publication permissions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#release-sequence" class="md-nav__link">
     <span class="md-ellipsis">
       Release sequence
@@ -1820,6 +2186,114 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#release-artifact-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      Release artifact set
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#package-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      Package contents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#host-requirements-for-a-formal-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      Host requirements for a formal build
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deterministic-archive-construction" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deterministic archive construction
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#native-library-collection-and-probe" class="md-nav__link">
+    <span class="md-ellipsis">
+      Native library collection and probe
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-manifest-and-supply-chain-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build manifest and supply-chain inventory
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#package-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      Package verification
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#demonstration-data-asset" class="md-nav__link">
+    <span class="md-ellipsis">
+      Demonstration-data asset
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pre-release-gates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pre-release gates
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#github-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      GitHub workflows
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation-publication" class="md-nav__link">
+    <span class="md-ellipsis">
+      Documentation publication
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#credentials-and-publication-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Credentials and publication permissions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#release-sequence" class="md-nav__link">
     <span class="md-ellipsis">
       Release sequence
@@ -1848,27 +2322,363 @@
 
 
 <h1 id="packaging-and-release">Packaging and release<a class="headerlink" href="#packaging-and-release" title="Permanent link">&para;</a></h1>
-<p>Formal product archives are built on Windows x86_64 and Ubuntu 24.04 x86_64.
-Each archive contains the binary, native libraries, ecCodes definitions,
-examples, offline recovery docs, the data helper, license material, an SBOM, and
-<code>BUILD-MANIFEST.json</code>.</p>
-<p>The package builder uses a fixed source identity and source date. Archive paths,
-permissions, timestamps, payload ordering, and hashes are deterministic. Package
-verification checks the adjacent SHA-256, manifest shape, every payload digest,
-the binary identity, supply-chain files, and native component versions.</p>
+<p>Trajecta publishes host-native archives for Windows x86_64 and Ubuntu 24.04
+x86_64. The archive is assembled from a release build and a declared payload;
+users do not need a Rust or C development environment after extraction.</p>
+<p>Software packages, demonstration data, and documentation are separate release
+artifacts. This keeps the meteorological sample from being duplicated inside
+both platform archives and allows the manual to be hosted as a versioned static
+site.</p>
+<h2 id="release-artifact-set">Release artifact set<a class="headerlink" href="#release-artifact-set" title="Permanent link">&para;</a></h2>
+<p>For <code>0.1.0-alpha.1</code>, the expected public files are:</p>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>trajecta-0.1.0-alpha.1-windows-x86_64.zip</code></td>
+<td>Windows GNU-hosted product package</td>
+</tr>
+<tr>
+<td><code>trajecta-0.1.0-alpha.1-windows-x86_64.zip.sha256</code></td>
+<td>Archive checksum</td>
+</tr>
+<tr>
+<td><code>trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz</code></td>
+<td>Ubuntu 24.04 product package</td>
+</tr>
+<tr>
+<td><code>trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz.sha256</code></td>
+<td>Archive checksum</td>
+</tr>
+<tr>
+<td><code>trajecta-demo-cfsr-20090101-v1.zip</code></td>
+<td>Four-file CFSR demonstration dataset</td>
+</tr>
+<tr>
+<td>Demonstration-data checksum and build result</td>
+<td>Dataset archive identity</td>
+</tr>
+<tr>
+<td>GitHub release notes</td>
+<td>User-visible scope, install links, changes, and limits</td>
+</tr>
+<tr>
+<td><code>0.1.0-alpha.1</code> documentation snapshot</td>
+<td>Bilingual immutable manual on GitHub Pages</td>
+</tr>
+</tbody>
+</table>
+<p>Validation CSV, JSON, and charts live in the documentation source and published
+site. They are generated from frozen comparison outputs rather than copied into
+the executable archives.</p>
+<h2 id="package-contents">Package contents<a class="headerlink" href="#package-contents" title="Permanent link">&para;</a></h2>
+<p><code>tools/m5_a4_package.py</code> creates one root directory named for the version and
+platform. Its payload contains:</p>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Files</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Executable</td>
+<td><code>trajecta.exe</code> on Windows or <code>trajecta</code> on Linux</td>
+</tr>
+<tr>
+<td>Native runtime</td>
+<td>Non-system ecCodes, netCDF-C, HDF5, and transitive shared libraries</td>
+</tr>
+<tr>
+<td>ecCodes data</td>
+<td>A copied definitions tree or a verified embedded-MEMFS marker</td>
+</tr>
+<tr>
+<td>Supply chain</td>
+<td><code>BUILD-MANIFEST.json</code>, CycloneDX 1.5 <code>SBOM.cdx.json</code>, <code>THIRD-PARTY-LICENSES.json</code></td>
+</tr>
+<tr>
+<td>Legal and package information</td>
+<td>Project <code>LICENSE</code> and package <code>README.md</code></td>
+</tr>
+<tr>
+<td>Offline help</td>
+<td>English and Chinese quickstart, recovery notes, and support matrix</td>
+</tr>
+<tr>
+<td>Example projects</td>
+<td>Domain-fill CFSR, release CFSR, ERA5 pressure air mass, ERA5 hybrid ozone</td>
+</tr>
+<tr>
+<td>Data utilities</td>
+<td>Data-plan helper, CFSR and ERA5 retrieval/preparation tools, quickstart runner</td>
+</tr>
+<tr>
+<td>Python requirements</td>
+<td><code>requirements-data.txt</code> for optional provider helpers</td>
+</tr>
+</tbody>
+</table>
+<p>Meteorological data and provider credentials are absent from the software
+archives. Users download the demonstration asset or prepare their own locked
+dataset.</p>
+<h2 id="host-requirements-for-a-formal-build">Host requirements for a formal build<a class="headerlink" href="#host-requirements-for-a-formal-build" title="Permanent link">&para;</a></h2>
+<p>Formal packages are built natively on their target operating system:</p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Rust host</th>
+<th>Build host</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows</td>
+<td><code>x86_64-pc-windows-gnu</code></td>
+<td>Windows x64 with matching GNU native libraries</td>
+</tr>
+<tr>
+<td>Linux</td>
+<td><code>x86_64-unknown-linux-gnu</code></td>
+<td>Ubuntu 24.04 x86_64</td>
+</tr>
+</tbody>
+</table>
+<p>The package tool checks the Rust host triple. Linux builds outside Ubuntu 24.04
+are accepted only with an explicit nonformal preflight flag and cannot serve as
+the release archive.</p>
+<p>The release binary uses:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cargo build --offline --locked --release --package trajecta-cli \
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  --features trajecta-met/native-eccodes,trajecta-met/native-netcdf
+</code></pre></div>
+<p>On Linux, the package build adds an <code>$ORIGIN/lib</code> runtime search path. On
+Windows, the builder walks the executable's DLL imports recursively and copies
+non-system dependencies from the supplied native-library directories.</p>
+<h2 id="deterministic-archive-construction">Deterministic archive construction<a class="headerlink" href="#deterministic-archive-construction" title="Permanent link">&para;</a></h2>
+<p>Package construction records a source identity before compiling. It includes
+the Git commit, a digest over tracked and unignored source files, the file count,
+and any dirty paths. Release review expects a deliberate source tree; generated
+target directories and unrelated run artifacts are outside the package input.</p>
+<p>The timestamp comes from <code>SOURCE_DATE_EPOCH</code>, defaulting to the commit time. The
+archive writer then normalizes:</p>
+<ul>
+<li>member paths to forward-slash relative paths;</li>
+<li>root directory name;</li>
+<li>member ordering;</li>
+<li>file and directory modes;</li>
+<li>owner information in tar archives;</li>
+<li>ZIP and gzip timestamps;</li>
+<li>gzip filename metadata;</li>
+<li>JSON key order and final line endings.</li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">Use a new package output root</p>
+<p>The builder never overwrites an existing stage, archive, or checksum. Put
+each build in a separate root.</p>
+</div>
+<h2 id="native-library-collection-and-probe">Native library collection and probe<a class="headerlink" href="#native-library-collection-and-probe" title="Permanent link">&para;</a></h2>
+<p>The archive must contain ecCodes, netCDF-C, and HDF5 exactly once in its declared
+component inventory. The builder loads the copied runtime libraries and calls
+their version APIs:</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Probe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ecCodes</td>
+<td><code>codes_get_api_version</code></td>
+</tr>
+<tr>
+<td>netCDF-C</td>
+<td><code>nc_inq_libvers</code></td>
+</tr>
+<tr>
+<td>HDF5</td>
+<td><code>H5get_libversion</code></td>
+</tr>
+</tbody>
+</table>
+<p>The probed versions must equal the versions supplied to <code>--native-component</code>.
+This catches a package assembled from a different DLL or shared object than the
+release metadata describes.</p>
+<p>Windows system DLLs are left to the operating system. Linux skips the system C
+runtime and loader while copying other resolved dependencies into <code>lib/</code>.
+Unresolved <code>ldd</code> entries or missing recursive DLL imports stop the build.</p>
+<h2 id="build-manifest-and-supply-chain-inventory">Build manifest and supply-chain inventory<a class="headerlink" href="#build-manifest-and-supply-chain-inventory" title="Permanent link">&para;</a></h2>
+<p><code>BUILD-MANIFEST.json</code> is the package index. It records:</p>
+<ul>
+<li>product version, target triple, and minimum operating system;</li>
+<li>Rust and Cargo versions, feature set, source date, and source-tree identity;</li>
+<li>binary path, byte count, and SHA-256;</li>
+<li>archive format and root directory;</li>
+<li>every payload path, role, size, and SHA-256;</li>
+<li>native components and the version probe result;</li>
+<li>SBOM and license-inventory identities.</li>
+</ul>
+<p>The CycloneDX document is built from the locked Cargo dependency closure plus
+the three native components. The license inventory uses the same component set
+and records source links and license expressions. Package verification cross-
+checks these files instead of treating them as unrelated attachments.</p>
+<h2 id="package-verification">Package verification<a class="headerlink" href="#package-verification" title="Permanent link">&para;</a></h2>
+<p>Verification starts from the archive and adjacent checksum:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python tools/m5_a4_package.py verify \
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  --archive &lt;archive&gt; \
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  --extract-root &lt;new-directory&gt; \
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  --result &lt;verification-result.json&gt;
+</code></pre></div>
+<p>The verifier:</p>
+<ol>
+<li>checks the archive SHA-256 and expected checksum filename;</li>
+<li>rejects absolute paths, parent traversal, duplicate members, links, and an
+   unexpected archive root;</li>
+<li>extracts into a new directory without overwriting an existing tree;</li>
+<li>validates the manifest schema and product/platform identity;</li>
+<li>recalculates every payload digest and rejects unlisted files;</li>
+<li>checks executable name and Linux execute permission;</li>
+<li>validates the CycloneDX and license inventories;</li>
+<li>loads the extracted native libraries and repeats the version probe.</li>
+</ol>
+<p>The resulting JSON names the exact extracted root and identities used by later
+smoke tests. Matrix runners should consume that root rather than guessing an
+archive directory name.</p>
+<h2 id="demonstration-data-asset">Demonstration-data asset<a class="headerlink" href="#demonstration-data-asset" title="Permanent link">&para;</a></h2>
+<p><code>tools/build_m5_1_demo_asset.py</code> builds the separately distributed CFSR sample.
+The input manifest fixes four GRIB filenames, byte counts, SHA-256 values,
+source information, and data-use notes. The ZIP uses a fixed root and timestamp.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python tools/build_m5_1_demo_asset.py \
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  --source &lt;directory-with-four-cfsr-files&gt; \
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  --output &lt;release-directory&gt;/trajecta-demo-cfsr-20090101-v1.zip
+</code></pre></div>
+<p>The tool writes the archive, adjacent checksum, and a JSON build result. The
+quickstart runner verifies the four file hashes again after extraction.</p>
+<h2 id="pre-release-gates">Pre-release gates<a class="headerlink" href="#pre-release-gates" title="Permanent link">&para;</a></h2>
+<p>A release candidate passes the following groups on the source commit that will
+be tagged:</p>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Required result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Source</td>
+<td>Workspace tests, clippy with warnings denied, rustdoc, fmt, M4/M5 contract validators</td>
+</tr>
+<tr>
+<td>Documentation</td>
+<td>Generated references, bilingual validator, validation assets, strict release and dev builds</td>
+</tr>
+<tr>
+<td>Packages</td>
+<td>Build and verify both host-native archives in clean directories</td>
+</tr>
+<tr>
+<td>Product smoke</td>
+<td>Two clean-package CFSR cells on each platform</td>
+</tr>
+<tr>
+<td>Product matrix</td>
+<td>Thirty formal cells on Windows and thirty on Ubuntu</td>
+</tr>
+<tr>
+<td>Tutorials</td>
+<td>Domain-fill and release on both packages; air-mass and ozone on Ubuntu</td>
+</tr>
+<tr>
+<td>Validation</td>
+<td>Frozen scientific and performance comparison aggregate plus chart regeneration</td>
+</tr>
+<tr>
+<td>Operations</td>
+<td>No retained live daemon or worker after each matrix; failed attempts kept with summaries</td>
+</tr>
+</tbody>
+</table>
+<p>Formal matrices use stop-on-first-failure. A fixed implementation produces a new
+source identity, package, extraction root, and attempt tree; a failed artifact is
+not edited into a passing one.</p>
+<h2 id="github-workflows">GitHub workflows<a class="headerlink" href="#github-workflows" title="Permanent link">&para;</a></h2>
+<p>M5.1 uses three workflows under <code>.github/workflows</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Workflow</th>
+<th>Trigger</th>
+<th>Work</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>m5-1-docs-ci.yml</code></td>
+<td>Documentation-related pull request or manual run</td>
+<td>Build CLI reference, validate helpers and docs, strict-build release/dev sites, run the domain-fill source quickstart, check external links</td>
+</tr>
+<tr>
+<td><code>m5-1-docs-publish.yml</code></td>
+<td>Main documentation change, release, or explicit dispatch</td>
+<td>Build static sites, upload artifacts, publish mutable <code>dev</code> or immutable release docs with <code>mike</code></td>
+</tr>
+<tr>
+<td><code>m5-1-product-docs.yml</code></td>
+<td>Weekly schedule, release, or manual run</td>
+<td>Download published packages and demo data, run packaged tutorials, check public Pages and crawler assets</td>
+</tr>
+</tbody>
+</table>
+<p>Pull requests do not publish Pages. Main-branch documentation changes update the
+<code>dev</code> version. A release event or approved manual snapshot creates the immutable
+<code>0.1.0-alpha.1</code> directory and updates the <code>latest</code> alias.</p>
+<h2 id="documentation-publication">Documentation publication<a class="headerlink" href="#documentation-publication" title="Permanent link">&para;</a></h2>
+<p>The release site is built with <code>mkdocs.yml</code>. The dev site inherits it through
+<code>mkdocs.dev.yml</code>, changes the site URL to <code>/dev/</code>, and emits <code>noindex</code> metadata.
+Both static trees are uploaded as workflow artifacts before publication.</p>
+<p><code>mike</code> stores versioned HTML on the <code>gh-pages</code> branch. Before creating a release
+snapshot, the workflow checks that the version directory does not already exist.
+Root <code>robots.txt</code> and <code>sitemap.xml</code> are generated from the release build; the
+root sitemap points at versioned canonical URLs, while <code>/dev/</code> is disallowed for
+crawlers.</p>
+<p>The resulting <code>site</code> directory is ordinary static content. The same artifact can
+be served by GitHub Pages, Nginx, or Caddy without a Node or Python server.</p>
+<h2 id="credentials-and-publication-permissions">Credentials and publication permissions<a class="headerlink" href="#credentials-and-publication-permissions" title="Permanent link">&para;</a></h2>
+<p>Release workflows use GitHub's short-lived token for release downloads and
+Pages branch updates. ERA5 tutorials read <code>CDSAPI_URL</code> and <code>CDSAPI_KEY</code> from
+repository secrets. Values are passed through process environment only.</p>
+<p>Before staging release files, scan the source and intended artifacts for common
+credential forms, local home paths, provider configuration files, and private
+keys. Runtime logs and provenance should contain request identity and public
+dataset metadata, not authorization headers or secret environment values.</p>
 <h2 id="release-sequence">Release sequence<a class="headerlink" href="#release-sequence" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Pass workspace, contract, documentation, and product-package gates.</li>
-<li>Build and verify both formal archives in clean extraction directories.</li>
-<li>Run the domain-fill quickstart and product smoke on both platforms.</li>
-<li>Build the demonstration-data asset and verify its frozen manifest.</li>
-<li>Create the immutable documentation snapshot with <code>mike</code>.</li>
-<li>Publish software archives, checksums, data asset, and release notes.</li>
-<li>Check the public Pages release URL, sitemap, canonical metadata, and language switch.</li>
+<li>Select the commit and confirm workspace version <code>0.1.0-alpha.1</code>.</li>
+<li>Run source, documentation, validation, and product gates.</li>
+<li>Build each host-native archive in a new output root.</li>
+<li>Verify each archive into a new extraction directory and run its package
+   smoke and formal matrix.</li>
+<li>Build and verify the demonstration-data asset.</li>
+<li>Review <code>BUILD-MANIFEST.json</code>, SBOM, license inventory, checksums, and release
+   notes together.</li>
+<li>Tag the selected commit and publish the software and data assets.</li>
+<li>Publish the immutable bilingual documentation snapshot.</li>
+<li>Open the public download, quickstart, versioned manual, sitemap, language
+   switch, and chart pages from a clean browser session.</li>
+<li>Retain workflow summaries and failed-attempt artifacts according to their
+    configured artifact retention.</li>
 </ol>
-<p>M5.1 retains software version <code>0.1.0-alpha.1</code>. Documentation commits update the
-<code>dev</code> site and do not create another release version. Release publication must
-not proceed while provider terms or GitHub authentication remain unresolved.</p>
+<p>Documentation corrections made after the release continue on <code>dev</code>. The
+software version changes only when a new software release is prepared.</p>
 
 
 

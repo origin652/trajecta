@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Scope, supported packages, primary workflows, and known limits of the first Trajecta alpha release.">
+        <meta name="description" content="Packages, scientific workflows, local job control, result products, documentation, and limits in the first Trajecta alpha release.">
       
       
       
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -917,6 +1129,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1018,7 +1276,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1767,9 +2025,90 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#included" class="md-nav__link">
+  <a href="#packages" class="md-nav__link">
     <span class="md-ellipsis">
-      Included
+      Packages
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scientific-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scientific workflows
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#meteorological-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Meteorological data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-and-configuration-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      Project and configuration control
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-queue-and-process-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      Local queue and process model
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#results" class="md-nav__link">
+    <span class="md-ellipsis">
+      Results
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#machine-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      Machine output
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation-and-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Documentation and examples
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validation summary
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compatibility-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Compatibility notes
     </span>
   </a>
   
@@ -1779,6 +2118,15 @@
   <a href="#known-limits" class="md-nav__link">
     <span class="md-ellipsis">
       Known limits
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#start-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      Start here
     </span>
   </a>
   
@@ -1827,9 +2175,90 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#included" class="md-nav__link">
+  <a href="#packages" class="md-nav__link">
     <span class="md-ellipsis">
-      Included
+      Packages
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scientific-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scientific workflows
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#meteorological-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Meteorological data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-and-configuration-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      Project and configuration control
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-queue-and-process-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      Local queue and process model
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#results" class="md-nav__link">
+    <span class="md-ellipsis">
+      Results
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#machine-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      Machine output
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation-and-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Documentation and examples
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validation summary
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compatibility-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Compatibility notes
     </span>
   </a>
   
@@ -1839,6 +2268,15 @@
   <a href="#known-limits" class="md-nav__link">
     <span class="md-ellipsis">
       Known limits
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#start-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      Start here
     </span>
   </a>
   
@@ -1864,22 +2302,260 @@
 
 
 <h1 id="010-alpha1">0.1.0-alpha.1<a class="headerlink" href="#010-alpha1" title="Permanent link">&para;</a></h1>
-<p>This alpha establishes the first evaluated Trajecta product surface.</p>
-<h2 id="included">Included<a class="headerlink" href="#included" title="Permanent link">&para;</a></h2>
+<p><code>0.1.0-alpha.1</code> is the first Trajecta product release. It provides a complete
+local workflow from a Case and locked meteorological dataset to verified
+trajectory results. The release is intended for evaluation, reproducible
+scientific workflow development, and early operational use on supported hosts.</p>
+<h2 id="packages">Packages<a class="headerlink" href="#packages" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Archive</th>
+<th>Executable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows x86_64</td>
+<td><code>trajecta-0.1.0-alpha.1-windows-x86_64.zip</code></td>
+<td><code>trajecta.exe</code></td>
+</tr>
+<tr>
+<td>Ubuntu 24.04 x86_64</td>
+<td><code>trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz</code></td>
+<td><code>trajecta</code></td>
+</tr>
+</tbody>
+</table>
+<p>Both archives contain the native meteorological runtime, ecCodes definitions,
+four example projects, data-preparation helpers, bilingual offline quickstarts,
+an SBOM, and a third-party license inventory. The CFSR demonstration data is a
+separate release asset so the same files can be used with either platform
+package.</p>
+<p>Download the archive and its <code>.sha256</code> file from the
+<a href="https://github.com/origin652/trajecta/releases/tag/v0.1.0-alpha.1">0.1.0-alpha.1 release</a>,
+then follow <a href="../../getting-started/">Installation and first steps</a>.</p>
+<h2 id="scientific-workflows">Scientific workflows<a class="headerlink" href="#scientific-workflows" title="Permanent link">&para;</a></h2>
+<p>The release includes four documented workflows:</p>
+<table>
+<thead>
+<tr>
+<th>Workflow</th>
+<th>Population</th>
+<th>Example project</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Domain-fill moisture</td>
+<td>Dry-air domain filling with water-vapor mass</td>
+<td><code>examples/domain-fill-cfsr</code></td>
+</tr>
+<tr>
+<td>Release trajectories</td>
+<td>Configured release events</td>
+<td><code>examples/release-cfsr</code></td>
+</tr>
+<tr>
+<td>Air-mass domain fill</td>
+<td>Dry-air finite-volume population</td>
+<td><code>examples/air-mass-era5-pressure</code></td>
+</tr>
+<tr>
+<td>Stratospheric ozone</td>
+<td>Domain filling with ozone-specific seeding</td>
+<td><code>examples/ozone-era5-hybrid</code></td>
+</tr>
+</tbody>
+</table>
+<p>All populations use the same spherical midpoint RK2 integrator and typed
+meteorological query path. Cases can integrate forward or backward in physical
+time. Limited-domain runs record boundary births and terminations with stable
+particle identity.</p>
+<p>The <a href="../../tutorials/">Tutorials</a> provide complete project files and command
+sequences. Scientific definitions and lifecycle behavior are described under
+<a href="../../concepts/">Concepts</a>.</p>
+<h2 id="meteorological-data">Meteorological data<a class="headerlink" href="#meteorological-data" title="Permanent link">&para;</a></h2>
+<p>Supported product families are:</p>
+<table>
+<thead>
+<tr>
+<th>Family</th>
+<th>Vertical coordinate</th>
+<th>Product readers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CFSR pressure</td>
+<td>Pressure levels</td>
+<td>Pure Rust and native ecCodes paths</td>
+</tr>
+<tr>
+<td>ERA5 pressure</td>
+<td>Pressure levels</td>
+<td>Pure Rust and native paths for the prepared product</td>
+</tr>
+<tr>
+<td>ERA5 hybrid</td>
+<td>137 hybrid model levels</td>
+<td>Pure Rust and native paths for the prepared product</td>
+</tr>
+</tbody>
+</table>
+<p>Dataset Profiles map exact source metadata into canonical fields and derived
+quantities. <code>project data-plan</code> reports required files before they exist;
+<code>project finalize</code> creates DatasetLocks after data preparation. The separate
+Python helper can retrieve supported CFSR and ERA5 requirements without adding a
+new CLI command.</p>
+<p>The four-file CFSR demonstration asset is sufficient for the 15-minute
+domain-fill quickstart. ERA5 tutorials use provider-supplied data and the
+documented CDS credential channel.</p>
+<h2 id="project-and-configuration-control">Project and configuration control<a class="headerlink" href="#project-and-configuration-control" title="Permanent link">&para;</a></h2>
+<p>The CLI supports incremental machine and project setup:</p>
 <ul>
-<li>Lagrangian release and domain-fill atmospheric trajectory execution.</li>
-<li>Water-vapor air-mass and stratospheric-ozone population workflows.</li>
-<li>CFSR pressure, ERA5 pressure, and ERA5 hybrid meteorology.</li>
-<li>Forward and backward trajectories.</li>
-<li>Durable local queue with foreground and detached operation.</li>
-<li>Deterministic SQLite results, manifests, provenance, verification, inspection,
-  trajectory reading, and derived run reports.</li>
-<li>Windows x86_64 and Ubuntu 24.04 x86_64 product packages.</li>
-<li>Bilingual MkDocs Material manual and executable examples.</li>
+<li>initialize, read, set, unset, list, and validate machine configuration;</li>
+<li>initialize a project and edit named Case/Profile mappings;</li>
+<li>maintain draft projects while some fields or data are pending;</li>
+<li>generate deterministic data plans;</li>
+<li>inspect and lock prepared meteorological data;</li>
+<li>run <code>doctor --deep</code> for configuration, filesystem, SQLite/WAL, lock, and data
+  checks;</li>
+<li>finalize a project only after its document and data bindings are complete.</li>
 </ul>
+<p>Project document paths are contained within the project root. Failed validated
+updates leave the prior file unchanged through temporary-file and atomic-rename
+writes.</p>
+<h2 id="local-queue-and-process-model">Local queue and process model<a class="headerlink" href="#local-queue-and-process-model" title="Permanent link">&para;</a></h2>
+<p>Runs use a durable local daemon, job catalog, and separate worker process.
+Foreground mode waits for the submitted attempt. <code>run --detach</code> returns after
+queue admission, allowing another terminal or session to follow the same work.</p>
+<p>The queue provides:</p>
+<ul>
+<li>explicit CPU-slot and memory reservations;</li>
+<li>FIFO scheduling with bounded small-job backfill;</li>
+<li>persistent job status and fan-out event streams;</li>
+<li>safe cancellation at a macro-step boundary;</li>
+<li>force cancellation with retained forensic files;</li>
+<li>daemon restart recovery using PID plus process-start identity;</li>
+<li>rerun as a new attempt in the same job series;</li>
+<li>preservation of completed attempts;</li>
+<li>a dry-run prune plan for storage review.</li>
+</ul>
+<p><code>job prune</code> does not delete files in this release. Queue operation and recovery
+procedures are collected in <a href="../../how-to/">How-to Guides</a> and
+<a href="../../operations/">Operations</a>.</p>
+<h2 id="results">Results<a class="headerlink" href="#results" title="Permanent link">&para;</a></h2>
+<p>Each attempt has its own result directory. A successful closeout contains:</p>
+<table>
+<thead>
+<tr>
+<th>Product</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run-manifest.json</code></td>
+<td>Software, resolved input, dataset, numerical, lifecycle, termination, mass, SQLite, and provenance identity</td>
+</tr>
+<tr>
+<td><code>particles.sqlite</code></td>
+<td>Run, particle, mass, output event, sampled state, and termination tables</td>
+</tr>
+<tr>
+<td><code>provenance-bundle.json</code></td>
+<td>Source-record and transformation assignments for sampled fields</td>
+</tr>
+<tr>
+<td><code>run-report.md</code></td>
+<td>Regenerable human-readable summary created by <code>run report</code></td>
+</tr>
+<tr>
+<td>Forensic/log entries</td>
+<td>Attempt-specific runtime material when present</td>
+</tr>
+</tbody>
+</table>
+<p>Result commands can:</p>
+<ul>
+<li>inspect the manifest and available table counts;</li>
+<li>run quick or full verification;</li>
+<li>stream selected or all particle trajectories as human text, JSON, or JSONL;</li>
+<li>generate the fixed-path Markdown report.</li>
+</ul>
+<p>SQLite is an advanced read-only interface. The primary result commands validate
+the relationship among manifest, database, and provenance before presenting a
+summary.</p>
+<h2 id="machine-output">Machine output<a class="headerlink" href="#machine-output" title="Permanent link">&para;</a></h2>
+<p>The global <code>--format json</code> option returns one <code>trajecta.cli-output/v1</code> envelope.
+Stream-capable commands can use <code>--format jsonl</code>, where each line is a
+<code>trajecta.cli-stream-item/v1</code> object and the stream ends with one summary item.</p>
+<p>Machine-mode diagnostics use stable codes, and usage errors retain process exit
+code <code>2</code>. The complete command tree and format schemas are generated under
+<a href="../../reference/">Reference</a>.</p>
+<h2 id="documentation-and-examples">Documentation and examples<a class="headerlink" href="#documentation-and-examples" title="Permanent link">&para;</a></h2>
+<p>The release manual is published in English and Simplified Chinese with matching
+navigation. It includes:</p>
+<ul>
+<li>installation and source-build routes;</li>
+<li>an executable 15-minute domain-fill quickstart;</li>
+<li>four full scientific tutorials;</li>
+<li>queue, event, cancellation, rerun, and recovery procedures;</li>
+<li>complete CLI, schema, diagnostic, exit-code, result, and platform references;</li>
+<li>scientific and performance validation pages with raw data and reproducible
+  charts;</li>
+<li>a contributor guide for building, testing, packaging, and documentation.</li>
+</ul>
+<p>The static site uses a versioned <code>0.1.0-alpha.1</code> snapshot. Ongoing corrections
+appear under <code>dev</code> until another release snapshot is created.</p>
+<h2 id="validation-summary">Validation summary<a class="headerlink" href="#validation-summary" title="Permanent link">&para;</a></h2>
+<p>Scientific comparison, comparability classes, benchmark conditions, timing
+tables, resource measurements, and chart data are published in
+<a href="../../validation/">Validation</a>. The archive product matrix covers the
+three data families, three populations, both directions, pure and native reader
+paths, and both supported operating systems.</p>
+<h2 id="compatibility-notes">Compatibility notes<a class="headerlink" href="#compatibility-notes" title="Permanent link">&para;</a></h2>
+<p>This is the first product release, so there is no earlier Trajecta project format
+to migrate. Keep the following files with a scientific run when future alpha
+versions are evaluated:</p>
+<div class="admonition tip">
+<p class="admonition-title">Keep the checksum with the archive</p>
+<p>The checksum identifies the exact package when release assets are copied or
+moved.</p>
+</div>
+<ul>
+<li>original archive checksum and build manifest;</li>
+<li>project index, resolved Case, and resolved RunProfile;</li>
+<li>DatasetLocks and source meteorological files or hashes;</li>
+<li>complete attempt directory;</li>
+<li>the matching versioned manual.</li>
+</ul>
+<p>Document and stream schemas carry their own version identifiers. Public Rust
+APIs remain contributor-facing during alpha.</p>
 <h2 id="known-limits">Known limits<a class="headerlink" href="#known-limits" title="Permanent link">&para;</a></h2>
-<p>See <a href="../../reference/alpha/">Alpha limits</a>. Plugin loading, remote scheduling,
-destructive pruning, and a general result exporter are not included.</p>
+<ul>
+<li>Product packages are published for Windows x86_64 and Ubuntu 24.04 x86_64.</li>
+<li>Scheduling is local; there is no remote or cluster backend.</li>
+<li>Plugin loading has not been implemented.</li>
+<li>The prune command reports a dry-run plan and does not remove files.</li>
+<li>A general derived-product exporter is not included. Trajectory streaming and
+  read-only SQLite access are available.</li>
+<li>Safe cancellation closes a partial result; it does not resume the same
+  numerical attempt later.</li>
+<li>Dataset retrieval remains an explicit helper step followed by project
+  finalization.</li>
+</ul>
+<p>The complete operational boundary is listed in
+<a href="../../reference/alpha/">Alpha limits</a>.</p>
+<h2 id="start-here">Start here<a class="headerlink" href="#start-here" title="Permanent link">&para;</a></h2>
+<p>New users can choose one of three routes:</p>
+<ol>
+<li><a href="../../getting-started/">Install a package and verify its checksum</a>.</li>
+<li><a href="../../getting-started/quickstart/#1-obtain-the-executable">Build the binary from source</a>.</li>
+<li><a href="../../getting-started/quickstart/">Run the domain-fill quickstart</a>.</li>
+</ol>
 
 
 

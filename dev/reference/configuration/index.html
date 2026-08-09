@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Selection precedence, fields, constraints, templates, and mutation rules for the Trajecta machine configuration.">
+        <meta name="description" content="Look up Trajecta machine-configuration path selection, defaults, resource fields, monitoring values, Profile templates, and update rules.">
       
       
       
@@ -24,7 +24,7 @@
     
     
       
-        <title>Machine configuration - Trajecta</title>
+        <title>Machine configuration reference - Trajecta</title>
       
     
     
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Machine configuration
+              Machine configuration reference
             
           </span>
         </div>
@@ -642,9 +642,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -653,7 +669,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -919,6 +1131,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1020,7 +1278,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1278,27 +1536,72 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#file-selection" class="md-nav__link">
+  <a href="#path-selection" class="md-nav__link">
     <span class="md-ellipsis">
-      File selection
+      Path selection
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#fields" class="md-nav__link">
+  <a href="#initial-values" class="md-nav__link">
     <span class="md-ellipsis">
-      Fields
+      Initial values
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#safe-mutation" class="md-nav__link">
+  <a href="#top-level-fields" class="md-nav__link">
     <span class="md-ellipsis">
-      Safe mutation
+      Top-level fields
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#daemon-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Daemon fields
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resource-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resource fields
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#monitoring-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitoring fields
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#profile-templates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Profile templates
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-and-update-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read and update values
     </span>
   </a>
   
@@ -1838,27 +2141,72 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#file-selection" class="md-nav__link">
+  <a href="#path-selection" class="md-nav__link">
     <span class="md-ellipsis">
-      File selection
+      Path selection
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#fields" class="md-nav__link">
+  <a href="#initial-values" class="md-nav__link">
     <span class="md-ellipsis">
-      Fields
+      Initial values
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#safe-mutation" class="md-nav__link">
+  <a href="#top-level-fields" class="md-nav__link">
     <span class="md-ellipsis">
-      Safe mutation
+      Top-level fields
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#daemon-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Daemon fields
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resource-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resource fields
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#monitoring-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitoring fields
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#profile-templates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Profile templates
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-and-update-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read and update values
     </span>
   </a>
   
@@ -1884,95 +2232,315 @@
 
 
 <h1 id="machine-configuration">Machine configuration<a class="headerlink" href="#machine-configuration" title="Permanent link">&para;</a></h1>
-<p>Machine configuration describes resources and local runtime policy. It does not
-contain Case science, project identity, data locks, or provider credentials.</p>
-<h2 id="file-selection">File selection<a class="headerlink" href="#file-selection" title="Permanent link">&para;</a></h2>
-<p>Trajecta selects exactly one configuration using this precedence:</p>
+<p>The machine configuration describes one local Trajecta runtime. It selects the
+reader default, scheduler capacity, monitoring cadence, daemon idle behavior,
+and reusable execution templates. Scientific time, domain, population, and
+output choices stay in the project's Case. Dataset paths and the per-run
+resource request stay in a RunProfile.</p>
+<p>The file format is TOML with schema identity:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">schema_version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;trajecta.config/v1&quot;</span>
+</code></pre></div>
+<p>Unknown fields and duplicate TOML keys are rejected.</p>
+<h2 id="path-selection">Path selection<a class="headerlink" href="#path-selection" title="Permanent link">&para;</a></h2>
+<p>Trajecta selects one file for each invocation in this order:</p>
 <ol>
-<li><code>--config PATH</code>;</li>
-<li><code>TRAJECTA_CONFIG</code>;</li>
-<li><code>%APPDATA%/Trajecta/config.toml</code> on Windows, or
-   <code>$XDG_CONFIG_HOME/trajecta/config.toml</code> on Linux;</li>
-<li>the documented home-directory fallback when the platform variable is absent.</li>
+<li>global <code>--config PATH</code>;</li>
+<li><code>TRAJECTA_CONFIG</code> environment variable;</li>
+<li>the platform default.</li>
 </ol>
-<p>Use <code>trajecta config path</code> to show the selected path. Commands never merge two
-configuration files.</p>
-<h2 id="fields">Fields<a class="headerlink" href="#fields" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Default path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows</td>
+<td><code>%APPDATA%\Trajecta\config.toml</code></td>
+</tr>
+<tr>
+<td>Ubuntu 24.04 with <code>XDG_CONFIG_HOME</code></td>
+<td><code>$XDG_CONFIG_HOME/trajecta/config.toml</code></td>
+</tr>
+<tr>
+<td>Ubuntu 24.04 without <code>XDG_CONFIG_HOME</code></td>
+<td><code>$HOME/.config/trajecta/config.toml</code></td>
+</tr>
+</tbody>
+</table>
+<p>Display the resolved location:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta config path
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>trajecta --config workstation.toml config path
+</code></pre></div>
+<p>Files are not merged. A <code>run</code> submitted with one configuration belongs to that
+configuration's daemon endpoint and job catalog. Later <code>job</code> and catalog-backed
+<code>result</code> commands should select the same file.</p>
+<h2 id="initial-values">Initial values<a class="headerlink" href="#initial-values" title="Permanent link">&para;</a></h2>
+<p><code>config init</code> creates a new file and leaves an existing file untouched:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta --config workstation.toml config init
+</code></pre></div>
+<p>The initial values are calculated as follows:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Initial value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>default_reader_backend</code></td>
+<td><code>rust</code></td>
+</tr>
+<tr>
+<td><code>daemon.idle_shutdown_seconds</code></td>
+<td><code>300</code></td>
+</tr>
+<tr>
+<td><code>daemon.local_ipc_only</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>resources.cpu_slots</code></td>
+<td>Logical parallelism reported by the host, with a minimum of 1</td>
+</tr>
+<tr>
+<td><code>resources.memory_pool_mib</code></td>
+<td>Detected physical memory in MiB; falls back to 4,096 MiB when detection is unavailable</td>
+</tr>
+<tr>
+<td><code>resources.memory_reserve_mib</code></td>
+<td>One quarter of the pool, kept below the pool</td>
+</tr>
+<tr>
+<td><code>monitoring.sample_interval_ms</code></td>
+<td><code>1000</code></td>
+</tr>
+<tr>
+<td><code>monitoring.maximum_median_overhead_percent</code></td>
+<td><code>1.0</code> percent</td>
+</tr>
+<tr>
+<td><code>profile_templates</code></td>
+<td>Empty mapping</td>
+</tr>
+</tbody>
+</table>
+<p>These values describe detected capacity. A workstation can expose fewer CPU
+slots or increase its memory reserve before a large batch is submitted.</p>
+<h2 id="top-level-fields">Top-level fields<a class="headerlink" href="#top-level-fields" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>Selector</th>
-<th>Type and constraint</th>
-<th>Meaning</th>
+<th>Type</th>
+<th>Constraint</th>
+<th>Runtime meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>schema_version</code></td>
-<td><code>trajecta.config/v1</code></td>
-<td>Disk contract identity</td>
+<td>string</td>
+<td>Exactly <code>trajecta.config/v1</code></td>
+<td>Selects the configuration contract</td>
 </tr>
 <tr>
 <td><code>default_reader_backend</code></td>
+<td>enum</td>
 <td><code>rust</code> or <code>native</code></td>
-<td>Reader used when a profile does not override it</td>
+<td>Reader used when a binding and Profile leave the choice open</td>
 </tr>
 <tr>
-<td><code>daemon.idle_shutdown_seconds</code></td>
-<td>integer, at least 0</td>
-<td>Idle lifetime of the local daemon</td>
+<td><code>daemon</code></td>
+<td>table</td>
+<td>Required</td>
+<td>Local daemon lifecycle settings</td>
 </tr>
 <tr>
-<td><code>daemon.local_ipc_only</code></td>
-<td>fixed <code>true</code></td>
-<td>Prevents a network control endpoint</td>
+<td><code>resources</code></td>
+<td>table</td>
+<td>Required</td>
+<td>Shared scheduler capacity</td>
 </tr>
 <tr>
-<td><code>resources.cpu_slots</code></td>
-<td>integer, at least 1</td>
-<td>Shared scheduler CPU capacity</td>
+<td><code>monitoring</code></td>
+<td>table</td>
+<td>Required</td>
+<td>Resource-observation policy</td>
 </tr>
 <tr>
-<td><code>resources.memory_pool_mib</code></td>
-<td>integer, at least 1</td>
-<td>Shared scheduler memory pool</td>
-</tr>
-<tr>
-<td><code>resources.memory_reserve_mib</code></td>
-<td>integer, at least 0 and smaller than the pool</td>
-<td>Memory withheld from admission</td>
-</tr>
-<tr>
-<td><code>monitoring.sample_interval_ms</code></td>
-<td>integer, at least 100</td>
-<td>Resource observation interval</td>
-</tr>
-<tr>
-<td><code>monitoring.maximum_median_overhead_percent</code></td>
-<td>number from 0 through 1</td>
-<td>Monitoring overhead limit</td>
-</tr>
-<tr>
-<td><code>profile_templates.&lt;name&gt;.execution</code></td>
-<td>object</td>
-<td>Named execution defaults</td>
+<td><code>profile_templates</code></td>
+<td>table</td>
+<td>Required; may be empty</td>
+<td>Named execution templates used during Profile preparation</td>
 </tr>
 </tbody>
 </table>
-<p>Each template supplies positive <code>worker_threads</code> and <code>memory_budget_bytes</code>, a
-non-empty executor name, and a <code>rust</code> or <code>native</code> meteorology reader. A template
-cannot request more worker threads than <code>resources.cpu_slots</code>.</p>
-<h2 id="safe-mutation">Safe mutation<a class="headerlink" href="#safe-mutation" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta config get resources.memory_pool_mib
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta config set resources.memory_reserve_mib 1024
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>trajecta config set resources.memory_pool_mib 8192
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>trajecta config unset profile_templates.experimental
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>trajecta config validate
+<h2 id="daemon-fields">Daemon fields<a class="headerlink" href="#daemon-fields" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Selector</th>
+<th>Type and range</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>daemon.idle_shutdown_seconds</code></td>
+<td>Integer, <code>0</code> or greater</td>
+<td>Seconds an empty local daemon waits before exiting; <code>0</code> keeps it available</td>
+</tr>
+<tr>
+<td><code>daemon.local_ipc_only</code></td>
+<td>Fixed <code>true</code></td>
+<td>Uses a named pipe on Windows or Unix socket on Linux; no network listener is configured</td>
+</tr>
+</tbody>
+</table>
+<p>Idle exit closes the process and endpoint while keeping the SQLite job catalog,
+events, and result directories. A later runtime command starts a daemon and
+reconciles the same catalog.</p>
+<h2 id="resource-fields">Resource fields<a class="headerlink" href="#resource-fields" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Selector</th>
+<th>Type and range</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>resources.cpu_slots</code></td>
+<td>Integer, at least <code>1</code></td>
+<td>Total worker-thread slots shared by active attempts</td>
+</tr>
+<tr>
+<td><code>resources.memory_pool_mib</code></td>
+<td>Integer, at least <code>1</code></td>
+<td>Memory pool considered by scheduler admission</td>
+</tr>
+<tr>
+<td><code>resources.memory_reserve_mib</code></td>
+<td>Integer, at least <code>0</code>, smaller than the pool</td>
+<td>Portion kept outside worker admission and used as the external-pressure threshold</td>
+</tr>
+</tbody>
+</table>
+<p>Schedulable memory is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>memory_pool_mib - memory_reserve_mib
 </code></pre></div>
-<p><code>set</code> parses the value in the context of its field. The whole document is
-validated before an atomic replacement. A rejected change leaves the original
-file bytes intact. <code>config init</code> refuses to overwrite an existing file.</p>
-<p>The normative field shape is generated in <a href="../schemas/">JSON and JSONL schemas</a>.</p>
+<p>One RunProfile requests <code>execution.worker_threads</code> CPU slots and
+<code>execution.memory_budget_bytes</code> rounded upward to MiB. Several attempts may run
+together while the sum fits both pools. Host memory used by unrelated programs
+can pause new dispatch when available memory falls below the reserve.</p>
+<h2 id="monitoring-fields">Monitoring fields<a class="headerlink" href="#monitoring-fields" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Selector</th>
+<th>Type and range</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>monitoring.sample_interval_ms</code></td>
+<td>Integer, at least <code>100</code></td>
+<td>Nominal interval for runtime progress and resource observations</td>
+</tr>
+<tr>
+<td><code>monitoring.maximum_median_overhead_percent</code></td>
+<td>Finite number from <code>0.0</code> through <code>1.0</code></td>
+<td>Median overhead ceiling recorded by the monitoring contract</td>
+</tr>
+</tbody>
+</table>
+<p>Resource and progress observations become durable job events. They support
+status displays and run reports; trajectory samples remain in the result
+database.</p>
+<h2 id="profile-templates">Profile templates<a class="headerlink" href="#profile-templates" title="Permanent link">&para;</a></h2>
+<p>Each non-empty template name contains one <code>execution</code> table:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[profile_templates.local.execution]</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">worker_threads</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">memory_budget_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2147483648</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">executor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;rayon&quot;</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">meteorology_reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;rust&quot;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Constraint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>worker_threads</code></td>
+<td>Positive and no larger than <code>resources.cpu_slots</code></td>
+</tr>
+<tr>
+<td><code>memory_budget_bytes</code></td>
+<td>Positive integer byte count</td>
+</tr>
+<tr>
+<td><code>executor</code></td>
+<td>Non-empty stable executor name</td>
+</tr>
+<tr>
+<td><code>meteorology_reader</code></td>
+<td><code>rust</code> or <code>native</code></td>
+</tr>
+</tbody>
+</table>
+<p>Templates are local conveniences. A project index can record a template name
+and its SHA-256 so a prepared Profile can be related to the exact local
+template. Runtime execution still receives a fully resolved RunProfile.</p>
+<p>Create or remove a template with dotted selectors:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Windows PowerShell</label><label for="__tabbed_1_2">Ubuntu 24.04</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nv">$value</span> <span class="p">=</span> <span class="s1">&#39;{&quot;execution&quot;:{&quot;worker_threads&quot;:2,&quot;memory_budget_bytes&quot;:1073741824,&quot;executor&quot;:&quot;rayon&quot;,&quot;meteorology_reader&quot;:&quot;rust&quot;}}&#39;</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">.\</span><span class="n">trajecta</span><span class="p">.</span><span class="n">exe</span> <span class="p">-</span><span class="n">-config</span> <span class="n">workstation</span><span class="p">.</span><span class="n">toml</span> <span class="n">config</span> <span class="nb">set </span><span class="n">profile_templates</span><span class="p">.</span><span class="n">two_workers</span> <span class="nv">$value</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="p">.\</span><span class="n">trajecta</span><span class="p">.</span><span class="n">exe</span> <span class="p">-</span><span class="n">-config</span> <span class="n">workstation</span><span class="p">.</span><span class="n">toml</span> <span class="n">config</span> <span class="n">unset</span> <span class="n">profile_templates</span><span class="p">.</span><span class="n">two_workers</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>./trajecta<span class="w"> </span>--config<span class="w"> </span>workstation.toml<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>profile_templates.two_workers<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="s1">&#39;{&quot;execution&quot;:{&quot;worker_threads&quot;:2,&quot;memory_budget_bytes&quot;:1073741824,&quot;executor&quot;:&quot;rayon&quot;,&quot;meteorology_reader&quot;:&quot;rust&quot;}}&#39;</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>./trajecta<span class="w"> </span>--config<span class="w"> </span>workstation.toml<span class="w"> </span>config<span class="w"> </span><span class="nb">unset</span><span class="w"> </span>profile_templates.two_workers
+</code></pre></div>
+</div>
+</div>
+</div>
+<h2 id="read-and-update-values">Read and update values<a class="headerlink" href="#read-and-update-values" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>trajecta --config workstation.toml config list
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>trajecta --config workstation.toml config get resources.memory_pool_mib
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>trajecta --config workstation.toml config set resources.memory_reserve_mib 2048
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>trajecta --config workstation.toml config validate
+</code></pre></div>
+<p><code>config list</code> returns every leaf selector in deterministic order. <code>config get</code>
+requires an existing selector. <code>config set</code> accepts plain strings for scalar
+text and JSON syntax for an object or array value. <code>config unset</code> is limited to
+optional template selectors; required fields remain present.</p>
+<p>Every update follows the same sequence:</p>
+<ol>
+<li>read and parse the current file;</li>
+<li>replace or remove the selected value in memory;</li>
+<li>deserialize and validate the complete configuration;</li>
+<li>write a same-directory temporary file;</li>
+<li>flush and synchronize it;</li>
+<li>atomically replace the selected configuration.</li>
+</ol>
+<p>A rejected value leaves the previous file bytes in place. Finish a group of
+changes with <code>config validate</code>, then run project <code>doctor --deep</code> before a long
+queue.</p>
+<p>The machine-readable shape and example are linked from the
+<a href="../schemas/">schema reference</a>.</p>
 
 
 

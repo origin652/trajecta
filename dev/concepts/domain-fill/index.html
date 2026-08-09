@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Scientific scope, mass representation, boundary exchange, and interpretation of Trajecta domain filling.">
+        <meta name="description" content="Understand equal-dry-air-mass sampling, limited-domain exchange, mass accounting, and moisture interpretation in Trajecta.">
       
       
       
@@ -642,9 +642,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -653,7 +669,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -783,27 +995,99 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#initialization" class="md-nav__link">
+  <a href="#from-meteorology-to-dry-air-mass" class="md-nav__link">
     <span class="md-ellipsis">
-      Initialization
+      From meteorology to dry-air mass
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#boundary-exchange" class="md-nav__link">
+  <a href="#two-ways-to-choose-population-resolution" class="md-nav__link">
     <span class="md-ellipsis">
-      Boundary exchange
+      Two ways to choose population resolution
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#interpretation" class="md-nav__link">
+  <a href="#equal-mass-stratified-placement" class="md-nav__link">
     <span class="md-ellipsis">
-      Interpretation
+      Equal-mass stratified placement
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-population-represents" class="md-nav__link">
+    <span class="md-ellipsis">
+      What the population represents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#global-domain-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Global-domain lifecycle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limited-domain-inflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Limited-domain inflow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limited-domain-outflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Limited-domain outflow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#per-step-mass-ledger" class="md-nav__link">
+    <span class="md-ellipsis">
+      Per-step mass ledger
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#normal-and-abnormal-terminations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Normal and abnormal terminations
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#forward-and-backward-domain-filling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Forward and backward domain filling
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#choosing-particle-count-and-output-cadence" class="md-nav__link">
+    <span class="md-ellipsis">
+      Choosing particle count and output cadence
     </span>
   </a>
   
@@ -990,6 +1274,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1091,7 +1421,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1838,27 +2168,99 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#initialization" class="md-nav__link">
+  <a href="#from-meteorology-to-dry-air-mass" class="md-nav__link">
     <span class="md-ellipsis">
-      Initialization
+      From meteorology to dry-air mass
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#boundary-exchange" class="md-nav__link">
+  <a href="#two-ways-to-choose-population-resolution" class="md-nav__link">
     <span class="md-ellipsis">
-      Boundary exchange
+      Two ways to choose population resolution
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#interpretation" class="md-nav__link">
+  <a href="#equal-mass-stratified-placement" class="md-nav__link">
     <span class="md-ellipsis">
-      Interpretation
+      Equal-mass stratified placement
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-population-represents" class="md-nav__link">
+    <span class="md-ellipsis">
+      What the population represents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#global-domain-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Global-domain lifecycle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limited-domain-inflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Limited-domain inflow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limited-domain-outflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Limited-domain outflow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#per-step-mass-ledger" class="md-nav__link">
+    <span class="md-ellipsis">
+      Per-step mass ledger
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#normal-and-abnormal-terminations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Normal and abnormal terminations
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#forward-and-backward-domain-filling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Forward and backward domain filling
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#choosing-particle-count-and-output-cadence" class="md-nav__link">
+    <span class="md-ellipsis">
+      Choosing particle count and output cadence
     </span>
   </a>
   
@@ -1884,27 +2286,260 @@
 
 
 <h1 id="domain-fill-water-vapor-tracking">Domain-fill water-vapor tracking<a class="headerlink" href="#domain-fill-water-vapor-tracking" title="Permanent link">&para;</a></h1>
-<p>Domain filling represents an atmospheric domain with a finite particle
-population. Each particle carries a dry-air mass derived from the represented
-cell or stratum. Meteorological humidity relates that dry-air representation to
-water-vapor content along the trajectory.</p>
-<h2 id="initialization">Initialization<a class="headerlink" href="#initialization" title="Permanent link">&para;</a></h2>
-<p>The selected domain and target count define a stratified population. The
-frozen random dimensions choose mass stratum, longitude, latitude, and pressure
-within that representation. A recorded seed makes those choices reproducible.</p>
-<h2 id="boundary-exchange">Boundary exchange<a class="headerlink" href="#boundary-exchange" title="Permanent link">&para;</a></h2>
-<p>During execution, flow through an open boundary can create inflow particles or
-terminate outflow particles. These are normal lifecycle events when the Case
-selects a limited-domain boundary policy. The mass ledger records initial mass,
-birth mass, termination mass, and final active mass at each output step.</p>
-<h2 id="interpretation">Interpretation<a class="headerlink" href="#interpretation" title="Permanent link">&para;</a></h2>
-<p>Particle count alone is not conserved when boundary exchange occurs. Evaluate
-mass closure, population reasons, humidity state, and spatial sampling together.
-An abnormal termination indicates a numerical or input-quality condition and
-must remain separate from normal physical outflow.</p>
-<p>Domain filling provides a sampling representation. Resolution, particle count,
-meteorological cadence, boundary policy, and output schedule all affect the
-scientific question that can be resolved.</p>
+<p>Domain filling constructs a Lagrangian representation of the air within a
+meteorological domain. Particles are distributed by dry-air mass, so each
+initial particle represents an equal share of the atmosphere rather than an
+equal geometric volume. Their trajectories and carrier weights provide the
+moving air-mass basis for water-vapor attribution and residence-time analysis.</p>
+<p>The Case selects this population with <code>domain_fill_air_mass</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">particle_population</span><span class="p">:</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">domain_fill_air_mass</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">moisture-air</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">domain_id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">limited</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">target_particle_count</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50000</span>
+</code></pre></div>
+<p>The referenced <code>domain_id</code> selects one meteorological domain from the Case.
+Initialization and boundary exchange use that domain's safe core, vertical
+support, and boundary geometry.</p>
+<h2 id="from-meteorology-to-dry-air-mass">From meteorology to dry-air mass<a class="headerlink" href="#from-meteorology-to-dry-air-mass" title="Permanent link">&para;</a></h2>
+<p>At the Case start time, Trajecta asks the meteorology engine for a domain-fill
+snapshot. For each usable horizontal cell and vertical layer, the snapshot
+combines:</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Role in the mass representation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Horizontal coordinates</td>
+<td>Spherical grid-cell area</td>
+</tr>
+<tr>
+<td>Interface pressure</td>
+<td>Hydrostatic layer mass</td>
+</tr>
+<tr>
+<td>Temperature and specific humidity</td>
+<td>Moist-air state and dry-air fraction</td>
+</tr>
+<tr>
+<td>Geopotential or height</td>
+<td>Vertical geometry and layer placement</td>
+</tr>
+<tr>
+<td>Surface pressure and terrain</td>
+<td>Local lower boundary</td>
+</tr>
+<tr>
+<td>Available model top</td>
+<td>Upper transport boundary</td>
+</tr>
+</tbody>
+</table>
+<p>The calculation retains dry air above the local transport floor and below the
+available top. Humidity affects the conversion from total air state to dry-air
+density. Cells outside the domain's safe support do not enter the initial mass
+budget.</p>
+<p>The resulting snapshot contains an ordered collection of mass strata plus the
+total dry-air mass represented by those strata.</p>
+<h2 id="two-ways-to-choose-population-resolution">Two ways to choose population resolution<a class="headerlink" href="#two-ways-to-choose-population-resolution" title="Permanent link">&para;</a></h2>
+<p>A Case supplies exactly one of these fields:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>target_particle_count</code></td>
+<td>Creates that exact number of initial particles and divides total dry-air mass equally among them</td>
+</tr>
+<tr>
+<td><code>target_dry_air_mass_per_particle</code></td>
+<td>Uses the requested carrier mass; the initial count is the floor of total mass divided by that carrier mass</td>
+</tr>
+</tbody>
+</table>
+<p>Count mode is convenient for controlling memory and output size. Mass-per-
+particle mode keeps the carrier quantum comparable across domains or seasons.
+In the second mode, dry-air mass below one complete carrier remains as a
+residual in the mass ledger.</p>
+<p>The carrier value is written as <code>dry_air_mass_kg</code> on each particle. A particle
+represents a weighted sample of the air mass; it is not assigned the entire
+mass of the grid cell in which it happens to start.</p>
+<h2 id="equal-mass-stratified-placement">Equal-mass stratified placement<a class="headerlink" href="#equal-mass-stratified-placement" title="Permanent link">&para;</a></h2>
+<p>Trajecta orders the dry-air strata by grid column and layer, then partitions the
+cumulative mass axis into equal intervals. One particle is placed within every
+interval. The draw selects:</p>
+<ol>
+<li>a dry-air mass coordinate within the interval;</li>
+<li>the column and layer containing that coordinate;</li>
+<li>longitude within the column;</li>
+<li>latitude uniformly in spherical area through a uniform draw in sine of
+   latitude;</li>
+<li>pressure within the hydrostatic layer, followed by log-pressure placement
+   in geometric height.</li>
+</ol>
+<p>Where terrain or the complete transport floor varies across a grid cell, the
+sample is relocated into the local valid vertical range. This avoids placing a
+particle below the transport floor or above local data support.</p>
+<p>The Case random seed, population ID, domain ID, particle identity, lifecycle
+event, and sampling dimension form deterministic random keys. Worker count and
+thread scheduling therefore do not change the initial sample.</p>
+<h2 id="what-the-population-represents">What the population represents<a class="headerlink" href="#what-the-population-represents" title="Permanent link">&para;</a></h2>
+<p>At initialization, the represented dry-air mass is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>sum(initial particle carrier mass) + initial residual mass
+</code></pre></div>
+<p>In count mode, the initial residual is zero. Increasing the particle count
+reduces the carrier mass and gives spatial aggregates more Lagrangian samples.
+It also increases meteorological queries, particle-state rows, provenance
+assignments, and worker memory.</p>
+<p>Specific humidity participates in construction of the dry-air snapshot and in
+meteorological queries along the path. The particle-state product supplies
+positions, times, carrier mass, and selected meteorological state. Moisture
+analyses can group those weighted trajectories by source region, receptor
+region, crossing time, or residence interval and combine them with the
+humidity fields appropriate to the study.</p>
+<h2 id="global-domain-lifecycle">Global-domain lifecycle<a class="headerlink" href="#global-domain-lifecycle" title="Permanent link">&para;</a></h2>
+<p>A global periodic domain has no lateral inflow or outflow edge. Longitude wraps
+through the selected periodic boundary policy. Particle count generally stays
+fixed until another declared boundary rule terminates a particle, for example
+at the model top. Surface contact is handled by the configured reflection
+policy.</p>
+<p>The global CFSR quickstart uses endpoint output and a short interval, so its
+initial and final states show the basic population without lateral exchange.</p>
+<h2 id="limited-domain-inflow">Limited-domain inflow<a class="headerlink" href="#limited-domain-inflow" title="Permanent link">&para;</a></h2>
+<p>A limited domain has four lateral faces divided by vertical layers. At each
+macro step, Trajecta evaluates inward dry-air mass flux using the face area,
+dry-air density, and wind normal to the boundary. Forward and backward runs
+interpret the inward normal according to their physical integration direction.</p>
+<p>Incoming mass accumulates separately for each boundary face. Whenever it
+reaches one full carrier mass, a particle is born at the exact threshold time.
+Its origin records the domain and boundary-face ID. Tangential and vertical
+coordinates are sampled deterministically within that face layer.</p>
+<p>Mass below the next carrier threshold remains as boundary residual and carries
+into the following macro step. This keeps a finite particle representation
+aligned with continuous dry-air flux.</p>
+<h2 id="limited-domain-outflow">Limited-domain outflow<a class="headerlink" href="#limited-domain-outflow" title="Permanent link">&para;</a></h2>
+<p>When an active particle crosses the selected limited-domain boundary, the
+continuous boundary solver locates the crossing along the proposed path. The
+particle terminates at that physical intersection with reason
+<code>population_outflow</code>, classified as a normal termination.</p>
+<p>Outflow can reduce particle count even when an equal mass enters during the
+same step, because incoming dry-air mass is quantized into complete carrier
+particles and residuals. Particle count is therefore a sampling diagnostic;
+the mass ledger is the conservation record.</p>
+<h2 id="per-step-mass-ledger">Per-step mass ledger<a class="headerlink" href="#per-step-mass-ledger" title="Permanent link">&para;</a></h2>
+<p>For every completed macro step, Trajecta records these quantities:</p>
+<table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>opening_active_kg</code></td>
+<td>Carrier mass on live particles at step start</td>
+</tr>
+<tr>
+<td><code>opening_residual_kg</code></td>
+<td>Initial and boundary residual carried into the step</td>
+</tr>
+<tr>
+<td><code>incoming_kg</code></td>
+<td>Dry-air mass entering through limited-domain faces</td>
+</tr>
+<tr>
+<td><code>outgoing_kg</code></td>
+<td>Carrier mass assigned to population outflow</td>
+</tr>
+<tr>
+<td><code>normal_terminated_kg</code></td>
+<td>Carrier mass ending under another declared normal rule</td>
+</tr>
+<tr>
+<td><code>abnormal_terminated_kg</code></td>
+<td>Carrier mass associated with an abnormal particle termination</td>
+</tr>
+<tr>
+<td><code>closing_active_kg</code></td>
+<td>Carrier mass on live particles at step end</td>
+</tr>
+<tr>
+<td><code>closing_residual_kg</code></td>
+<td>Remaining sub-carrier mass after births</td>
+</tr>
+</tbody>
+</table>
+<p>The ledger evaluates:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>opening active + opening residual + incoming
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  = outgoing + normal terminated + abnormal terminated
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    + closing active + closing residual
+</code></pre></div>
+<p>The manifest records the observed imbalance and its numerical tolerance for
+each step. Full result verification repeats the ledger checks and also evaluates
+the accumulated final balance.</p>
+<h2 id="normal-and-abnormal-terminations">Normal and abnormal terminations<a class="headerlink" href="#normal-and-abnormal-terminations" title="Permanent link">&para;</a></h2>
+<p>Termination classification matters when reading population history:</p>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Examples</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Normal</td>
+<td>Population outflow, model-top rule</td>
+<td>A declared physical lifecycle path</td>
+</tr>
+<tr>
+<td>Abnormal</td>
+<td>Invalid meteorology, numerical boundary failure</td>
+<td>A particle could not continue under the selected model</td>
+</tr>
+</tbody>
+</table>
+<p>A terminal run with any abnormal particle termination has status
+<code>completed_with_particle_errors</code>. The affected particle and its final state
+remain in the result. Use <code>result inspect</code> to read counts by reason and
+<code>result trajectory</code> to examine its path.</p>
+<h2 id="forward-and-backward-domain-filling">Forward and backward domain filling<a class="headerlink" href="#forward-and-backward-domain-filling" title="Permanent link">&para;</a></h2>
+<p>Forward integration follows the initialized air mass toward later physical
+times. Backward integration follows it toward earlier times. Initial sampling
+still occurs at <code>time.start</code>, and the clock advances in the Case direction.
+Boundary inflow, outflow, birth time, elapsed age, and event ordering are all
+defined relative to that direction.</p>
+<p>For receptor-oriented moisture work, a backward Case can fill a regional air
+mass at the receptor time and trace its carrier trajectories into earlier
+meteorology. A forward Case can follow a source-period air mass toward later
+regions. Comparable experiments keep the domain, population resolution,
+meteorological preparation, integration step, and output schedule explicit.</p>
+<h2 id="choosing-particle-count-and-output-cadence">Choosing particle count and output cadence<a class="headerlink" href="#choosing-particle-count-and-output-cadence" title="Permanent link">&para;</a></h2>
+<p>Population size controls sampling density; output cadence controls the temporal
+resolution of stored paths. They affect different parts of the analysis.</p>
+<p>For an initial study:</p>
+<ol>
+<li>Run a short, low-count Case and inspect the spatial distribution.</li>
+<li>Confirm mass-ledger closure and termination reasons.</li>
+<li>Choose an output interval that resolves the crossings or residence periods
+   of interest.</li>
+<li>Increase particle count until the target aggregate is stable at the study's
+   spatial scale.</li>
+<li>Record count, carrier mass, seed, integration step, and output schedule with
+   the analysis.</li>
+</ol>
+<p>The <a href="../../tutorials/domain-fill/">domain-fill tutorial</a> follows this sequence
+with the compact CFSR project.</p>
 
 
 

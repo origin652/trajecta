@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Workspace boundaries, dependency direction, and contributor-facing interfaces in Trajecta.">
+        <meta name="description" content="Workspace structure, dependency direction, change routing, and contributor interfaces in Trajecta.">
       
       
       
@@ -642,9 +642,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -653,7 +669,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -919,6 +1131,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../operations/recovery/" class="md-nav__link">
         
   
@@ -1020,7 +1278,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1512,9 +1770,45 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#end-to-end-ownership" class="md-nav__link">
+  <a href="#repository-map" class="md-nav__link">
     <span class="md-ellipsis">
-      End-to-end ownership
+      Repository map
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-command-to-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      From command to result
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-a-change-belongs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Where a change belongs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contracts-that-cross-crates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contracts that cross crates
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributor-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contributor workflow
     </span>
   </a>
   
@@ -1820,9 +2114,45 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#end-to-end-ownership" class="md-nav__link">
+  <a href="#repository-map" class="md-nav__link">
     <span class="md-ellipsis">
-      End-to-end ownership
+      Repository map
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-command-to-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      From command to result
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-a-change-belongs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Where a change belongs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contracts-that-cross-crates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contracts that cross crates
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributor-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contributor workflow
     </span>
   </a>
   
@@ -1848,57 +2178,253 @@
 
 
 <h1 id="developer-architecture">Developer architecture<a class="headerlink" href="#developer-architecture" title="Permanent link">&para;</a></h1>
-<p>The workspace is divided by ownership. Dependencies flow from document models
-toward meteorology, execution, job control, and the CLI adapter.</p>
+<p>Trajecta is a Rust workspace with five product crates. The split follows the
+life of a simulation: documents are resolved, meteorology is prepared, particles
+are advanced, work is scheduled, and commands present the result. Keeping that
+order visible makes a change easier to place and easier to review.</p>
+<p>This guide is for contributors working on the Rust implementation, test
+infrastructure, packaging tools, or documentation. The supported user surface is
+covered in <a href="../reference/">Reference</a>.</p>
+<h2 id="repository-map">Repository map<a class="headerlink" href="#repository-map" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Crate</th>
-<th>Owns</th>
-<th>Must not own</th>
+<th>Path</th>
+<th>Responsibility</th>
+<th>Typical changes</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>trajecta-case</code></td>
-<td>Case, RunProfile, units, references, diagnostics, DatasetLock shapes</td>
-<td>Meteorological decoding or execution</td>
+<td><code>crates/trajecta-case</code></td>
+<td>Case and RunProfile documents, units, local references, diagnostics, DatasetLock types</td>
+<td>A new validated field, reference rule, or document diagnostic</td>
 </tr>
 <tr>
-<td><code>trajecta-met</code></td>
-<td>Profiles, file indexing, native grids, derivation, interpolation, prepared queries, meteorological provenance</td>
-<td>Particle lifecycle or output scheduling</td>
+<td><code>crates/trajecta-met</code></td>
+<td>Dataset Profiles, source readers, native grids, vertical coordinates, field derivation, interpolation, query preparation</td>
+<td>A reader, derived field, vertical-coordinate rule, or query optimization</td>
 </tr>
 <tr>
-<td><code>trajecta-core</code></td>
-<td>Clocks, particles, integration, boundaries, populations, outputs, manifests, verification</td>
-<td>Provider downloads or CLI rendering</td>
+<td><code>crates/trajecta-core</code></td>
+<td>Simulation clocks, particle state, RK2 integration, boundaries, populations, output products, manifests, result verification</td>
+<td>A numerical rule, lifecycle rule, output row, or scientific verification check</td>
 </tr>
 <tr>
-<td><code>trajecta-job</code></td>
-<td>Durable local queue, scheduler, attempts, IPC, daemon and worker contracts</td>
-<td>Scientific numerics</td>
+<td><code>crates/trajecta-job</code></td>
+<td>Durable local catalog, scheduler, attempts, event history, IPC, daemon and worker control</td>
+<td>A queue transition, recovery rule, resource decision, or job event</td>
 </tr>
 <tr>
-<td><code>trajecta-cli</code></td>
-<td>Arguments, document loading, dispatch, machine envelopes, product result views</td>
-<td>Duplicate scientific or scheduler logic</td>
+<td><code>crates/trajecta-cli</code></td>
+<td>Command parsing, project assembly, dispatch, machine envelopes, result views</td>
+<td>A command, renderer, project operation, or exit-code mapping</td>
+</tr>
+<tr>
+<td><code>testdata</code></td>
+<td>Public schemas, frozen contracts, small fixtures, and validation inputs</td>
+<td>A schema-compatible example or versioned contract fixture</td>
+</tr>
+<tr>
+<td><code>examples</code></td>
+<td>Complete user projects used by tutorials and automated quickstarts</td>
+<td>A documented workflow or sample configuration</td>
+</tr>
+<tr>
+<td><code>tools</code></td>
+<td>Packaging, reference generation, data retrieval, and validation programs</td>
+<td>A release gate or repeatable maintenance operation</td>
+</tr>
+<tr>
+<td><code>docs/user</code></td>
+<td>Published bilingual manual</td>
+<td>User, operator, and contributor documentation</td>
+</tr>
+<tr>
+<td><code>docs/engineering</code></td>
+<td>Plans, prompts, execution reports, and historical design material</td>
+<td>Internal project record; excluded from the public site</td>
 </tr>
 </tbody>
 </table>
-<p>The product boundary is the CLI, public document schemas, machine streams, and
-disk artifacts. Public Rust modules exist so workspace crates can enforce typed
-contracts. They are contributor interfaces during the alpha series.</p>
-<h2 id="end-to-end-ownership">End-to-end ownership<a class="headerlink" href="#end-to-end-ownership" title="Permanent link">&para;</a></h2>
+<p>The workspace dependency direction is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta-case
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    └── trajecta-met
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>            └── trajecta-core
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                    └── trajecta-job
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>trajecta-cli depends on all four product libraries.
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>trajecta-core also uses document types directly from trajecta-case.
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>trajecta-job uses validated input types from trajecta-case.
+</code></pre></div>
+<p>Lower layers do not call the CLI. Scientific execution does not depend on the
+daemon. This lets the same <code>trajecta-core</code> runner serve direct tests and a
+daemon-launched worker without maintaining two simulation paths.</p>
+<h2 id="from-command-to-result">From command to result<a class="headerlink" href="#from-command-to-result" title="Permanent link">&para;</a></h2>
+<p>A project run crosses the workspace in a fixed sequence:</p>
 <ol>
-<li><code>trajecta-case</code> expands and validates immutable input documents.</li>
-<li><code>trajecta-met</code> indexes locked meteorology and prepares in-memory query data.</li>
-<li><code>trajecta-core</code> executes the population and commits result artifacts.</li>
-<li><code>trajecta-job</code> owns queue state and attempt identity around the worker.</li>
-<li><code>trajecta-cli</code> exposes the lifecycle without changing its semantics.</li>
+<li><code>trajecta-cli</code> discovers <code>trajecta-project.yaml</code>, selects a named profile,
+   and resolves project-relative paths inside the project root.</li>
+<li><code>trajecta-case</code> parses the Case and RunProfile with unknown-field rejection,
+   expands component references, normalizes quantities, and returns sorted
+   diagnostics.</li>
+<li>Project finalization binds the resolved documents to DatasetLocks. A lock
+   records the files, hashes, coverage, capabilities, and dataset identity used
+   by the run.</li>
+<li><code>trajecta-job</code> admits the request to the local catalog. The scheduler reserves
+   CPU slots and memory, assigns an attempt identity, then launches the worker.</li>
+<li>The worker asks <code>trajecta-met</code> to index the locked sources, build canonical
+   fields, select the required frame window, and prepare query structures.</li>
+<li><code>trajecta-core</code> creates the population and advances it through signed macro
+   steps. Boundary handling, births, terminations, and scheduled output all run
+   in stable lifecycle order.</li>
+<li>The output transaction closes SQLite, writes provenance, and replaces the
+   running manifest with its terminal form. The job catalog records the matching
+   terminal state and emits a final event.</li>
+<li>Result commands read the public manifest and SQLite products. They do not
+   reopen the numerical runner.</li>
 </ol>
-<p>Future extensions may use these boundaries. Dynamic plugin loading has not been
-implemented; see <a href="../concepts/extensibility/">Extensibility</a>.</p>
+<p>The <a href="science-path/">meteorology and numerical path</a> follows steps 3–6 in
+detail. <a href="runtime/">Output and runtime</a> covers queue admission through terminal
+recovery.</p>
+<h2 id="where-a-change-belongs">Where a change belongs<a class="headerlink" href="#where-a-change-belongs" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>Start here</th>
+<th>Follow-up review</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Add a Case field</td>
+<td><code>trajecta-case</code> model and schema</td>
+<td>Expansion, examples, generated schema reference</td>
+</tr>
+<tr>
+<td>Add a dataset family</td>
+<td><code>trajecta-met</code> Profile, inventory, and reader</td>
+<td>Lock capabilities, real fixture, package matrix</td>
+</tr>
+<tr>
+<td>Change interpolation</td>
+<td><code>trajecta-met/query</code> or <code>trajecta-met/grid</code></td>
+<td>Scientific tolerance, determinism, performance</td>
+</tr>
+<tr>
+<td>Change particle motion</td>
+<td><code>trajecta-core/integrator</code></td>
+<td>Forward/backward replay, boundaries, output identity</td>
+</tr>
+<tr>
+<td>Change a population</td>
+<td><code>trajecta-core/population</code> with meteorological derivation in <code>trajecta-met</code></td>
+<td>Mass ledger, births, stable IDs, tutorial</td>
+</tr>
+<tr>
+<td>Add a result field</td>
+<td><code>trajecta-core/output</code> and manifest</td>
+<td>SQLite schema, verification, result inspect, reference</td>
+</tr>
+<tr>
+<td>Change queue behavior</td>
+<td><code>trajecta-job</code></td>
+<td>Catalog transaction, IPC, CLI event stream, recovery tests</td>
+</tr>
+<tr>
+<td>Add a command</td>
+<td><code>trajecta-cli</code></td>
+<td>CLI contract, JSON/JSONL envelopes, exit codes, generated reference</td>
+</tr>
+<tr>
+<td>Change package contents</td>
+<td><code>tools/m5_a4_package.py</code></td>
+<td>Build manifest, SBOM, clean extraction, both platforms</td>
+</tr>
+<tr>
+<td>Change published docs</td>
+<td><code>docs/user/en</code> and <code>docs/user/zh-CN</code></td>
+<td>Strict build, link checks, translation structure, dev/release SEO</td>
+</tr>
+</tbody>
+</table>
+<p>A change can span several rows. The table identifies the layer that owns the
+new rule; adapters in later layers should call that rule rather than reproduce
+it.</p>
+<h2 id="contracts-that-cross-crates">Contracts that cross crates<a class="headerlink" href="#contracts-that-cross-crates" title="Permanent link">&para;</a></h2>
+<p>Several objects carry meaning between layers and deserve extra care during
+review:</p>
+<table>
+<thead>
+<tr>
+<th>Contract</th>
+<th>Producer</th>
+<th>Main consumers</th>
+<th>Compatibility concern</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Resolved Case and RunProfile</td>
+<td><code>trajecta-case</code></td>
+<td>CLI, core runner</td>
+<td>Field meaning, defaults, normalized units</td>
+</tr>
+<tr>
+<td>DatasetLock</td>
+<td>project finalization</td>
+<td>met loader, manifest builder</td>
+<td>File identity, time and space coverage, capabilities</td>
+</tr>
+<tr>
+<td>Prepared query and typed sample status</td>
+<td><code>trajecta-met</code></td>
+<td>integrator, boundary sampler, outputs</td>
+<td>No hidden execute-phase file I/O; explicit invalidity</td>
+</tr>
+<tr>
+<td>Run manifest</td>
+<td><code>trajecta-core</code></td>
+<td>job recovery, verify, result commands</td>
+<td>Lifecycle state, input identity, row counts, provenance</td>
+</tr>
+<tr>
+<td>Job record and event</td>
+<td><code>trajecta-job</code></td>
+<td>CLI status, wait, events, history</td>
+<td>Durable ordering, attempt identity, terminal semantics</td>
+</tr>
+<tr>
+<td>CLI envelope</td>
+<td><code>trajecta-cli</code></td>
+<td>shell scripts, AI tools, CI</td>
+<td>Stable command path, diagnostic shape, stdout discipline</td>
+</tr>
+</tbody>
+</table>
+<p>Public schemas under <code>testdata</code> describe disk and machine formats. Rust types are
+compiled counterparts used within the workspace. During the alpha series, a
+public Rust item may still change when the product contract changes; see
+<a href="api/">Rust API</a>.</p>
+<h2 id="contributor-workflow">Contributor workflow<a class="headerlink" href="#contributor-workflow" title="Permanent link">&para;</a></h2>
+<p>For most changes, the shortest reliable loop is:</p>
+<ol>
+<li>Read the crate-level contract at the top of its <code>src/lib.rs</code> and the module
+   comment nearest the change.</li>
+<li>Run the narrow unit or integration test while editing.</li>
+<li>Check every public format affected by the change: schema, example, diagnostic,
+   CLI envelope, manifest, or SQLite row.</li>
+<li>Run the workspace formatting, lint, test, and documentation gates described
+   in <a href="testing/">Tests and fixtures</a>.</li>
+<li>Run a real-data or packaged-product gate when the claim crosses a reader,
+   numerical, runtime, or native-library boundary.</li>
+<li>Update both language trees when user-visible behavior changes.</li>
+</ol>
+<p>Dynamic plugin loading is not part of <code>0.1.0-alpha.1</code>. The existing crate and
+trait boundaries leave room for later design work without presenting an
+extension API today. The current status is summarized in
+<a href="../concepts/extensibility/">Extensibility</a>.</p>
 
 
 

@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Understand meteorological coverage, interpolation anchors, job-series identity, run identity, and retained attempts.">
+        <meta name="description" content="Understand trajectory time, interpolation frames, domain support, dataset identity, job series, run IDs, and retained attempts.">
       
       
       
@@ -642,9 +642,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -653,7 +669,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -829,18 +1041,108 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#time-and-space" class="md-nav__link">
+  <a href="#physical-time-in-a-case" class="md-nav__link">
     <span class="md-ellipsis">
-      Time and space
+      Physical time in a Case
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#job-series-run-and-attempt" class="md-nav__link">
+  <a href="#why-interpolation-needs-neighboring-frames" class="md-nav__link">
     <span class="md-ellipsis">
-      Job series, run, and attempt
+      Why interpolation needs neighboring frames
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-plan-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data-plan coverage
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datasetlock-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      DatasetLock coverage
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spatial-support-and-the-safe-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spatial support and the safe core
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#several-meteorological-domains" class="md-nav__link">
+    <span class="md-ellipsis">
+      Several meteorological domains
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#four-layers-of-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Four layers of identity
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#job-series-id" class="md-nav__link">
+    <span class="md-ellipsis">
+      Job-series ID
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-id-and-attempt-number" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run ID and attempt number
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stable-particle-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stable particle identity
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#restart-and-recovery-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Restart and recovery identity
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparing-two-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      Comparing two results
     </span>
   </a>
   
@@ -981,6 +1283,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1082,7 +1430,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1829,18 +2177,108 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#time-and-space" class="md-nav__link">
+  <a href="#physical-time-in-a-case" class="md-nav__link">
     <span class="md-ellipsis">
-      Time and space
+      Physical time in a Case
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#job-series-run-and-attempt" class="md-nav__link">
+  <a href="#why-interpolation-needs-neighboring-frames" class="md-nav__link">
     <span class="md-ellipsis">
-      Job series, run, and attempt
+      Why interpolation needs neighboring frames
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-plan-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data-plan coverage
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datasetlock-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      DatasetLock coverage
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spatial-support-and-the-safe-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spatial support and the safe core
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#several-meteorological-domains" class="md-nav__link">
+    <span class="md-ellipsis">
+      Several meteorological domains
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#four-layers-of-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Four layers of identity
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#job-series-id" class="md-nav__link">
+    <span class="md-ellipsis">
+      Job-series ID
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-id-and-attempt-number" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run ID and attempt number
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stable-particle-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stable particle identity
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#restart-and-recovery-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Restart and recovery identity
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparing-two-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      Comparing two results
     </span>
   </a>
   
@@ -1866,42 +2304,210 @@
 
 
 <h1 id="coverage-and-execution-identity">Coverage and execution identity<a class="headerlink" href="#coverage-and-execution-identity" title="Permanent link">&para;</a></h1>
-<h2 id="time-and-space">Time and space<a class="headerlink" href="#time-and-space" title="Permanent link">&para;</a></h2>
-<p>A Case records start, end, direction, and logical meteorological domains. A
-data plan converts every selected Case/Profile pair into ordered physical time
-coverage and required capabilities. A DatasetLock records the coverage proven
-by actual files.</p>
-<p>Spatial coverage comes from inspected meteorological grids. Logical domains in
-a Case select datasets and precedence; they do not authorize arbitrary local
-paths. Interpolation halos and neighboring time anchors may enlarge the data
-requirement beyond the nominal trajectory interval.</p>
-<h2 id="job-series-run-and-attempt">Job series, run, and attempt<a class="headerlink" href="#job-series-run-and-attempt" title="Permanent link">&para;</a></h2>
+<p>Two kinds of continuity matter in a Trajecta study. Meteorological coverage
+keeps every trajectory query inside a prepared time and spatial support.
+Execution identity keeps every queue submission, rerun, and result directory
+distinct. The data plan and DatasetLock handle the first; job-series, run, and
+attempt identities handle the second.</p>
+<h2 id="physical-time-in-a-case">Physical time in a Case<a class="headerlink" href="#physical-time-in-a-case" title="Permanent link">&para;</a></h2>
+<p>A Case records <code>start</code>, <code>end</code>, and <code>direction</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">time</span><span class="p">:</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">start</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> seconds_since_unix_epoch</span><span class="p">:</span><span class="w"> </span><span class="nv">1543644000</span><span class="p p-Indicator">,</span><span class="nt"> nanosecond</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">end</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> seconds_since_unix_epoch</span><span class="p">:</span><span class="w"> </span><span class="nv">1543608000</span><span class="p p-Indicator">,</span><span class="nt"> nanosecond</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">direction</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">backward</span>
+</code></pre></div>
+<p><code>start</code> is the population initialization side of the run. The integrator moves
+toward <code>end</code> in the declared direction. A forward Case has a later end; a
+backward Case has an earlier end.</p>
+<p>For data acquisition and locking, Trajecta orders the two instants
+chronologically:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>coverage start = min(Case start, Case end)
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>coverage end   = max(Case start, Case end)
+</code></pre></div>
+<p>This means a backward Case requests the same physical interval that a forward
+Case with reversed endpoints would request. Direction still affects trajectory
+advancement, boundary flux, event order, and particle age.</p>
+<h2 id="why-interpolation-needs-neighboring-frames">Why interpolation needs neighboring frames<a class="headerlink" href="#why-interpolation-needs-neighboring-frames" title="Permanent link">&para;</a></h2>
+<p>Meteorological fields are stored at discrete valid times. A query between two
+frames uses the surrounding pair to interpolate in time. The lock requirement
+therefore includes one frame before and one frame after the physical Case
+coverage.</p>
+<p>Consider a six-hourly dataset and a run from 06:10 to 11:50 UTC:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>00:00   06:00   [06:10 ───────── 11:50]   12:00   18:00
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>          pair for early queries ───────────┘
+</code></pre></div>
+<p>The 06:00 and 12:00 analyses bracket the Case. The additional before/after
+frame rule can retain 00:00 and 18:00 as interpolation buffers for the locked
+coverage. Dataset profile cadence and actual valid-time inventory determine the
+exact selection.</p>
+<p>An endpoint that lands exactly on a frame still follows the profile's declared
+coverage rule. Generate the data plan rather than estimating file count from
+duration alone.</p>
+<h2 id="data-plan-coverage">Data-plan coverage<a class="headerlink" href="#data-plan-coverage" title="Permanent link">&para;</a></h2>
+<p><code>project data-plan</code> combines every indexed Profile with its selected Case and
+emits a requirement containing:</p>
+<ul>
+<li>physical coverage start and end;</li>
+<li>one before-frame and one after-frame buffer;</li>
+<li>dataset ID and dataset-profile name;</li>
+<li>required capability set;</li>
+<li>project-relative data roots and lock path;</li>
+<li>a SHA-256 identity of the project input used for the plan.</li>
+</ul>
+<p>The plan is deterministic for unchanged project content. The acquisition helper
+expands it into provider-specific timestamps and target paths. A changed Case
+or Profile produces a different project identity and calls for a new plan.</p>
+<h2 id="datasetlock-coverage">DatasetLock coverage<a class="headerlink" href="#datasetlock-coverage" title="Permanent link">&para;</a></h2>
+<p>Finalization inspects the valid times contained in actual files. The lock
+builder selects profile-matched files that cover the Case plus interpolation
+buffers. It reports separate diagnostics for:</p>
 <table>
 <thead>
 <tr>
-<th>Identity</th>
+<th>Gap</th>
 <th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Job series</td>
-<td>Stable user-visible request across reruns</td>
+<td>Coverage outside available times</td>
+<td>The physical Case interval extends beyond the inventory</td>
 </tr>
 <tr>
-<td>Run ID</td>
-<td>One admitted execution with immutable inputs</td>
+<td>Missing warmup frame</td>
+<td>No required frame exists before the selected interval</td>
 </tr>
 <tr>
-<td>Attempt</td>
-<td>Ordered execution history retained under the series</td>
+<td>Missing following frame</td>
+<td>No required frame exists after the selected interval</td>
+</tr>
+<tr>
+<td>No profile-matched files</td>
+<td>Files exist, though none belong to the selected interpretation profile</td>
 </tr>
 </tbody>
 </table>
-<p><code>job rerun</code> creates a new attempt. It does not overwrite the previous result.
-Daemon recovery reconciles admitted and running work, but a completed terminal
-attempt is not resubmitted. Content identity, source identity, and lifecycle
-state allow operators to distinguish recovery from a new scientific run.</p>
+<p>The DatasetLock records every selected file and its valid times. At submission,
+the inventory is rebuilt from that lock and the RunProfile's local data roots.
+Changing a file's bytes, grid, vertical topology, or profile identity breaks
+the binding and is handled through a new finalization.</p>
+<h2 id="spatial-support-and-the-safe-core">Spatial support and the safe core<a class="headerlink" href="#spatial-support-and-the-safe-core" title="Permanent link">&para;</a></h2>
+<p>A meteorological dataset provides a horizontal grid and vertical support. A
+Case meteorology domain connects a logical dataset to a domain ID, priority,
+and <code>horizontal_halo_cells</code>.</p>
+<p>The halo reserves neighboring grid cells for spatial interpolation. The
+trajectory-safe core lies inside the outer source boundary after that reserve
+is applied. For a global periodic grid, longitude wraps and the safe core spans
+the periodic direction. For a limited grid, lateral faces define where
+continuous domain crossing and domain-fill exchange occur.</p>
+<p>Vertical support is bounded by the local transport floor and the available
+model top. Terrain and surface pressure can move the lower valid boundary from
+one horizontal location to another. Release placement, domain-fill
+initialization, meteorological queries, reflection, and model-top termination
+all use this resolved support.</p>
+<h2 id="several-meteorological-domains">Several meteorological domains<a class="headerlink" href="#several-meteorological-domains" title="Permanent link">&para;</a></h2>
+<p>A Case may list more than one domain. Each entry has a unique ID, logical
+dataset, and priority. This supports a high-resolution nested domain with a
+coarser surrounding dataset when both are prepared under compatible scientific
+settings.</p>
+<p>At a query point, domain precedence selects the highest-priority valid safe
+core. The Case still declares one domain for a domain-fill population, because
+its initial mass budget and lateral boundary need one coherent grid. Other
+domains may participate in trajectory meteorology according to the Case domain
+selection rules.</p>
+<p>Each logical dataset obtains its own RunProfile binding and DatasetLock. Data
+planning takes the union of requirements across the selected Case/Profile pair.</p>
+<h2 id="four-layers-of-identity">Four layers of identity<a class="headerlink" href="#four-layers-of-identity" title="Permanent link">&para;</a></h2>
+<p>It helps to separate configuration, data, execution, and scientific output:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Examples</th>
+<th>Where it is recorded</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Resolved configuration</td>
+<td>Case SHA-256, RunProfile SHA-256, numerical model IDs</td>
+<td>Run manifest and resolved documents</td>
+</tr>
+<tr>
+<td>Input data</td>
+<td>DatasetLock SHA-256, profile SHA-256, individual file SHA-256</td>
+<td>DatasetLock, manifest, and provenance</td>
+</tr>
+<tr>
+<td>Execution</td>
+<td>Job-series ID, run ID, attempt, resources, software versions</td>
+<td>Job catalog and run manifest</td>
+</tr>
+<tr>
+<td>Output content</td>
+<td>Exact SQLite SHA-256, canonical SQL digest, provenance content digest, canonical output digest</td>
+<td>Manifest and verification result</td>
+</tr>
+</tbody>
+</table>
+<p>Two runs may have different run IDs while sharing identical resolved input and
+canonical output identities. Conversely, a file with the same name and a new
+SHA-256 is a different input even when the Case did not change.</p>
+<h2 id="job-series-id">Job-series ID<a class="headerlink" href="#job-series-id" title="Permanent link">&para;</a></h2>
+<p>The local queue creates a UUID-v7 job-series ID when it accepts a new logical
+submission. This ID is the normal argument for <code>job status</code>, <code>job wait</code>,
+<code>job events</code>, cancellation, rerun, and forget.</p>
+<p>The series groups attempts that originate from one accepted request. It is
+stable across <code>job rerun</code> and keeps event/history queries connected.</p>
+<h2 id="run-id-and-attempt-number">Run ID and attempt number<a class="headerlink" href="#run-id-and-attempt-number" title="Permanent link">&para;</a></h2>
+<p>Every attempt receives a new UUID-v7 run ID and a one-based attempt number.
+Together they select one worker execution and one result directory.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>job series S
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>├── attempt 1, run R1: interrupted
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>├── attempt 2, run R2: cancelled
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>└── attempt 3, run R3: complete
+</code></pre></div>
+<p>The attempt number communicates order within a series. The run ID is globally
+distinct and is used in manifest, SQLite, provenance, particle-state joins, and
+result lookup.</p>
+<p><code>job rerun</code> preserves the series and creates the next run ID. It keeps old
+attempt directories intact. Submitting an edited Project/Profile pair creates a
+new logical series because the requested input has changed.</p>
+<h2 id="stable-particle-identity">Stable particle identity<a class="headerlink" href="#stable-particle-identity" title="Permanent link">&para;</a></h2>
+<p>Particle IDs are derived from population identity and deterministic birth
+coordinates such as event ordinal or domain-fill stratum ordinal. They do not
+contain the run ID. Identical resolved scientific inputs can therefore use the
+same particle IDs across worker counts and reruns.</p>
+<p>Every trajectory record also contains job-series ID, run ID, and attempt. An
+analysis can compare particle <code>42</code> across two runs while retaining the identity
+of each source attempt.</p>
+<h2 id="restart-and-recovery-identity">Restart and recovery identity<a class="headerlink" href="#restart-and-recovery-identity" title="Permanent link">&para;</a></h2>
+<p>The local daemon records worker process identity and attempt state in its
+catalog. After a daemon restart, it reconciles active rows with operating-
+system process identity:</p>
+<ul>
+<li>a confirmed live worker remains owned by its attempt;</li>
+<li>a missing worker becomes <code>interrupted</code>;</li>
+<li>queued work remains eligible for dispatch;</li>
+<li>terminal work stays terminal.</li>
+</ul>
+<p>Recovery changes lifecycle state when needed. It does not allocate a new run
+ID or repeat a complete attempt. Another execution appears only after an
+explicit rerun or submission.</p>
+<h2 id="comparing-two-results">Comparing two results<a class="headerlink" href="#comparing-two-results" title="Permanent link">&para;</a></h2>
+<p>Use identities according to the question:</p>
+<ul>
+<li>Compare Case and Profile digests to confirm equivalent resolved setup.</li>
+<li>Compare DatasetLock and dataset-content digests to confirm equivalent input
+  bytes and interpretation.</li>
+<li>Compare stable particle IDs when aligning trajectories.</li>
+<li>Compare canonical output digests for normalized result equality.</li>
+<li>Keep run ID and attempt in every table so that operational histories remain
+  distinguishable.</li>
+</ul>
+<p><code>result verify --full</code> recomputes the normalized output identities and audits
+the lifecycle rows. The resulting record is a practical starting point for a
+cross-run comparison.</p>
 
 
 

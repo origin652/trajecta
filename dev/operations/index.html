@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Operate local resource pools, queues, daemons, workers, and concurrent readers safely.">
+        <meta name="description" content="Run the local Trajecta queue, size its resource pool, monitor workers, and keep completed results available across daemon restarts.">
       
       
       
@@ -16,7 +16,7 @@
         <link rel="prev" href="../concepts/extensibility/">
       
       
-        <link rel="next" href="recovery/">
+        <link rel="next" href="shutdown-memory/">
       
       
       <link rel="icon" href="../assets/logo.svg">
@@ -642,9 +642,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -653,7 +669,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -948,27 +1160,87 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#resource-pools-and-scheduling" class="md-nav__link">
+  <a href="#files-and-processes-involved" class="md-nav__link">
     <span class="md-ellipsis">
-      Resource pools and scheduling
+      Files and processes involved
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#daemon-lifecycle" class="md-nav__link">
+  <a href="#attempt-lifecycle" class="md-nav__link">
     <span class="md-ellipsis">
-      Daemon lifecycle
+      Attempt lifecycle
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#worker-lifecycle" class="md-nav__link">
+  <a href="#resource-admission" class="md-nav__link">
     <span class="md-ellipsis">
-      Worker lifecycle
+      Resource admission
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Resource admission">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#queue-order-and-backfill" class="md-nav__link">
+    <span class="md-ellipsis">
+      Queue order and backfill
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#external-memory-pressure" class="md-nav__link">
+    <span class="md-ellipsis">
+      External memory pressure
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#daemon-start-idle-exit-and-restart" class="md-nav__link">
+    <span class="md-ellipsis">
+      Daemon start, idle exit, and restart
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#monitoring-a-live-queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitoring a live queue
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-a-result-while-it-is-being-written" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reading a result while it is being written
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#routine-operating-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Routine operating checks
     </span>
   </a>
   
@@ -978,6 +1250,52 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -1091,7 +1409,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1838,27 +2156,87 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#resource-pools-and-scheduling" class="md-nav__link">
+  <a href="#files-and-processes-involved" class="md-nav__link">
     <span class="md-ellipsis">
-      Resource pools and scheduling
+      Files and processes involved
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#daemon-lifecycle" class="md-nav__link">
+  <a href="#attempt-lifecycle" class="md-nav__link">
     <span class="md-ellipsis">
-      Daemon lifecycle
+      Attempt lifecycle
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#worker-lifecycle" class="md-nav__link">
+  <a href="#resource-admission" class="md-nav__link">
     <span class="md-ellipsis">
-      Worker lifecycle
+      Resource admission
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Resource admission">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#queue-order-and-backfill" class="md-nav__link">
+    <span class="md-ellipsis">
+      Queue order and backfill
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#external-memory-pressure" class="md-nav__link">
+    <span class="md-ellipsis">
+      External memory pressure
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#daemon-start-idle-exit-and-restart" class="md-nav__link">
+    <span class="md-ellipsis">
+      Daemon start, idle exit, and restart
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#monitoring-a-live-queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitoring a live queue
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-a-result-while-it-is-being-written" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reading a result while it is being written
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#routine-operating-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Routine operating checks
     </span>
   </a>
   
@@ -1884,36 +2262,267 @@
 
 
 <h1 id="operations-manual">Operations manual<a class="headerlink" href="#operations-manual" title="Permanent link">&para;</a></h1>
-<p>Trajecta runs a local control plane. The CLI submits work to a daemon; the
-daemon persists series, runs, attempts, events, resources, and leases in a job
-database; workers execute immutable resolved inputs and write result
-directories.</p>
-<h2 id="resource-pools-and-scheduling">Resource pools and scheduling<a class="headerlink" href="#resource-pools-and-scheduling" title="Permanent link">&para;</a></h2>
-<p><code>resources.cpu_slots</code>, <code>resources.memory_pool_mib</code>, and
-<code>resources.memory_reserve_mib</code> define admission capacity. Each RunProfile asks
-for worker threads and a memory budget. The scheduler admits a job only when
-the request fits available capacity.</p>
-<p>Memory reserve must remain below the pool. Size the pool for Trajecta workers,
-then retain reserve for the daemon, operating system, readers, and transient
-allocation. External memory pressure pauses new dispatch. It does not cancel a
-running worker.</p>
-<h2 id="daemon-lifecycle">Daemon lifecycle<a class="headerlink" href="#daemon-lifecycle" title="Permanent link">&para;</a></h2>
-<p>The CLI starts or reconnects to the local daemon as needed. The daemon records
-an instance identity and process start token so a recycled process ID cannot
-impersonate an old lease. Idle shutdown releases the process while the job
-database and completed artifacts remain on disk.</p>
-<p>After restart, the daemon reconciles catalog state, worker leases, terminal
-manifests, and retained forensics. Completed attempts stay terminal and are not
-rerun. An admitted worker may be reattached only when identity and lease checks
-succeed.</p>
-<h2 id="worker-lifecycle">Worker lifecycle<a class="headerlink" href="#worker-lifecycle" title="Permanent link">&para;</a></h2>
-<p>A worker moves through queued, running, and terminal states. Safe cancel waits
-for a numerical boundary and produces a terminal manifest, finalized SQLite,
-provenance, and a zero or absent terminal WAL. Force cancellation preserves
-available partial artifacts and forensic evidence.</p>
-<p>Use event streaming for automation and <code>job status</code> for a point-in-time view.
-Concurrent result readers must use the indexed high-water contract and read
-snapshots; writers retain sole authority over lifecycle finalization.</p>
+<p>Trajecta runs its queue and workers on the local machine. A command submitted
+from the CLI enters a persistent job catalog, waits for CPU and memory, and is
+then assigned to a worker process. Closing the submitting terminal does not
+remove a job that the daemon has already accepted.</p>
+<p>This section covers the machine-level work around a scientific run: resource
+admission, queue monitoring, daemon restarts, interrupted workers, storage, and
+result readers. Configuration of a Case or RunProfile is covered in the
+<a href="../concepts/">Concepts</a> and <a href="../how-to/">How-to Guides</a>.</p>
+<h2 id="files-and-processes-involved">Files and processes involved<a class="headerlink" href="#files-and-processes-involved" title="Permanent link">&para;</a></h2>
+<p>A local installation has three kinds of durable state:</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Selected by</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Machine configuration</td>
+<td><code>--config</code>, <code>TRAJECTA_CONFIG</code>, or the platform default</td>
+<td>Resource pool, daemon endpoint, job-catalog path, monitoring cadence, and local Profile templates</td>
+</tr>
+<tr>
+<td>Job catalog</td>
+<td>The selected machine configuration</td>
+<td>Job series, attempts, state transitions, events, worker leases, and verification status</td>
+</tr>
+<tr>
+<td>Result directory</td>
+<td>Project and RunProfile</td>
+<td>Run manifest, <code>particles.sqlite</code>, provenance bundle, reports, and files retained after interruption</td>
+</tr>
+</tbody>
+</table>
+<p>The daemon is a local coordinator. It uses a named pipe on Windows and a Unix
+socket on Linux. Numerical work runs in child worker processes, so queue
+inspection remains responsive while a simulation is active. The job catalog
+and result directories remain on disk when an idle daemon exits.</p>
+<p>Use the same configuration path whenever several shells operate on one queue:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --config workstation.toml job list
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --config workstation.toml job status JOB_ID
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>trajecta --config workstation.toml job events JOB_ID --follow
+</code></pre></div>
+<p>A command that selects another configuration may connect to a different daemon
+and catalog on the same computer.</p>
+<h2 id="attempt-lifecycle">Attempt lifecycle<a class="headerlink" href="#attempt-lifecycle" title="Permanent link">&para;</a></h2>
+<p>Each submission creates a job series and its first attempt. A rerun stays in
+the same series and receives a new run ID and attempt number.</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Operational meaning</th>
+<th>Usual next state</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>queued</code></td>
+<td>The request is durable and waiting for admission</td>
+<td><code>starting</code> or <code>cancelled</code></td>
+</tr>
+<tr>
+<td><code>starting</code></td>
+<td>Resources have been reserved and a worker is being launched</td>
+<td><code>running</code>, <code>failed</code>, or <code>interrupted</code></td>
+</tr>
+<tr>
+<td><code>running</code></td>
+<td>The worker owns the result directory and advances the simulation</td>
+<td><code>complete</code>, <code>completed_with_particle_errors</code>, <code>cancelling</code>, <code>failed</code>, or <code>interrupted</code></td>
+</tr>
+<tr>
+<td><code>cancelling</code></td>
+<td>A safe cancellation is waiting for a numerical boundary</td>
+<td><code>cancelled</code> or <code>interrupted</code></td>
+</tr>
+<tr>
+<td><code>complete</code></td>
+<td>The run finished with a complete manifest and no abnormal particle terminations</td>
+<td>Terminal</td>
+</tr>
+<tr>
+<td><code>completed_with_particle_errors</code></td>
+<td>Output completed while one or more particles ended abnormally</td>
+<td>Terminal</td>
+</tr>
+<tr>
+<td><code>cancelled</code></td>
+<td>Cooperative cancellation completed its output closeout</td>
+<td>Terminal</td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td>Startup, execution, or output finalization returned an error</td>
+<td>Terminal</td>
+</tr>
+<tr>
+<td><code>interrupted</code></td>
+<td>The worker disappeared or was force-stopped before normal closeout</td>
+<td>Terminal</td>
+</tr>
+</tbody>
+</table>
+<p>The current snapshot is available through:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta --format json job status JOB_ID
+</code></pre></div>
+<p>The event log supplies the transitions that led to that snapshot:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta --format jsonl job events JOB_ID --since 0 --follow
+</code></pre></div>
+<p>Reading events does not consume them. Several terminals or monitoring tools can
+follow the same queue independently.</p>
+<h2 id="resource-admission">Resource admission<a class="headerlink" href="#resource-admission" title="Permanent link">&para;</a></h2>
+<p>The machine configuration defines the shared capacity:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>resources.cpu_slots
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>resources.memory_pool_mib
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>resources.memory_reserve_mib
+</code></pre></div>
+<p>The selected RunProfile contributes two scheduler requests:</p>
+<table>
+<thead>
+<tr>
+<th>RunProfile field</th>
+<th>Scheduler request</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>execution.worker_threads</code></td>
+<td>The same number of CPU slots</td>
+</tr>
+<tr>
+<td><code>execution.memory_budget_bytes</code></td>
+<td>Memory rounded upward to a whole MiB</td>
+</tr>
+</tbody>
+</table>
+<p>Schedulable memory is <code>memory_pool_mib - memory_reserve_mib</code>. An attempt starts
+when both its CPU and memory request fit the currently free capacity. Resource
+reservation prevents the daemon from admitting more configured work than the
+pool can hold; the operating system still observes memory used by other
+applications.</p>
+<h3 id="queue-order-and-backfill">Queue order and backfill<a class="headerlink" href="#queue-order-and-backfill" title="Permanent link">&para;</a></h3>
+<p>The scheduler begins with first-in, first-out order. When the oldest attempt is
+temporarily too large for the free capacity, a younger attempt that fits may be
+started. This safe backfill keeps an idle CPU or memory slot useful without
+forgetting the queue head.</p>
+<p>The oldest attempt may be bypassed at most three times. After the third bypass,
+newer work waits until enough capacity is available for that head attempt. A
+large request therefore makes progress even when a stream of smaller requests
+continues to arrive.</p>
+<h3 id="external-memory-pressure">External memory pressure<a class="headerlink" href="#external-memory-pressure" title="Permanent link">&para;</a></h3>
+<p>The daemon compares available host memory with the configured reserve. When
+available memory drops below that reserve, new dispatch pauses. Running workers
+keep their reservations and continue unless the operating system or an
+operator stops them.</p>
+<p>Each affected queued attempt receives one
+<code>daemon.external_memory_pressure</code> warning for that pressure episode. Queue
+dispatch resumes after host memory recovers. The
+<a href="shutdown-memory/">shutdown and memory guide</a> explains how to distinguish this
+condition from a worker killed by the operating system.</p>
+<h2 id="daemon-start-idle-exit-and-restart">Daemon start, idle exit, and restart<a class="headerlink" href="#daemon-start-idle-exit-and-restart" title="Permanent link">&para;</a></h2>
+<p>Runtime commands connect to the selected local endpoint. If no daemon is
+listening, the CLI starts one and waits for it to become ready. The daemon holds
+an instance ID, process ID, and process-start token; this identity prevents a
+reused process ID from being treated as an existing worker owner.</p>
+<p>When the queue has no active work, <code>daemon.idle_shutdown_seconds</code> controls how
+long the daemon stays alive. An idle exit closes the process and endpoint. It
+does not remove catalog rows, events, result directories, or verification
+records. Setting the value to <code>0</code> keeps the daemon available until the machine
+or process is stopped.</p>
+<p>On startup, reconciliation handles each durable attempt according to its
+state:</p>
+<table>
+<thead>
+<tr>
+<th>Catalog and worker state</th>
+<th>Reconciliation action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Worker identity and lease are still valid</td>
+<td>Reattach and emit <code>worker.reattached</code></td>
+</tr>
+<tr>
+<td>A matching valid terminal manifest already exists</td>
+<td>Reconcile the terminal state and emit <code>worker.terminal_reconciled</code></td>
+</tr>
+<tr>
+<td>Active catalog row has no matching worker or terminal manifest</td>
+<td>Mark the attempt interrupted through <code>worker.lost</code> and <code>run.interrupted.worker_lost</code></td>
+</tr>
+<tr>
+<td>Attempt is still queued</td>
+<td>Leave it queued for ordinary admission</td>
+</tr>
+<tr>
+<td>Attempt is terminal</td>
+<td>Keep the terminal state; no new attempt is created</td>
+</tr>
+</tbody>
+</table>
+<p>The <a href="recovery/">recovery runbook</a> gives the command sequence for examining
+these outcomes after a reboot or unexpected process loss.</p>
+<h2 id="monitoring-a-live-queue">Monitoring a live queue<a class="headerlink" href="#monitoring-a-live-queue" title="Permanent link">&para;</a></h2>
+<p>A short operational check can use three views:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta job list
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>trajecta --format json job status JOB_ID
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>trajecta --format jsonl job events JOB_ID --since 0 --follow
+</code></pre></div>
+<p><code>job list</code> gives one current entry per visible series. <code>job status</code> adds queue
+position, resource request, run identity, timestamps, and output path. The
+event stream records progress, resource samples, diagnostics, and artifact
+transitions.</p>
+<p>For a long-running local queue, store the durable event sequence from
+<code>data.sequence</code>. Reconnect with <code>--since SEQUENCE</code> after a monitoring client
+restarts. The outer JSONL sequence counts lines in that particular stream and
+is not the reconnect cursor.</p>
+<h2 id="reading-a-result-while-it-is-being-written">Reading a result while it is being written<a class="headerlink" href="#reading-a-result-while-it-is-being-written" title="Permanent link">&para;</a></h2>
+<p>Result commands use read-only snapshots. During an active run, SQLite readers
+observe data only through the current indexed high-water boundary. They do not
+take ownership of the writer's checkpoint or lifecycle closeout.</p>
+<p>Useful live checks include:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta result inspect JOB_ID
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>trajecta result trajectory JOB_ID --particle-id 42
+</code></pre></div>
+<p>Counts may grow between snapshots. A terminal result adds the final manifest,
+provenance closeout, and a checkpointed or absent WAL. Run full verification
+after the attempt is terminal:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>trajecta result verify JOB_ID --full
+</code></pre></div>
+<p>For direct SQLite access, follow the read-only layout and snapshot notes in the
+<a href="../reference/results-sqlite/">results reference</a>.</p>
+<h2 id="routine-operating-checks">Routine operating checks<a class="headerlink" href="#routine-operating-checks" title="Permanent link">&para;</a></h2>
+<p>Before a set of long runs:</p>
+<ol>
+<li>Select the intended machine configuration and run <code>config validate</code>.</li>
+<li>Run <code>doctor --deep</code> against the finalized project.</li>
+<li>Check free space under the catalog, data, and output roots.</li>
+<li>Compare each Profile request with the CPU pool and schedulable memory.</li>
+<li>Submit detached jobs and retain their complete JSON receipts.</li>
+</ol>
+<p>After completion:</p>
+<ol>
+<li>Confirm the terminal state with <code>job status</code>.</li>
+<li>Run <code>result verify --full</code> for results that will be retained or analyzed.</li>
+<li>Generate <code>run-report.md</code> when a human-readable run summary is useful.</li>
+<li>Archive or copy the complete terminal result directory as one unit.</li>
+<li>Review <code>job prune</code> when estimating removable storage; this release returns
+   a dry-run plan only.</li>
+</ol>
+<p>Related procedures:</p>
+<ul>
+<li><a href="shutdown-memory/">Shutdown and memory pressure</a></li>
+<li><a href="storage-sqlite/">Storage, SQLite, and WAL</a></li>
+<li><a href="recovery/">Recovery and interrupted attempts</a></li>
+<li><a href="troubleshooting/">Troubleshooting by symptom or code</a></li>
+</ul>
 
 
 

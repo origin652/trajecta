@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Run a backward stratospheric-ozone domain-fill workflow with prepared ERA5 hybrid-level data.">
+        <meta name="description" content="Prepare ERA5 hybrid model-level data and run a backward stratospheric-ozone population with Trajecta.">
       
       
       
@@ -642,18 +642,81 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#project-binding" class="md-nav__link">
+  <a href="#read-the-project-and-profile" class="md-nav__link">
     <span class="md-ellipsis">
-      Project binding
+      Read the project and Profile
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#prepare-and-execute" class="md-nav__link">
+  <a href="#understand-the-hybrid-coordinate" class="md-nav__link">
     <span class="md-ellipsis">
-      Prepare and execute
+      Understand the hybrid coordinate
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#understand-pv60-initialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Understand PV60 initialization
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plan-data-before-downloading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plan data before downloading
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#download-and-prepare-anchors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Download and prepare anchors
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#finalize-and-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      Finalize and run
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-a-backward-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read a backward result
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#extend-the-ozone-study" class="md-nav__link">
+    <span class="md-ellipsis">
+      Extend the ozone study
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next steps
     </span>
   </a>
   
@@ -704,9 +767,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -715,7 +794,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -981,6 +1256,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1082,7 +1403,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1829,18 +2150,81 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#project-binding" class="md-nav__link">
+  <a href="#read-the-project-and-profile" class="md-nav__link">
     <span class="md-ellipsis">
-      Project binding
+      Read the project and Profile
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#prepare-and-execute" class="md-nav__link">
+  <a href="#understand-the-hybrid-coordinate" class="md-nav__link">
     <span class="md-ellipsis">
-      Prepare and execute
+      Understand the hybrid coordinate
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#understand-pv60-initialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Understand PV60 initialization
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plan-data-before-downloading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plan data before downloading
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#download-and-prepare-anchors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Download and prepare anchors
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#finalize-and-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      Finalize and run
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-a-backward-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read a backward result
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#extend-the-ozone-study" class="md-nav__link">
+    <span class="md-ellipsis">
+      Extend the ozone study
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next steps
     </span>
   </a>
   
@@ -1866,10 +2250,17 @@
 
 
 <h1 id="era5-hybrid-level-ozone-workflow">ERA5 hybrid-level ozone workflow<a class="headerlink" href="#era5-hybrid-level-ozone-workflow" title="Permanent link">&para;</a></h1>
-<p>The ozone population begins from a domain-filled air-mass population and
-applies the frozen PV60 stratospheric-ozone rule. This tutorial runs backward
-with prepared 137-level ERA5 hybrid meteorology.</p>
-<h2 id="project-binding">Project binding<a class="headerlink" href="#project-binding" title="Permanent link">&para;</a></h2>
+<p>The ozone project combines three features introduced separately in earlier
+tutorials. It fills a meteorological domain by dry-air mass, assigns a carried
+substance at particle birth, and integrates backward from a later receptor time
+to an earlier state. Its meteorology uses all 137 ERA5 hybrid model levels.</p>
+<p>The example starts at 06:00 UTC on 1 December 2018 and runs backward to 05:50
+UTC. It initializes exactly 1,000 particles inside the stratospheric region
+selected by the PV60 rule. The data helper uses the same 53–45° N, 0–10° E box
+as the pressure-level tutorial.</p>
+<h2 id="read-the-project-and-profile">Read the project and Profile<a class="headerlink" href="#read-the-project-and-profile" title="Permanent link">&para;</a></h2>
+<p>The project index maps logical dataset <code>era5-hybrid</code> to public profile
+<code>era5-cds-hybrid137-v0</code>:</p>
 <p>schema_version: trajecta.project-index/v1
 name: ozone-era5-hybrid
 cases:
@@ -1880,6 +2271,7 @@ profiles:
     dataset_profiles:
       era5-hybrid: era5-cds-hybrid137-v0
 default_profile: product</p>
+<p>The machine-facing Profile selects the Rust reader and local paths:</p>
 <p>schema_version: 0
 kind: run_profile
 metadata: { name: product }
@@ -1895,22 +2287,233 @@ execution:
   memory_budget_bytes: 1073741824
   executor: cpu
   meteorology_reader: rust</p>
-<p>The complete Case is stored at <code>examples/ozone-era5-hybrid/cases/ozone.yaml</code>.
-Its rule identifier, seed, boundaries, direction, and particle count are part
-of the resolved Case identity.</p>
-<h2 id="prepare-and-execute">Prepare and execute<a class="headerlink" href="#prepare-and-execute" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project examples/ozone-era5-hybrid project data-plan --output hybrid-plan.json
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>python tools/fetch_trajecta_data.py --project examples/ozone-era5-hybrid --plan hybrid-plan.json
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>python tools/fetch_trajecta_data.py --project examples/ozone-era5-hybrid --plan hybrid-plan.json --execute
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>trajecta --project examples/ozone-era5-hybrid project finalize
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>trajecta --project examples/ozone-era5-hybrid run --profile product
+<p>The Case is stored at <code>examples/ozone-era5-hybrid/cases/ozone.yaml</code>. Its key
+settings are:</p>
+<table>
+<thead>
+<tr>
+<th>Case choice</th>
+<th>Tutorial value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Physical start</td>
+<td>2018-12-01 06:00 UTC</td>
+</tr>
+<tr>
+<td>Physical end</td>
+<td>2018-12-01 05:50 UTC</td>
+</tr>
+<tr>
+<td>Direction</td>
+<td>Backward</td>
+</tr>
+<tr>
+<td>Domain</td>
+<td>Limited ERA5 hybrid grid</td>
+</tr>
+<tr>
+<td>Initial population</td>
+<td>1,000 dry-air carriers inside the PV60 eligibility mask</td>
+</tr>
+<tr>
+<td>Carried substance</td>
+<td><code>ozone</code></td>
+</tr>
+<tr>
+<td>Time step</td>
+<td>300 seconds</td>
+</tr>
+<tr>
+<td>Boundaries</td>
+<td>Surface reflection, model-top termination, limited-domain termination</td>
+</tr>
+<tr>
+<td>Output</td>
+<td>Both physical endpoints in SQLite</td>
+</tr>
+<tr>
+<td>Random seed</td>
+<td>4203</td>
+</tr>
+</tbody>
+</table>
+<p>The RunProfile requests one worker thread and 1 GiB of memory. Its lock path is
+<code>locks/era5-hybrid.lock.json</code>, and prepared files are discovered below
+<code>data/</code>.</p>
+<h2 id="understand-the-hybrid-coordinate">Understand the hybrid coordinate<a class="headerlink" href="#understand-the-hybrid-coordinate" title="Permanent link">&para;</a></h2>
+<p>ERA5 model levels follow the atmosphere and terrain. Pressure on level <code>k</code> is
+reconstructed from the level's coefficients and local surface pressure. The
+vertical coordinate therefore changes with horizontal position and time; a
+standalone three-dimensional variable file is only one part of a complete
+anchor.</p>
+<p>The preparation pipeline assembles these inputs:</p>
+<table>
+<thead>
+<tr>
+<th>Input group</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hybrid three-dimensional fields</td>
+<td>Temperature, eastward and northward wind, specific humidity, pressure vertical velocity on levels 1–137</td>
+</tr>
+<tr>
+<td>Surface-pressure input</td>
+<td>Logarithmic surface pressure used to derive canonical surface pressure</td>
+</tr>
+<tr>
+<td>Surface base fields</td>
+<td>Geopotential, 10 m wind, 2 m temperature and dew point, roughness, boundary-layer height, friction velocity</td>
+</tr>
+<tr>
+<td>Surface flux fields</td>
+<td>Instantaneous sensible-heat and moisture flux</td>
+</tr>
+<tr>
+<td>Vertical-coordinate metadata</td>
+<td>Official half-level coefficient table and preparation identities</td>
+</tr>
+</tbody>
+</table>
+<p>The profile derives surface pressure and near-surface humidity, maps flux
+signs, and calculates potential vorticity for the <code>diagnostics</code> capability.
+Hybrid frames are three hours apart. For the 05:50–06:00 physical interval,
+the helper plans 00, 03, 06, and 09 UTC.</p>
+<h2 id="understand-pv60-initialization">Understand PV60 initialization<a class="headerlink" href="#understand-pv60-initialization" title="Permanent link">&para;</a></h2>
+<p>The named ozone rule first restricts dry-air mass to locations above 3,000 m
+where hemisphere-normalized potential vorticity is greater than 2
+potential-vorticity units. Southern-hemisphere values are sign-normalized
+before applying the threshold.</p>
+<p>Within the eligible dry-air mass, Trajecta forms exactly 1,000 equal carrier
+strata and samples one particle from each. Ozone mole fraction is proportional
+to potential vorticity with a slope of 60 parts per billion by volume per
+potential-vorticity unit. The rule then converts mole fraction to carried ozone
+mass with the ozone and dry-air molar masses.</p>
+<p>This produces two linked quantities in the result. <code>dry_air_mass_kg</code> is the
+carrier weight for the eligible atmosphere, while the <code>ozone</code> row in
+<code>particle_mass</code> is the substance mass assigned at birth. Transport moves that
+carried mass with the particle. The population mass ledger follows dry-air
+carrier mass through limited-domain inflow, outflow, and terminations.</p>
+<h2 id="plan-data-before-downloading">Plan data before downloading<a class="headerlink" href="#plan-data-before-downloading" title="Permanent link">&para;</a></h2>
+<p>Validate the project and save its data-plan:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project examples/ozone-era5-hybrid project validate
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --project examples/ozone-era5-hybrid project data-plan --output hybrid-plan.json
 </code></pre></div>
-<p>ERA5 hybrid input requires 3-D model-level fields, logarithmic surface
-pressure, surface companions, and preparation metadata. Finalization must
-reject incomplete capability coverage. For a backward case, interpret time in
-physical order while retaining the recorded execution direction.</p>
-<p>Use full verification before comparing ozone mass or particle state across
-runs. Preserve the exact data lock and prepared-file identities.</p>
+<p>The single requirement selects:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Expected value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dataset</td>
+<td><code>era5-hybrid</code></td>
+</tr>
+<tr>
+<td>Dataset profile</td>
+<td><code>era5-cds-hybrid137-v0</code></td>
+</tr>
+<tr>
+<td>Reader</td>
+<td><code>rust</code></td>
+</tr>
+<tr>
+<td>Capabilities</td>
+<td><code>diagnostics</code>, <code>domain_fill</code>, <code>near_surface_transport</code>, <code>transport</code></td>
+</tr>
+<tr>
+<td>Coverage</td>
+<td>2018-12-01 05:50–06:00 UTC in chronological order</td>
+</tr>
+<tr>
+<td>Lock path</td>
+<td><code>locks/era5-hybrid.lock.json</code></td>
+</tr>
+</tbody>
+</table>
+<p>Coverage remains chronological in the plan even though numerical execution is
+backward. The direction stays in the resolved Case.</p>
+<p>Install the data-tool dependencies and preview the request:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python -m pip install -r requirements-data.txt
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>python tools/fetch_trajecta_data.py --project examples/ozone-era5-hybrid --plan hybrid-plan.json
+</code></pre></div>
+<p>The preview lists each Climate Data Store request, model levels, variable
+codes, surface companions, area, anchors, and local target. Credentials are
+read by the provider client from its standard configuration or environment;
+the printed plan contains request parameters only.</p>
+<h2 id="download-and-prepare-anchors">Download and prepare anchors<a class="headerlink" href="#download-and-prepare-anchors" title="Permanent link">&para;</a></h2>
+<p>Start the complete provider and preparation pipeline:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python tools/fetch_trajecta_data.py --project examples/ozone-era5-hybrid --plan hybrid-plan.json --execute
+</code></pre></div>
+<p>Raw service files and derived coefficient material are assembled under
+<code>data/.trajecta-fetch/</code>. Preparation checks dimensions, variables, valid times,
+surface companions, level ordering, and coefficient identity. Completed
+NetCDF anchors move into <code>data/ready/</code>, and the helper writes
+<code>data/TRAJECTA_FETCH_MANIFEST.json</code> with request and file identities.</p>
+<p>Hybrid requests are larger and more involved than the pressure-level tutorial.
+The provider may stage the model-level request asynchronously. Re-running the
+same command reuses matching work already present in the provider utilities.</p>
+<h2 id="finalize-and-run">Finalize and run<a class="headerlink" href="#finalize-and-run" title="Permanent link">&para;</a></h2>
+<p>Inspect one ready anchor, create the lock, and check local I/O:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta data inspect examples/ozone-era5-hybrid/data/ready/ERA5_HYBRID_READY_FILE.nc
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>trajecta --project examples/ozone-era5-hybrid project finalize
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>trajecta --project examples/ozone-era5-hybrid doctor --deep
+</code></pre></div>
+<p>The inspection response identifies <code>era5_cds_hybrid137</code>, 137 model levels,
+valid times, source roles, and the prepared grid. Finalization brings the main
+fields, logarithmic surface pressure, surface files, and coefficient metadata
+together in one DatasetLock.</p>
+<p>Run the Profile in the foreground:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta --project examples/ozone-era5-hybrid run --profile product
+</code></pre></div>
+<p>Population initialization reads the 06:00 UTC snapshot, derives potential
+vorticity, selects eligible dry-air strata, and assigns ozone. The worker then
+steps toward 05:50 UTC and writes the endpoint result.</p>
+<h2 id="read-a-backward-result">Read a backward result<a class="headerlink" href="#read-a-backward-result" title="Permanent link">&para;</a></h2>
+<p>Verify and summarize the completed directory:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta result verify RESULT --full
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>trajecta result inspect RESULT
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>trajecta result trajectory RESULT --particle-id 0
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>trajecta run report --result RESULT
+</code></pre></div>
+<p>Event sequence follows execution: the first scheduled event is 06:00 and the
+second is 05:50 UTC. <code>integration_offset_ns</code> becomes negative as the trajectory
+moves into earlier physical time. <code>elapsed_age_ns</code> remains non-negative and
+describes how long the particle has been integrated since its 06:00 birth.</p>
+<p>The particle summary separates total dry-air carrier mass from total ozone
+mass. Origins identify the population and domain. A boundary-intersection
+termination carries its exact physical time, which may fall between the two
+scheduled endpoints.</p>
+<p>For analysis, particle records can be streamed in JSONL and joined by
+<code>particle_id</code> with the <code>ozone</code> mass rows in SQLite. Grouping by final position,
+initial position, or termination face provides different views of the backward
+transport over the chosen interval.</p>
+<h2 id="extend-the-ozone-study">Extend the ozone study<a class="headerlink" href="#extend-the-ozone-study" title="Permanent link">&para;</a></h2>
+<p>Longer backward periods begin by moving <code>time.end</code> earlier. Regenerate
+data-plan so three-hour anchors cover the expanded chronological interval, then
+prepare and finalize the additional files. Endpoint output can be replaced by
+an interval schedule when intermediate transport is needed.</p>
+<p>Increasing <code>target_particle_count</code> reduces sampling noise within the eligible
+stratospheric mass and lowers the carrier mass represented by each particle.
+It also raises the cost of potential-vorticity sampling, trajectory integration,
+and SQLite output. Profile memory and worker threads can be changed separately
+from the scientific Case.</p>
+<p>When moving the region, prepare a new hybrid grid with its surface companions
+and coefficient metadata. The limited-domain boundary is defined by that ready
+grid, so outflow counts and inflow births acquire a new spatial meaning.</p>
+<h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<p>The <a href="../../concepts/populations/">population concepts</a> compare the three
+initialization strategies. The <a href="../data-families/">data-family page</a> explains
+why hybrid and pressure-level anchors use different cadences and vertical
+signatures. Scientific comparison material is collected separately under
+<a href="../../validation/">Validation</a>.</p>
 
 
 

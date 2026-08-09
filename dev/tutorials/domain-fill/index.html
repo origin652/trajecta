@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Configure, run, and interpret a reproducible CFSR domain-filling water-vapor experiment.">
+        <meta name="description" content="Build, run, and interpret a CFSR domain-fill air-mass project for Lagrangian moisture tracking.">
       
       
       
@@ -573,27 +573,120 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#case-source" class="md-nav__link">
+  <a href="#what-this-case-represents" class="md-nav__link">
     <span class="md-ellipsis">
-      Case source
+      What this Case represents
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#run-the-project" class="md-nav__link">
+  <a href="#read-the-project" class="md-nav__link">
     <span class="md-ellipsis">
-      Run the project
+      Read the project
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#extend-the-study" class="md-nav__link">
+  <a href="#prepare-data-and-finalize" class="md-nav__link">
     <span class="md-ellipsis">
-      Extend the study
+      Prepare data and finalize
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-the-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run the Profile
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-the-population" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read the population
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Read the population">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#start-with-the-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Start with the summary
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#follow-one-particle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Follow one particle
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interpret-mass-and-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Interpret mass and lifecycle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#extend-the-experiment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Extend the experiment
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Extend the experiment">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#extend-physical-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      Extend physical time
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#increase-population-or-change-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      Increase population or change resolution
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next steps
     </span>
   </a>
   
@@ -713,9 +806,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -724,7 +833,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -990,6 +1295,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1091,7 +1442,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1838,27 +2189,120 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#case-source" class="md-nav__link">
+  <a href="#what-this-case-represents" class="md-nav__link">
     <span class="md-ellipsis">
-      Case source
+      What this Case represents
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#run-the-project" class="md-nav__link">
+  <a href="#read-the-project" class="md-nav__link">
     <span class="md-ellipsis">
-      Run the project
+      Read the project
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#extend-the-study" class="md-nav__link">
+  <a href="#prepare-data-and-finalize" class="md-nav__link">
     <span class="md-ellipsis">
-      Extend the study
+      Prepare data and finalize
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-the-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run the Profile
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-the-population" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read the population
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Read the population">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#start-with-the-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Start with the summary
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#follow-one-particle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Follow one particle
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interpret-mass-and-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Interpret mass and lifecycle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#extend-the-experiment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Extend the experiment
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Extend the experiment">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#extend-physical-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      Extend physical time
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#increase-population-or-change-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      Increase population or change resolution
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next steps
     </span>
   </a>
   
@@ -1884,12 +2328,36 @@
 
 
 <h1 id="domain-fill-moisture-tutorial">Domain-fill moisture tutorial<a class="headerlink" href="#domain-fill-moisture-tutorial" title="Permanent link">&para;</a></h1>
-<p>Domain filling maintains a population that represents air mass over a selected
-meteorological domain. The model assigns dry-air mass at initialization and
-accounts for later boundary births or normal terminations through the mass
-ledger. Specific humidity sampled from meteorology supplies the water-vapor
-state used for moisture analysis.</p>
-<h2 id="case-source">Case source<a class="headerlink" href="#case-source" title="Permanent link">&para;</a></h2>
+<p>Domain filling represents the atmosphere inside a meteorological domain with
+particles of equal dry-air carrier mass. Denser parts of the atmospheric
+column receive more particles than lighter parts, while the geographic sample
+remains tied to the source grid and vertical coordinate. The resulting
+particle histories form the Lagrangian air-mass basis used in a moisture
+tracking study.</p>
+<p>This tutorial uses the same project as the fifteen-minute quickstart and then
+looks more closely at its population, mass ledger, output schedule, and result
+tables. The Case runs 1,000 particles on global CFSR pressure-level data from
+06:00 to 06:10 UTC on 1 January 2009.</p>
+<h2 id="what-this-case-represents">What this Case represents<a class="headerlink" href="#what-this-case-represents" title="Permanent link">&para;</a></h2>
+<p>At the initial time, Trajecta constructs a dry-air snapshot from pressure,
+temperature, specific humidity, grid-cell area, terrain, and the available
+vertical layers. The snapshot is divided into 1,000 equal mass strata. One
+particle is sampled within each stratum with the Case seed, giving every
+particle the same dry-air carrier mass.</p>
+<p>This procedure has two practical consequences. First, counting particles is
+also a mass-weighted view of the represented atmosphere. Second, a fixed
+particle count controls computational cost while the carrier mass adapts to the
+total dry-air mass of the selected domain.</p>
+<p>During integration, each particle follows the three-dimensional wind. Surface
+crossings use the reflection policy, crossings above the available model top
+terminate, and longitude wraps around the global grid. A mass-ledger record is
+written for each macro step so active mass, boundary exchange, terminations,
+and residual mass remain connected to the initialized domain.</p>
+<h2 id="read-the-project">Read the project<a class="headerlink" href="#read-the-project" title="Permanent link">&para;</a></h2>
+<p>The project index names the Case <code>moisture</code> and Profile <code>product</code>. The Profile
+binds logical dataset <code>cfsr</code> to <code>data/</code>, selects the Rust reader, writes under
+<code>runs/</code>, and requests one worker thread with a 1 GiB budget.</p>
+<p>The scientific Case is included below from the executable example:</p>
 <p>schema_version: 0
 kind: case
 metadata: { name: domain-fill-cfsr }
@@ -1919,27 +2387,185 @@ outputs:
   - product: particle_state/v1
     schedule: { mode: endpoints }
     sink: { model: particle_state_sqlite/v1 }</p>
-<p>The fixed random seed makes population sampling reproducible for the same
-resolved Case, RunProfile, data locks, reader, and executable identity.</p>
-<h2 id="run-the-project">Run the project<a class="headerlink" href="#run-the-project" title="Permanent link">&para;</a></h2>
-<p>Prepare the quickstart dataset, then run:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project examples/domain-fill-cfsr project data-plan --output data-plan.json
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --project examples/domain-fill-cfsr project finalize
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>trajecta --project examples/domain-fill-cfsr run --profile product
+<p>The main choices are easier to read as a study description:</p>
+<table>
+<thead>
+<tr>
+<th>Case section</th>
+<th>Meaning in this tutorial</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>time</code></td>
+<td>Ten-minute forward interval beginning at 06:00 UTC</td>
+</tr>
+<tr>
+<td><code>meteorology.domains</code></td>
+<td>One global CFSR domain with a one-cell interpolation halo</td>
+</tr>
+<tr>
+<td><code>particle_population</code></td>
+<td>Exactly 1,000 dry-air domain-fill particles</td>
+</tr>
+<tr>
+<td><code>numerics.time_step</code></td>
+<td>Two 300-second trajectory steps</td>
+</tr>
+<tr>
+<td><code>numerics.integrator</code></td>
+<td>Spherical second-order Runge–Kutta integration</td>
+</tr>
+<tr>
+<td><code>boundaries.policies</code></td>
+<td>Surface reflection, model-top termination, periodic longitude</td>
+</tr>
+<tr>
+<td><code>random_seed</code></td>
+<td>Stable population and stochastic sampling key</td>
+</tr>
+<tr>
+<td><code>outputs</code></td>
+<td>Particle state at both physical endpoints, stored in SQLite</td>
+</tr>
+</tbody>
+</table>
+<p>The Case contains no operating-system path. The dataset name <code>cfsr</code> is resolved
+through the project index and local Profile.</p>
+<h2 id="prepare-data-and-finalize">Prepare data and finalize<a class="headerlink" href="#prepare-data-and-finalize" title="Permanent link">&para;</a></h2>
+<p>Place the four demonstration frames under
+<code>examples/domain-fill-cfsr/data/</code> as described on the
+<a href="../../getting-started/demo-data/">demonstration data page</a>. Then inspect the
+project state and write a data-plan:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project examples/domain-fill-cfsr project validate
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --project examples/domain-fill-cfsr project data-plan --output data-plan.json
 </code></pre></div>
-<p>Inspect the result at two levels:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta result inspect RESULT
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>trajecta result trajectory RESULT --particle-id 0
+<p>The requirement selects <code>cfsr-pgbl-pressure-v0</code>, reader <code>rust</code>, and the
+<code>transport</code>, <code>near_surface_transport</code>, and <code>domain_fill</code> capabilities. Its
+physical coverage is 06:00–06:10 UTC; the helper expands that interval to the
+four six-hourly acquisition anchors.</p>
+<p>Preview the local data states and create the lock:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python tools/fetch_trajecta_data.py --project examples/domain-fill-cfsr --plan data-plan.json
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>trajecta --project examples/domain-fill-cfsr project finalize
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>trajecta --project examples/domain-fill-cfsr doctor --deep
 </code></pre></div>
-<p>The summary population count describes lifecycle coverage. The trajectory
-stream describes one particle through ordered output events. Scientific use
-should also inspect the mass ledger, normal termination reasons, finite-value
-audit, and full verification result.</p>
-<h2 id="extend-the-study">Extend the study<a class="headerlink" href="#extend-the-study" title="Permanent link">&para;</a></h2>
-<p>Increase the end time first, regenerate the data plan, and provide complete
-meteorological anchors on both sides of every query time. Increase
-<code>target_particle_count</code> after measuring memory use with the intended output
-schedule. Preserve the previous result directory as an independent attempt.</p>
+<p>Finalization writes <code>locks/cfsr.lock.json</code>. It includes the four source hashes,
+valid times, grid and pressure-level signatures, selected profile, and
+capabilities. Deep doctor then opens the locked data and exercises the result
+filesystem before a worker is started.</p>
+<h2 id="run-the-profile">Run the Profile<a class="headerlink" href="#run-the-profile" title="Permanent link">&para;</a></h2>
+<p>Submit the default <code>product</code> Profile in the foreground:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta --project examples/domain-fill-cfsr run --profile product
+</code></pre></div>
+<p>The terminal shows the queue transition and the final result location. Keep the
+reported path as <code>RESULT</code> for the commands below. A complete run normally
+finishes in seconds with this dataset, though the first access can take longer
+when the operating system has not cached the GRIB2 files.</p>
+<p>Create a readable report after the worker has reached its terminal state:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta result verify RESULT --full
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>trajecta result inspect RESULT
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>trajecta run report --result RESULT
+</code></pre></div>
+<p>The supplied ten-minute Case has two scheduled output events. With no early
+termination, 1,000 particles produce 2,000 rows in <code>particle_state</code>. The
+inspection summary also reports population origins, active and terminated
+counts, mass totals, reader choice, output files, and quality categories.</p>
+<h2 id="read-the-population">Read the population<a class="headerlink" href="#read-the-population" title="Permanent link">&para;</a></h2>
+<h3 id="start-with-the-summary">Start with the summary<a class="headerlink" href="#start-with-the-summary" title="Permanent link">&para;</a></h3>
+<p><code>result inspect</code> separates the number of particles from the number of state
+rows. A particle is created once in the <code>particle</code> table and may have one state
+for every scheduled output event it survives. Domain-fill particles carry
+<code>origin_kind: domain_initial</code> at the first event. A longer limited-domain run
+may also contain particles born at an inflow boundary.</p>
+<p>The summary's termination counts distinguish normal lifecycle outcomes from
+abnormal execution outcomes. On the global tutorial grid, longitude crossings
+wrap around. Normal terminations can still occur at the model top or through a
+population outflow decision. Invalid meteorology and exhausted reflection
+handling appear in the abnormal group and are useful starting points for a
+failed run investigation.</p>
+<h3 id="follow-one-particle">Follow one particle<a class="headerlink" href="#follow-one-particle" title="Permanent link">&para;</a></h3>
+<p>Read particle 0 in human format:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta result trajectory RESULT --particle-id 0
+</code></pre></div>
+<p>The two records show birth identity, physical time, position, integration
+offset, elapsed age, particle status, sampled wind, pressure, temperature, and
+field quality. The second row's longitude, latitude, and height describe the
+displacement produced by two numerical steps.</p>
+<p>For analysis software, stream JSONL:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta --format jsonl result trajectory RESULT --particle-id 0
+</code></pre></div>
+<p>The stream begins with a header, emits one item per state row, and ends with a
+summary. Multiple <code>--particle-id</code> options can be supplied in one command.</p>
+<h2 id="interpret-mass-and-lifecycle">Interpret mass and lifecycle<a class="headerlink" href="#interpret-mass-and-lifecycle" title="Permanent link">&para;</a></h2>
+<p>Each domain-fill particle stores <code>dry_air_mass_kg</code>. For a target-count Case,
+all initial particles use the same carrier value. Their compensated sum plus
+any residual represents the dry-air mass calculated from the meteorological
+snapshot.</p>
+<p>The manifest's mass ledger follows that representation through each macro
+step. The useful columns for a longer run are:</p>
+<table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Initial or incoming mass</td>
+<td>Dry-air carrier mass introduced at initialization or a boundary</td>
+</tr>
+<tr>
+<td>Active mass</td>
+<td>Carrier mass still represented by live particles</td>
+</tr>
+<tr>
+<td>Outgoing mass</td>
+<td>Mass leaving through the domain-fill boundary process</td>
+</tr>
+<tr>
+<td>Normal terminated mass</td>
+<td>Carrier mass ending through a declared physical lifecycle rule</td>
+</tr>
+<tr>
+<td>Abnormal terminated mass</td>
+<td>Carrier mass associated with a particle error</td>
+</tr>
+<tr>
+<td>Residual mass</td>
+<td>Dry-air amount smaller than one carrier quantum when mass-per-particle mode is used</td>
+</tr>
+</tbody>
+</table>
+<p>Specific humidity participates in the dry-air snapshot and meteorological
+queries. The particle-state product supplies the trajectories and carrier
+weights used to organize later moisture diagnostics by source region, receptor
+region, or time interval.</p>
+<h2 id="extend-the-experiment">Extend the experiment<a class="headerlink" href="#extend-the-experiment" title="Permanent link">&para;</a></h2>
+<h3 id="extend-physical-time">Extend physical time<a class="headerlink" href="#extend-physical-time" title="Permanent link">&para;</a></h3>
+<p>Change <code>time.end</code> in <code>cases/moisture.yaml</code>, then run <code>project validate</code> and
+regenerate data-plan. The helper's acquisition anchors will move to cover the
+new interval. Once the additional frames are present, finalization creates an
+updated lock for the expanded Case.</p>
+<p>For a multi-hour study, endpoint output only shows the start and finish. Select
+an interval schedule in the Case when intermediate positions are needed. The
+number of state rows is approximately the surviving particle count multiplied
+by the number of scheduled events, so output cadence has a direct effect on
+result size.</p>
+<h3 id="increase-population-or-change-resolution">Increase population or change resolution<a class="headerlink" href="#increase-population-or-change-resolution" title="Permanent link">&para;</a></h3>
+<p>Raise <code>target_particle_count</code> to reduce sampling noise in spatial aggregates.
+The dry-air carrier mass per particle falls as the count rises. Worker memory,
+meteorological query volume, and SQLite output all grow with the population.</p>
+<p>Keep the ten-minute 1,000-particle project as a local preflight. Create a new
+Profile when changing worker threads, memory budget, reader, or output root.
+That preserves the scientific Case while making the execution environment
+visible in the result.</p>
+<h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<p>The <a href="../release/">scheduled release tutorial</a> replaces mass-weighted domain
+initialization with an explicit point source. The
+<a href="../air-mass/">air-mass tutorial</a> keeps domain filling and moves it to a finite
+ERA5 pressure-level region, where boundary outflow becomes part of the normal
+lifecycle.</p>
 
 
 

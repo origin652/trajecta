@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Source, file inventory, SHA-256 identities, and use conditions for the Trajecta quickstart data asset.">
+        <meta name="description" content="Download, verify, inspect, and place the four-frame CFSR dataset used by the Trajecta quickstart.">
       
       
       
@@ -477,18 +477,72 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#frozen-inventory" class="md-nav__link">
+  <a href="#what-the-archive-contains" class="md-nav__link">
     <span class="md-ellipsis">
-      Frozen inventory
+      What the archive contains
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#source-and-conditions" class="md-nav__link">
+  <a href="#why-the-example-uses-four-frames" class="md-nav__link">
     <span class="md-ellipsis">
-      Source and conditions
+      Why the example uses four frames
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#download-and-verify-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      Download and verify it
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#place-the-files-in-the-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Place the files in the example
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inspect-a-frame-with-trajecta" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inspect a frame with Trajecta
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fields-used-by-the-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fields used by the example
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#source-and-citation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Source and citation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-the-data-in-another-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      Use the data in another project
     </span>
   </a>
   
@@ -704,9 +758,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -715,7 +785,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -981,6 +1247,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1082,7 +1394,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1829,18 +2141,72 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#frozen-inventory" class="md-nav__link">
+  <a href="#what-the-archive-contains" class="md-nav__link">
     <span class="md-ellipsis">
-      Frozen inventory
+      What the archive contains
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#source-and-conditions" class="md-nav__link">
+  <a href="#why-the-example-uses-four-frames" class="md-nav__link">
     <span class="md-ellipsis">
-      Source and conditions
+      Why the example uses four frames
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#download-and-verify-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      Download and verify it
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#place-the-files-in-the-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Place the files in the example
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inspect-a-frame-with-trajecta" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inspect a frame with Trajecta
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fields-used-by-the-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fields used by the example
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#source-and-citation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Source and citation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-the-data-in-another-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      Use the data in another project
     </span>
   </a>
   
@@ -1866,12 +2232,22 @@
 
 
 <h1 id="cfsr-demonstration-dataset">CFSR demonstration dataset<a class="headerlink" href="#cfsr-demonstration-dataset" title="Permanent link">&para;</a></h1>
-<p>The quickstart asset contains four six-hourly CFSR pressure-level GRIB2 frames
-for 1 January 2009. It is published separately from platform packages.</p>
-<h2 id="frozen-inventory">Frozen inventory<a class="headerlink" href="#frozen-inventory" title="Permanent link">&para;</a></h2>
+<p>The first Trajecta project uses a compact slice of the Climate Forecast System
+Reanalysis. It contains four global pressure-level analyses from 1 January
+2009, one every six hours. Together they occupy about 22 MiB and are small
+enough to keep the first run convenient on a laptop.</p>
+<p>The data is published as a release asset separate from the Windows and Ubuntu
+packages. One copy can therefore serve either package and can remain in place
+when the program is updated.</p>
+<h2 id="what-the-archive-contains">What the archive contains<a class="headerlink" href="#what-the-archive-contains" title="Permanent link">&para;</a></h2>
+<p>Download
+<a href="https://github.com/origin652/trajecta/releases/download/v0.1.0-alpha.1/trajecta-demo-cfsr-20090101-v1.zip"><code>trajecta-demo-cfsr-20090101-v1.zip</code></a>.
+The archive expands to a directory with <code>data/</code>, <code>MANIFEST.json</code>, and a source
+notice.</p>
 <table>
 <thead>
 <tr>
+<th>Valid time</th>
 <th>File</th>
 <th style="text-align: right;">Bytes</th>
 <th>SHA-256</th>
@@ -1879,47 +2255,190 @@ for 1 January 2009. It is published separately from platform packages.</p>
 </thead>
 <tbody>
 <tr>
+<td>2009-01-01 00:00 UTC</td>
 <td><code>pgbl00.gdas.2009010100.grb2</code></td>
 <td style="text-align: right;">5,465,079</td>
 <td><code>fd3949957d371b720617c0ebf4b984fdee27cd15a12733a03dedd883dd34d65c</code></td>
 </tr>
 <tr>
+<td>2009-01-01 06:00 UTC</td>
 <td><code>pgbl00.gdas.2009010106.grb2</code></td>
 <td style="text-align: right;">5,436,947</td>
 <td><code>00a6340960a47502b3ca043c77a02bb7e3381a0f30dc18b77203ad989d3c591b</code></td>
 </tr>
 <tr>
+<td>2009-01-01 12:00 UTC</td>
 <td><code>pgbl00.gdas.2009010112.grb2</code></td>
 <td style="text-align: right;">5,452,202</td>
 <td><code>f3cf06669e267fa69ed8d389d9180f0cfe395918a34baa2ab6bdcdf59373c5c5</code></td>
 </tr>
 <tr>
+<td>2009-01-01 18:00 UTC</td>
 <td><code>pgbl00.gdas.2009010118.grb2</code></td>
 <td style="text-align: right;">5,494,468</td>
 <td><code>a10c5bddf9e01a5c519fbb45461ac019e2b3916661467b07c940ea99ee4ddade</code></td>
 </tr>
 </tbody>
 </table>
-<p>The deterministic ZIP contains these files, <code>MANIFEST.json</code>, and a source
-notice. Its SHA-256 is
-<code>cd2c38083130c014daac4b4fcde0680d3f3d6bc2df43daf22c8cd015e95919f8</code>.</p>
-<h2 id="source-and-conditions">Source and conditions<a class="headerlink" href="#source-and-conditions" title="Permanent link">&para;</a></h2>
-<p>The files originate from the
+<p>The archive SHA-256 is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cd2c38083130c014daac4b4fcde0680d3f3d6bc2df43daf22c8cd015e95919f8
+</code></pre></div>
+<p><code>MANIFEST.json</code> repeats the file names, byte counts, hashes, source addresses,
+and valid times in machine-readable form.</p>
+<h2 id="why-the-example-uses-four-frames">Why the example uses four frames<a class="headerlink" href="#why-the-example-uses-four-frames" title="Permanent link">&para;</a></h2>
+<p>The built-in <code>cfsr-pgbl-pressure-v0</code> dataset profile describes six-hourly
+frames. During a trajectory step, Trajecta chooses the pair surrounding the
+sample time and interpolates meteorological fields in time. The quickstart
+itself runs from 06:00 to 06:10 UTC, so its samples remain near the 06 UTC
+analysis and the following frame.</p>
+<p>The demonstration project locks the complete four-frame asset. That inventory
+covers a full day of source analyses and gives the longer tutorial room to
+extend the Case without acquiring another small fragment immediately. The
+DatasetLock records all four file identities; the query engine still selects
+the time brackets required by each sample.</p>
+<h2 id="download-and-verify-it">Download and verify it<a class="headerlink" href="#download-and-verify-it" title="Permanent link">&para;</a></h2>
+<p>After the ZIP is downloaded, compare its hash and extract it:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Windows PowerShell</label><label for="__tabbed_1_2">Ubuntu 24.04</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">Get-FileHash</span> <span class="p">.\</span><span class="n">trajecta-demo-cfsr</span><span class="p">-</span><span class="n">20090101-v1</span><span class="p">.</span><span class="n">zip</span> <span class="n">-Algorithm</span> <span class="n">SHA256</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">Expand-Archive</span> <span class="p">`</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  <span class="p">.\</span><span class="n">trajecta-demo-cfsr</span><span class="p">-</span><span class="n">20090101-v1</span><span class="p">.</span><span class="n">zip</span> <span class="p">`</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  <span class="n">-DestinationPath</span> <span class="p">.\</span><span class="n">demo-data</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sha256sum<span class="w"> </span>trajecta-demo-cfsr-20090101-v1.zip
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>unzip<span class="w"> </span>trajecta-demo-cfsr-20090101-v1.zip<span class="w"> </span>-d<span class="w"> </span>demo-data
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>The extracted path used below is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>demo-data/trajecta-demo-cfsr-20090101-v1/data/
+</code></pre></div>
+<p>The hashes in the inventory can also be calculated for an individual file when
+copying the data between machines.</p>
+<h2 id="place-the-files-in-the-example">Place the files in the example<a class="headerlink" href="#place-the-files-in-the-example" title="Permanent link">&para;</a></h2>
+<p>The packaged project expects the files under
+<code>examples/domain-fill-cfsr/data/</code>:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Windows PowerShell</label><label for="__tabbed_2_2">Ubuntu 24.04</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">Copy-Item</span> <span class="p">`</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  <span class="p">.\</span><span class="n">demo-data</span><span class="p">\</span><span class="n">trajecta-demo-cfsr</span><span class="p">-</span><span class="n">20090101-v1</span><span class="p">\</span><span class="n">data</span><span class="p">\*</span> <span class="p">`</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>  <span class="p">.\</span><span class="n">examples</span><span class="p">\</span><span class="n">domain-fill-cfsr</span><span class="p">\</span><span class="n">data</span><span class="p">\</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cp<span class="w"> </span>demo-data/trajecta-demo-cfsr-20090101-v1/data/*<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>examples/domain-fill-cfsr/data/
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>The release example uses a separate project directory. It can point at the same
+physical data collection by changing the Profile's <code>data_roots.met</code> path, or it
+can receive its own copy for an entirely self-contained tutorial directory.</p>
+<h2 id="inspect-a-frame-with-trajecta">Inspect a frame with Trajecta<a class="headerlink" href="#inspect-a-frame-with-trajecta" title="Permanent link">&para;</a></h2>
+<p><code>data inspect</code> reads source metadata without running particles:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>trajecta --format json data inspect examples/domain-fill-cfsr/data/pgbl00.gdas.2009010100.grb2
+</code></pre></div>
+<p>For this file, the response identifies:</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Container</td>
+<td>GRIB2</td>
+</tr>
+<tr>
+<td>Dataset family</td>
+<td><code>cfsr_pgbl_pressure</code></td>
+</tr>
+<tr>
+<td>Horizontal grid</td>
+<td>144 × 73, periodic longitude</td>
+</tr>
+<tr>
+<td>Vertical coordinate</td>
+<td>37 pressure levels</td>
+</tr>
+<tr>
+<td>Pressure range</td>
+<td>1 to 1,000 hPa</td>
+</tr>
+<tr>
+<td>Frame interval used by the profile</td>
+<td>21,600 seconds</td>
+</tr>
+</tbody>
+</table>
+<p>The grid and level signatures reported by the command become part of the
+DatasetLock when the project is finalized.</p>
+<h2 id="fields-used-by-the-example">Fields used by the example<a class="headerlink" href="#fields-used-by-the-example" title="Permanent link">&para;</a></h2>
+<p>The source files contain many CFSR messages. The dataset profile selects the
+fields needed by Trajecta and maps their source units and level types into the
+canonical field model.</p>
+<table>
+<thead>
+<tr>
+<th>Purpose</th>
+<th>Selected fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Three-dimensional transport</td>
+<td>Eastward and northward wind, pressure vertical velocity, air temperature, specific humidity, geopotential height</td>
+</tr>
+<tr>
+<td>Surface state</td>
+<td>Surface pressure and surface geopotential</td>
+</tr>
+<tr>
+<td>Near-surface transport</td>
+<td>10 m wind, 2 m temperature, 2 m humidity, roughness length, boundary-layer height, heat fluxes, friction velocity</td>
+</tr>
+<tr>
+<td>Domain-fill initialization</td>
+<td>Wind, temperature, humidity, geopotential height, surface pressure, and terrain</td>
+</tr>
+</tbody>
+</table>
+<p>The quickstart uses domain-fill initialization and transport. Surface and
+boundary-layer fields are present so that the same profile can support the
+near-surface physics used by longer cases. Potential vorticity is derived from
+the decoded pressure-level fields when a workflow requests the diagnostics
+capability.</p>
+<h2 id="source-and-citation">Source and citation<a class="headerlink" href="#source-and-citation" title="Permanent link">&para;</a></h2>
+<p>The files are byte-for-byte copies from the
 <a href="https://www.ncei.noaa.gov/data/climate-forecast-system/access/reanalysis/6-hourly-low-resolution/2009/200901/20090101/">NOAA NCEI CFSR six-hourly low-resolution archive</a>.
-The <a href="https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C00765">official CFSR metadata record</a>
-identifies the GRBLOW product label for the low-resolution GRIdded Binary (GRIB)
-collection. Its Use Constraints require a
-dataset citation and state the provider's warranty limitations. Its Access
-Constraints contain the distribution-liability notice and no prohibition on
-electronic redistribution. The
-<a href="https://www.noaa.gov/information-technology/open-data-dissemination">NOAA Open Data page</a>
-describes NOAA data as publicly available and documents full and open access.
-These official pages were checked on 2 August 2026.</p>
-<p>The archive preserves the source bytes and names. It adds a manifest, hashes,
-and a source notice. Cite Saha et al. (2010),
-<a href="https://doi.org/10.1175/2010BAMS3001.1"><em>The National Centers for Environmental Prediction (NCEP) Climate Forecast System Reanalysis</em></a>,
-when using the data. The MIT license covers Trajecta code and metadata; it does
-not replace source-data conditions. No NOAA endorsement is implied.</p>
+The <a href="https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C00765">CFSR metadata record</a>
+describes the low-resolution GRBLOW collection and its use conditions. NOAA's
+<a href="https://www.noaa.gov/information-technology/open-data-dissemination">open data page</a>
+provides the broader access policy. These source pages were reviewed on
+2 August 2026.</p>
+<p>The dataset citation is:</p>
+<p>Saha et al. (2010),
+<a href="https://doi.org/10.1175/2010BAMS3001.1"><em>The National Centers for Environmental Prediction Climate Forecast System Reanalysis</em></a>.</p>
+<p>The source notice inside the asset records the dataset title, provider, source
+addresses, citation, and access date alongside the four preserved files.</p>
+<h2 id="use-the-data-in-another-project">Use the data in another project<a class="headerlink" href="#use-the-data-in-another-project" title="Permanent link">&para;</a></h2>
+<p>A RunProfile can bind the logical dataset to any local directory containing the
+same files. The binding names the data root, reader, and DatasetLock path; the
+Case continues to refer only to the logical dataset name. This allows several
+projects to share one read-only data collection while keeping separate locks
+and result directories.</p>
+<p>For a different date or a wider period, generate a project data-plan first and
+pass it to <code>tools/fetch_trajecta_data.py</code>. The helper turns the Case coverage
+into provider requests and local target paths. After the requested frames are
+present, <code>project finalize</code> inspects them and creates the lock used by the run.</p>
 
 
 

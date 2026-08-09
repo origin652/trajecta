@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="根据观测症状或稳定 diagnostic code 查找 Trajecta 恢复动作。">
+        <meta name="description" content="根据 human output 或稳定 machine-readable code，排查 Trajecta 运行中的常见问题。">
       
       
       
@@ -24,7 +24,7 @@
     
     
       
-        <title>按症状与 diagnostic code 排查故障 - Trajecta</title>
+        <title>按症状与 diagnostic code 排查 Trajecta - Trajecta</title>
       
     
     
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              按症状与 diagnostic code 排查故障
+              按症状与 diagnostic code 排查 Trajecta
             
           </span>
         </div>
@@ -642,9 +642,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -653,7 +669,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            操作指南
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -921,6 +1133,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../recovery/" class="md-nav__link">
         
   
@@ -994,18 +1252,63 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#_2" class="md-nav__link">
+  <a href="#doctor" class="md-nav__link">
     <span class="md-ellipsis">
-      从症状开始
+      配置与 doctor
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#diagnostic-code" class="md-nav__link">
+  <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      从 diagnostic code 开始
+      项目与资料准备
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#daemon" class="md-nav__link">
+    <span class="md-ellipsis">
+      队列与 daemon
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worker-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      Worker 与中断 run
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sqlite" class="md-nav__link">
+    <span class="md-ellipsis">
+      结果、SQLite 与报告
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reader" class="md-nav__link">
+    <span class="md-ellipsis">
+      气象 reader
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code" class="md-nav__link">
+    <span class="md-ellipsis">
+      查找 code
     </span>
   </a>
   
@@ -1082,7 +1385,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1829,18 +2132,63 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#_2" class="md-nav__link">
+  <a href="#doctor" class="md-nav__link">
     <span class="md-ellipsis">
-      从症状开始
+      配置与 doctor
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#diagnostic-code" class="md-nav__link">
+  <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      从 diagnostic code 开始
+      项目与资料准备
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#daemon" class="md-nav__link">
+    <span class="md-ellipsis">
+      队列与 daemon
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worker-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      Worker 与中断 run
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sqlite" class="md-nav__link">
+    <span class="md-ellipsis">
+      结果、SQLite 与报告
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reader" class="md-nav__link">
+    <span class="md-ellipsis">
+      气象 reader
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code" class="md-nav__link">
+    <span class="md-ellipsis">
+      查找 code
     </span>
   </a>
   
@@ -1866,124 +2214,325 @@
 
 
 <h1 id="_1">故障索引<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>报告故障时，请保留完整 machine envelope。Machine mode 的 stdout 包含一个 JSON
-envelope 或 JSONL stream；结构化应用 diagnostic 不写入 stderr。</p>
-<h2 id="_2">从症状开始<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>先找到观察到问题的命令，并尽量以 JSON mode 再运行一次：</p>
+<p>例如，可以将项目状态读取为结构化输出：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --format json --project PROJECT project status
+</code></pre></div>
+<p>应用 diagnostic 位于 <code>diagnostics[]</code>。每项包含稳定 <code>code</code> 和带上下文的 <code>message</code>；一次操作
+检查多个项目时，还可能包含嵌套 diagnostic。CLI usage error 返回 exit code <code>2</code>。命令已经
+成功解析，但遇到 product 或 runtime error 时返回 <code>1</code>。</p>
+<p><code>job events --follow</code> 一类 stream 使用 JSONL：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta --format jsonl job events JOB_ID --since 0 --follow
+</code></pre></div>
+<p>比较两个 attempt 时，可以保存完整 JSON 或 JSONL response。Machine mode 将结构化应用响应
+写入 stdout，通常不在 stderr 中重复输出。</p>
+<h2 id="doctor">配置与 doctor<a class="headerlink" href="#doctor" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>症状</th>
-<th>首要检查</th>
-<th>可能的 code family</th>
+<th>检查位置</th>
+<th>常见 code</th>
+<th>后续动作</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>项目一直处于 configured</td>
-<td><code>project status</code>、<code>project data-plan</code></td>
-<td><code>project.lock_missing</code>、<code>project.finalize_pending</code></td>
+<td>CLI 选择了意外配置</td>
+<td>使用相同 global option 执行 <code>trajecta config path</code></td>
+<td><code>config.not_found</code>、<code>config.invalid_path</code></td>
+<td>依次检查 <code>--config</code>、<code>TRAJECTA_CONFIG</code> 和平台默认路径</td>
 </tr>
 <tr>
-<td>Finalize 未修改 lock</td>
-<td>检查 preflight diagnostic 与真实数据根</td>
-<td><code>project.finalize_preflight_failed</code>、<code>data.*</code></td>
+<td>设置无法保存</td>
+<td><code>config get KEY</code>，随后以 JSON mode 重复 <code>config set</code></td>
+<td><code>config.invalid_key</code>、<code>config.invalid_value</code>、<code>config.invalid_schema</code>、<code>config.write_failed</code></td>
+<td>修正 selector 或 value；更新被拒绝后，原有效文件保持不变</td>
 </tr>
 <tr>
-<td>任务长期 queued</td>
-<td><code>job events --follow</code>、资源配置</td>
-<td><code>daemon.external_memory_pressure</code>、<code>scheduler.*</code></td>
+<td>Doctor 拒绝机器文件</td>
+<td><code>config validate</code></td>
+<td><code>doctor.config_invalid</code>、<code>config.invalid_schema</code></td>
+<td>修正机器配置，再检查项目</td>
 </tr>
 <tr>
-<td>Worker 消失</td>
-<td>Daemon reconciliation 与保留的运行目录</td>
-<td><code>worker.lost</code>、<code>run.interrupted.worker_lost</code></td>
+<td>Deep doctor 无法写 probe</td>
+<td>项目根与文件系统权限</td>
+<td><code>doctor.filesystem_unwritable</code>、<code>doctor.cleanup_failed</code></td>
+<td>恢复项目根下的 create、sync、rename 和 cleanup 访问</td>
 </tr>
 <tr>
-<td>Result 为 partial</td>
-<td><code>result inspect</code>、manifest 与 SQLite 状态</td>
-<td><code>result.inspect_sqlite_unavailable</code>、<code>result.artifact_missing</code></td>
+<td>Deep doctor 的 SQLite 周期失败</td>
+<td>可用空间与文件系统状态</td>
+<td><code>doctor.sqlite_create_failed</code>、<code>doctor.sqlite_integrity_failed</code>、<code>doctor.sqlite_checkpoint_failed</code></td>
+<td>修正文件系统或 SQLite runtime，再次运行 deep doctor</td>
 </tr>
 <tr>
-<td>Full verify 失败</td>
-<td>保留结果，对照 manifest、SQLite 与 bundle</td>
-<td><code>result.*</code>、<code>doctor.sqlite_*</code></td>
-</tr>
-<tr>
-<td>磁盘用量持续增长</td>
-<td>输出 schedule、WAL、空闲空间、活跃 writer</td>
-<td><code>project.output_root_*</code>、<code>result.io</code></td>
-</tr>
-<tr>
-<td>气象查询失败</td>
-<td>Lock coverage 与 reader capability</td>
-<td><code>data.lock_*</code>、<code>met.*</code></td>
+<td>Deep doctor 无法读取气象资料</td>
+<td>Data root、reader backend 与支持的文件</td>
+<td><code>doctor.data_inspect_failed</code>、<code>doctor.data_scan_limit</code></td>
+<td>确认目录内容和 Profile reader 选择</td>
 </tr>
 </tbody>
 </table>
-<h2 id="diagnostic-code">从 diagnostic code 开始<a class="headerlink" href="#diagnostic-code" title="Permanent link">&para;</a></h2>
+<p>配置路径和资源设置见<a href="../../getting-started/configuration/">配置与 doctor</a>。</p>
+<h2 id="_2">项目与资料准备<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Code</th>
-<th>含义</th>
-<th>处理动作</th>
+<th>症状</th>
+<th>检查位置</th>
+<th>常见 code</th>
+<th>后续动作</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>project.path_escape</code></td>
-<td>项目相对路径越出 jail</td>
-<td>改为项目根以下的规范化路径</td>
+<td>Project 一直为 <code>draft</code></td>
+<td><code>project status</code>、<code>project validate</code></td>
+<td><code>project.document_invalid</code>、<code>project.invalid_index</code></td>
+<td>补齐 Case 或 Profile 字段，并修正文档类型</td>
 </tr>
 <tr>
-<td><code>project.lock_missing</code></td>
-<td>所选资料集缺少完成 finalize 的 lock</td>
-<td>准备资料并审阅 plan，随后显式 finalize</td>
+<td>Project 一直为 <code>configured</code></td>
+<td><code>project data-plan</code>、<code>project status</code></td>
+<td><code>project.lock_missing</code>、<code>project.finalize_pending</code>、<code>project.output_root_pending</code></td>
+<td>准备计划中的文件，并在显式 finalize 前创建输出根</td>
 </tr>
 <tr>
-<td><code>project.finalize_preflight_failed</code></td>
-<td>一个或多个 finalize 检查失败</td>
-<td>阅读嵌套 diagnostic；此时 lock 未变化</td>
+<td>Finalize 退出且 lock 未变化</td>
+<td><code>project finalize</code> 的完整 JSON response</td>
+<td><code>project.finalize_preflight_failed</code> 及嵌套 <code>data.*</code> 或 <code>project.*</code> code</td>
+<td>修正全部 preflight item，再运行 finalize</td>
 </tr>
 <tr>
-<td><code>daemon.external_memory_pressure</code></td>
-<td>主机内存压力暂停派发</td>
-<td>降低压力或后续并发，不终止健康 worker</td>
+<td>Profile 选择了错误 Case</td>
+<td><code>project show</code>、Profile <code>case_path</code> 与 indexed Case</td>
+<td><code>project.profile_case_mismatch</code>、<code>run.profile_case_mismatch</code></td>
+<td>将 Profile 指向一个已索引的 resolved Case</td>
 </tr>
 <tr>
-<td><code>run.interrupted.worker_lost</code></td>
-<td>Worker 消失且没有有效完成状态</td>
-<td>保留 forensic，等待协调，再创建新 attempt</td>
+<td>项目路径被拒绝</td>
+<td>Project index 中的准确相对值</td>
+<td><code>project.path_escape</code>、<code>project.output_root_invalid</code></td>
+<td>使用项目根以下的规范化路径</td>
 </tr>
 <tr>
-<td><code>result.manifest_invalid</code></td>
-<td>Manifest 形状或内容无效</td>
-<td>保持字节不变，检查生成该文件的 attempt</td>
+<td>Lock content 与本地资料不再匹配</td>
+<td><code>doctor --deep</code>、<code>data inspect</code> 与 DatasetLock file list</td>
+<td><code>project.lock_invalid</code>、<code>doctor.lock_invalid</code>、<code>data.lock_invalid</code></td>
+<td>恢复 locked byte，或使用目标完整资料重新 finalize</td>
 </tr>
 <tr>
-<td><code>result.artifact_missing</code></td>
-<td>终态结果缺少必需产物</td>
-<td>将验证视为失败并保留目录</td>
-</tr>
-<tr>
-<td><code>result.inspect_sqlite_unavailable</code></td>
-<td>Manifest 可读，SQLite 检查失败</td>
-<td>使用 partial inspect，并保留 SQLite sidecar</td>
-</tr>
-<tr>
-<td><code>result.manifest_sqlite_count_mismatch</code></td>
-<td>Manifest 行数与 SQLite 不一致</td>
-<td>停止分析并保留两侧身份</td>
-</tr>
-<tr>
-<td><code>doctor.sqlite_integrity_failed</code></td>
-<td>Deep doctor 的临时 SQLite 检查失败</td>
-<td>检查文件系统健康、权限和 SQLite runtime</td>
+<td>Case 所需 frame 超出 lock</td>
+<td>Resolved Case coverage 与 lock coverage</td>
+<td><code>data.lock_requirements_mismatch</code></td>
+<td>准备所需时空覆盖，再次 finalize</td>
 </tr>
 </tbody>
 </table>
-<p><a href="../../reference/diagnostics/">完整自动生成 diagnostic 索引</a>列出 production source 或可执行
-回归测试中出现的全部公开 code。</p>
+<p><code>project finalize</code> 会先完成所有 preflight check，之后才替换 lock binding。Preflight 失败时，
+已有 lockfile 保持不变。</p>
+<h2 id="daemon">队列与 daemon<a class="headerlink" href="#daemon" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>症状</th>
+<th>检查位置</th>
+<th>常见 code</th>
+<th>后续动作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>机器空闲但任务一直 queued</td>
+<td><code>job status</code> resource request 与配置 pool</td>
+<td><code>scheduler.queued</code>、<code>job.invalid_resources</code>、<code>daemon.invalid_capacity</code></td>
+<td>确认请求能够放入总 CPU 和可调度内存池</td>
+</tr>
+<tr>
+<td>小任务越过较早的大任务</td>
+<td>Queue position 与 dispatch event</td>
+<td><code>scheduler.dispatched</code></td>
+<td>Safe backfill 可越过队首三次，之后会为队首保留资源</td>
+</tr>
+<tr>
+<td>看似有资源，队列仍暂停</td>
+<td>主机总可用内存与事件记录</td>
+<td><code>daemon.external_memory_pressure</code></td>
+<td>减少其他应用内存压力，或在后续批次前调整 reserve</td>
+</tr>
+<tr>
+<td>Runtime command 无法连接</td>
+<td>所选配置、endpoint 路径和已有 daemon process</td>
+<td><code>daemon.launch_failed</code>、<code>daemon.start_timeout</code>、<code>daemon.ipc_failed</code>、<code>job_backend.unavailable</code></td>
+<td>确认配置路径与 local IPC 权限，再重试命令</td>
+</tr>
+<tr>
+<td>Daemon endpoint 已被占用</td>
+<td>Process identity 与 start token</td>
+<td><code>daemon.bind_failed</code>、<code>daemon.owner_probe_failed</code>、<code>daemon.identity_failed</code></td>
+<td>查看是否已有 daemon 使用同一 catalog 和 endpoint</td>
+</tr>
+<tr>
+<td>Catalog operation 失败</td>
+<td>可用空间、目录权限和 SQLite sidecar</td>
+<td><code>job_backend.storage</code>、<code>job_backend.conflict</code></td>
+<td>暂停新提交，恢复 catalog storage，并用同一配置重新连接</td>
+</tr>
+</tbody>
+</table>
+<p><a href="../">运维手册</a>详细介绍 admission、safe backfill、空闲退出与重启协调。</p>
+<h2 id="worker-run">Worker 与中断 run<a class="headerlink" href="#worker-run" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>症状</th>
+<th>检查位置</th>
+<th>常见 code</th>
+<th>后续动作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Worker 一直未进入 <code>running</code></td>
+<td>事件、worker stderr 与输出目录创建</td>
+<td><code>worker.launch_failed</code>、<code>worker.start_failed</code>、<code>worker.lease_timeout</code></td>
+<td>修正启动或文件系统条件，再创建 rerun</td>
+</tr>
+<tr>
+<td>Worker 在运行中消失</td>
+<td>Process list、job event 与 attempt 目录</td>
+<td><code>worker.lost</code>、<code>run.interrupted.worker_lost</code></td>
+<td>等待 terminal reconciliation，检查部分结果，再按需要 rerun</td>
+</tr>
+<tr>
+<td>Daemon 返回时 worker 仍存活</td>
+<td>Event 与 worker identity</td>
+<td><code>worker.reattached</code></td>
+<td>继续监测同一 attempt</td>
+</tr>
+<tr>
+<td>Daemon 消失后已有 terminal manifest</td>
+<td>Event、manifest run ID 与 catalog run ID</td>
+<td><code>worker.terminal_reconciled</code></td>
+<td>Inspect 并完整验证结果</td>
+</tr>
+<tr>
+<td>Admission 后输入发生变化</td>
+<td>Resolved input file 与 stored hash</td>
+<td><code>worker.input_changed</code></td>
+<td>恢复已接收的 byte，或从 finalized input 提交新 run</td>
+</tr>
+<tr>
+<td>安全取消需要等待</td>
+<td>当前 macro-step progress</td>
+<td><code>job.safe_cancel_requested</code></td>
+<td>等待 worker 到达下一个 safe boundary；需要立即终止时再使用 force</td>
+</tr>
+</tbody>
+</table>
+<p>完整的重启与 rerun 顺序见<a href="../recovery/">恢复与中断 attempt</a>。</p>
+<h2 id="sqlite">结果、SQLite 与报告<a class="headerlink" href="#sqlite" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>症状</th>
+<th>检查位置</th>
+<th>常见 code</th>
+<th>后续动作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Manifest 无法解析</td>
+<td>保留文件，并以 JSON mode 运行 <code>result inspect</code></td>
+<td><code>result.manifest_invalid</code>、<code>result.encoding</code></td>
+<td>定位生成该文件的 attempt，读取 worker closeout event</td>
+</tr>
+<tr>
+<td>Manifest 可读，但 SQLite 不可用</td>
+<td>主库、WAL、SHM 与文件系统访问</td>
+<td><code>result.inspect_sqlite_unavailable</code>、<code>result.sqlite_invalid</code></td>
+<td>保持文件位于一起，并将 inspection 视为 partial</td>
+</tr>
+<tr>
+<td>终态结果缺少所需文件</td>
+<td><code>result inspect</code> 的 artifact inventory</td>
+<td><code>result.artifact_missing</code></td>
+<td>检查 terminal event，修正 closeout failure 后 rerun</td>
+</tr>
+<tr>
+<td>Manifest row count 与 SQLite 不同</td>
+<td>Full verification output</td>
+<td><code>result.manifest_sqlite_count_mismatch</code></td>
+<td>保持目录不变，并创建单独 rerun</td>
+</tr>
+<tr>
+<td>无法读取某个粒子</td>
+<td>Particle ID range 与所选 run</td>
+<td><code>result.particle_not_found</code>、<code>result.trajectory_particle_id_out_of_range</code></td>
+<td>选择结果中存在的 ID，并确认解析的是哪个 attempt</td>
+</tr>
+<tr>
+<td>报告无法生成</td>
+<td>结果目录权限与可用空间</td>
+<td><code>report.write_failed</code>、<code>report.refresh_failed</code></td>
+<td>恢复 write 与 atomic rename 访问，再生成 <code>run-report.md</code></td>
+</tr>
+<tr>
+<td>运行期间 WAL 持续增长</td>
+<td>Job state、output event cadence 与可用空间</td>
+<td>写入失败时出现 <code>result.io</code></td>
+<td>监测活跃 writer；terminal closeout 会 checkpoint WAL</td>
+</tr>
+</tbody>
+</table>
+<p>WAL 与目录迁移的详细流程见<a href="../storage-sqlite/">存储、SQLite 与 WAL</a>。</p>
+<h2 id="reader">气象 reader<a class="headerlink" href="#reader" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>症状</th>
+<th>检查位置</th>
+<th>常见 code</th>
+<th>后续动作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reader 无法打开资料文件</td>
+<td><code>data inspect</code>、file family 与所选 reader</td>
+<td><code>data.inspect_failed</code>、<code>data.unknown_format</code>、<code>met.runtime</code></td>
+<td>确认文件属于支持的 family，且所选 backend 可以读取</td>
+</tr>
+<tr>
+<td>Backward run 缺少时间支持</td>
+<td>Resolved time range 与区间两侧 lock frame</td>
+<td><code>met.missing_symmetric_time_support</code></td>
+<td>准备 query interval 周围需要的附加 frame</td>
+</tr>
+<tr>
+<td>Machine JSON 与 native output 混合</td>
+<td>Command output option</td>
+<td><code>met.machine_stdout_requires_file</code></td>
+<td>Machine mode 下将 native probe output 指向文件</td>
+</tr>
+</tbody>
+</table>
+<h2 id="code">查找 code<a class="headerlink" href="#code" title="Permanent link">&para;</a></h2>
+<p><a href="../../reference/diagnostics/">自动生成 diagnostic 索引</a>列出各组件实现中的全部公开 code。
+可以在该页搜索准确 code；调试安装或准备 bug report 时，还可从页面进入对应 source link。</p>
+<p>一份便于复现的报告可以包含：</p>
+<ul>
+<li><code>trajecta --version</code> 输出；</li>
+<li>操作系统与 package architecture；</li>
+<li>已移除路径和 credential 的命令；</li>
+<li>完整 machine response；</li>
+<li>任务已接收时的 job-series ID、run ID 与 attempt number；</li>
+<li>Terminal <code>job status</code> 与相关 event interval；</li>
+<li>Result manifest status 与 artifact inventory。</li>
+</ul>
 
 
 
