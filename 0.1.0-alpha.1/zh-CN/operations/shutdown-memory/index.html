@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="为长时间 Trajecta 任务安排关机，处理外部内存压力，并恢复被操作系统终止的 worker。">
+        <meta name="description" content="为长时间 Trajecta 运行准备工作站，处理外部内存压力，并恢复被操作系统终止的工作进程。">
       
       
       
@@ -1183,7 +1183,7 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      为工作站上的长任务做准备
+      长任务前准备工作站
     </span>
   </a>
   
@@ -1208,18 +1208,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#oom" class="md-nav__link">
-    <span class="md-ellipsis">
-      处理操作系统 OOM 终止
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      在计划关机前停止
+      操作系统因内存不足终止工作进程
     </span>
   </a>
   
@@ -1228,7 +1219,16 @@
         <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
-      在意外关机后恢复
+      计划关机前停止任务
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      意外关机后恢复
     </span>
   </a>
   
@@ -2123,7 +2123,7 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      为工作站上的长任务做准备
+      长任务前准备工作站
     </span>
   </a>
   
@@ -2148,18 +2148,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#oom" class="md-nav__link">
-    <span class="md-ellipsis">
-      处理操作系统 OOM 终止
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      在计划关机前停止
+      操作系统因内存不足终止工作进程
     </span>
   </a>
   
@@ -2168,7 +2159,16 @@
         <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
-      在意外关机后恢复
+      计划关机前停止任务
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      意外关机后恢复
     </span>
   </a>
   
@@ -2194,137 +2194,130 @@
 
 
 <h1 id="_1">关机与内存压力<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>长时间轨迹任务会与操作系统、文件缓存、交互式应用和其他科学程序共享机器。Trajecta 通过
-scheduler reservation 限制自身接收的工作量，并在启动新 worker 前单独检查主机当前可用
-内存。</p>
+<p>长时间轨迹计算会与操作系统文件缓存、交互程序和其他科研软件共享内存。Trajecta 通过调度资源
+预留限制自身同时准入的任务数量，并在启动新工作进程前单独检查主机当前可用内存。</p>
 <p>本页区分三种情况：</p>
 <table>
 <thead>
 <tr>
 <th>情况</th>
-<th>队列变化</th>
-<th>活跃 worker 的变化</th>
+<th>对队列的影响</th>
+<th>对活跃工作进程的影响</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>主机可用内存低于配置 reserve</td>
-<td>暂停新任务派发</td>
-<td>Worker 继续运行</td>
+<td>主机可用内存低于配置预留</td>
+<td>暂停派发新任务</td>
+<td>继续运行</td>
 </tr>
 <tr>
 <td>请求安全取消</td>
-<td>Queued 任务直接取消；运行中的 worker 在 macro-step 边界停止</td>
-<td>Worker 收尾部分结果后退出</td>
+<td>排队任务直接取消；运行任务等待宏步边界</td>
+<td>收尾部分结果后退出</td>
 </tr>
 <tr>
-<td>机器或 worker 进程突然停止</td>
-<td>Daemon 恢复前不再派发</td>
-<td>活跃 attempt 会重新附着、根据终态 manifest 完成协调，或进入 interrupted</td>
+<td>计算机或工作进程突然停止</td>
+<td>守护进程恢复前不再派发</td>
+<td>重连、按终态清单协调，或标记中断</td>
 </tr>
 </tbody>
 </table>
-<h2 id="_2">为工作站上的长任务做准备<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>先查看资源池：</p>
+<h2 id="_2">长任务前准备工作站<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>查看本机资源池：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta config get resources.cpu_slots
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta config get resources.memory_pool_mib
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>trajecta config get resources.memory_reserve_mib
 </code></pre></div>
-<p>再检查所选 Profile：</p>
+<p>再查看所选运行配置：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta --project PROJECT project show
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>trajecta --project PROJECT project get profiles.PROFILE
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>trajecta --project PROJECT project get profile.PROFILE
 </code></pre></div>
-<p><code>execution.memory_budget_bytes</code> 是一个 worker 的请求。估算队列能够接收的最大工作量时，可
-将它乘以可能同时活跃的 worker 数量。<code>memory_reserve_mib</code> 还要为 daemon、SQLite page
-cache、气象 reader、操作系统和其他应用留下空间。</p>
-<p>共享工作站可以在提交批次前减少 <code>resources.cpu_slots</code>，也可以提高 reserve。机器配置的
-变化影响后续接收，不会改写现有 series 已保存的资源请求。</p>
-<p>运行前再执行：</p>
+<p><code>execution.memory_budget_bytes</code> 是一个工作进程的请求。估算队列满负载时的内存需求，可以将它
+乘以可能同时活跃的工作进程数。<code>memory_reserve_mib</code> 还要为守护进程、SQLite 页缓存、气象读取器、
+操作系统和其他应用留出空间。</p>
+<p>共享工作站可以在提交批次前降低 <code>resources.cpu_slots</code>，或提高内存预留量。更改本机配置只影响
+之后的资源准入，不会改写已有任务系列保存的资源请求。</p>
+<p>最后运行：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta --project PROJECT doctor --deep
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>trajecta job list
 </code></pre></div>
-<p>第一条命令检查所选文件系统、资料 reader、已有 lock 和临时 SQLite WAL 周期。第二条命令
-显示当前已经占用本机资源池的任务。</p>
+<p>第一条命令检查所选文件系统、气象读取器、现有资料锁和临时 SQLite/WAL 流程；第二条命令显示
+当前已经占用本机资源池的任务。</p>
 <h2 id="_3">运行期间观察内存<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p>另开一个终端跟随任务：</p>
+<p>在另一个终端跟踪事件：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta --format jsonl job events JOB_ID --since 0 --follow
 </code></pre></div>
-<p>Resource event 包含 worker 与 daemon 可取得的运行观测。当前 scheduler reservation 可通过
-以下命令查看：</p>
+<p>资源事件会包含工作进程和守护进程能够采集到的资源信息。当前调度预留可通过以下命令查看：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta --format json job status JOB_ID
 </code></pre></div>
-<p>Daemon catalog 记录 Trajecta 的请求，不包含全部无关进程，因此主机总内存还可结合操作系统
-工具查看。Windows 可使用任务管理器或资源监视器；Ubuntu 24.04 可使用 <code>free -h</code> 和 <code>ps</code>。</p>
+<p>任务数据库只记录 Trajecta 的请求和采样。查看整机内存时，Windows 可使用任务管理器或资源
+监视器；Ubuntu 24.04 可使用 <code>free -h</code> 和 <code>ps</code>。</p>
 <h2 id="_4">处理外部内存压力<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<p>对应 warning code 为：</p>
+<p>对应警告码为：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>daemon.external_memory_pressure
 </code></pre></div>
-<p>它表示主机当前可用内存已经低于 <code>resources.memory_reserve_mib</code>。Attempt 会保持 queued，
-同一次压力期间只写一条 warning，不会在每轮 scheduler 检查中重复刷屏。</p>
+<p>它表示主机当前可用内存低于 <code>resources.memory_reserve_mib</code>。执行轮次保持 <code>queued</code>，一次压力
+期间只记录一条警告，避免每次调度轮询重复写入。</p>
 <p>可以按以下顺序处理：</p>
 <ol>
-<li>查看哪些 Trajecta 以外的程序改变了主机可用内存。</li>
-<li>活跃 Trajecta worker 的内存保持稳定时，可以让它完成当前任务。</li>
-<li>关闭或推迟其他占用大量内存的工作。</li>
-<li>跟随 <code>job events</code>，等待派发恢复。</li>
-<li>相同工作量反复触发压力时，在下一批任务前调整资源池或 Profile 请求。</li>
+<li>查看哪些非 Trajecta 程序最近增加了内存占用。</li>
+<li>活跃工作进程内存稳定时，让它完成当前运行。</li>
+<li>关闭或推迟无关的大内存任务。</li>
+<li>跟踪 <code>job events</code>，确认队列何时恢复派发。</li>
+<li>同类负载反复触发压力时，在下一批任务前调整资源池或运行配置请求。</li>
 </ol>
-<p>需要让运行中的任务释放 reservation 时，可以请求安全取消：</p>
+<p>需要释放活跃任务的资源时，可安全取消：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>trajecta job cancel JOB_ID
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>trajecta job wait JOB_ID
 </code></pre></div>
-<p>Worker 会到达 macro-step 边界，完成部分结果收尾，然后进入 <code>cancelled</code>。等待时间包含当前
-macro step 和输出收尾所需时间。</p>
+<p>工作进程到达宏步边界，收尾部分结果并进入 <code>cancelled</code>。等待时间包括当前宏步和输出收尾。</p>
 <div class="admonition tip">
-<p class="admonition-title">安全取消不会暂停模拟</p>
-<p>后续 rerun 会从 resolved input 创建新 attempt，取消时的粒子状态不能作为续跑 checkpoint。</p>
+<p class="admonition-title">安全取消不会生成续算检查点</p>
+<p>后续 <code>job rerun</code> 会使用解析后的输入创建新执行轮次，从起始状态重新计算。</p>
 </div>
-<h2 id="oom">处理操作系统 OOM 终止<a class="headerlink" href="#oom" title="Permanent link">&para;</a></h2>
-<p>操作系统终止 worker 后，daemon 无法收到正常收尾。Catalog 会先记录 worker 丢失，再将
-attempt 记为 interrupted。常见 event code 为：</p>
+<h2 id="_5">操作系统因内存不足终止工作进程<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p>操作系统终止工作进程后，守护进程无法收到正常收尾。任务事件通常依次出现：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>worker.lost
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>run.interrupted.worker_lost
 </code></pre></div>
-<p>读取最终 catalog 状态，并保留完整 attempt 目录：</p>
+<p>读取最终状态，并保留完整执行轮次目录：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>trajecta --format json job status JOB_ID
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>trajecta --format json job events JOB_ID --since 0
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>trajecta result inspect JOB_ID
 </code></pre></div>
-<p>Interrupted 目录中可能存在 running manifest、部分 SQLite、WAL、worker 输出和临时
-provenance 文件。这些文件对应旧 attempt 已经到达的位置。Rerun 会获得新的 run ID，并
-使用单独目录。</p>
-<p>再次运行前，可将观测到的峰值用量与 Profile 内存预算进行比较。常见调整包括：</p>
+<p>中断目录可能包含 <code>running</code> 运行清单、部分 SQLite、WAL、工作进程输出和临时溯源文件。检查这些
+文件可以了解旧执行轮次停止时的状态；重跑会获得新运行 ID 和独立目录。</p>
+<p>重新运行前，将观察到的峰值内存与运行配置预算比较。常见调整包括：</p>
 <ul>
-<li>减少同时接收的任务数量；</li>
-<li>thread-local working memory 较大时，降低 <code>execution.worker_threads</code>；</li>
-<li>为 admission 设置符合实际的 <code>execution.memory_budget_bytes</code>；</li>
+<li>减少同时准入的任务数；</li>
+<li>线程本地工作内存较多时，降低 <code>execution.worker_threads</code>；</li>
+<li>让 <code>execution.memory_budget_bytes</code> 反映实际负载；</li>
 <li>共享工作站提高 <code>resources.memory_reserve_mib</code>；</li>
-<li>将批次移到物理内存余量更大的机器。</li>
+<li>将批次移到物理内存余量更大的计算机。</li>
 </ul>
-<p>Worker 被终止时若正在写 SQLite 或 provenance，可在提交新 attempt 前运行
-<code>doctor --deep</code>，检查当前文件系统与 SQLite runtime。</p>
-<h2 id="_5">在计划关机前停止<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
-<p>运行中的任务可以请求安全取消，并等待 <code>cancelled</code>：</p>
+<p>若工作进程终止时正在写 SQLite 或溯源信息，提交下一轮前运行 <code>doctor --deep</code>，检查当前文件系统
+和 SQLite 运行环境。</p>
+<h2 id="_6">计划关机前停止任务<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>对运行任务请求安全取消，并等待 <code>cancelled</code>：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>trajecta job cancel JOB_ID
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>trajecta job events JOB_ID --follow
 </code></pre></div>
-<p>存在多个任务时，先查看 <code>job list</code>，再逐个取消活跃 series，并等待各 current attempt。
-Queued attempt 也可以直接取消，不会启动 worker。</p>
-<p>全部 current attempt 进入终态后，机器上就没有活跃 result writer。下次需要继续计算时，
-显式创建 rerun：</p>
+<p>有多个任务时，先查看 <code>job list</code>，逐个取消活跃任务并等待其当前执行轮次。排队任务可以在工作
+进程启动前直接取消。</p>
+<p>所有当前执行轮次进入终态后，结果目录不再有活跃写入端。开机后需要重新计算时，显式执行：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>trajecta job rerun JOB_ID
 </code></pre></div>
-<p>原有结果目录仍归属于 cancelled attempt。</p>
-<h2 id="_6">在意外关机后恢复<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
-<p>开机后选择原机器配置和项目：</p>
+<p>被取消的旧结果目录继续属于原执行轮次。</p>
+<h2 id="_7">意外关机后恢复<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<p>开机后使用提交时相同的本机配置和项目：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>trajecta --config workstation.toml config validate
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>trajecta --config workstation.toml --project PROJECT doctor --deep
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>trajecta --config workstation.toml job list
 </code></pre></div>
-<p>需要 daemon 的第一条运行类命令会启动本地实例。启动协调可能重新附着仍然存活的 worker，
-也可能接收已经完成的终态 manifest，或将消失的 worker 标记为 interrupted。状态稳定后
-再运行 <code>job rerun</code>。</p>
-<p>关机后的完整检查顺序见<a href="../recovery/">恢复流程</a>。</p>
+<p>首个任务命令会在需要时启动本地守护进程。启动协调可能重连仍存活的工作进程，根据已经写好的
+终态运行清单完成状态协调，或把失联工作进程标记为中断。等待状态稳定后再执行 <code>job rerun</code>。</p>
+<p>完整操作顺序见<a href="../recovery/">恢复中断执行轮次</a>。</p>
 
 
 

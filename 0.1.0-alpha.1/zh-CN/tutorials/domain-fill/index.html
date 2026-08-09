@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="使用 CFSR 构建、运行并解读一个面向拉格朗日水汽追踪的 domain-fill 气团项目。">
+        <meta name="description" content="使用 CFSR 资料建立区域填充粒子群，运行一个小型拉格朗日水汽追踪案例，并读取质量和生命周期结果。">
       
       
       
@@ -24,7 +24,7 @@
     
     
       
-        <title>Domain-fill 水汽追踪教程 - Trajecta</title>
+        <title>区域填充水汽追踪教程 - Trajecta</title>
       
     
     
@@ -79,7 +79,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#domain-fill" class="md-skip">
+        <a href="#_1" class="md-skip">
           跳转至
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Domain-fill 水汽追踪教程
+              区域填充水汽追踪教程
             
           </span>
         </div>
@@ -571,78 +571,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#case" class="md-nav__link">
-    <span class="md-ellipsis">
-      Case 表示的内容
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      阅读项目
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#finalize" class="md-nav__link">
-    <span class="md-ellipsis">
-      准备资料并 finalize
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#profile" class="md-nav__link">
-    <span class="md-ellipsis">
-      运行 Profile
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#population" class="md-nav__link">
-    <span class="md-ellipsis">
-      读取 population
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="读取 population">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      先看汇总
+      这次计算表示什么
     </span>
   </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
-    <span class="md-ellipsis">
-      跟踪一个粒子
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#lifecycle" class="md-nav__link">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      解读质量与 lifecycle
+      阅读案例配置
     </span>
   </a>
   
@@ -651,26 +591,44 @@
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      扩展实验
+      准备资料
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="扩展实验">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行案例
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      读取粒子和状态
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="读取粒子和状态">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
-      延长物理时段
+      粒子数与状态行数
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#population_1" class="md-nav__link">
+  <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
-      增加 population 或调整分辨率
+      查看单个粒子
     </span>
   </a>
   
@@ -682,9 +640,51 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
+  <a href="#_9" class="md-nav__link">
     <span class="md-ellipsis">
-      后续步骤
+      质量账本与水汽信息
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      扩展案例
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="扩展案例">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      延长时段
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      增加粒子数量
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      接下来
     </span>
   </a>
   
@@ -2187,78 +2187,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#case" class="md-nav__link">
-    <span class="md-ellipsis">
-      Case 表示的内容
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      阅读项目
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#finalize" class="md-nav__link">
-    <span class="md-ellipsis">
-      准备资料并 finalize
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#profile" class="md-nav__link">
-    <span class="md-ellipsis">
-      运行 Profile
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#population" class="md-nav__link">
-    <span class="md-ellipsis">
-      读取 population
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="读取 population">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      先看汇总
+      这次计算表示什么
     </span>
   </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
-    <span class="md-ellipsis">
-      跟踪一个粒子
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#lifecycle" class="md-nav__link">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      解读质量与 lifecycle
+      阅读案例配置
     </span>
   </a>
   
@@ -2267,26 +2207,44 @@
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      扩展实验
+      准备资料
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="扩展实验">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行案例
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      读取粒子和状态
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="读取粒子和状态">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
-      延长物理时段
+      粒子数与状态行数
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#population_1" class="md-nav__link">
+  <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
-      增加 population 或调整分辨率
+      查看单个粒子
     </span>
   </a>
   
@@ -2298,9 +2256,51 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
+  <a href="#_9" class="md-nav__link">
     <span class="md-ellipsis">
-      后续步骤
+      质量账本与水汽信息
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      扩展案例
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="扩展案例">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      延长时段
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      增加粒子数量
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      接下来
     </span>
   </a>
   
@@ -2325,27 +2325,30 @@
   
 
 
-<h1 id="domain-fill">Domain-fill 水汽追踪教程<a class="headerlink" href="#domain-fill" title="Permanent link">&para;</a></h1>
-<p>Domain filling 使用等干空气载体质量的粒子表示气象域中的大气。大气柱中质量较大的部分
-会获得更多粒子，地理采样仍与源网格和垂直坐标相连。得到的粒子历史构成拉格朗日水汽
-追踪使用的气团基础。</p>
-<p>本教程沿用十五分钟快速入门的项目，并进一步阅读 population、质量账本、输出计划和
-结果表。Case 在全球 CFSR 压力层资料上运行 1,000 个粒子，时段为 2009 年 1 月 1 日
-06:00 至 06:10 UTC。</p>
-<h2 id="case">Case 表示的内容<a class="headerlink" href="#case" title="Permanent link">&para;</a></h2>
-<p>初始时刻，Trajecta 根据气压、气温、比湿、格点面积、地形和可用垂直层构造干空气
-snapshot。Snapshot 被划分为 1,000 个等质量 stratum，再按照 Case seed 从每个 stratum
-抽取一个粒子，因此每个粒子携带相同的干空气质量。</p>
-<p>这一构造带来两个直接结果。粒子计数同时具有质量加权含义；固定粒子数可以控制计算量，
-每粒子载体质量则随所选气象域的总干空气质量变化。</p>
-<p>积分期间，粒子沿三维风场移动。穿越地表时应用反射规则，越过可用模式顶时终止，经度
-则在全球网格两端衔接。每个 macro step 都会写入质量账本，使活动质量、边界交换、终止
-质量和初始域中的 residual 保持关联。</p>
-<h2 id="_1">阅读项目<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
-<p>项目索引把 Case 命名为 <code>moisture</code>，Profile 命名为 <code>product</code>。Profile 将逻辑数据集
-<code>cfsr</code> 绑定到 <code>data/</code>，选择 Rust reader，把结果写入 <code>runs/</code>，并申请一个 worker
-线程和 1 GiB 内存。</p>
-<p>下面直接引入可执行示例中的科学 Case：</p>
+<h1 id="_1">区域填充水汽追踪教程<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<p>区域填充用一组携带等量干空气质量的粒子表示计算区域内的大气。初始粒子的空间分布由气象快照
+中的空气质量决定：空气柱质量较大的位置会得到更多粒子，每个粒子代表的干空气质量保持一致。
+粒子随三维风场运动后，其位置和携带的水汽状态可以用于分析水汽来源、去向与停留过程。</p>
+<p>本教程在全球 CFSR 气压层资料上生成 1,000 个粒子，从 2009 年 1 月 1 日 06:00 UTC 正向积分
+十分钟。案例沿用快速入门中的示例项目，并进一步说明粒子群生成、质量账本、输出事件和结果表。</p>
+<h2 id="_2">这次计算表示什么<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>在初始时刻，Trajecta 根据每个网格单元的气压、气温、比湿、格点面积、地形和有效气压层，计算
+区域内的干空气质量。随后将总质量划分成 1,000 个相等的质量区间，并按案例中的随机种子在每个
+区间内抽取一个粒子。</p>
+<p>这种抽样方式有两项重要性质：</p>
+<ul>
+<li>每个初始粒子的 <code>dry_air_mass_kg</code> 相同；</li>
+<li>粒子在空间上的密度随干空气质量分布变化。</li>
+</ul>
+<p>因此，对粒子做计数或加权汇总时，可以保持明确的质量含义。粒子总数决定采样分辨率，单粒子的
+载体质量则由区域内总干空气质量除以粒子数得到。</p>
+<p>积分期间，粒子由三维风场输送。到达地表时应用反射规则，越过资料可表示的模式顶时终止。全球
+网格在经度方向周期衔接，粒子穿过 180° 经线后从另一侧继续。每个数值宏步都会更新质量账本，
+记录仍然活跃的质量、边界交换、正常终止、异常终止和未分配余量。</p>
+<h2 id="_3">阅读案例配置<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>项目把案例命名为 <code>moisture</code>，把运行配置命名为 <code>product</code>。运行配置将逻辑资料 <code>cfsr</code> 绑定到
+<code>data/</code>，使用纯 Rust 读取器，把结果写入 <code>runs/</code>，并为工作进程申请一个线程和 1 GiB 内存。</p>
+<p>以下内容直接来自示例案例：</p>
 <p>schema_version: 0
 kind: case
 metadata: { name: domain-fill-cfsr }
@@ -2375,160 +2378,187 @@ outputs:
   - product: particle_state/v1
     schedule: { mode: endpoints }
     sink: { model: particle_state_sqlite/v1 }</p>
-<p>各部分可以转换成以下研究描述：</p>
+<p>配置可以按下表理解：</p>
 <table>
 <thead>
 <tr>
-<th>Case 部分</th>
-<th>本教程中的含义</th>
+<th>配置部分</th>
+<th>本例含义</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>time</code></td>
-<td>从 06:00 UTC 开始的十分钟正向区间</td>
+<td>从 06:00 UTC 开始，向未来积分十分钟</td>
 </tr>
 <tr>
 <td><code>meteorology.domains</code></td>
-<td>一个全球 CFSR 域，带一格插值 halo</td>
+<td>使用全球 CFSR 区域，并预留一格水平插值边缘</td>
 </tr>
 <tr>
 <td><code>particle_population</code></td>
-<td>恰好 1,000 个干空气 domain-fill 粒子</td>
+<td>按干空气质量生成 1,000 个区域填充粒子</td>
 </tr>
 <tr>
 <td><code>numerics.time_step</code></td>
-<td>两个 300 秒轨迹步</td>
+<td>每步 300 秒，共推进两个数值步</td>
 </tr>
 <tr>
 <td><code>numerics.integrator</code></td>
-<td>球面二阶 Runge–Kutta 积分</td>
+<td>使用球面二阶 Runge–Kutta 积分器</td>
 </tr>
 <tr>
 <td><code>boundaries.policies</code></td>
-<td>地表反射、模式顶终止和经度周期</td>
+<td>地表反射、模式顶终止、经度周期衔接</td>
 </tr>
 <tr>
 <td><code>random_seed</code></td>
-<td>稳定的 population 与随机采样键</td>
+<td>固定粒子抽样和随机键</td>
 </tr>
 <tr>
 <td><code>outputs</code></td>
-<td>两个物理端点的粒子状态，写入 SQLite</td>
+<td>在时段起点和终点写入粒子状态</td>
 </tr>
 </tbody>
 </table>
-<p>Case 中没有操作系统路径。数据集名称 <code>cfsr</code> 通过项目索引和本地 Profile 解析。</p>
-<h2 id="finalize">准备资料并 finalize<a class="headerlink" href="#finalize" title="Permanent link">&para;</a></h2>
-<p>按照<a href="../../getting-started/demo-data/">演示资料页</a>的说明，将四帧文件放入
-<code>examples/domain-fill-cfsr/data/</code>。随后检查项目状态并写出 data-plan：</p>
+<p>案例文件只描述科学问题，不包含本机绝对路径。逻辑资料名称 <code>cfsr</code> 由项目索引和运行配置共同
+解析到本地文件。</p>
+<h2 id="_4">准备资料<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>按照<a href="../../getting-started/demo-data/">演示资料</a>页面下载四个 CFSR 文件，并放入
+<code>examples/domain-fill-cfsr/data/</code>。然后校验项目并生成资料计划：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project examples/domain-fill-cfsr project validate
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --project examples/domain-fill-cfsr project data-plan --output data-plan.json
 </code></pre></div>
-<p>Requirement 应选择 <code>cfsr-pgbl-pressure-v0</code>、reader <code>rust</code>，并包含 <code>transport</code>、
-<code>near_surface_transport</code> 与 <code>domain_fill</code> capability。物理 coverage 为 06:00–06:10 UTC；
-资料助手会把区间扩展为四个六小时 acquisition anchor。</p>
-<p>预览本地资料状态并创建 lock：</p>
+<p>计划应选择 <code>cfsr-pgbl-pressure-v0</code> 和 <code>rust</code> 读取器。区域填充还需要以下资料能力：</p>
+<table>
+<thead>
+<tr>
+<th>能力</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>transport</code></td>
+<td>提供三维轨迹积分所需字段</td>
+</tr>
+<tr>
+<td><code>near_surface_transport</code></td>
+<td>处理近地层运动和地表反射</td>
+</tr>
+<tr>
+<td><code>domain_fill</code></td>
+<td>计算干空气质量并生成区域填充粒子</td>
+</tr>
+</tbody>
+</table>
+<p>案例的物理时段只有 06:00–06:10 UTC。CFSR 每六小时一帧，时间插值还需要相邻帧，因此下载计划
+包含 00、06、12 和 18 UTC。</p>
+<p>先预览本地资料状态，再完成项目定稿：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python tools/fetch_trajecta_data.py --project examples/domain-fill-cfsr --plan data-plan.json
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>trajecta --project examples/domain-fill-cfsr project finalize
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>trajecta --project examples/domain-fill-cfsr doctor --deep
 </code></pre></div>
-<p>Finalization 写入 <code>locks/cfsr.lock.json</code>，其中包含四个源文件散列、有效时次、网格签名、
-压力层签名、所选 profile 和 capability。Deep doctor 随后打开 locked data，并在启动
-worker 前检查结果文件系统。</p>
-<h2 id="profile">运行 Profile<a class="headerlink" href="#profile" title="Permanent link">&para;</a></h2>
-<p>以前台方式提交默认 <code>product</code> Profile：</p>
+<p><code>project finalize</code> 会创建 <code>locks/cfsr.lock.json</code>。资料锁记录四个源文件的 SHA-256、有效时次、
+网格签名、气压层签名、内置资料配置和能力集合。<code>doctor --deep</code> 随后检查已经锁定的资料，并
+验证结果目录能否完成 SQLite 创建、WAL 写入、完整性检查和收尾。</p>
+<div class="admonition tip">
+<p class="admonition-title">修改案例后重新生成资料计划</p>
+<p>时间、区域、粒子群或资料映射发生变化后，旧计划中的 <code>project_sha256</code> 会失效。先重新运行
+<code>project data-plan</code>，再准备资料并重新定稿。</p>
+</div>
+<h2 id="_5">运行案例<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p>以前台方式运行 <code>product</code>：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta --project examples/domain-fill-cfsr run --profile product
 </code></pre></div>
-<p>终端会显示队列状态变化和最终结果位置。后续命令用 <code>RESULT</code> 代表该路径。这个小型 Case
-通常在数秒内完成；操作系统首次读取 GRIB2 文件时可能稍长。</p>
-<p>Worker 到达终态后生成可读报告：</p>
+<p>前台命令会持续显示任务状态，并在结束时给出结果目录。下文用 <code>RESULT</code> 表示该路径。这个十分钟
+小案例通常很快完成；操作系统第一次读取 GRIB2 文件时，运行时间可能略长。</p>
+<p>计算结束后依次运行：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta result verify RESULT --full
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>trajecta result inspect RESULT
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>trajecta run report --result RESULT
 </code></pre></div>
-<p>示例时段包含两个 scheduled output event。没有提前终止时，1,000 个粒子会在
-<code>particle_state</code> 中形成 2,000 行。Inspection summary 还会显示 population origin、
-活动与终止数量、质量合计、reader、结果文件和字段质量类别。</p>
-<h2 id="population">读取 population<a class="headerlink" href="#population" title="Permanent link">&para;</a></h2>
-<h3 id="_2">先看汇总<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
-<p><code>result inspect</code> 分开统计粒子数与状态行数。一个粒子只在 <code>particle</code> 表中创建一次，存活
-期间则可在每个 scheduled output event 写入一条状态。Domain-fill 初始粒子的
-<code>origin_kind</code> 为 <code>domain_initial</code>。较长的有限域运行还可能包含从 inflow boundary 出生的
-粒子。</p>
-<p>终止计数区分正常 lifecycle outcome 与异常执行结果。全球教程网格会衔接经度边界；模式
-顶终止或 population outflow 仍可能形成正常终止。Invalid meteorology 和反射处理耗尽会
-进入 abnormal group，可作为失败运行的调查起点。</p>
-<h3 id="_3">跟踪一个粒子<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
-<p>以 human format 读取粒子 0：</p>
+<p>端点输出包含两个计划事件。若全部 1,000 个粒子都存活到终点，<code>particle_state</code> 会有 2,000 行。
+出现正常终止时，后一个事件的状态行会相应减少。<code>result inspect</code> 会给出实际粒子数、状态行数、
+终止原因、读取器和结果文件清单。</p>
+<h2 id="_6">读取粒子和状态<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<h3 id="_7">粒子数与状态行数<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
+<p>一个粒子只在 <code>particle</code> 表中登记一次。它每参加一次计划输出，就在 <code>particle_state</code> 中写入
+一条状态。区域填充初始粒子的 <code>origin_kind</code> 为 <code>domain_initial</code>。有限区域的长时段案例还可能
+从流入边界生成新粒子，这类粒子会记录自己的边界来源。</p>
+<p>终止统计分为正常生命周期结束和异常粒子错误。穿出有限区域、越过模式顶或按粒子群规则退出，
+都可能是正常终止。<code>invalid_meteorology</code> 等诊断表示某个粒子所需的气象状态无法有效计算，需要
+结合时间、位置和质量类别进一步检查。</p>
+<h3 id="_8">查看单个粒子<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
+<p>读取粒子 0 的人类可读轨迹：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta result trajectory RESULT --particle-id 0
 </code></pre></div>
-<p>两条记录先给出 birth identity、物理时间和位置，再列出 integration offset 与 elapsed
-age。粒子状态和采样风位于后续字段，气压与气温各自带有质量信息。第二行的经纬度与高度
-显示两个数值步产生的位移。</p>
-<p>分析程序可以读取 JSONL stream：</p>
+<p>记录会显示粒子 ID、物理时刻、经纬度、高度、积分偏移和存活时长。气压、气温和采样风等字段
+也会随状态一起返回。对本例而言，起点和终点两行即可显示两个 300 秒积分步造成的位移。</p>
+<p>分析程序可以改用 JSONL：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta --format jsonl result trajectory RESULT --particle-id 0
 </code></pre></div>
-<p>Stream 先输出 header，随后每条状态对应一个 item，最后给出 summary。同一条命令可以
-重复提供 <code>--particle-id</code>，一次读取多个粒子。</p>
-<h2 id="lifecycle">解读质量与 lifecycle<a class="headerlink" href="#lifecycle" title="Permanent link">&para;</a></h2>
-<p>每个 domain-fill 粒子都保存 <code>dry_air_mass_kg</code>。使用 target-count 的 Case 会给所有初始
-粒子分配相同载体值。其补偿求和加上 residual，等于气象 snapshot 计算得到的干空气质量。</p>
-<p>Manifest 中的质量账本沿 macro step 追踪该表示。较长运行中常用的量如下：</p>
+<p>输出以一条流头开始，随后每条粒子状态各占一行，最后给出汇总。同一命令可以多次提供
+<code>--particle-id</code>，一次读取若干粒子。</p>
+<h2 id="_9">质量账本与水汽信息<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
+<p>每个区域填充粒子都保存 <code>dry_air_mass_kg</code>。本例按固定粒子数生成初始群体，因此 1,000 个初始
+粒子拥有相同的干空气载体质量。浮点数逐项相加会产生微小舍入误差，生成器会在分配时补偿这部分
+余量。补偿后的粒子质量之和加上未分配余量，应与气象快照计算得到的区域干空气总质量一致。</p>
+<p>质量账本沿数值宏步记录以下项目：</p>
 <table>
 <thead>
 <tr>
-<th>量</th>
+<th>项目</th>
 <th>含义</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Initial 或 incoming mass</td>
-<td>初始化或边界出生引入的干空气载体质量</td>
+<td>初始或流入质量</td>
+<td>初始化或边界新生粒子带入的干空气质量</td>
 </tr>
 <tr>
-<td>Active mass</td>
-<td>仍由活动粒子表示的载体质量</td>
+<td>活跃质量</td>
+<td>当前仍由活动粒子表示的质量</td>
 </tr>
 <tr>
-<td>Outgoing mass</td>
-<td>通过 domain-fill 边界过程离开的质量</td>
+<td>流出质量</td>
+<td>通过区域边界离开的质量</td>
 </tr>
 <tr>
-<td>Normal terminated mass</td>
-<td>因声明的物理 lifecycle rule 结束的载体质量</td>
+<td>正常终止质量</td>
+<td>按声明的物理生命周期规则结束的质量</td>
 </tr>
 <tr>
-<td>Abnormal terminated mass</td>
-<td>与粒子错误关联的载体质量</td>
+<td>异常终止质量</td>
+<td>与粒子计算错误相关的质量</td>
 </tr>
 <tr>
-<td>Residual mass</td>
-<td>采用 mass-per-particle 模式时，小于一个载体量子的干空气部分</td>
+<td>未分配余量</td>
+<td>采用固定单粒子质量时，不足一个质量单位的剩余部分</td>
 </tr>
 </tbody>
 </table>
-<p>比湿参与干空气 snapshot 和气象查询。Particle-state product 提供轨迹与载体权重，后续
-水汽诊断可按源区、受体区或时间段组织这些粒子历史。</p>
-<h2 id="_4">扩展实验<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<h3 id="_5">延长物理时段<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
-<p>修改 <code>cases/moisture.yaml</code> 中的 <code>time.end</code>，再运行 <code>project validate</code> 并重新生成
-data-plan。资料助手的 acquisition anchors 会随新区间移动。附加帧准备完成后，
-finalization 为扩展后的 Case 创建更新 lock。</p>
-<p>多小时研究若只保留 endpoint output，只能看到起点和终点。需要中间位置时，可在 Case
-中选择 interval schedule。状态行数大致等于存活粒子数乘 scheduled event 数，因此输出
-cadence 会直接影响结果体积。</p>
-<h3 id="population_1">增加 population 或调整分辨率<a class="headerlink" href="#population_1" title="Permanent link">&para;</a></h3>
-<p>提高 <code>target_particle_count</code> 可以降低空间汇总中的采样噪声，单粒子的干空气载体质量会
-相应减小。Worker 内存、气象查询量和 SQLite 输出都会随 population 增长。</p>
-<p>十分钟、1,000 粒子的项目适合作为本地 preflight。更换 worker threads、内存预算、
-reader 或 output root 时，可以新建 Profile。科学 Case 得以保留，执行环境也会清楚记录
-在结果中。</p>
-<h2 id="_6">后续步骤<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
-<p><a href="../release/">定时 release 教程</a>会用明确点源替换按质量加权的域初始化。
-<a href="../air-mass/">Air-mass 教程</a>继续使用 domain filling，并转到有限的 ERA5 压力层区域，
-边界流出由此成为正常 lifecycle 的一部分。</p>
+<p>比湿既参与初始干空气质量计算，也作为气象状态随轨迹采样。结果中的粒子位置、时间、载体质量和
+比湿可按源区、受体区或时间段重新组织，为后续水汽归因计算提供输入。</p>
+<h2 id="_10">扩展案例<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h2>
+<h3 id="_11">延长时段<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h3>
+<p>修改 <code>cases/moisture.yaml</code> 中的 <code>time.end</code>，重新执行 <code>project validate</code> 和
+<code>project data-plan</code>。资料计划会按新区间增加 CFSR 时次。新文件准备完成后，再执行
+<code>project finalize</code> 更新资料锁。</p>
+<p>长时段研究通常需要中间输出。端点计划只保留起点和终点；间隔计划可以保存演变过程。结果状态
+行数大致等于每个输出时刻仍然活跃的粒子数之和，因此输出频率会直接影响 SQLite 体积和写入量。</p>
+<h3 id="_12">增加粒子数量<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h3>
+<p>提高 <code>target_particle_count</code> 可以细化区域质量抽样，并降低单个粒子的载体质量。计算量、气象
+查询次数、内存占用和结果行数都会随粒子数增加。正式扩大前，可以先用目标输出频率运行一个
+较小粒子群，估算结果目录所需空间。</p>
+<p><strong>调整本机资源</strong></p>
+<p>工作线程、内存预算、读取器和结果目录都属于运行配置。可以复制 <code>profiles/product.yaml</code> 创建
+另一个运行配置，在保留科学案例的同时比较执行环境。每次结果都会保存解析后的案例和运行配置，
+便于确认它实际采用的参数。</p>
+<h2 id="_13">接下来<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h2>
+<p><a href="../release/">定时释放教程</a>从一个明确源项生成粒子，适合已知释放位置和质量的研究。
+<a href="../air-mass/">气团输送教程</a>继续使用区域填充，并转向有限区域的 ERA5 气压层资料。</p>
 
 
 

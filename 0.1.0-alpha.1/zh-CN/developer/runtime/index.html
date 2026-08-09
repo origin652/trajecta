@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="持久化任务控制、daemon 与 worker 进程、输出事务、取消、attempt 和恢复机制。">
+        <meta name="description" content="持久化任务控制、守护进程与工作进程、输出事务、取消、执行轮次和恢复机制。">
       
       
       
@@ -1855,36 +1855,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#catalog" class="md-nav__link">
-    <span class="md-ellipsis">
-      Catalog 存储
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      调度器与资源池
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#daemon-ownership-ipc" class="md-nav__link">
-    <span class="md-ellipsis">
-      Daemon ownership 与本地 IPC
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#worker" class="md-nav__link">
-    <span class="md-ellipsis">
-      Worker 执行
+      任务数据库存储
     </span>
   </a>
   
@@ -1893,7 +1866,16 @@
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      科学输出事务
+      调度器与资源池
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ipc" class="md-nav__link">
+    <span class="md-ellipsis">
+      守护进程所有权与本地 IPC
     </span>
   </a>
   
@@ -1901,6 +1883,24 @@
       
         <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      工作进程执行
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      科学输出事务
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
       取消
     </span>
@@ -1910,18 +1910,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#safe-cancel" class="md-nav__link">
+  <a href="#_9" class="md-nav__link">
     <span class="md-ellipsis">
-      Safe cancel
+      安全取消
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#force-cancel" class="md-nav__link">
+  <a href="#_10" class="md-nav__link">
     <span class="md-ellipsis">
-      Force cancel
+      强制取消
     </span>
   </a>
   
@@ -1933,7 +1933,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_7" class="md-nav__link">
+  <a href="#_11" class="md-nav__link">
     <span class="md-ellipsis">
       重启与异常恢复
     </span>
@@ -1942,18 +1942,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#attempt-history" class="md-nav__link">
+  <a href="#_12" class="md-nav__link">
     <span class="md-ellipsis">
-      Attempt history 与清理计划
+      执行轮次历史与清理计划
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#runtime" class="md-nav__link">
+  <a href="#_13" class="md-nav__link">
     <span class="md-ellipsis">
-      Runtime 修改检查表
+      运行时修改检查表
     </span>
   </a>
   
@@ -2208,36 +2208,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#catalog" class="md-nav__link">
-    <span class="md-ellipsis">
-      Catalog 存储
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      调度器与资源池
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#daemon-ownership-ipc" class="md-nav__link">
-    <span class="md-ellipsis">
-      Daemon ownership 与本地 IPC
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#worker" class="md-nav__link">
-    <span class="md-ellipsis">
-      Worker 执行
+      任务数据库存储
     </span>
   </a>
   
@@ -2246,7 +2219,16 @@
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      科学输出事务
+      调度器与资源池
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ipc" class="md-nav__link">
+    <span class="md-ellipsis">
+      守护进程所有权与本地 IPC
     </span>
   </a>
   
@@ -2254,6 +2236,24 @@
       
         <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      工作进程执行
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      科学输出事务
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
       取消
     </span>
@@ -2263,18 +2263,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#safe-cancel" class="md-nav__link">
+  <a href="#_9" class="md-nav__link">
     <span class="md-ellipsis">
-      Safe cancel
+      安全取消
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#force-cancel" class="md-nav__link">
+  <a href="#_10" class="md-nav__link">
     <span class="md-ellipsis">
-      Force cancel
+      强制取消
     </span>
   </a>
   
@@ -2286,7 +2286,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_7" class="md-nav__link">
+  <a href="#_11" class="md-nav__link">
     <span class="md-ellipsis">
       重启与异常恢复
     </span>
@@ -2295,18 +2295,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#attempt-history" class="md-nav__link">
+  <a href="#_12" class="md-nav__link">
     <span class="md-ellipsis">
-      Attempt history 与清理计划
+      执行轮次历史与清理计划
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#runtime" class="md-nav__link">
+  <a href="#_13" class="md-nav__link">
     <span class="md-ellipsis">
-      Runtime 修改检查表
+      运行时修改检查表
     </span>
   </a>
   
@@ -2333,61 +2333,61 @@
 
 <h1 id="_1">输出与运行时<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
 <p>运行时在一次 <code>trajecta-core</code> 模拟外层提供持久化本地任务控制。它接收已经验证的请求，预留主机
-资源，启动独立 worker，记录进度，并在结束时协调结果状态。Worker 使用的数值 runner 与 core
-直接测试中的 runner 相同。</p>
-<p>这一设计中有两个 SQLite database：</p>
+资源，启动独立工作进程，记录进度，并在结束时协调结果状态。工作进程使用的数值运行器与核心
+直接测试中的运行器相同。</p>
+<p>这一设计中有两个 SQLite 数据库：</p>
 <table>
 <thead>
 <tr>
-<th>Database</th>
-<th>Owner</th>
+<th>数据库</th>
+<th>维护者</th>
 <th>用途</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>本地 job catalog</td>
+<td>本地任务数据库</td>
 <td><code>trajecta-job</code></td>
-<td>队列状态、资源预留、worker lease、事件、attempt 和验证历史</td>
+<td>队列状态、资源预留、工作进程租约、事件、执行轮次和验证历史</td>
 </tr>
 <tr>
-<td>Attempt 目录中的 <code>particles.sqlite</code></td>
+<td>执行轮次目录中的 <code>particles.sqlite</code></td>
 <td><code>trajecta-core</code></td>
-<td>粒子、质量、事件、状态和终止等科学产品</td>
+<td>粒子、质量、事件、状态和终止等科学结果</td>
 </tr>
 </tbody>
 </table>
-<p>两个 database 有各自的 schema 与生命周期。读取任务状态无需打开科学结果；daemon 停止后，结果
+<p>两个数据库有各自的结构定义与生命周期。读取任务状态无需打开科学结果；守护进程停止后，结果
 检查仍可独立进行。</p>
 <h2 id="_2">请求入队<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p><code>trajecta-cli</code> 将 <code>run</code> 参数转换为 <code>SubmitRequest</code>。输入可以是 finalized project 加具名 Profile，
-也可以是显式的 resolved Case 与 RunProfile。请求还包含：</p>
+<p><code>trajecta-cli</code> 将 <code>run</code> 参数转换为 <code>SubmitRequest</code>。输入可以是已定稿项目加其中登记的运行配置，
+也可以是显式的解析后的案例与运行配置。请求还包含：</p>
 <ul>
-<li>从本地资源池预留的 CPU slot；</li>
+<li>从本地资源池预留的 CPU 槽位；</li>
 <li>以 MiB 表示的内存预留；</li>
-<li>Worker thread count，其值不能超过 CPU reservation。</li>
+<li>工作线程数量，其值不能超过 CPU 预留。</li>
 </ul>
-<p>Daemon 先根据配置容量验证请求，再写入 catalog。入队会创建两个 UUIDv7 身份：</p>
+<p>守护进程先根据配置容量验证请求，再写入任务数据库。入队会创建两个 UUIDv7 标识：</p>
 <table>
 <thead>
 <tr>
-<th>身份</th>
+<th>标识</th>
 <th>生命周期</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Job series ID</td>
-<td>连接首次提交和后续所有 rerun</td>
+<td>任务系列 ID</td>
+<td>连接首次提交和后续所有重跑</td>
 </tr>
 <tr>
-<td>Run ID</td>
-<td>标识一个不可变 attempt 及其输出目录</td>
+<td>运行 ID</td>
+<td>标识一个不可变执行轮次及其输出目录</td>
 </tr>
 </tbody>
 </table>
-<p>Attempt number 从 1 开始，并在 series 内递增。Rerun 会把已验证输入和资源请求复制到新的 queued
-attempt，不会复用或覆盖早期目录。</p>
+<p>执行轮次编号从 1 开始，并在系列内递增。重跑会把已经验证的输入和资源请求复制到新建的排队
+轮次，不会复用或覆盖早期目录。</p>
 <h2 id="_3">持久化状态机<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <p>调度器可见状态如下：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>queued -&gt; starting -&gt; running -&gt; complete
@@ -2396,156 +2396,154 @@ attempt，不会复用或覆盖早期目录。</p>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                         |       interrupted
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                         +-&gt; cancelling -&gt; cancelled
 </code></pre></div>
-<p><code>starting</code> 覆盖资源预留和进程启动。<code>cancelling</code> 表示 cooperative request 已经记录，worker 正在
-等待安全 macro-step boundary。Terminal state 不再转换，恢复过程也不会再次 dispatch。</p>
-<p>所有转换都通过 catalog transaction 应用。一次转换涉及 state row、resource reservation、worker
-lease、diagnostic 和 persistent event 时，这些内容会在同一个 catalog operation 内更新。非法状态
-边会返回 typed backend error。</p>
-<h2 id="catalog">Catalog 存储<a class="headerlink" href="#catalog" title="Permanent link">&para;</a></h2>
-<p><code>LocalJobCatalog</code> 使用 SQLite，启用 foreign key 与 WAL，busy timeout 为 5 秒。Daemon 管理的队列
-变更采用 full synchronous durability。Worker telemetry 使用独立连接和 normal synchronous mode，
-因为 heartbeat 与 progress sample 属于 advisory 信息；attempt 状态转换仍由 daemon connection
+<p><code>starting</code> 覆盖资源预留和进程启动。<code>cancelling</code> 表示协作式取消请求已经记录，工作进程正在
+等待安全宏步边界。终态不再转换，恢复过程也不会再次派发。</p>
+<p>所有转换都通过任务数据库事务应用。一次转换涉及状态行、资源预留、工作进程
+租约、诊断和持久化事件时，这些内容会在同一个任务数据库操作内更新。非法状态
+边会返回带具体类型的任务存储错误。</p>
+<h2 id="_4">任务数据库存储<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p><code>LocalJobCatalog</code> 使用 SQLite，启用外键与 WAL，锁等待超时为 5 秒。守护进程管理的队列
+变更采用完整同步持久化。工作进程遥测使用独立连接和普通同步模式，因为心跳与进度样本属于
+辅助信息；执行轮次状态转换仍由守护进程连接
 完成。</p>
-<p>Catalog 记录以下内容：</p>
+<p>任务数据库记录以下内容：</p>
 <ul>
-<li>每个 attempt 的 current snapshot；</li>
-<li>Resource request 与 output-directory allocation；</li>
-<li>Daemon 和 worker lease；</li>
-<li>Sequence 单调递增的 fan-out event；</li>
-<li>成功 attempt 的 full-verification identity；</li>
-<li>Rerun 之间的 supersession relationship；</li>
-<li><code>job forget</code> 产生的 visibility change。</li>
+<li>每个执行轮次的当前快照；</li>
+<li>资源请求与输出目录分配；</li>
+<li>守护进程和工作进程租约；</li>
+<li>序号单调递增、可供多个读者同时读取的事件；</li>
+<li>成功执行轮次的完整验证摘要；</li>
+<li>各次重跑之间的替代关系；</li>
+<li><code>job forget</code> 产生的可见性变化。</li>
 </ul>
-<p>读取事件不会消费 row。两个 reader 可以请求相同 sequence range，<code>job events --follow</code> 也会从自己
-的 cursor 继续。因此 terminal、监控进程和 AI assistant 可以同时观察同一任务，不会争抢消息。</p>
-<h2 id="_4">调度器与资源池<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<p><code>plan_dispatch</code> 是纯调度函数。输入包括 configured capacity、当前 active reservation、持久化 FIFO
-queue 与 external-memory-pressure flag，输出 selected run ID，以及需要由 catalog 原子保存的
-queue-head bypass counter。</p>
-<p>通常按 FIFO 调度。Head 暂时无法放入剩余 CPU 或内存池时，较小的后续请求可以利用空闲容量。
-同一个 blocked head 最多被绕过三次。达到上限后，scheduler 会为它保留后续资源，并停止选择
+<p>读取事件不会消费行。两个读取端可以请求相同的序号范围，<code>job events --follow</code> 也会从各自
+的游标继续。因此终端用户、监控进程和 AI 助手可以同时观察同一任务，不会争抢消息。</p>
+<h2 id="_5">调度器与资源池<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p><code>plan_dispatch</code> 是纯调度函数。输入包括配置的资源容量、当前活动预留、持久化 FIFO 队列和
+外部内存压力标记；输出包括选中的运行 ID，以及需要由任务数据库原子保存的队首绕过计数。</p>
+<p>通常按 FIFO 调度。队首请求暂时无法放入剩余 CPU 或内存池时，较小的后续请求可以利用空闲容量。
+同一个受阻的队首请求最多被绕过三次。达到上限后，调度器会为它保留后续资源，并停止选择
 更靠后的任务。</p>
-<p>外部内存压力处于 active 状态时，dispatch 会暂停。超过 daemon 总容量的请求在 submit 阶段就会
-被拒绝，因此不可能执行的 job 不会长期占据 queue head。</p>
-<p>Scheduler 管理声明的 reservation。任务入队后，操作系统中的其他进程仍可能继续占用内存。这类
-情况由 worker termination 与 recovery 处理；资源模型不会试图控制主机上的其他程序。</p>
-<h2 id="daemon-ownership-ipc">Daemon ownership 与本地 IPC<a class="headerlink" href="#daemon-ownership-ipc" title="Permanent link">&para;</a></h2>
-<p>同一时刻只有一个 daemon 拥有 catalog。Lease 包含 instance ID、PID、process-start token 和
-heartbeat。Start token 用于区分原进程与之后复用同一个数字 PID 的其他进程。</p>
-<p>CLI client 通过 local IPC 与同一 release 的 daemon 通信。Request 和 response 由
-<code>trajecta-job::ipc</code> 定义类型，单个 frame 上限为 4 MiB。Job event 保留在 catalog 中，因此 IPC
-负责发起 query，不承担临时 event queue。</p>
-<p>Daemon dispatch loop 每轮都不会长期阻塞：</p>
+<p>外部内存压力处于活跃状态时，派发会暂停。超过守护进程总容量的请求在提交阶段就会
+被拒绝，因此永远无法执行的任务不会长期占据队首。</p>
+<p>调度器管理声明的预留。任务入队后，操作系统中的其他进程仍可能继续占用内存。这类
+情况由工作进程终止与恢复处理；资源模型不会试图控制主机上的其他程序。</p>
+<h2 id="ipc">守护进程所有权与本地 IPC<a class="headerlink" href="#ipc" title="Permanent link">&para;</a></h2>
+<p>同一时刻只有一个守护进程拥有任务数据库。租约包含实例 ID、PID、进程启动标记和心跳。
+启动标记用于区分原进程与之后复用同一个数字 PID 的其他进程。</p>
+<p>CLI 客户端通过本地 IPC 与同一发布的守护进程通信。请求和响应由
+<code>trajecta-job::ipc</code> 定义类型，单个消息帧上限为 4 MiB。任务事件保留在任务数据库中，因此 IPC
+负责发起查询，不承担临时事件队列。</p>
+<p>守护进程的每轮派发循环都不会长期阻塞：</p>
 <ol>
-<li>读取 queued attempt 与 active reservation。</li>
-<li>计算一份 dispatch plan。</li>
-<li>将选中 row 转换为 <code>starting</code>，同时保存 bypass update。</li>
-<li>以隐藏的 <code>__worker</code> mode 启动当前 executable。</li>
-<li>探测 process identity 并附加 worker lease。</li>
-<li>启动失败或 lease attach 失败时，写入受控终态及 diagnostic。</li>
+<li>读取排队中执行轮次与活跃预留。</li>
+<li>计算一份派发计划。</li>
+<li>将选中的任务转换为 <code>starting</code>，同时保存队首绕过计数。</li>
+<li>以隐藏的 <code>__worker</code> 模式启动当前可执行文件。</li>
+<li>核对进程 ID 与启动标记，并附加工作进程租约。</li>
+<li>启动失败或租约附加失败时，写入受控终态及诊断。</li>
 </ol>
-<p>Windows 启动 worker 时不会显示额外 console window，Ubuntu 使用独立 child process。前台与后台
-CLI mode 的差别在于 client 是否等待；两者都提交到相同 daemon，attempt 结构也一致。</p>
-<h2 id="worker">Worker 执行<a class="headerlink" href="#worker" title="Permanent link">&para;</a></h2>
-<p>Worker 接收一个 run ID，并重新打开 catalog。开始科学计算前，它会确认 lease 与 start token 和
-attempt 匹配。随后按以下顺序工作：</p>
+<p>Windows 启动工作进程时不会显示额外控制台窗口，Ubuntu 使用独立子进程。前台与后台
+CLI 模式的差别在于客户端是否等待；两者都提交到相同守护进程，执行轮次结构也一致。</p>
+<h2 id="_6">工作进程执行<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>工作进程接收一个运行 ID，并重新打开任务数据库。开始科学计算前，它会确认租约与启动标记和
+执行轮次匹配。随后按以下顺序工作：</p>
 <ol>
-<li>重新加载并验证 resolved project input。</li>
-<li>为已经分配的 attempt 构造 production <code>SimulationRunner</code>。</li>
-<li>将 catalog state 转换为 <code>running</code>。</li>
-<li>通过 <code>trajecta-core</code> 执行 macro step。</li>
-<li>按有限采样间隔报告 heartbeat 和 progress。</li>
-<li>关闭 output artifact，并将 manifest terminal state 返回 catalog。</li>
+<li>重新加载并验证解析后的项目输入。</li>
+<li>为已经分配的执行轮次构造生产 <code>SimulationRunner</code>。</li>
+<li>将任务数据库状态转换为 <code>running</code>。</li>
+<li>通过 <code>trajecta-core</code> 执行宏步。</li>
+<li>按限定的采样间隔报告心跳和进度。</li>
+<li>关闭输出产物，并将运行清单终态返回任务数据库。</li>
 </ol>
-<p>Progress 包括 completed macro-step count、simulation time、active particle，以及 normal 与 abnormal
-termination 总数。Resource observation 已经为 wall time、CPU time 和 RSS 定义持久化结构；未采样
-的字段保持 absent，不会进行估算。</p>
-<p>Worker adapter 中没有另写科学算法。它负责解析文档、提供 runner control，并将 <code>RunOutcome</code>
-映射到 catalog。</p>
-<h2 id="_5">科学输出事务<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
-<p>Attempt 目录会包含 running manifest、<code>particles.sqlite</code>、临时 provenance 文件、worker log，以及
-需要保留的 forensic material。SQLite sink 采用<a href="../../reference/results-sqlite/">结果与 SQLite 参考</a>
-中的版本化 schema。</p>
+<p>进度包括已完成宏步数、模拟时间、活动粒子数，以及正常与异常终止总数。资源观测已经为实际
+运行时间、CPU 时间和 RSS 定义持久化结构；没有采样的字段保持缺省，不会填入估算值。</p>
+<p>工作进程适配层不包含另一套科学算法。它负责解析文档、提供运行器控制，并将 <code>RunOutcome</code>
+映射到任务数据库。</p>
+<h2 id="_7">科学输出事务<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<p>执行轮次目录会包含运行中清单、<code>particles.sqlite</code>、临时溯源记录文件、工作进程日志，以及
+需要保留的诊断材料。SQLite 写入端采用<a href="../../reference/results-sqlite/">结果与 SQLite 参考</a>
+中的版本化结构定义。</p>
 <p>运行期间遵循以下规则：</p>
 <ul>
-<li>Foreign key 始终启用；</li>
-<li>Output event 定义物理 sample time；</li>
-<li>Particle 先于对应 mass 和 state 写入；</li>
-<li>Lifecycle event 使用有界 transaction；</li>
-<li>普通 scheduled output 会提交 transaction；</li>
-<li>SQLite 保持 WAL mode，使 indexed reader 能读取 high-water snapshot，同时不阻塞 writer。</li>
+<li>外键始终启用；</li>
+<li>输出事件定义物理采样时间；</li>
+<li>粒子先于对应质量和状态写入；</li>
+<li>生命周期事件使用有界事务；</li>
+<li>普通计划执行的输出会提交事务；</li>
+<li>SQLite 保持 WAL 模式，使已索引读取器能读取高水位快照，同时不阻塞写入器。</li>
 </ul>
-<p>正常 terminal completion 的顺序为：</p>
+<p>正常收尾的顺序如下：</p>
 <ol>
-<li>提交待写 SQLite row，并更新 terminal run row。</li>
+<li>提交待写 SQLite 行，并更新终态运行行。</li>
 <li>执行 <code>PRAGMA wal_checkpoint(TRUNCATE)</code>，要求终态 WAL 为空。</li>
-<li>检查 schema pragma 和 <code>PRAGMA integrity_check</code>。</li>
-<li>统计全部公开 table，并计算 canonical SQL digest。</li>
-<li>关闭 writer connection，计算独立 SQLite database 的 hash。</li>
-<li>从排序后的临时 run 流式写 provenance bundle，同时与 SQLite sample cursor 对照。</li>
-<li>验证 temporary bundle，原子 rename，再计算 content 与 canonical-output digest。</li>
-<li>将 row count、termination summary、mass ledger、SQLite identity 和 provenance identity 加入
-   terminal manifest。</li>
-<li>通过同目录 temporary file、<code>sync_all</code> 和 atomic rename 写入 manifest。</li>
+<li>检查结构定义 pragma 和 <code>PRAGMA integrity_check</code>。</li>
+<li>统计全部公开表，并计算规范 SQL 摘要。</li>
+<li>关闭写入器连接，计算独立 SQLite 数据库的散列。</li>
+<li>从排序后的临时记录流写出溯源信息文件，同时与 SQLite 样本游标对照。</li>
+<li>验证临时包，原子重命名，再计算内容摘要与规范输出摘要。</li>
+<li>将行数、终止摘要、质量账本、SQLite 文件散列和溯源记录摘要加入
+   终态运行清单。</li>
+<li>通过同目录临时文件、<code>sync_all</code> 和原子重命名写入运行清单。</li>
 </ol>
-<p>Terminal manifest 是最后完成的绑定记录。状态为 <code>complete</code> 时，它引用的 artifact 已经关闭，并且
-拥有确定身份。</p>
-<p>Bundle 或 SQLite finalize 失败时，runner 会 abort 或 quarantine 受影响输出，并在能够安全完成时
-写 failed manifest。Temporary file 与 forensic file 的用途不同：成功结束会删除 ephemeral sort
-run，中断资料则保留用于诊断。</p>
-<h2 id="_6">取消<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
-<p>Safe cancel 与 force cancel 具有不同的 artifact 语义。</p>
-<h3 id="safe-cancel">Safe cancel<a class="headerlink" href="#safe-cancel" title="Permanent link">&para;</a></h3>
-<p>Daemon 把 safe-cancel request 写入 worker lease。<code>CatalogRunnerControl</code> 在下一次采样的 macro-step
-boundary 向 runner 返回 <code>Cancel</code>。Runner 合法关闭部分输出，写入 <code>cancelled</code> manifest，catalog
+<p>终态运行清单是最后完成的绑定记录。状态为 <code>complete</code> 时，它引用的产物已经关闭，文件散列和
+规范化摘要也已确定。</p>
+<p>溯源信息或 SQLite 收尾失败时，运行器会中止或隔离受影响的输出；若仍能安全收尾，则写入
+<code>failed</code> 运行清单。临时文件和中断诊断文件用途不同：成功结束后会删除排序过程中产生的临时
+文件，中断时留下的诊断材料则继续保留。</p>
+<h2 id="_8">取消<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<p>安全取消和强制取消会留下不同状态的结果。</p>
+<h3 id="_9">安全取消<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h3>
+<p>守护进程把安全取消请求写入工作进程租约。<code>CatalogRunnerControl</code> 在下一次采样的宏步
+边界向运行器返回 <code>Cancel</code>。运行器按正常流程关闭部分输出，写入 <code>cancelled</code> 运行清单，任务数据库
 再接收该终态。</p>
 <div class="admonition tip">
-<p class="admonition-title">Safe cancel 不生成续跑 checkpoint</p>
-<p><code>job rerun</code> 会从 resolved input 创建新 attempt。</p>
+<p class="admonition-title">安全取消不生成续跑检查点</p>
+<p><code>job rerun</code> 会从解析后的输入创建新执行轮次。</p>
 </div>
-<h3 id="force-cancel">Force cancel<a class="headerlink" href="#force-cancel" title="Permanent link">&para;</a></h3>
-<p>Daemon 会同时验证 PID 和 process-start token，然后停止 worker。之后检查 attempt：</p>
+<h3 id="_10">强制取消<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h3>
+<p>守护进程会同时验证 PID 和进程启动标记，然后停止工作进程。之后检查执行轮次：</p>
 <ul>
-<li>Worker 如果刚好在停止竞态期间完成 terminal manifest，catalog 会接收已经验证的终态；</li>
-<li>其余情况将 attempt 标为 <code>interrupted</code>，并保留 forensic file。</li>
+<li>工作进程如果刚好在终止操作的竞态窗口内完成终态运行清单，任务数据库会接收已经验证的终态；</li>
+<li>其余情况将执行轮次标为 <code>interrupted</code>，并保留中断诊断文件。</li>
 </ul>
-<p>Queued job 可以在 worker 启动前取消。对 terminal attempt 重复取消不会重新打开该 attempt。</p>
-<h2 id="_7">重启与异常恢复<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
-<p>Daemon 重启后，recovery 会比较 durable lease、平台进程身份和 attempt manifest。每个 active
-attempt 会得到一种 disposition：</p>
+<p>排队任务可以在工作进程启动前取消。对终态执行轮次重复取消不会重新打开该执行轮次。</p>
+<h2 id="_11">重启与异常恢复<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h2>
+<p>守护进程重启后，恢复会比较持久化租约、操作系统进程标识和执行轮次运行清单。每个活跃
+执行轮次会得到一种处理结果：</p>
 <table>
 <thead>
 <tr>
-<th>观测</th>
+<th>观察到的状态</th>
 <th>恢复动作</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Worker PID 与 start token 仍然存活</td>
-<td>将 lease 重新附加到新 daemon instance</td>
+<td>工作进程 PID 与启动标记仍然存活</td>
+<td>将租约重新附加到新的守护进程实例</td>
 </tr>
 <tr>
-<td>已经存在有效 terminal manifest</td>
-<td>将该状态协调到 catalog</td>
+<td>已经存在有效终态运行清单</td>
+<td>将该状态协调到任务数据库</td>
 </tr>
 <tr>
-<td>没有匹配的 live worker，也没有有效 terminal result</td>
-<td>将 attempt 标为 interrupted，并保留目录</td>
+<td>没有匹配的活动工作进程，也没有有效终态结果</td>
+<td>将执行轮次标为中断，并保留目录</td>
 </tr>
 </tbody>
 </table>
-<p>Process-start token 可以避免把复用 PID 的无关进程当成 Trajecta worker。Attempt 转入 terminal
-state 后，recovery 还会释放 CPU 与 memory reservation，使队列中的任务可以继续。</p>
-<p>Completed attempt 保持不可变。Daemon restart、client restart 或新 queue submission 都不会使它
-重跑。只有显式 <code>job rerun</code> 会创建另一个 attempt。</p>
-<h2 id="attempt-history">Attempt history 与清理计划<a class="headerlink" href="#attempt-history" title="Permanent link">&para;</a></h2>
-<p>History 按 attempt number 升序保留全部 attempt。Complete attempt 通过 full verify 后，可以记录
-canonical output identity。同一个 series 中出现较新的 fully verified attempt 时，history 可以把
-早期 attempt 标为 superseded，同时保留原文件。</p>
-<p><code>job forget</code> 只改变 catalog visibility，不会删除 attempt directory。当前 prune operation 返回
-deterministic dry-run plan，列出以后可以清理的路径。<code>0.1.0-alpha.1</code> 没有删除这些路径的生产命令。</p>
-<h2 id="runtime">Runtime 修改检查表<a class="headerlink" href="#runtime" title="Permanent link">&para;</a></h2>
+<p>进程启动标记可以避免把复用 PID 的无关进程当成 Trajecta 工作进程。执行轮次转入终态
+状态后，恢复还会释放 CPU 与内存预留，使队列中的任务可以继续。</p>
+<p>已完成的执行轮次保持不可变。守护进程重启、客户端重启或新的任务提交都不会使它
+重跑。只有显式 <code>job rerun</code> 会创建另一个执行轮次。</p>
+<h2 id="_12">执行轮次历史与清理计划<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h2>
+<p>历史按执行轮次编号升序保留全部执行轮次。完整执行轮次通过完整验证后，可以记录
+规范化输出摘要。同一个系列中出现较新的、通过完整验证的执行轮次时，历史可以把早期执行轮次
+标为已替代，同时保留原文件。</p>
+<p><code>job forget</code> 只改变任务在日常列表中的可见性，不会删除执行轮次目录。当前的 <code>job prune</code>
+只返回顺序固定的清理预览，列出以后可以清理的路径；<code>0.1.0-alpha.1</code> 不提供应用该计划的参数。</p>
+<h2 id="_13">运行时修改检查表<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -2555,49 +2553,49 @@ deterministic dry-run plan，列出以后可以清理的路径。<code>0.1.0-alp
 </thead>
 <tbody>
 <tr>
-<td>State transition</td>
-<td>合法/非法 edge、event order、resource release</td>
+<td>状态转换</td>
+<td>合法与非法转换、事件顺序、资源释放</td>
 </tr>
 <tr>
-<td>Catalog schema</td>
-<td>Fresh create、reopen、WAL、concurrent reader、schema version rejection</td>
+<td>任务数据库结构</td>
+<td>全新创建、重新打开、WAL、并发读取、格式版本拒绝</td>
 </tr>
 <tr>
-<td>Scheduler</td>
-<td>FIFO、三次 bypass cap、capacity overflow、external pressure</td>
+<td>调度器</td>
+<td>FIFO、最多三次绕过、容量超限、外部内存压力</td>
 </tr>
 <tr>
-<td>IPC message</td>
-<td>Encode/decode round trip、frame bound、同版本 client/server</td>
+<td>IPC 消息</td>
+<td>编解码往返、帧大小上限、同版本客户端与服务端</td>
 </tr>
 <tr>
-<td>Worker launch</td>
-<td>PID token probe、launch failure、lease-attachment race、retained log</td>
+<td>工作进程启动</td>
+<td>PID 标记探测、启动失败、租约附加竞态、保留日志</td>
 </tr>
 <tr>
-<td>Safe cancellation</td>
-<td>Macro-step polling、cancelled manifest、final event、partial result verification</td>
+<td>安全取消</td>
+<td>宏步轮询、<code>cancelled</code> 运行清单、末尾事件、部分结果验证</td>
 </tr>
 <tr>
-<td>Force cancellation</td>
-<td>PID reuse protection、terminal race reconciliation、interrupted forensic</td>
+<td>强制取消</td>
+<td>PID 复用防护、终态竞态协调、中断诊断保留</td>
 </tr>
 <tr>
-<td>Output sink</td>
-<td>Transaction rollback、table count、reader snapshot、terminal checkpoint</td>
+<td>输出写入端</td>
+<td>事务回滚、表行数、读取器快照、终态检查点</td>
 </tr>
 <tr>
-<td>Manifest 或 provenance</td>
-<td>Atomic replacement、identity mismatch、failure quarantine、full verify</td>
+<td>运行清单或溯源信息</td>
+<td>原子替换、标识不一致、失败产物隔离、完整验证</td>
 </tr>
 <tr>
-<td>Rerun/history</td>
-<td>新 run ID、递增 attempt、保留 completed attempt、dry-run prune</td>
+<td>重跑与历史</td>
+<td>新运行 ID、递增执行轮次、保留已完成轮次、清理预览</td>
 </tr>
 </tbody>
 </table>
-<p>Runtime integration test 应启动 production daemon 与 worker binary。Mock process manager 适合构造
-罕见的启动和恢复竞态，end-to-end contract 则确认 adapter 最终调用真实 runner。</p>
+<p>运行时集成测试应启动生产守护进程与工作进程可执行文件。测试用进程管理器适合构造罕见的启动
+和恢复竞态，端到端测试则确认适配层最终调用真实运行器。</p>
 
 
 

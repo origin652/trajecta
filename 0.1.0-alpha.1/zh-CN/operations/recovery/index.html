@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="在断电、worker 消失、强制取消、磁盘故障或输出收尾中断后，协调 Trajecta 任务并创建后续 attempt。">
+        <meta name="description" content="在断电、工作进程失联、强制取消、磁盘故障或输出收尾中断后，协调任务状态并创建安全重跑。">
       
       
       
@@ -24,7 +24,7 @@
     
     
       
-        <title>恢复中断的 Trajecta 任务 - Trajecta</title>
+        <title>恢复中断执行轮次 - Trajecta</title>
       
     
     
@@ -79,7 +79,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#attempt" class="md-skip">
+        <a href="#_1" class="md-skip">
           跳转至
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              恢复中断的 Trajecta 任务
+              恢复中断执行轮次
             
           </span>
         </div>
@@ -1227,27 +1227,9 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      初始检查
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      读取协调结果
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#attempt_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      检查 attempt 目录
+      第一轮检查
     </span>
   </a>
   
@@ -1256,7 +1238,7 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      断电后的恢复
+      判断启动协调结果
     </span>
   </a>
   
@@ -1265,16 +1247,7 @@
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      安全取消与强制取消后的恢复
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#oom" class="md-nav__link">
-    <span class="md-ellipsis">
-      内存压力或 OOM 后的恢复
+      检查执行轮次目录
     </span>
   </a>
   
@@ -1283,7 +1256,7 @@
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      磁盘耗尽后的恢复
+      断电后的恢复顺序
     </span>
   </a>
   
@@ -1292,7 +1265,34 @@
         <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
-      队列恢复期间的已完成任务
+      安全取消与强制取消后的恢复
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      外部内存压力或内存不足
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      磁盘空间耗尽
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      队列恢复时如何处理已完成任务
     </span>
   </a>
   
@@ -2139,27 +2139,9 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      初始检查
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      读取协调结果
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#attempt_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      检查 attempt 目录
+      第一轮检查
     </span>
   </a>
   
@@ -2168,7 +2150,7 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      断电后的恢复
+      判断启动协调结果
     </span>
   </a>
   
@@ -2177,16 +2159,7 @@
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      安全取消与强制取消后的恢复
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#oom" class="md-nav__link">
-    <span class="md-ellipsis">
-      内存压力或 OOM 后的恢复
+      检查执行轮次目录
     </span>
   </a>
   
@@ -2195,7 +2168,7 @@
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      磁盘耗尽后的恢复
+      断电后的恢复顺序
     </span>
   </a>
   
@@ -2204,7 +2177,34 @@
         <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
-      队列恢复期间的已完成任务
+      安全取消与强制取消后的恢复
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      外部内存压力或内存不足
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      磁盘空间耗尽
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      队列恢复时如何处理已完成任务
     </span>
   </a>
   
@@ -2229,211 +2229,207 @@
   
 
 
-<h1 id="attempt">恢复与中断 attempt<a class="headerlink" href="#attempt" title="Permanent link">&para;</a></h1>
-<p>恢复过程从持久化任务 catalog 和 attempt 目录已有文件开始。Daemon 返回后会读取两处状态，
-然后重新附着身份匹配的活跃 worker，协调有效终态 manifest，或将已经消失的 worker 关闭为
-interrupted attempt。</p>
-<p>重启过程不会自行创建 rerun。已完成 attempt 保持完成，queued attempt 继续等待正常派发，
-interrupted attempt 则等待显式 <code>job rerun</code>。</p>
-<h2 id="_1">初始检查<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
-<p>读取初始状态期间，将机器配置、项目、任务 catalog 和 attempt 目录保持在原路径。SQLite
-数据库应与 <code>-wal</code>、<code>-shm</code> sidecar 放在一起。</p>
-<p>使用提交任务时的同一 <code>--config</code> 路径运行：</p>
+<h1 id="_1">恢复中断执行轮次<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<p>恢复时，先保留并检查任务数据库和执行轮次目录中已有的文件。守护进程重新启动后，会根据两者
+判断应当重连仍存活的工作进程、接收有效终态清单，还是把失联工作进程对应的执行轮次标记为中断。</p>
+<p>重启不会自动创建重跑。已完成执行轮次保持完成，排队任务继续等待正常资源准入，中断执行轮次则
+等待显式 <code>job rerun</code>。</p>
+<h2 id="_2">第一轮检查<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>读取初始状态期间，保持本机配置、项目、任务数据库和执行轮次目录位于原位置。尤其要让 SQLite
+主库与 <code>-wal</code>、<code>-shm</code> 伴随文件留在一起。</p>
+<p>使用提交时相同的 <code>--config</code>：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --config workstation.toml config validate
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --config workstation.toml --project PROJECT doctor --deep
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>trajecta --config workstation.toml job list
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>trajecta --config workstation.toml --format json job status JOB_ID
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>trajecta --config workstation.toml --format json job events JOB_ID --since 0
 </code></pre></div>
-<p>第一条 job 命令会启动本地 daemon 或重新连接。启动协调更新 catalog 后，再读取最近事件。</p>
-<p>为每个受影响 attempt 记录以下值：</p>
+<p>首条任务命令会启动或连接本地守护进程。等待启动协调更新任务数据库后，再读取最新事件。</p>
+<p>为每个受影响执行轮次记录：</p>
 <table>
 <thead>
 <tr>
 <th>值</th>
-<th>读取位置</th>
+<th>从哪里读取</th>
 <th>用途</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Job-series ID</td>
-<td>提交 receipt 或 <code>job status</code></td>
-<td>后续状态和 rerun 命令选择同一逻辑任务</td>
+<td>任务系列 ID</td>
+<td>提交回执或 <code>job status</code></td>
+<td>后续状态、事件和重跑命令</td>
 </tr>
 <tr>
-<td>Run ID 与 attempt number</td>
+<td>运行 ID 与轮次编号</td>
 <td><code>job status</code> 和事件</td>
-<td>标识受影响的具体进程与结果目录</td>
+<td>确定受影响进程与结果目录</td>
 </tr>
 <tr>
 <td>当前状态</td>
 <td><code>job status</code></td>
-<td>区分活跃、终态和仍在排队的任务</td>
+<td>判断仍活跃、已终态或仍排队</td>
 </tr>
 <tr>
-<td>输出目录</td>
+<td>结果目录</td>
 <td><code>job status</code></td>
-<td>定位 manifest、SQLite、log 和临时文件</td>
+<td>定位运行清单、SQLite、日志和临时文件</td>
 </tr>
 <tr>
-<td>最后一个持久化事件序号</td>
+<td>最后持久事件序号</td>
 <td><code>job events</code></td>
-<td>作为后续事件读取的游标</td>
+<td>后续续读游标</td>
 </tr>
 </tbody>
 </table>
-<h2 id="_2">读取协调结果<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>启动后的事件记录通常会出现以下路径之一：</p>
+<h2 id="_3">判断启动协调结果<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>启动后的事件通常对应以下路径：</p>
 <table>
 <thead>
 <tr>
 <th>事件或状态</th>
 <th>含义</th>
-<th>后续动作</th>
+<th>后续操作</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>worker.reattached</code> 与 <code>running</code></td>
-<td>已持有的 worker 仍存活，lease 匹配</td>
-<td>继续监测，不移动其输出目录</td>
+<td><code>worker.reattached</code> 且状态为 <code>running</code></td>
+<td>原工作进程仍存活，租约匹配</td>
+<td>继续监测，不移动结果目录</td>
 </tr>
 <tr>
-<td><code>worker.terminal_reconciled</code> 与终态</td>
-<td>Worker 已经写入身份匹配的终态 manifest</td>
-<td>Inspect 并验证终态结果</td>
+<td><code>worker.terminal_reconciled</code> 和终态</td>
+<td>工作进程已经写出匹配的终态清单</td>
+<td>检查并完整验证结果</td>
 </tr>
 <tr>
-<td><code>worker.lost</code> 随后出现 <code>run.interrupted.worker_lost</code></td>
-<td>找不到身份匹配的活跃 worker 或有效终态收尾</td>
-<td>检查部分目录，修正原因，再按需要 rerun</td>
+<td><code>worker.lost</code> 后出现 <code>run.interrupted.worker_lost</code></td>
+<td>没有匹配工作进程，也没有有效终态收尾</td>
+<td>检查部分目录，修复原因后按需重跑</td>
 </tr>
 <tr>
 <td><code>queued</code></td>
-<td>Attempt 尚未开始</td>
-<td>继续排队，或根据当前安排取消</td>
+<td>断电前尚未启动</td>
+<td>保持排队，或按当前计划取消</td>
 </tr>
 <tr>
-<td>已有终态且没有新 dispatch event</td>
-<td>Catalog 原本已将 attempt 视为完成</td>
-<td>保持终态；需要再次计算时显式 <code>job rerun</code></td>
+<td>原有终态且没有新派发事件</td>
+<td>任务数据库已认为该轮结束</td>
+<td>保持终态，需要新执行时显式重跑</td>
 </tr>
 </tbody>
 </table>
-<p><code>worker.lease_attach_failed</code> 表示 daemon 无法将已经接收的 lease 附着到启动进程。Ownership
-仍无法恢复时，<code>worker.uncontrolled_after_attach_failure</code> 会记录 containment failure。创建
-相同输入的新 worker 前，应先检查进程列表与 attempt 目录。</p>
-<h2 id="attempt_1">检查 attempt 目录<a class="headerlink" href="#attempt_1" title="Permanent link">&para;</a></h2>
-<p>先使用 product-level reader：</p>
+<p><code>worker.lease_attach_failed</code> 表示守护进程未能把已接受租约连接到新进程。若进程所有权也无法恢复，
+还会出现 <code>worker.uncontrolled_after_attach_failure</code>。此时先检查进程列表和执行轮次目录，等待
+状态协调完成，再按需要为同一输入创建重跑轮次。</p>
+<h2 id="_4">检查执行轮次目录<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>先使用结果读取命令：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta --format json result inspect JOB_ID
 </code></pre></div>
-<p><code>result inspect</code> 可以解析 job-series ID、run ID 或直接结果路径。Manifest 可读而 SQLite
-不可用时，命令会返回 partial inspection 和 <code>result.inspect_sqlite_unavailable</code>，其中仍有
-manifest identity 与 artifact inventory。</p>
+<p><code>result inspect</code> 可以接受任务系列 ID、运行 ID 或直接目录路径。运行清单可读而 SQLite 不可用时，
+命令返回部分信息和 <code>result.inspect_sqlite_unavailable</code>，仍会列出运行 ID 和文件清单。</p>
 <p>随后以只读方式查看目录：</p>
 <table>
 <thead>
 <tr>
-<th>文件或目录</th>
-<th>需要记录的内容</th>
+<th>文件</th>
+<th>需要关注的内容</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>run-manifest.json</code></td>
-<td>Lifecycle status、run identity、count、input identity 和已记录错误</td>
+<td>生命周期状态、运行 ID、数量、输入文件散列和记录的失败</td>
 </tr>
 <tr>
 <td><code>particles.sqlite</code></td>
-<td>是否存在、字节大小，以及 result inspection 能否打开</td>
+<td>是否存在、文件大小、结果命令能否打开</td>
 </tr>
 <tr>
 <td><code>particles.sqlite-wal</code> 与 <code>particles.sqlite-shm</code></td>
-<td>Writer 是否在 checkpoint 和收尾前停止</td>
+<td>写入端是否在检查点前停止</td>
 </tr>
 <tr>
-<td>Provenance 目录或 bundle</td>
-<td>Provenance closeout 已经开始还是已经完成</td>
+<td>溯源目录或溯源信息文件</td>
+<td>正式收尾是否开始或完成</td>
 </tr>
 <tr>
-<td>Worker stdout 与 stderr</td>
-<td>Native library 消息、allocation failure 或 write error</td>
+<td>工作进程标准输出与错误输出</td>
+<td>原生库消息、内存分配失败或写入错误</td>
 </tr>
 <tr>
-<td>临时与 forensic entry</td>
-<td>Worker 或 daemon 在失败收尾期间保留的路径</td>
+<td>临时和中断文件</td>
+<td>工作进程或守护进程在收尾失败时保留的路径</td>
 </tr>
 </tbody>
 </table>
 <div class="admonition warning">
-<p class="admonition-title">保留原 attempt</p>
-<p>Rerun 使用单独目录。旧 manifest、数据库、sidecar 和 forensic file 应成组保留。</p>
+<p class="admonition-title">保留原执行轮次</p>
+<p>重跑会使用独立目录。原运行清单、数据库、伴随文件和中断文件应一起保留。</p>
 </div>
 <p>终态为 <code>complete</code> 时运行：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta result verify JOB_ID --full
 </code></pre></div>
-<p>Interrupted attempt 常会缺少 full verification 所需的产物。Partial inspection 仍可用于查看
-最后 manifest 状态和已经写入的 SQLite 行。</p>
-<h2 id="_3">断电后的恢复<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>中断执行轮次常常缺少完整验证所需的终态产物，但部分检查仍可定位最后运行清单状态和已写入
+SQLite 行。</p>
+<h2 id="_5">断电后的恢复顺序<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <ol>
-<li>确认项目、资料根、输出根和机器配置已经挂载到原路径。</li>
-<li>运行 <code>config validate</code> 与项目 <code>doctor --deep</code>。</li>
-<li>通过 <code>job list</code> 启动 daemon。</li>
-<li>对停电前活跃的每个 series 读取 <code>job status</code> 和全部事件。</li>
-<li>等待协调得到稳定的活跃状态或终态。</li>
-<li>检查所有受影响的 attempt 目录。</li>
-<li>对协调为 complete 的结果运行 full verification。</li>
-<li>只为需要再次计算的任务创建 rerun。</li>
+<li>确认项目、资料目录、结果根目录和本机配置挂载到原路径。</li>
+<li>运行 <code>config validate</code> 和项目 <code>doctor --deep</code>。</li>
+<li>通过 <code>job list</code> 启动守护进程。</li>
+<li>对断电前活跃的任务系列读取 <code>job status</code> 和全部事件。</li>
+<li>等待协调形成稳定的活跃状态或终态。</li>
+<li>检查每个受影响执行轮次目录。</li>
+<li>对协调为 <code>complete</code> 的结果运行完整验证。</li>
+<li>只为确实需要再次计算的任务创建重跑。</li>
 </ol>
-<p>输出文件系统若在恢复后报告错误，可先复制完整的非活跃 attempt 目录，再进行后续文件系统
-修复。复制时保持 SQLite 主库与 sidecar 位于一起。</p>
-<h2 id="_4">安全取消与强制取消后的恢复<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<p>安全取消会在 worker 到达 macro-step 边界并完成输出收尾后进入 <code>cancelled</code>。此类部分 run
-通常可以读取，终态 WAL 已 checkpoint 或不存在。</p>
-<p>强制取消会立即停止已持有的 worker，并记录 <code>interrupted</code>。对应目录可能保留非空 WAL、
-running manifest 或未完成的 provenance 临时文件。读取时将它视为 partial attempt，并保持
-文件组合不变。</p>
-<p>创建后续 attempt 前，先检查最终状态：</p>
+<p>文件系统若在断电后报告错误，进一步修复前先复制已经停止写入的完整执行轮次目录，并保持 SQLite
+主库与伴随文件在一起。</p>
+<h2 id="_6">安全取消与强制取消后的恢复<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>安全取消在工作进程到达数值宏步边界并完成输出收尾后进入 <code>cancelled</code>。这类部分结果通常可以
+检查，终态 WAL 应已经完成检查点或不存在。</p>
+<p>强制取消会立即停止工作进程并记录 <code>interrupted</code>。目录中出现非空 WAL、<code>running</code> 清单或未完成
+溯源临时文件都符合这种生命周期。</p>
+<p>创建新执行轮次前先检查：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta job status JOB_ID
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>trajecta job events JOB_ID --since 0
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>trajecta result inspect JOB_ID
 </code></pre></div>
-<p>Rerun 保持 series identity，并创建单独 attempt：</p>
+<p>按原输入重跑：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta --format json job rerun JOB_ID
 </code></pre></div>
-<p>需要修改 Case、Profile、data lock 或资源请求时，可编辑项目并提交新的 run。Rerun 使用原
-series 已保存的输入。</p>
-<h2 id="oom">内存压力或 OOM 后的恢复<a class="headerlink" href="#oom" title="Permanent link">&para;</a></h2>
-<p><code>daemon.external_memory_pressure</code> 会暂停 queued dispatch，同时让活跃 worker 继续运行。主机
-内存回到 reserve 以上后，scheduler 会继续工作。单纯保持 queued 的 attempt 无需恢复动作。</p>
-<p>操作系统 OOM 终止会表现为 worker loss 和 interruption。Rerun 前可以：</p>
+<p>需要修改案例、运行配置、资料锁或资源请求时，编辑项目并提交新任务系列。</p>
+<h2 id="_7">外部内存压力或内存不足<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<p><code>daemon.external_memory_pressure</code> 只暂停排队任务派发，不影响已经运行的工作进程。主机可用内存
+回到预留量以上后，正常调度会自动继续，单纯保持排队的任务不需要恢复操作。</p>
+<p>操作系统因内存不足终止工作进程时，会表现为工作进程失联和 <code>interrupted</code>。重跑前：</p>
 <ol>
-<li>读取旧 run 的 resource event 和操作系统内存记录。</li>
-<li>将 working set 与 <code>execution.memory_budget_bytes</code> 比较。</li>
-<li>减少并发接收量，提高机器 reserve，或调整 Profile request 以符合实际工作量。</li>
-<li>SQLite 或 provenance 写入被中断时运行 deep doctor。</li>
+<li>读取旧执行轮次的资源事件和操作系统内存记录。</li>
+<li>将工作集与 <code>execution.memory_budget_bytes</code> 比较。</li>
+<li>减少并发准入，提高本机内存预留，或调整运行配置请求。</li>
+<li>SQLite 或溯源写入被打断时运行深度环境检查。</li>
 </ol>
-<p>资源设置方法见<a href="../shutdown-memory/">关机与内存压力</a>。</p>
-<h2 id="_5">磁盘耗尽后的恢复<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
-<p>先恢复足够可用空间，不移动活跃结果目录。确认没有 worker 继续写受影响目录后：</p>
+<p>更多资源设置见<a href="../shutdown-memory/">关机与内存压力</a>。</p>
+<h2 id="_8">磁盘空间耗尽<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<p>先恢复足够空间，并避免移动活跃结果目录。确认没有工作进程继续写入后：</p>
 <ol>
-<li>保持主数据库与 sidecar 位于一起。</li>
-<li>运行项目 <code>doctor --deep</code>，检查当前文件系统上的 create、sync、rename、WAL 和 cleanup。</li>
-<li>Inspect 结果并读取 terminal event。</li>
-<li>对协调为 complete 的 run 执行验证。</li>
-<li>存储问题修正后，将 failed 或 interrupted 任务 rerun 到新的 attempt 目录。</li>
+<li>保持 SQLite 主库和伴随文件在一起。</li>
+<li>运行项目 <code>doctor --deep</code>，检查当前文件系统上的创建、同步、重命名、WAL 和清理。</li>
+<li>检查结果与终态事件。</li>
+<li>对协调为 <code>complete</code> 的结果运行验证。</li>
+<li>修复存储后，将失败或中断任务重跑到新执行轮次目录。</li>
 </ol>
-<p><a href="../storage-sqlite/">存储指南</a>还介绍 WAL 处理、输出体积估算和终态结果迁移。</p>
-<h2 id="_6">队列恢复期间的已完成任务<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
-<p>Daemon 不会再次派发终态 attempt，其中包括 <code>complete</code>、
-<code>completed_with_particle_errors</code>、<code>failed</code>、<code>cancelled</code> 和 <code>interrupted</code>。新的 daemon 进程会
-从同一 catalog 读取这些状态。</p>
-<p>需要另一个 attempt 时运行 <code>job rerun</code>。后续 complete attempt 通过 full verification 后，
-较早的 attempt 可能出现在 dry-run prune plan 中：</p>
+<p><a href="../storage-sqlite/">存储、SQLite 与 WAL</a>说明 WAL 处理、结果大小估算和终态目录移动。</p>
+<h2 id="_9">队列恢复时如何处理已完成任务<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
+<p>守护进程不会重新派发任何终态执行轮次，包括 <code>complete</code>、
+<code>completed_with_particle_errors</code>、<code>failed</code>、<code>cancelled</code> 和 <code>interrupted</code>。新的守护进程从同一
+任务数据库读取这些状态。</p>
+<p>需要再次计算时使用 <code>job rerun</code>。后续执行轮次完成并通过完整验证后，旧轮次可能进入只读清理
+计划：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta --format json job prune
 </code></pre></div>
-<p><code>0.1.0-alpha.1</code> 中的 plan 只用于查看，不会删除结果目录或 catalog history。</p>
+<p><code>0.1.0-alpha.1</code> 中该计划仅供查看，不会删除结果目录或任务历史。</p>
 
 
 

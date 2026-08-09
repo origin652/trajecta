@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="了解 Trajecta 的 run manifest、SQLite 输出与 resolved input，以及 field provenance、digest 和 interrupted artifact。">
+        <meta name="description" content="了解运行清单、SQLite 结果、解析后输入、字段溯源、内容摘要、运行报告和中断文件。">
       
       
       
@@ -24,7 +24,7 @@
     
     
       
-        <title>Provenance 与结果目录 - Trajecta</title>
+        <title>溯源信息与结果目录 - Trajecta</title>
       
     
     
@@ -79,7 +79,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#provenance" class="md-skip">
+        <a href="#_1" class="md-skip">
           跳转至
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Provenance 与结果目录
+              溯源信息与结果目录
             
           </span>
         </div>
@@ -1062,81 +1062,9 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      目录布局
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#run-manifest" class="md-nav__link">
-    <span class="md-ellipsis">
-      Run manifest
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#resolved-input-document" class="md-nav__link">
-    <span class="md-ellipsis">
-      Resolved input document
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#particle-state-sqlite" class="md-nav__link">
-    <span class="md-ellipsis">
-      Particle-state SQLite 数据库
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#field-level-provenance-bundle" class="md-nav__link">
-    <span class="md-ellipsis">
-      Field-level provenance bundle
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#exact-file-normalized-digest" class="md-nav__link">
-    <span class="md-ellipsis">
-      Exact-file 与 normalized digest
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#lifecycle-provenance" class="md-nav__link">
-    <span class="md-ellipsis">
-      Lifecycle 与 provenance 完成顺序
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#run-report" class="md-nav__link">
-    <span class="md-ellipsis">
-      派生 run report
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      日常分析中的读取顺序
+      目录结构
     </span>
   </a>
   
@@ -1144,6 +1072,78 @@
       
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行清单
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      解析后的输入文档
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sqlite" class="md-nav__link">
+    <span class="md-ellipsis">
+      粒子状态 SQLite
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      字段级溯源信息包
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      几种内容摘要
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      终态收尾
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行报告
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      日常读取顺序
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
     <span class="md-ellipsis">
       复制与保留结果
     </span>
@@ -2157,81 +2157,9 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      目录布局
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#run-manifest" class="md-nav__link">
-    <span class="md-ellipsis">
-      Run manifest
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#resolved-input-document" class="md-nav__link">
-    <span class="md-ellipsis">
-      Resolved input document
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#particle-state-sqlite" class="md-nav__link">
-    <span class="md-ellipsis">
-      Particle-state SQLite 数据库
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#field-level-provenance-bundle" class="md-nav__link">
-    <span class="md-ellipsis">
-      Field-level provenance bundle
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#exact-file-normalized-digest" class="md-nav__link">
-    <span class="md-ellipsis">
-      Exact-file 与 normalized digest
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#lifecycle-provenance" class="md-nav__link">
-    <span class="md-ellipsis">
-      Lifecycle 与 provenance 完成顺序
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#run-report" class="md-nav__link">
-    <span class="md-ellipsis">
-      派生 run report
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      日常分析中的读取顺序
+      目录结构
     </span>
   </a>
   
@@ -2239,6 +2167,78 @@
       
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行清单
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      解析后的输入文档
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sqlite" class="md-nav__link">
+    <span class="md-ellipsis">
+      粒子状态 SQLite
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      字段级溯源信息包
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      几种内容摘要
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      终态收尾
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行报告
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      日常读取顺序
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
     <span class="md-ellipsis">
       复制与保留结果
     </span>
@@ -2265,11 +2265,11 @@
   
 
 
-<h1 id="provenance">Provenance 与结果目录<a class="headerlink" href="#provenance" title="Permanent link">&para;</a></h1>
-<p>每个已接收的 attempt 都有独立结果目录。数值输出与输入身份、field lineage 一起保存在目录
-中，用于说明该结果的生成过程。项目后续修改不会作用于已经保存的 attempt。</p>
-<h2 id="_1">目录布局<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
-<p>完成的正式运行通常包含：</p>
+<h1 id="_1">溯源信息与结果目录<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<p>队列接受一次执行后，会为它创建独立的结果目录。数值输出、输入文件散列和气象字段的来源关系保存在
+同一目录中。之后修改项目不会改变已经生成的结果。</p>
+<h2 id="_2">目录结构<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>一个完成的正式运行通常包含：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>attempt-1/
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── run-manifest.json
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── resolved-case.json
@@ -2277,128 +2277,125 @@
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── particles.sqlite
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── particles.sqlite-wal
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── provenance-bundle.json
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>└── run-report.md                 # 运行 `run report` 后出现
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>└── run-report.md                 # 执行 `run report` 后存在
 </code></pre></div>
-<p>Interrupted attempt 还可能包含 worker log、部分数据库状态，或名称带有 <code>forensic-aborted</code> 的
-文件。Manifest status 和 artifact list 可以用于判断它到达了哪条终态路径。</p>
-<h2 id="run-manifest">Run manifest<a class="headerlink" href="#run-manifest" title="Permanent link">&para;</a></h2>
-<p><code>run-manifest.json</code> 是目录索引。它以 <code>running</code> 状态创建，并在生命周期信息变化时原子替换。
-Terminal manifest 包含以下部分：</p>
+<p>中断目录还可能包含工作进程日志、部分数据库状态，或名称中带
+<code>forensic-aborted</code> 的文件。运行清单状态和产物列表可以说明该执行轮次到达了哪个阶段。</p>
+<h2 id="_3">运行清单<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p><code>run-manifest.json</code> 是结果目录的索引。运行开始时状态为 <code>running</code>，生命周期变化时通过原子替换
+更新。终态清单包含：</p>
 <table>
 <thead>
 <tr>
-<th>区域</th>
+<th>部分</th>
 <th>内容</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Identity</td>
-<td>Job series、run ID 与 attempt；Case name；开始和结束时间</td>
+<td>运行标识</td>
+<td>任务系列、运行 ID、执行轮次、案例名称、起止时间</td>
 </tr>
 <tr>
-<td>Software</td>
-<td>Package 与 crate version，以及可用时的 source revision</td>
+<td>软件</td>
+<td>软件包和 crate 版本，以及可用时的源码修订</td>
 </tr>
 <tr>
-<td>Inputs</td>
-<td>Case 与 RunProfile；DatasetLock 与 dataset profile；dataset-content hash</td>
+<td>输入</td>
+<td>案例、运行配置、资料锁、内置资料配置和资料内容摘要</td>
 </tr>
 <tr>
-<td>Execution</td>
-<td>Worker 数与内存预算；executor 与 reader；wall time、peak RSS 和可提供的 I/O counter</td>
+<td>执行</td>
+<td>工作线程、内存预算、执行器、读取器、运行时间、峰值常驻内存和可用 I/O 计数</td>
 </tr>
 <tr>
-<td>Numerical</td>
-<td>Random seed 与 integrator；boundary policy 与 population；sink、tolerance registry 和 deterministic flag</td>
+<td>数值</td>
+<td>随机种子、积分器、边界规则、粒子群、输出端、容差登记和确定性标记</td>
 </tr>
 <tr>
-<td>Geometry</td>
-<td>Resolved release source identity 与 canonical geometry summary</td>
+<td>几何</td>
+<td>解析后的释放源标识和规范化几何摘要</td>
 </tr>
 <tr>
-<td>Outputs</td>
-<td>Case 选择的 effective product 与 schedule</td>
+<td>输出</td>
+<td>案例实际选择的产品和输出计划</td>
 </tr>
 <tr>
 <td>SQLite</td>
-<td>Schema version、journal setting、table row count 与相对路径</td>
+<td>结构版本、日志设置、各表行数和相对路径</td>
 </tr>
 <tr>
-<td>Provenance</td>
-<td>Bundle path、exact 与 normalized digest，以及 record count</td>
+<td>溯源</td>
+<td>包路径、文件摘要、规范化摘要和记录数量</td>
 </tr>
 <tr>
-<td>Lifecycle</td>
-<td>Status、termination summary、mass ledger 与可选 failure</td>
+<td>生命周期</td>
+<td>状态、终止汇总、质量账本和可选失败信息</td>
 </tr>
 </tbody>
 </table>
-<p>Manifest 声明的路径都相对于 attempt 目录。产品命令在打开前会检查路径范围。</p>
-<h2 id="resolved-input-document">Resolved input document<a class="headerlink" href="#resolved-input-document" title="Permanent link">&para;</a></h2>
-<p><code>resolved-case.json</code> 保存展开本地组件引用后的规范化 scientific Case。
-<code>resolved-run-profile.json</code> 保存 worker 实际使用的 execution 与 dataset binding。</p>
-<p>项目发生变化后，可以通过这两份文件回答当时的运行问题：</p>
+<p>清单中声明的路径都以执行轮次目录为基准。结果命令在打开文件前会检查路径仍位于该目录内。</p>
+<h2 id="_4">解析后的输入文档<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p><code>resolved-case.json</code> 保存展开项目组件引用后的规范科学案例。
+<code>resolved-run-profile.json</code> 保存工作进程实际采用的执行设置和资料绑定。</p>
+<p>当前项目以后发生变化时，这两份文件仍能回答：</p>
 <ul>
-<li>Attempt 使用了哪个 direction 与 time step？</li>
-<li>当时选择的 population、seed 和 output schedule 是什么？</li>
-<li>逻辑 dataset 映射到哪个 lock 与 reader？</li>
-<li>Attempt 请求了多少 worker 和内存？</li>
+<li>该执行轮次采用什么方向和积分步长？</li>
+<li>哪种粒子群、随机种子和输出计划生效？</li>
+<li>逻辑资料映射到哪份资料锁和读取器？</li>
+<li>工作进程申请了多少线程和内存？</li>
 </ul>
-<p>Manifest 保存两份文档的 SHA-256 identity。归档或共享结果时，将 resolved copy 与目录一并
-保留。</p>
-<h2 id="particle-state-sqlite">Particle-state SQLite 数据库<a class="headerlink" href="#particle-state-sqlite" title="Permanent link">&para;</a></h2>
-<p><code>particles.sqlite</code> 是主要可查询结果。公开 schema 包含六张表：</p>
+<p>运行清单保存两份文档的 SHA-256。归档或分享结果时，应将解析后文档与结果目录一起保留。</p>
+<h2 id="sqlite">粒子状态 SQLite<a class="headerlink" href="#sqlite" title="Permanent link">&para;</a></h2>
+<p><code>particles.sqlite</code> 是主要可查询结果。公开结构包含六张表：</p>
 <table>
 <thead>
 <tr>
 <th>表</th>
-<th>作用</th>
+<th>用途</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>run</code></td>
-<td>一条 run identity 和 terminal status</td>
+<td>当前运行的 ID 和终态状态，一次运行一行</td>
 </tr>
 <tr>
 <td><code>particle</code></td>
-<td>稳定 particle identity 与 population；origin 与 birth；carrier mass 和 sensitivity weight</td>
+<td>稳定粒子 ID、粒子群、来源、出生、载体质量和敏感度权重</td>
 </tr>
 <tr>
 <td><code>particle_mass</code></td>
-<td>与粒子关联的 substance mass</td>
+<td>与粒子关联的携带物质质量</td>
 </tr>
 <tr>
 <td><code>output_event</code></td>
-<td>按物理顺序排列的 output time 和 event kind</td>
+<td>按顺序登记物理输出时刻和事件类型</td>
 </tr>
 <tr>
 <td><code>particle_state</code></td>
-<td>各 sample 的粒子位置与所选气象量；quality 与 provenance pointer</td>
+<td>每个样本的粒子位置、选定气象状态、质量标记和溯源指针</td>
 </tr>
 <tr>
 <td><code>termination</code></td>
-<td>每个已终止粒子的一条 classified terminal reason</td>
+<td>每个已终止粒子的分类原因</td>
 </tr>
 </tbody>
 </table>
-<p>Compound key 包含 <code>run_id</code>，复制后的行仍可归入一个确切 attempt。产品流中的 particle state
-按稳定 particle ID 与 per-particle sample sequence 排序。</p>
-<p>Worker 活动期间，SQLite 使用 write-ahead logging。正常 terminal finalization 会 checkpoint 并
-truncate WAL。运行中 reader 可以使用 indexed high-water snapshot；归档和 full verification
-则在终态后进行。</p>
-<h2 id="field-level-provenance-bundle">Field-level provenance bundle<a class="headerlink" href="#field-level-provenance-bundle" title="Permanent link">&para;</a></h2>
-<p><code>provenance-bundle.json</code> 将 <code>particle_state</code> 中所选气象值连接到 source record。它覆盖五个已
-存储字段：</p>
+<p>组合主键包含 <code>run_id</code>，从多个结果复制出的行仍能追溯到各自执行轮次。结果数据流按稳定粒子 ID 和
+粒子内样本序号输出状态。</p>
+<p>工作进程活跃时，SQLite 使用预写式日志（WAL）。正常终态收尾会把 WAL 检查点回主库并截断。
+运行期间，读取器可以通过已有索引读取高水位快照；归档和完整验证应等待终态。</p>
+<h2 id="_5">字段级溯源信息包<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p><code>provenance-bundle.json</code> 把 <code>particle_state</code> 中选定气象值连接到源资料记录。当前覆盖五个字段：</p>
 <ul>
-<li>Eastward wind；</li>
-<li>Northward wind；</li>
-<li>Geometric vertical velocity；</li>
-<li>Air pressure；</li>
-<li>Air temperature。</li>
+<li>东向风；</li>
+<li>北向风；</li>
+<li>几何垂直速度；</li>
+<li>空气气压；</li>
+<li>空气温度。</li>
 </ul>
-<p>每项不同的 field lineage 对应一条 content-addressed record：</p>
+<p>每条不同的字段来源链保存为内容寻址记录：</p>
 <table>
 <thead>
 <tr>
@@ -2408,104 +2405,100 @@ truncate WAL。运行中 reader 可以使用 indexed high-water snapshot；归�
 </thead>
 <tbody>
 <tr>
-<td>Field token</td>
-<td>Canonical field name</td>
+<td>字段标记</td>
+<td>规范字段名称</td>
 </tr>
 <tr>
-<td>Quality</td>
-<td>Source、derived、estimated 或其他声明 quality</td>
+<td>质量</td>
+<td>源值、派生值、估计值或其他声明类别</td>
 </tr>
 <tr>
-<td>Sources</td>
-<td>按科研顺序排列的 locked source identity</td>
+<td>来源</td>
+<td>按实际使用顺序排列的锁定源资料记录</td>
 </tr>
 <tr>
-<td>Transforms</td>
-<td>Profile/query path 依次执行的 operation ID 与 parameter</td>
+<td>变换</td>
+<td>内置资料配置和查询路径执行的操作 ID 与参数</td>
 </tr>
 <tr>
-<td>Fallback reason</td>
-<td>选择 fallback field path 时的可选说明</td>
+<td>替代原因</td>
+<td>选择备用字段路径时的可选说明</td>
 </tr>
 <tr>
-<td>Profile SHA-256</td>
-<td>确切 interpretation-profile identity</td>
+<td>资料配置 SHA-256</td>
+<td>当前资料解释规则的内容散列</td>
 </tr>
 </tbody>
 </table>
-<p>Bundle 根据 canonical JSON SHA-256 复用重复 record。第二个 dictionary 将五个可选 field slot
-组合为 content-addressed field set。最后，每个 <code>(particle_id, sample_sequence)</code> 指向一个
-field-set SHA-256。这样无需在每个 particle sample 中重复完整 source 与 transform chain。</p>
-<p>Sample assignment order 与 SQLite particle-state order 一致。某个已存储气象值缺失时，对应
-field-set slot 为 null；SQLite validity 与 quality field 说明该 sample 状态。</p>
-<h2 id="exact-file-normalized-digest">Exact-file 与 normalized digest<a class="headerlink" href="#exact-file-normalized-digest" title="Permanent link">&para;</a></h2>
-<p>几类 hash 用于不同的比较：</p>
+<p>每条记录的规范 JSON SHA-256 作为字典键，重复来源链只保存一次。第二层字典把五个可选字段槽位
+组成内容寻址字段集。最后，每个 <code>(particle_id, sample_sequence)</code> 指向一个字段集 SHA-256。
+这一结构可以避免为每个粒子样本重复保存完整来源和变换链。</p>
+<p>样本赋值顺序与 SQLite 粒子状态顺序一致。某个气象值缺失时，对应字段集槽位为 <code>null</code>；
+SQLite 中的有效性和质量字段说明该样本状态。</p>
+<h2 id="_6">几种内容摘要<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>不同摘要用于不同比较：</p>
 <table>
 <thead>
 <tr>
-<th>Digest</th>
-<th>哪些变化会更新它</th>
+<th>摘要</th>
+<th>发生哪些变化时会改变</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>SQLite SHA-256</td>
-<td>Finalized database file 的任意字节变化</td>
+<td>最终数据库文件的任意字节变化</td>
 </tr>
 <tr>
-<td>Canonical SQL digest</td>
-<td>规范化公开 table content 或 order 变化</td>
+<td>规范 SQL 摘要</td>
+<td>公开表的规范内容或顺序变化</td>
 </tr>
 <tr>
-<td>Provenance-bundle SHA-256</td>
-<td>Final JSON bundle 的任意字节变化</td>
+<td>溯源信息文件 SHA-256</td>
+<td>最终 JSON 文件的任意字节变化</td>
 </tr>
 <tr>
-<td>Provenance content digest</td>
-<td>Normalized record、field set 或 sample assignment 变化</td>
+<td>溯源内容摘要</td>
+<td>规范记录、字段集或样本赋值变化</td>
 </tr>
 <tr>
-<td>Canonical output digest</td>
-<td>Canonical SQL content 或 normalized provenance content 变化</td>
+<td>规范输出摘要</td>
+<td>规范 SQL 内容或规范溯源内容变化</td>
 </tr>
 </tbody>
 </table>
-<p>Manifest 将这些身份连接起来。Provenance block 包含 SQLite exact hash、canonical SQL hash、
-bundle hash、normalized provenance hash 和 canonical output hash。<code>result verify</code> 会从文件
-重新计算这些值。</p>
-<p>Exact-file hash 适合传输检查。Normalized digest 适合比较容器字节因存储原因不同、内容仍
-等价的输出。</p>
-<h2 id="lifecycle-provenance">Lifecycle 与 provenance 完成顺序<a class="headerlink" href="#lifecycle-provenance" title="Permanent link">&para;</a></h2>
-<p>Formal provenance bundle 在 SQLite output 关闭后 finalize，因为它包含最终 SQLite SHA-256。
-<code>complete</code>、<code>completed_with_particle_errors</code> 和安全 <code>cancelled</code> 都会得到 terminal database
-与 formal bundle。</p>
-<p>Output finalization 中途停止时，已部分构建的 bundle 会移动到唯一的 <code>forensic-aborted</code> 名称，
-不会占用 formal <code>provenance-bundle.json</code> 路径。<code>result inspect</code> 会列出这些文件，便于查看中断
-后保留下来的内容。</p>
-<h2 id="run-report">派生 run report<a class="headerlink" href="#run-report" title="Permanent link">&para;</a></h2>
-<p><code>trajecta run report --result RESULT</code> 根据 <code>result inspect</code> 创建 <code>run-report.md</code>。报告在一份
-Markdown 中先整理 identity、lifecycle 和 input，再汇总 resource、particle count 与 quality。
-Mass accounting、verification state 和 artifact path 位于后续章节。</p>
-<p>报告通过原子方式重新生成，并排除在 canonical output digest 之外。Full verification 或
-forget 操作可能更新 catalog view，此后可以刷新报告；数值结果身份保持不变。</p>
-<h2 id="_2">日常分析中的读取顺序<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>可以从简到繁读取：</p>
+<p>运行清单把这些摘要和 ID 连接起来。溯源部分包含 SQLite 文件散列、规范 SQL 摘要、溯源信息散列、
+规范溯源摘要和规范输出摘要。<code>result verify</code> 会从目录文件重新计算。</p>
+<p>传输结果时，文件 SHA-256 可用于检查字节是否一致。比较不同容器写法但内容等价的结果时，规范化
+摘要更合适。</p>
+<h2 id="_7">终态收尾<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<p>正式溯源信息包在 SQLite 关闭后完成，因为包中包含最终 SQLite SHA-256。<code>complete</code>、
+<code>completed_with_particle_errors</code> 和安全 <code>cancelled</code> 结果也会保留终态数据库和完整的溯源信息文件。</p>
+<p>若输出收尾中途停止，部分构建的包会移动到带唯一 <code>forensic-aborted</code> 名称的文件，不会占用正式
+<code>provenance-bundle.json</code> 路径。<code>result inspect</code> 会把这些中断文件列入产物清单。</p>
+<h2 id="_8">运行报告<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<p><code>trajecta run report --result RESULT</code> 根据 <code>result inspect</code> 生成 <code>run-report.md</code>。报告汇总运行 ID
+与生命周期，也列出输入、资源和粒子数量。质量分类、质量账本、验证状态及产物路径分别列在
+后续各节。</p>
+<p>报告采用原子方式重新生成，并排除在规范输出摘要之外。完整验证或 <code>job forget</code> 改变任务数据库
+视图后，可以刷新报告，数值结果的规范化摘要不会因此改变。</p>
+<h2 id="_9">日常读取顺序<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
+<p>从概览到深入分析，可以按以下顺序：</p>
 <ol>
-<li>用 <code>result inspect</code> 查看 lifecycle、count、identity 与 artifact path。</li>
-<li>文件传输后用 <code>result verify</code> 检查 file 与 digest。</li>
-<li>用 <code>result verify --full</code> 检查 row、lifecycle、quality、termination 与 mass。</li>
-<li>用 <code>result trajectory</code> 读取 particle metadata 与 ordered state record。</li>
-<li>专门分析再使用 read-only SQLite 和 provenance-bundle query。</li>
+<li><code>result inspect</code>：查看生命周期、数量、运行 ID 和产物路径。</li>
+<li><code>result verify</code>：在复制或传输后检查文件与摘要。</li>
+<li><code>result verify --full</code>：检查行、生命周期、质量标记、终止和质量账本。</li>
+<li><code>result trajectory</code>：读取粒子元数据和按顺序排列的状态。</li>
+<li>只读查询 SQLite 与溯源信息包：完成专门分析。</li>
 </ol>
-<p>Trajectory stream 在各条 state 上带有 <code>provenance_id</code>。公开 provenance bundle 使用相同
-particle ID 与 sample sequence，把 state 连接到五字段 field set。</p>
-<h2 id="_3">复制与保留结果<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p>Attempt 进入终态后，将整个目录作为一个单元复制。Manifest、resolved document 与 SQLite
-database 一起保留。存在时的 WAL entry，以及 provenance bundle、report 与 forensic file
-也放入同一份副本。目标
-位置先运行 quick verification，长期归档再运行 full verification。</p>
-<p>分析输出适合放在用户选择的相邻目录。Attempt 目录由此保持稳定，图件、表格和未来的导出
-产品也可以使用各自的命名与保留策略。</p>
+<p>轨迹流的每条状态都包含 <code>provenance_id</code>。溯源信息文件通过相同粒子 ID 和样本序号，将状态连接到
+五字段来源集合。</p>
+<h2 id="_10">复制与保留结果<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h2>
+<p>执行轮次到达终态后，将整个目录作为一个单元复制。归档时应将运行清单、解析后文档和 SQLite
+放在一起；若目录中还有 WAL、溯源信息文件、报告或中断文件，也应随同保存。到达目标位置后先运行
+快速验证，长期归档前再运行完整验证。</p>
+<p>图件、统计表、NetCDF 和其他派生分析文件写入用户指定的相邻目录。这样可以保持原始结果目录稳定，
+并为派生文件单独设置命名和保留策略。</p>
 
 
 

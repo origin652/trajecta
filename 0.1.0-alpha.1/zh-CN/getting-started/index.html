@@ -2244,9 +2244,9 @@
 <h1 id="_1">入门<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
 <p>Trajecta 以命令行程序的形式发布，安装包同时提供示例项目和离线恢复说明。气象资料使用
 独立资产保存，更新程序时可以继续使用原有资料目录。初次使用可从随包的 CFSR 小型项目
-开始，熟悉以后再沿用相同目录结构开展更长的模拟或切换资料家族。</p>
-<p>本节从下载发布包或检出源码讲到获得可运行的二进制。随后可进入
-<a href="quickstart/">十五分钟快速入门</a>，完整运行一次 domain-fill 水汽追踪。</p>
+开始，熟悉以后再沿用相同目录结构开展更长的模拟或切换资料系列。</p>
+<p>本节从下载发布包或检出源码讲到获得可运行的可执行文件。随后可进入
+<a href="quickstart/">十五分钟快速入门</a>，完整运行一次区域填充水汽追踪。</p>
 <h2 id="_2">选择发布包或源码构建<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2260,17 +2260,17 @@
 <tr>
 <td>发布包</td>
 <td>直接运行 Trajecta，或跟随用户教程</td>
-<td>产品二进制、native reader 运行库、示例、资料工具、离线说明、许可清单和构建清单</td>
+<td>可执行文件、原生读取器运行库、示例项目、资料工具、离线说明、许可证清单和构建清单</td>
 </tr>
 <tr>
 <td>源码构建</td>
 <td>参与开发，或阅读实现</td>
-<td>本机编译的 <code>trajecta-cli</code> 二进制和完整 Rust workspace</td>
+<td>本机编译的 <code>trajecta-cli</code> 可执行文件和完整 Rust 工作区</td>
 </tr>
 </tbody>
 </table>
-<p>发布包是开始首个案例最直接的方式，同一个可执行文件中包含 Rust reader 和随包的
-native reader。源码路线会编译快速入门采用的 Rust reader，具体命令见
+<p>发布包是开始首个案例最直接的方式，同一个可执行文件中包含 Rust 读取器和随包的
+原生读取器。源码路线会编译快速入门采用的 Rust 读取器，具体命令见
 <a href="quickstart/#1">构建步骤</a>。</p>
 <h2 id="_3">已发布的平台包<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <p>版本 <code>0.1.0-alpha.1</code> 提供以下目标：</p>
@@ -2279,9 +2279,9 @@ native reader。源码路线会编译快速入门采用的 Rust reader，具体�
 <tr>
 <th>平台</th>
 <th>架构</th>
-<th>归档</th>
-<th>产品二进制</th>
-<th>Reader 选择</th>
+<th>归档格式</th>
+<th>产品可执行文件</th>
+<th>读取器选择</th>
 </tr>
 </thead>
 <tbody>
@@ -2290,24 +2290,24 @@ native reader。源码路线会编译快速入门采用的 Rust reader，具体�
 <td>x86_64</td>
 <td>ZIP</td>
 <td><code>trajecta.exe</code></td>
-<td>Rust 与随包 native</td>
+<td>纯 Rust 或随包原生读取器</td>
 </tr>
 <tr>
 <td>Ubuntu 24.04</td>
 <td>x86_64</td>
 <td><code>tar.gz</code></td>
 <td><code>trajecta</code></td>
-<td>Rust 与随包 native</td>
+<td>纯 Rust 或随包原生读取器</td>
 </tr>
 </tbody>
 </table>
-<p>本文中的命令和 clean-package 检查均使用这两个平台。源码也可在具备 Rust 1.85
+<p>本文中的命令和全新解压软件包测试均使用这两个平台。源码也可在具备 Rust 1.85
 工具链的兼容系统上构建，本机构建产物沿用 <code>trajecta-cli</code> 这一文件名。</p>
-<p>Reader 在 RunProfile 中选择。<code>rust</code> 使用 Rust 依赖提供的解码器；<code>native</code> 调用产品包
+<p>读取器在运行配置中选择。<code>rust</code> 使用 Rust 依赖提供的解码器；<code>native</code> 调用发布包
 中的 ecCodes 或 netCDF-C 运行库。两条读取路径都会生成轨迹引擎使用的统一气象字段。
-<a href="../reference/platforms/">平台与 reader 矩阵</a>列出了各数据格式可用的读取方式。</p>
+<a href="../reference/platforms/">平台与读取器矩阵</a>列出了各数据格式可用的读取方式。</p>
 <h2 id="_4">安装发布包<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<p>从 <a href="https://github.com/origin652/trajecta/releases/tag/v0.1.0-alpha.1">0.1.0-alpha.1 release</a>
+<p>从 <a href="https://github.com/origin652/trajecta/releases/tag/v0.1.0-alpha.1">0.1.0-alpha.1 发布页</a>
 下载对应平台的归档和相邻的 <code>.sha256</code> 文件，并将二者放在同一下载目录。</p>
 <h3 id="_5">校验归档<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
 <p>解压前计算 SHA-256：</p>
@@ -2364,11 +2364,11 @@ native reader。源码路线会编译快速入门采用的 Rust reader，具体�
 <tbody>
 <tr>
 <td><code>trajecta.exe</code> 或 <code>trajecta</code></td>
-<td>命令行程序，同时提供本地 daemon 与 worker 入口</td>
+<td>命令行程序，同时提供本地守护进程与工作进程入口</td>
 </tr>
 <tr>
 <td><code>examples/</code></td>
-<td>完整的 domain-fill、release、air-mass 和 ozone 示例项目</td>
+<td>完整的区域填充、释放型粒子、气团和臭氧示例项目</td>
 </tr>
 <tr>
 <td><code>tools/</code></td>
@@ -2384,7 +2384,7 @@ native reader。源码路线会编译快速入门采用的 Rust reader，具体�
 </tr>
 <tr>
 <td><code>BUILD-MANIFEST.json</code></td>
-<td>构建身份及安装包内每个文件的散列</td>
+<td>构建来源标识及安装包内每个文件的散列</td>
 </tr>
 <tr>
 <td><code>SBOM.cdx.json</code></td>
@@ -2400,17 +2400,17 @@ native reader。源码路线会编译快速入门采用的 Rust reader，具体�
 </tr>
 </tbody>
 </table>
-<p>示例目录已经包含项目文档和空的数据位置。CFSR 演示资产用于前两个教程；ERA5 示例则
-沿用后续指南中的 data-plan 和资料下载流程。</p>
+<p>示例目录已经包含项目文档和空的资料目录。CFSR 演示资料包用于前两个教程；ERA5 示例则
+沿用后续指南中的资料计划（<code>data-plan</code>）和下载流程。</p>
 <h2 id="_8">准备第一个项目<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
 <p>第一次运行可以分为四个阶段：</p>
 <ol>
 <li>创建本机配置，填写本地任务可用的 CPU 与内存。</li>
-<li>将 CFSR 演示文件放入随包的 domain-fill 项目。</li>
-<li>Finalize 项目，把 Case、RunProfile 与本地资料绑定起来。</li>
-<li>运行 Profile，校验结果，并读取一个粒子的轨迹。</li>
+<li>将 CFSR 演示文件放入随包的区域填充项目。</li>
+<li>执行项目定稿命令 <code>project finalize</code>，将案例、运行配置与本地资料绑定起来。</li>
+<li>选择运行配置并启动任务，随后验证结果并读取一条粒子轨迹。</li>
 </ol>
-<p><a href="configuration/">配置与 doctor</a>说明本机资源文件的设置方法，
+<p><a href="configuration/">本机配置与环境检查</a>说明本机资源文件的设置方法，
 <a href="demo-data/">演示资料</a>列出每个 CFSR 文件及其校验值。快速入门会把两部分连成一次
 完整运行。</p>
 <h2 id="_9">后续阅读<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
@@ -2427,15 +2427,15 @@ native reader。源码路线会编译快速入门采用的 Rust reader，具体�
 <td><a href="quickstart/#1">快速入门：获得可执行文件</a></td>
 </tr>
 <tr>
-<td>完成首个 domain-fill 运行</td>
+<td>完成首个区域填充运行</td>
 <td><a href="quickstart/">十五分钟快速入门</a></td>
 </tr>
 <tr>
 <td>了解本机 CPU 和内存设置</td>
-<td><a href="configuration/">配置与 doctor</a></td>
+<td><a href="configuration/">本机配置与环境检查</a></td>
 </tr>
 <tr>
-<td>下载并检查样例文件</td>
+<td>下载并检查示例文件</td>
 <td><a href="demo-data/">CFSR 演示资料</a></td>
 </tr>
 <tr>

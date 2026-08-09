@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="通过完整的 domain-fill 水汽、定时 release、air-mass 和平流层臭氧项目学习 Trajecta。">
+        <meta name="description" content="通过区域填充水汽追踪、定时释放、气团输送和平流层臭氧四个完整项目，学习 Trajecta 的科研工作流。">
       
       
       
@@ -550,7 +550,7 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      教程使用的案例
+      四个教程
     </span>
   </a>
   
@@ -559,7 +559,7 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      选择起点
+      如何选择
     </span>
   </a>
   
@@ -568,7 +568,7 @@
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      共同的项目流程
+      各项目共用的流程
     </span>
   </a>
   
@@ -577,7 +577,7 @@
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      阅读示例文件
+      示例项目的文件
     </span>
   </a>
   
@@ -586,7 +586,7 @@
         <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
-      从教程扩展到研究
+      从教程扩展到正式研究
     </span>
   </a>
   
@@ -2114,7 +2114,7 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      教程使用的案例
+      四个教程
     </span>
   </a>
   
@@ -2123,7 +2123,7 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      选择起点
+      如何选择
     </span>
   </a>
   
@@ -2132,7 +2132,7 @@
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      共同的项目流程
+      各项目共用的流程
     </span>
   </a>
   
@@ -2141,7 +2141,7 @@
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      阅读示例文件
+      示例项目的文件
     </span>
   </a>
   
@@ -2150,7 +2150,7 @@
         <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
-      从教程扩展到研究
+      从教程扩展到正式研究
     </span>
   </a>
   
@@ -2176,72 +2176,80 @@
 
 
 <h1 id="_1">教程<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>本组教程从科学 Case 出发，带领四个小型项目运行到可以读取的结果。它们沿用长期研究使用
-的项目布局、队列、数值引擎和结果产品。每个教程只替换问题中的一个主要部分，例如粒子
-population、气象资料家族、空间域或轨迹方向。</p>
-<p>项目位于仓库和产品包的 <code>examples/</code> 目录。页面直接引入这些文件，文档中看到的配置就是
-命令行程序实际解析的配置。</p>
-<h2 id="_2">教程使用的案例<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>本章用四个可以直接运行的小型项目介绍 Trajecta。每个项目都从案例配置开始，经过资料准备、
+项目定稿和轨迹计算，最后读取结果。教程中的项目结构、数值引擎、任务队列和结果格式，
+与正式研究使用的组件完全相同。</p>
+<p>四个项目各自突出一个主要变化：粒子群的生成方式、气象资料系列、计算区域或积分方向。建议
+先完整运行一个项目，再修改时段、粒子数量或输出频率。这样更容易区分配置变化与资料问题。</p>
+<p>示例项目位于源码仓库和发行包的 <code>examples/</code> 目录。配置片段直接从这些文件引入，页面所示内容
+就是命令行程序读取的内容。</p>
+<h2 id="_2">四个教程<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>教程</th>
-<th>科学 population</th>
+<th>粒子群</th>
 <th>气象资料</th>
-<th>方向</th>
-<th>资料准备方式</th>
+<th>积分方向</th>
+<th>资料准备</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><a href="domain-fill/">Domain-fill 水汽追踪</a></td>
-<td>覆盖全球域的等干空气质量粒子</td>
-<td>CFSR 压力层</td>
-<td>向前</td>
-<td>四帧演示资产</td>
+<td><a href="domain-fill/">区域填充水汽追踪</a></td>
+<td>在全球区域内按等干空气质量生成粒子</td>
+<td>CFSR 气压层</td>
+<td>正向</td>
+<td>四个时次的演示资料</td>
 </tr>
 <tr>
-<td><a href="release/">定时 release</a></td>
-<td>从一个点释放的 1,000 个粒子</td>
-<td>CFSR 压力层</td>
-<td>向前</td>
-<td>同一四帧资产</td>
+<td><a href="release/">定时释放</a></td>
+<td>从指定位置释放 1,000 个粒子</td>
+<td>CFSR 气压层</td>
+<td>正向</td>
+<td>与快速入门共用演示资料</td>
 </tr>
 <tr>
-<td><a href="air-mass/">Air-mass 工作流</a></td>
-<td>覆盖有限域的等干空气质量粒子</td>
-<td>ERA5 压力层</td>
-<td>向前</td>
-<td>资料助手与 Climate Data Store 请求</td>
+<td><a href="air-mass/">气团输送</a></td>
+<td>在有限区域内按等干空气质量生成粒子</td>
+<td>ERA5 气压层</td>
+<td>正向</td>
+<td>资料下载助手和 CDS 请求</td>
 </tr>
 <tr>
 <td><a href="ozone/">平流层臭氧</a></td>
-<td>在 PV60 臭氧范围内初始化的干空气载体</td>
-<td>ERA5 hybrid 模式层</td>
-<td>向后</td>
-<td>资料助手与 hybrid 准备流程</td>
+<td>在 PV60 臭氧掩膜内生成干空气载体粒子</td>
+<td>ERA5 混合模式层</td>
+<td>反向</td>
+<td>资料下载助手和混合坐标准备流程</td>
 </tr>
 </tbody>
 </table>
-<p>四个示例均使用 1,000 个粒子、300 秒积分步长、端点输出和 1 GiB Profile 内存预算。
-物理时段为十分钟，可以在较短时间内完成资料检查和结果读取，同时保留 population 与
-资料差异。</p>
-<h2 id="_3">选择起点<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p>Domain-fill 教程适合接在快速入门之后。该页解释气象快照如何转换为等质量粒子，以及
-如何读取结果中的干空气与水汽量。</p>
-<p>Release 教程从一个明确源项开始，适合研究问题已经给出地点、时刻、垂直位置和 tracer
-质量的情况。页面还会介绍 release geometry 与事件时段。</p>
-<p>Air-mass 教程转向官方 ERA5 压力层资料和有限域，展示 data-plan coverage 如何形成
-provider request，以及粒子离开非周期边界后的状态。</p>
-<p>Ozone 教程把反向 Case 与 ERA5 的 137 层 hybrid 坐标结合起来。内容包括 prepared-file
-布局、对数地面气压、hybrid 系数和命名 PV60 规则的臭氧初始化。</p>
-<h2 id="_4">共同的项目流程<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<p>每个项目采用相同顺序：</p>
+<p>四个示例均使用 1,000 个粒子，积分步长为 300 秒，只在物理时段两端输出粒子状态。运行配置
+为工作进程预留 1 GiB 内存。十分钟的模拟区间便于快速检查资料和结果，也足以看清各种粒子群
+和资料系列之间的差别。</p>
+<h2 id="_3">如何选择<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>完成快速入门后，可以继续阅读区域填充教程。它详细解释如何把一个气象快照转换成等干空气
+质量粒子，以及如何从结果中读取干空气载体质量和水汽状态。开展水汽来源、去向或停留时间
+分析时，这一工作流通常最合适。</p>
+<p>如果研究从一个已知源区或排放时刻开始，可选择定时释放教程。案例会明确给出位置、释放时间、
+垂直坐标和示踪物质量，并展示释放事件如何进入轨迹时间线。</p>
+<p>气团教程使用 ERA5 气压层资料和有限区域。它重点说明资料计划如何变成数据服务请求，以及粒子
+穿过非周期边界后如何记为正常流出。</p>
+<p>臭氧教程使用 ERA5 的 137 个混合模式层。案例沿时间反向积分，并根据 PV60 规则初始化臭氧粒子。
+教程还会说明对数地表气压、混合坐标系数和准备后 NetCDF 文件之间的关系。</p>
+<div class="admonition tip">
+<p class="admonition-title">第一次运行 ERA5 示例</p>
+<p>先保留教程的短时段和 1,000 个粒子。确认资料准备、项目定稿和结果读取均可完成后，再扩大
+区域或延长时段。</p>
+</div>
+<h2 id="_4">各项目共用的流程<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>四个项目采用同一套操作顺序：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>project validate
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>      ↓
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>project data-plan
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>      ↓
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>准备气象文件
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>准备气象资料
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>      ↓
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>project finalize
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>      ↓
@@ -2251,51 +2259,92 @@ provider request，以及粒子离开非周期边界后的状态。</p>
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>      ↓
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>result verify / inspect / trajectory
 </code></pre></div>
-<p><code>project validate</code> 检查当前已有的项目文档。Data-plan 列出物理时间覆盖、公开 dataset
-profile、所需 capability、本地目标目录和 lock 路径。Finalization 检查准备好的文件，
-并创建 RunProfile 选择的 DatasetLock。</p>
-<p>Run 命令把 resolved project 提交到本地队列。端点输出会在十分钟区间两端各生成一次
-particle-state event。随后可通过结果命令查看汇总、完成一致性检查，或按时间读取指定
-粒子的记录。</p>
-<h2 id="_5">阅读示例文件<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
-<p>每个教程项目都有相同的四部分：</p>
+<p><code>project validate</code> 检查当前已有的项目索引、案例和运行配置。此时气象文件可以尚未下载。
+<code>project data-plan</code> 根据案例的时空范围和所需气象能力生成资料计划，其中包含资料系列、本地目录、
+资料锁路径以及下载所需的时间锚点。</p>
+<p>资料准备完成后，项目定稿命令 <code>project finalize</code> 会检查本地文件，并为运行配置创建资料锁
+（<code>DatasetLock</code>）。
+资料锁固定文件清单、内容散列、有效时次、网格和垂直坐标等信息。<code>doctor --deep</code> 会进一步检查
+本机配置、资料锁、气象文件和结果文件系统。</p>
+<p><code>run --profile product</code> 把解析后的项目提交到本地任务队列。教程使用端点输出，因此时段起点和
+终点各有一次粒子状态事件。计算结束后：</p>
+<ul>
+<li><code>result verify</code> 检查结果目录的完整性；</li>
+<li><code>result inspect</code> 汇总运行 ID、粒子、终止原因和产物；</li>
+<li><code>result trajectory</code> 按时间读取指定粒子的轨迹记录。</li>
+</ul>
+<h2 id="_5">示例项目的文件<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p>每个教程项目都由以下几部分组成：</p>
 <table>
 <thead>
 <tr>
 <th>路径</th>
-<th>文件回答的问题</th>
+<th>用途</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>trajecta-project.yaml</code></td>
-<td>哪些 Case 和 Profile 属于当前项目？</td>
+<td>登记项目中的案例、运行配置和逻辑资料名称</td>
 </tr>
 <tr>
 <td><code>cases/*.yaml</code></td>
-<td>要运行什么科学模拟？</td>
+<td>描述模拟时段、区域、粒子群、数值方法、边界和输出</td>
 </tr>
 <tr>
 <td><code>profiles/*.yaml</code></td>
-<td>本地资料与结果放在哪里，worker 使用多少资源？</td>
+<td>指定本机资料目录、结果目录、读取器和工作进程资源</td>
 </tr>
 <tr>
 <td><code>locks/*.lock.json</code></td>
-<td>哪些气象文件满足所选 Case 与 Profile？</td>
+<td>记录项目定稿后实际采用的气象文件及其内容标识</td>
 </tr>
 </tbody>
 </table>
-<p>Lock 在 finalization 后出现。结果写入 Profile 的 <code>output_root</code>，每个 attempt 都有独立
-run identity。</p>
-<p>教程页面中的片段来自上述文件。需要调整案例时，直接编辑项目目录中的示例文件，再运行
-<code>project validate</code>。这样不会在 notebook 或 shell script 中形成第二份配置副本。</p>
-<h2 id="_6">从教程扩展到研究<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
-<p>每次扩展一个维度更容易观察资源变化。延长时间会改变 data-plan 和 provider anchors；
-增加粒子主要提高计算量与内存需求；缩短输出间隔会增加 SQLite 行数和结果目录体积；
-更换地理域还会改变资料请求与边界流出的物理含义。</p>
-<p>可以保留原示例作为小型 preflight，另建项目保存正式研究。在新机器或新 reader 上先运行
-十分钟版本，再逐步增加时长、population 和输出密度。
-<a href="data-families/">资料家族对照</a>可用于选择匹配的 profile 与时次间隔。</p>
+<p>资料锁在项目定稿后生成。结果写入运行配置的 <code>output_root</code>，每次提交或重跑都会得到独立的
+运行 ID 和执行轮次目录，已有结果不会被覆盖。</p>
+<p>需要修改教程时，直接编辑示例项目中的文件，然后重新运行 <code>project validate</code> 和
+<code>project data-plan</code>。这样可以让案例文件始终作为唯一配置来源，避免笔记本、脚本和文档各自
+保存一份逐渐分叉的配置。</p>
+<h2 id="_6">从教程扩展到正式研究<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>扩大案例时，可以一次调整一个维度：</p>
+<table>
+<thead>
+<tr>
+<th>调整项</th>
+<th>主要影响</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>延长模拟时段</td>
+<td>增加气象时次、积分步数和运行时间</td>
+</tr>
+<tr>
+<td>增加粒子数量</td>
+<td>增加气象查询、内存占用和状态记录</td>
+</tr>
+<tr>
+<td>缩短输出间隔</td>
+<td>增加 SQLite 行数、结果目录体积和写入时间</td>
+</tr>
+<tr>
+<td>扩大有限区域</td>
+<td>改变资料下载范围、边界位置和流出含义</td>
+</tr>
+<tr>
+<td>更换资料系列</td>
+<td>改变变量准备、垂直坐标、时间频率和资料锁</td>
+</tr>
+<tr>
+<td>改变积分方向</td>
+<td>改变起止时间关系、释放事件顺序和结果解读方式</td>
+</tr>
+</tbody>
+</table>
+<p>保留原始十分钟项目作为本机预检会很方便。换到新计算机、更新气象读取器或调整本机资源池后，
+先运行这份小案例，再提交正式规模的任务。<a href="data-families/">资料系列与轨迹方向</a>列出了三类
+气象资料的主要差异和覆盖规划方式。</p>
 
 
 

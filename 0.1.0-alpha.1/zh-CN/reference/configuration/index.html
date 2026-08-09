@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="查找 Trajecta 机器配置的路径选择、初始值、资源字段、monitoring value、Profile template 与更新规则。">
+        <meta name="description" content="查阅 Trajecta 本机配置的路径选择、初始值、资源字段、监测设置、运行模板和更新规则。">
       
       
       
@@ -24,7 +24,7 @@
     
     
       
-        <title>机器配置参考 - Trajecta</title>
+        <title>本机配置参考 - Trajecta</title>
       
     
     
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              机器配置参考
+              本机配置参考
             
           </span>
         </div>
@@ -1552,52 +1552,52 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#top-level-field" class="md-nav__link">
-    <span class="md-ellipsis">
-      Top-level field
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#daemon-field" class="md-nav__link">
-    <span class="md-ellipsis">
-      Daemon field
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#resource-field" class="md-nav__link">
-    <span class="md-ellipsis">
-      Resource field
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#monitoring-field" class="md-nav__link">
-    <span class="md-ellipsis">
-      Monitoring field
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#profile-template" class="md-nav__link">
-    <span class="md-ellipsis">
-      Profile template
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      顶层字段
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      守护进程字段
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      资源字段
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      监测字段
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行模板
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
     <span class="md-ellipsis">
       读取与更新
     </span>
@@ -2157,52 +2157,52 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#top-level-field" class="md-nav__link">
-    <span class="md-ellipsis">
-      Top-level field
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#daemon-field" class="md-nav__link">
-    <span class="md-ellipsis">
-      Daemon field
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#resource-field" class="md-nav__link">
-    <span class="md-ellipsis">
-      Resource field
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#monitoring-field" class="md-nav__link">
-    <span class="md-ellipsis">
-      Monitoring field
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#profile-template" class="md-nav__link">
-    <span class="md-ellipsis">
-      Profile template
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      顶层字段
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      守护进程字段
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      资源字段
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      监测字段
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行模板
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
     <span class="md-ellipsis">
       读取与更新
     </span>
@@ -2229,25 +2229,25 @@
   
 
 
-<h1 id="_1">机器配置<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>机器配置描述一个本地 Trajecta runtime。它选择 reader default、scheduler capacity、monitoring
-cadence、daemon idle behavior 和 reusable execution template。科学 time、domain、population 与
-output choice 位于项目 Case。Dataset path 和每次运行的 resource request 位于 RunProfile。</p>
-<p>文件使用 TOML，schema identity 为：</p>
+<h1 id="_1">本机配置<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<p>本机配置描述一套本地 Trajecta 运行环境。它选择默认读取器、调度容量、状态采样间隔、守护进程
+空闲行为和可复用运行模板。科学时段、区域、粒子群和输出保存在项目案例中；资料路径与单次运行
+资源请求保存在运行配置中。</p>
+<p>文件使用 TOML，格式版本为：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">schema_version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;trajecta.config/v1&quot;</span>
 </code></pre></div>
-<p>Unknown field 与 duplicate TOML key 会被拒绝。</p>
+<p>未知字段和重复 TOML 键会被拒绝。</p>
 <h2 id="_2">路径选择<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>每次 invocation 按以下顺序选择一份文件：</p>
+<p>每次命令按以下顺序选择一份配置：</p>
 <ol>
-<li>Global <code>--config PATH</code>。</li>
-<li><code>TRAJECTA_CONFIG</code> environment variable。</li>
-<li>Platform default。</li>
+<li>全局参数 <code>--config PATH</code>；</li>
+<li>环境变量 <code>TRAJECTA_CONFIG</code>；</li>
+<li>平台默认路径。</li>
 </ol>
 <table>
 <thead>
 <tr>
-<th>Platform</th>
+<th>平台</th>
 <th>默认路径</th>
 </tr>
 </thead>
@@ -2257,7 +2257,7 @@ output choice 位于项目 Case。Dataset path 和每次运行的 resource reque
 <td><code>%APPDATA%\Trajecta\config.toml</code></td>
 </tr>
 <tr>
-<td>设置了 <code>XDG_CONFIG_HOME</code> 的 Ubuntu 24.04</td>
+<td>已设置 <code>XDG_CONFIG_HOME</code> 的 Ubuntu 24.04</td>
 <td><code>$XDG_CONFIG_HOME/trajecta/config.toml</code></td>
 </tr>
 <tr>
@@ -2266,14 +2266,14 @@ output choice 位于项目 Case。Dataset path 和每次运行的 resource reque
 </tr>
 </tbody>
 </table>
-<p>显示 resolved location：</p>
+<p>显示实际路径：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta config path
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>trajecta --config workstation.toml config path
 </code></pre></div>
-<p>Trajecta 不合并多份配置。使用某份 configuration 提交的 <code>run</code> 属于其中的 daemon endpoint
-与 job catalog。后续 <code>job</code> 和 catalog-backed <code>result</code> command 可继续选择同一文件。</p>
+<p>Trajecta 不合并多份本机配置。使用某份配置提交的 <code>run</code> 属于该配置选择的守护进程端点和任务
+数据库。后续 <code>job</code> 与依赖任务数据库的 <code>result</code> 命令应继续选择同一文件。</p>
 <h2 id="_3">初始值<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p><code>config init</code> 创建新文件，并保留已经存在的文件：</p>
+<p><code>config init</code> 创建新文件，目标已经存在时保持原状：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta --config workstation.toml config init
 </code></pre></div>
 <p>初始值按以下方式计算：</p>
@@ -2299,15 +2299,15 @@ output choice 位于项目 Case。Dataset path 和每次运行的 resource reque
 </tr>
 <tr>
 <td><code>resources.cpu_slots</code></td>
-<td>Host 报告的 logical parallelism，最小为 1</td>
+<td>主机报告的逻辑并行度，至少为 1</td>
 </tr>
 <tr>
 <td><code>resources.memory_pool_mib</code></td>
-<td>检测到的 physical memory MiB；无法检测时使用 4,096 MiB</td>
+<td>检测到的物理内存 MiB；无法检测时为 4,096 MiB</td>
 </tr>
 <tr>
 <td><code>resources.memory_reserve_mib</code></td>
-<td>Pool 的四分之一，并保持小于 pool</td>
+<td>内存池的四分之一，并保持小于内存池</td>
 </tr>
 <tr>
 <td><code>monitoring.sample_interval_ms</code></td>
@@ -2315,148 +2315,146 @@ output choice 位于项目 Case。Dataset path 和每次运行的 resource reque
 </tr>
 <tr>
 <td><code>monitoring.maximum_median_overhead_percent</code></td>
-<td><code>1.0</code> percent</td>
+<td><code>1.0</code>%</td>
 </tr>
 <tr>
 <td><code>profile_templates</code></td>
-<td>Empty mapping</td>
+<td>空映射</td>
 </tr>
 </tbody>
 </table>
-<p>这些数值描述检测到的 capacity。共享工作站可以在提交大型批次前减少 CPU slot，或提高
-memory reserve。</p>
-<h2 id="top-level-field">Top-level field<a class="headerlink" href="#top-level-field" title="Permanent link">&para;</a></h2>
+<p>这些数值反映检测到的主机容量。共享工作站可以减少 CPU 槽位，或在提交大型批次前提高内存预留。</p>
+<h2 id="_4">顶层字段<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Selector</th>
-<th>Type</th>
-<th>Constraint</th>
-<th>Runtime 含义</th>
+<th>选择器</th>
+<th>类型</th>
+<th>约束</th>
+<th>运行含义</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>schema_version</code></td>
-<td>String</td>
-<td>准确等于 <code>trajecta.config/v1</code></td>
-<td>选择 configuration contract</td>
+<td>字符串</td>
+<td>必须为 <code>trajecta.config/v1</code></td>
+<td>选择配置约定</td>
 </tr>
 <tr>
 <td><code>default_reader_backend</code></td>
-<td>Enum</td>
+<td>枚举</td>
 <td><code>rust</code> 或 <code>native</code></td>
-<td>Binding 与 Profile 都未选择时使用的 reader</td>
+<td>资料绑定和运行配置未指定时采用的读取器</td>
 </tr>
 <tr>
 <td><code>daemon</code></td>
-<td>Table</td>
-<td>Required</td>
-<td>Local daemon lifecycle setting</td>
+<td>表</td>
+<td>必需</td>
+<td>本地守护进程生命周期</td>
 </tr>
 <tr>
 <td><code>resources</code></td>
-<td>Table</td>
-<td>Required</td>
-<td>Shared scheduler capacity</td>
+<td>表</td>
+<td>必需</td>
+<td>共享调度容量</td>
 </tr>
 <tr>
 <td><code>monitoring</code></td>
-<td>Table</td>
-<td>Required</td>
-<td>Resource-observation policy</td>
+<td>表</td>
+<td>必需</td>
+<td>进度与资源采样策略</td>
 </tr>
 <tr>
 <td><code>profile_templates</code></td>
-<td>Table</td>
-<td>Required，可以为空</td>
-<td>Profile 准备期间使用的 named execution template</td>
+<td>表</td>
+<td>必需，可以为空</td>
+<td>准备运行配置时按名称选用的执行模板</td>
 </tr>
 </tbody>
 </table>
-<h2 id="daemon-field">Daemon field<a class="headerlink" href="#daemon-field" title="Permanent link">&para;</a></h2>
+<h2 id="_5">守护进程字段<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Selector</th>
-<th>Type 与范围</th>
+<th>选择器</th>
+<th>类型与范围</th>
 <th>含义</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>daemon.idle_shutdown_seconds</code></td>
-<td>Integer，不小于 <code>0</code></td>
-<td>Empty local daemon 退出前等待的秒数；<code>0</code> 表示保持可用</td>
+<td>大于或等于 <code>0</code> 的整数</td>
+<td>空队列守护进程退出前等待秒数；<code>0</code> 表示持续可用</td>
 </tr>
 <tr>
 <td><code>daemon.local_ipc_only</code></td>
-<td>固定 <code>true</code></td>
-<td>Windows 使用 named pipe，Linux 使用 Unix socket；不配置 network listener</td>
+<td>固定为 <code>true</code></td>
+<td>Windows 使用具名管道，Linux 使用 Unix 域套接字，不创建网络监听</td>
 </tr>
 </tbody>
 </table>
-<p>Idle exit 会关闭 process 与 endpoint，同时保留 SQLite job catalog、event 和 result directory。
-后续 runtime command 会启动 daemon，并协调同一 catalog。</p>
-<h2 id="resource-field">Resource field<a class="headerlink" href="#resource-field" title="Permanent link">&para;</a></h2>
+<p>空闲退出会关闭进程和端点，同时保留 SQLite 任务数据库、事件与结果目录。后续运行时命令会重新
+启动守护进程，并协调同一任务数据库。</p>
+<h2 id="_6">资源字段<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Selector</th>
-<th>Type 与范围</th>
+<th>选择器</th>
+<th>类型与范围</th>
 <th>含义</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>resources.cpu_slots</code></td>
-<td>Integer，至少 <code>1</code></td>
-<td>Active attempt 共享的 worker-thread slot 总数</td>
+<td>至少为 <code>1</code> 的整数</td>
+<td>所有活跃执行轮次共享的工作线程槽位总数</td>
 </tr>
 <tr>
 <td><code>resources.memory_pool_mib</code></td>
-<td>Integer，至少 <code>1</code></td>
-<td>Scheduler admission 使用的 memory pool</td>
+<td>至少为 <code>1</code> 的整数</td>
+<td>调度器准入使用的内存池</td>
 </tr>
 <tr>
 <td><code>resources.memory_reserve_mib</code></td>
-<td>Integer，至少 <code>0</code>，并小于 pool</td>
-<td>不参与 worker admission 的部分，也是 external-pressure threshold</td>
+<td>大于或等于 <code>0</code>，并小于内存池</td>
+<td>不参与工作进程准入的内存，也是外部内存压力阈值</td>
 </tr>
 </tbody>
 </table>
 <p>可调度内存为：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>memory_pool_mib - memory_reserve_mib
 </code></pre></div>
-<p>一个 RunProfile 请求 <code>execution.worker_threads</code> 个 CPU slot，并将
-<code>execution.memory_budget_bytes</code> 向上取整到 MiB。多个 attempt 可以在两项总和都放入 pool 时
-共同运行。其他程序占用主机内存后，可用内存低于 reserve 会暂停新任务派发。</p>
-<h2 id="monitoring-field">Monitoring field<a class="headerlink" href="#monitoring-field" title="Permanent link">&para;</a></h2>
+<p>一个运行配置申请 <code>execution.worker_threads</code> 个 CPU 槽位，并将
+<code>execution.memory_budget_bytes</code> 向上取整到 MiB。多项执行轮次的 CPU 和内存总和都能放入资源池
+时，可以同时运行。其他程序使用主机内存后，可用内存低于预留量会暂停新任务派发。</p>
+<h2 id="_7">监测字段<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Selector</th>
-<th>Type 与范围</th>
+<th>选择器</th>
+<th>类型与范围</th>
 <th>含义</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>monitoring.sample_interval_ms</code></td>
-<td>Integer，至少 <code>100</code></td>
-<td>Runtime progress 与 resource observation 的 nominal interval</td>
+<td>至少为 <code>100</code> 的整数</td>
+<td>运行进度与资源采样的目标间隔</td>
 </tr>
 <tr>
 <td><code>monitoring.maximum_median_overhead_percent</code></td>
-<td><code>0.0</code> 至 <code>1.0</code> 的 finite number</td>
-<td>Monitoring contract 记录的 median overhead ceiling</td>
+<td><code>0.0</code> 至 <code>1.0</code> 的有限数</td>
+<td>监测约定记录的中位开销上限</td>
 </tr>
 </tbody>
 </table>
-<p>Resource 与 progress observation 会成为 durable job event，可用于 status display 和 run report。
-Trajectory sample 则保存在 result database 中。</p>
-<h2 id="profile-template">Profile template<a class="headerlink" href="#profile-template" title="Permanent link">&para;</a></h2>
-<p>每个非空 template name 包含一个 <code>execution</code> table：</p>
+<p>资源和进度采样会成为持久任务事件，供状态显示和运行报告使用。轨迹样本仍保存在结果数据库中。</p>
+<h2 id="_8">运行模板<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<p>每个非空模板名称包含一个 <code>execution</code> 表：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[profile_templates.local.execution]</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">worker_threads</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">memory_budget_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2147483648</span>
@@ -2466,22 +2464,22 @@ Trajectory sample 则保存在 result database 中。</p>
 <table>
 <thead>
 <tr>
-<th>Field</th>
-<th>Constraint</th>
+<th>字段</th>
+<th>约束</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>worker_threads</code></td>
-<td>Positive，并且不大于 <code>resources.cpu_slots</code></td>
+<td>正整数，不大于 <code>resources.cpu_slots</code></td>
 </tr>
 <tr>
 <td><code>memory_budget_bytes</code></td>
-<td>Positive integer byte count</td>
+<td>正整数，以字节为单位</td>
 </tr>
 <tr>
 <td><code>executor</code></td>
-<td>Non-empty stable executor name</td>
+<td>非空稳定执行器名称</td>
 </tr>
 <tr>
 <td><code>meteorology_reader</code></td>
@@ -2489,10 +2487,9 @@ Trajectory sample 则保存在 result database 中。</p>
 </tr>
 </tbody>
 </table>
-<p>Template 是本机使用的便利入口。Project index 可以记录 template name 及其 SHA-256，从而将
-prepared Profile 与准确 local template 联系起来。Runtime execution 仍会接收 fully resolved
-RunProfile。</p>
-<p>通过 dotted selector 创建或移除 template：</p>
+<p>模板用于本机复用执行设置。项目索引可以记录模板名称及其 SHA-256，把已经准备的运行配置连接到
+所选本机模板。运行时，工作进程仍接收完整解析后的运行配置。</p>
+<p>用点分选择器创建或移除模板：</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Windows PowerShell</label><label for="__tabbed_1_2">Ubuntu 24.04</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
@@ -2509,27 +2506,27 @@ RunProfile。</p>
 </div>
 </div>
 </div>
-<h2 id="_4">读取与更新<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_9">读取与更新<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>trajecta --config workstation.toml config list
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>trajecta --config workstation.toml config get resources.memory_pool_mib
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>trajecta --config workstation.toml config set resources.memory_reserve_mib 2048
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>trajecta --config workstation.toml config validate
 </code></pre></div>
-<p><code>config list</code> 以确定性顺序返回全部 leaf selector。<code>config get</code> 接受已经存在的 selector。
-<code>config set</code> 对 scalar text 接受 plain string，对 object 或 array value 接受 JSON syntax。
-<code>config unset</code> 只处理 optional template selector，required field 会继续保留。</p>
-<p>每次更新采用相同顺序：</p>
+<p><code>config list</code> 按确定顺序返回所有叶子选择器。<code>config get</code> 要求选择器已经存在。<code>config set</code>
+可直接接收普通字符串；对象或数组则使用 JSON。<code>config unset</code> 只处理可选模板选择器，必需字段
+会继续保留。</p>
+<p>每次更新按以下顺序执行：</p>
 <ol>
-<li>读取并解析 current file。</li>
-<li>在内存中替换或移除 selected value。</li>
-<li>Deserialize 并校验 complete configuration。</li>
-<li>写入同目录 temporary file。</li>
-<li>Flush 并同步文件。</li>
-<li>原子替换 selected configuration。</li>
+<li>读取并解析当前文件。</li>
+<li>在内存中替换或移除选定值。</li>
+<li>反序列化并校验完整配置。</li>
+<li>写入同目录临时文件。</li>
+<li>刷新并同步文件内容。</li>
+<li>原子替换所选配置。</li>
 </ol>
-<p>Value 被拒绝后，previous file byte 保持原状。一组更改完成后，可以运行 <code>config validate</code>；
-提交长队列前再运行 project <code>doctor --deep</code>。</p>
-<p>Machine-readable shape 与 example 位于 <a href="../schemas/">schema 参考</a>。</p>
+<p>值被拒绝时，原文件字节保持不变。一组修改完成后运行 <code>config validate</code>，提交长队列前再运行
+项目 <code>doctor --deep</code>。</p>
+<p>机器可读结构与示例见<a href="../schemas/">结构定义参考</a>。</p>
 
 
 

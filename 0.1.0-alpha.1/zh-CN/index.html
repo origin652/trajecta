@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="面向拉格朗日水汽追踪、domain filling 及正反向大气轨迹计算的开源框架。">
+        <meta name="description" content="面向拉格朗日水汽追踪、区域填充及正反向大气轨迹计算的开源框架。">
       
       
       
@@ -339,16 +339,7 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      可以运行哪些研究
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#case" class="md-nav__link">
-    <span class="md-ellipsis">
-      从 Case 到结果
+      适用的研究类型
     </span>
   </a>
   
@@ -357,7 +348,7 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      一次运行会产生什么
+      从案例配置到结果
     </span>
   </a>
   
@@ -365,6 +356,15 @@
       
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      一次运行会产生什么
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       从哪里开始
     </span>
@@ -2101,16 +2101,7 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      可以运行哪些研究
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#case" class="md-nav__link">
-    <span class="md-ellipsis">
-      从 Case 到结果
+      适用的研究类型
     </span>
   </a>
   
@@ -2119,7 +2110,7 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      一次运行会产生什么
+      从案例配置到结果
     </span>
   </a>
   
@@ -2127,6 +2118,15 @@
       
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      一次运行会产生什么
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       从哪里开始
     </span>
@@ -2156,82 +2156,83 @@
 <h1 id="trajecta">使用 Trajecta 开展拉格朗日水汽追踪<a class="headerlink" href="#trajecta" title="Permanent link">&para;</a></h1>
 <p>Trajecta 在网格化气象场中追踪随气流运动的空气质点。每个积分步都会在粒子当前位置
 读取风场、气压、温度和湿度等变量。轨迹积分器据此推进粒子，随后处理地表、模式顶和
-水平边界，并在指定时刻写出粒子状态。时间可以从源区向后发展，也可以从受体时刻向前
-回溯。</p>
-<p>同一套执行核心支持两类常见研究。释放试验在指定地点和时间创建粒子，可用于研究源区
-排放的输送路径，也可用于受体轨迹。Domain fill 试验使用一组粒子表示气象区域中的
-空气质量，并跟踪水汽或臭氧状态。水汽源汇分析通常从 domain fill 工作流开始。</p>
-<p>Trajecta 通过命令行项目组织研究。Case 保存可移植的科学设置，RunProfile 提供本机
-资料路径、输出位置、读取器、线程数和内存预算。运行前，<code>project finalize</code> 会检查
-气象文件并生成 DatasetLock。Worker 只接收已经解析且固定的输入，每次执行写入独立的
-结果目录。</p>
-<h2 id="_1">可以运行哪些研究<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+水平边界，并在指定时刻写出粒子状态。正向计算从源区时刻向未来推进，反向计算则从
+受体时刻向过去回溯。</p>
+<p>同一套数值核心支持两类常见研究。释放试验在指定地点和时间创建粒子，可用于研究源区
+物质的输送路径，也可用于计算受体轨迹。区域填充试验用一组粒子表示计算区域内的干空气
+质量，并在粒子运动过程中跟踪水汽或臭氧。水汽来源与去向分析通常从区域填充工作流开始。</p>
+<p>Trajecta 以命令行项目组织研究。案例（<code>Case</code>）保存能够随项目移动的科学设置；运行配置
+（<code>RunProfile</code>）补充当前计算机上的资料路径、输出位置、读取器、线程数和内存预算。
+运行前需要执行项目定稿命令 <code>project finalize</code>。该命令检查气象文件并生成资料锁
+（<code>DatasetLock</code>）。工作进程随后接收已经展开并与资料锁绑定的输入，每次执行都写入独立目录。</p>
+<h2 id="_1">适用的研究类型<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>研究类型</th>
-<th>Trajecta 创建的 population</th>
+<th>Trajecta 创建的粒子群</th>
 <th>常见问题</th>
-<th>可用资料路径</th>
+<th>可用资料</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Domain-fill 水汽追踪</td>
+<td>区域填充水汽追踪</td>
 <td>分布在全球或有限区域内的气团粒子</td>
 <td>某区域内的水汽来自哪里，又从哪里离开？</td>
-<td>CFSR pressure 或 ERA5 pressure</td>
+<td>CFSR 或 ERA5 气压层资料</td>
 </tr>
 <tr>
 <td>定时释放</td>
 <td>由一个或多个时空源事件创建的粒子</td>
 <td>源区释放的物质会输送到哪里？</td>
-<td>CFSR pressure 或 ERA5 pressure</td>
+<td>CFSR 或 ERA5 气压层资料</td>
 </tr>
 <tr>
 <td>气团追踪</td>
-<td>对有限区域干空气质量进行采样的粒子</td>
+<td>对有限区域内的干空气质量进行采样的粒子</td>
 <td>气团如何进入区域、在区域内运动并最终离开？</td>
-<td>ERA5 pressure</td>
+<td>ERA5 气压层资料</td>
 </tr>
 <tr>
 <td>平流层臭氧追踪</td>
-<td>使用 PV60 臭氧规则初始化的 domain-fill 气团</td>
+<td>按 PV60 臭氧规则初始化的区域填充气团</td>
 <td>选定时段内的平流层臭氧如何输送？</td>
-<td>ERA5 137 层 hybrid 资料</td>
+<td>ERA5 137 层混合坐标资料</td>
 </tr>
 </tbody>
 </table>
-<p><code>0.1.0-alpha.1</code> 中的四条工作流使用同一个球面 RK2 轨迹积分器。Case 指定积分方向、
-时间步长、边界策略、population、随机种子和输出计划。气象 profile 负责解释源资料，
-并把其中的变量转换为积分器使用的标准物理量。</p>
-<h2 id="case">从 Case 到结果<a class="headerlink" href="#case" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Case + RunProfile + 项目索引
+<p><code>0.1.0-alpha.1</code> 中的四条工作流使用同一个球面 RK2 轨迹积分器。案例规定积分方向、
+时间步长、边界策略、粒子群、随机种子和输出计划。运行配置说明如何读取气象资料，
+并将源文件中的变量转换为积分器使用的标准物理量。</p>
+<h2 id="_2">从案例配置到结果<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>案例 + 运行配置 + 项目索引
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                 │
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>                 ▼
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>             data-plan
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>            资料计划
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                 │  准备或下载所需时次
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                 ▼
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>          project finalize
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                 │  检查文件并创建 DatasetLock
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                 │  检查文件并创建资料锁
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>                 ▼
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>           本地队列与 worker
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>         本地队列与工作进程
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>                 │  加载气象场，积分粒子，写出结果
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>                 ▼
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>              结果目录
 </code></pre></div>
-<p>项目可以在资料到齐前建立。<code>project data-plan</code> 会列出每个 Case/Profile 组合所需的
-物理时间范围、dataset profile、能力集合、lock 路径和资料目录。独立的 Python 资料
-助手可以先预览请求，确认后再下载。下载不会自动改变可运行输入；DatasetLock 只由显式
-执行的 finalize 创建。</p>
-<p><code>run</code> 默认在前台等待。加入 <code>--detach</code> 后，命令会在本地 daemon 接收任务后返回。
-Daemon 保存队列状态，并按 CPU 和内存资源池启动 worker。机器重启后，已经完成的
-attempt 仍保持完成状态。<code>job rerun</code> 会在同一 job series 下创建新的 attempt。</p>
-<h2 id="_2">一次运行会产生什么<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>每次执行都会在 RunProfile 的 <code>output_root</code> 下获得独立目录。<code>particles.sqlite</code> 保存
+<p>气象资料尚未到齐时也可以先建立项目。<code>project data-plan</code> 会列出每个案例与运行配置组合所需的
+物理时间范围、内置资料配置、读取能力、资料锁路径和资料目录。独立的 Python 资料助手先列出
+下载请求，加入 <code>--execute</code> 后才开始下载。文件准备完成后，再执行 <code>project finalize</code> 检查资料并
+创建资料锁。</p>
+<p><code>run</code> 默认在前台等待。加入 <code>--detach</code> 后，命令会在本地守护进程接收任务后返回。
+守护进程持久保存队列状态，并按照 CPU 与内存资源池启动工作进程。机器重启后，已经
+完成的执行轮次仍保持终态。<code>job rerun</code> 会在同一任务系列中创建新的执行轮次。</p>
+<h2 id="_3">一次运行会产生什么<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>每次执行都会在运行配置指定的 <code>output_root</code> 下获得独立目录。<code>particles.sqlite</code> 保存
 输出事件、粒子信息、按时间排列的粒子状态、随粒子携带的质量以及终止记录。
 <code>run-manifest.json</code> 汇总本次执行使用的输入、数值设置、记录数量、质量统计和终态。
-目录中还会保存 resolved Case、resolved RunProfile 与 <code>provenance-bundle.json</code>。</p>
+目录中还会保存工作进程实际采用的案例、运行配置，以及记录气象字段来源的
+<code>provenance-bundle.json</code>。</p>
 <p>常规读取从以下命令开始：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta result inspect RESULT
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>trajecta result verify RESULT --full
@@ -2241,7 +2242,7 @@ attempt 仍保持完成状态。<code>job rerun</code> 会在同一 job series �
 <p><code>result inspect</code> 可直接查看粒子数、输出时次、读取器、终止原因和主要文件位置。
 <code>result trajectory</code> 按时间顺序输出指定粒子的记录。需要批量分析时，可以按照只读方式
 访问 SQLite；相关表结构在参考手册中单独说明。</p>
-<h2 id="_3">从哪里开始<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h2 id="_4">从哪里开始<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -2255,7 +2256,7 @@ attempt 仍保持完成状态。<code>job rerun</code> 会在同一 job series �
 <td><a href="getting-started/">入门</a></td>
 </tr>
 <tr>
-<td>使用配套 CFSR 资料完成一次小型 domain-fill 运行</td>
+<td>使用配套 CFSR 资料完成一次小型区域填充运行</td>
 <td><a href="getting-started/quickstart/">十五分钟快速入门</a></td>
 </tr>
 <tr>
@@ -2267,7 +2268,7 @@ attempt 仍保持完成状态。<code>job rerun</code> 会在同一 job series �
 <td><a href="how-to/">操作指南</a></td>
 </tr>
 <tr>
-<td>理解 Case、Profile、population、覆盖范围和结果目录</td>
+<td>理解案例、运行配置、粒子群、覆盖范围和结果目录</td>
 <td><a href="concepts/">概念</a></td>
 </tr>
 <tr>
@@ -2279,13 +2280,13 @@ attempt 仍保持完成状态。<code>job rerun</code> 会在同一 job series �
 <td><a href="reference/">参考</a></td>
 </tr>
 <tr>
-<td>构建 workspace 或修改实现</td>
+<td>构建 Rust 工作区或修改实现</td>
 <td><a href="developer/">开发手册</a></td>
 </tr>
 </tbody>
 </table>
 <p><code>0.1.0-alpha.1</code> 提供 Windows x86_64 和 Ubuntu 24.04 x86_64 安装包。远程调度、
-插件加载、实际删除式 prune 和通用结果导出命令仍未发布。当前范围见
+插件加载、<code>job prune</code> 的实际删除功能和通用结果导出命令仍未发布。当前范围见
 <a href="reference/alpha/">Alpha 限制</a>。</p>
 
 
