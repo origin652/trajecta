@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="确定性产品归档、native 运行时清单、发布证据、版本策略和 GitHub 发布流程。">
+        <meta name="description" content="确定性产品 archive、原生运行库清单、供应链文件、文档快照和 GitHub release 流程。">
       
       
       
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            操作指南
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -917,6 +1129,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1018,7 +1276,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1625,7 +1883,115 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#release-artifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      Release artifact 集合
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      软件包内容
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#formal-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      Formal build 的主机条件
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#archive" class="md-nav__link">
+    <span class="md-ellipsis">
+      确定性 archive 构造
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#probe" class="md-nav__link">
+    <span class="md-ellipsis">
+      原生库收集与 probe
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-manifest" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build manifest 与供应链清单
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      软件包验证
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#asset" class="md-nav__link">
+    <span class="md-ellipsis">
+      演示资料 asset
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#release" class="md-nav__link">
+    <span class="md-ellipsis">
+      Release 前门禁
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#github-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      GitHub workflow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      文档发布
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#credential" class="md-nav__link">
+    <span class="md-ellipsis">
+      Credential 与发布权限
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       发布顺序
     </span>
@@ -1818,7 +2184,115 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#release-artifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      Release artifact 集合
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      软件包内容
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#formal-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      Formal build 的主机条件
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#archive" class="md-nav__link">
+    <span class="md-ellipsis">
+      确定性 archive 构造
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#probe" class="md-nav__link">
+    <span class="md-ellipsis">
+      原生库收集与 probe
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-manifest" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build manifest 与供应链清单
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      软件包验证
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#asset" class="md-nav__link">
+    <span class="md-ellipsis">
+      演示资料 asset
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#release" class="md-nav__link">
+    <span class="md-ellipsis">
+      Release 前门禁
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#github-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      GitHub workflow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      文档发布
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#credential" class="md-nav__link">
+    <span class="md-ellipsis">
+      Credential 与发布权限
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       发布顺序
     </span>
@@ -1846,24 +2320,332 @@
 
 
 <h1 id="_1">打包与发布<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>正式产品归档在 Windows x86_64 与 Ubuntu 24.04 x86_64 上构建。每份归档包含二进制、
-native 库及 ecCodes definitions，也包含示例、离线恢复文档和资料助手。许可材料、SBOM
-与 <code>BUILD-MANIFEST.json</code> 随归档提供。</p>
-<p>打包器使用固定源码身份与源码时间。归档路径、权限与时间戳保持确定性，payload 排序和
-摘要也保持确定性。安装包验证会检查相邻 SHA-256、manifest 结构和每项 payload 摘要，
-随后核对二进制身份、供应链文件与 native 组件版本。</p>
-<h2 id="_2">发布顺序<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>Trajecta 为 Windows x86_64 和 Ubuntu 24.04 x86_64 发布 host-native archive。Archive 由 release
+build 与声明的 payload 组装；解压后运行无需 Rust 或 C 开发环境。</p>
+<p>软件包、演示资料和文档是三个独立 release artifact。这样可以避免在两个平台 archive 内重复存放
+气象 sample，手册也可以作为带版本的静态站点发布。</p>
+<h2 id="release-artifact">Release artifact 集合<a class="headerlink" href="#release-artifact" title="Permanent link">&para;</a></h2>
+<p><code>0.1.0-alpha.1</code> 预期包含以下公开文件：</p>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>trajecta-0.1.0-alpha.1-windows-x86_64.zip</code></td>
+<td>Windows GNU-hosted 产品软件包</td>
+</tr>
+<tr>
+<td><code>trajecta-0.1.0-alpha.1-windows-x86_64.zip.sha256</code></td>
+<td>Archive checksum</td>
+</tr>
+<tr>
+<td><code>trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz</code></td>
+<td>Ubuntu 24.04 产品软件包</td>
+</tr>
+<tr>
+<td><code>trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz.sha256</code></td>
+<td>Archive checksum</td>
+</tr>
+<tr>
+<td><code>trajecta-demo-cfsr-20090101-v1.zip</code></td>
+<td>包含四个文件的 CFSR 演示资料</td>
+</tr>
+<tr>
+<td>演示资料 checksum 与 build result</td>
+<td>Dataset archive identity</td>
+</tr>
+<tr>
+<td>GitHub release note</td>
+<td>面向使用者的范围、下载入口、变更和限制</td>
+</tr>
+<tr>
+<td><code>0.1.0-alpha.1</code> 文档快照</td>
+<td>GitHub Pages 上不可变的双语手册</td>
+</tr>
+</tbody>
+</table>
+<p>Validation CSV、JSON 和 chart 位于文档源码与发布站点。它们由冻结 comparison output 生成，不会
+复制到 executable archive。</p>
+<h2 id="_2">软件包内容<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p><code>tools/m5_a4_package.py</code> 会建立以版本和平台命名的单一根目录。Payload 包含：</p>
+<table>
+<thead>
+<tr>
+<th>分组</th>
+<th>文件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Executable</td>
+<td>Windows 的 <code>trajecta.exe</code> 或 Linux 的 <code>trajecta</code></td>
+</tr>
+<tr>
+<td>原生运行库</td>
+<td>非系统 ecCodes、netCDF-C、HDF5 和传递依赖共享库</td>
+</tr>
+<tr>
+<td>ecCodes data</td>
+<td>复制的 definition tree，或经过验证的 embedded-MEMFS marker</td>
+</tr>
+<tr>
+<td>供应链</td>
+<td><code>BUILD-MANIFEST.json</code>、CycloneDX 1.5 <code>SBOM.cdx.json</code>、<code>THIRD-PARTY-LICENSES.json</code></td>
+</tr>
+<tr>
+<td>法律与软件包信息</td>
+<td>项目 <code>LICENSE</code> 和 package <code>README.md</code></td>
+</tr>
+<tr>
+<td>离线帮助</td>
+<td>中英文快速入门、恢复说明和支持矩阵</td>
+</tr>
+<tr>
+<td>Example project</td>
+<td>Domain-fill CFSR、release CFSR、ERA5 pressure air mass、ERA5 hybrid ozone</td>
+</tr>
+<tr>
+<td>资料工具</td>
+<td>Data-plan helper、CFSR/ERA5 获取与准备工具、quickstart runner</td>
+</tr>
+<tr>
+<td>Python requirements</td>
+<td>可选 provider helper 使用的 <code>requirements-data.txt</code></td>
+</tr>
+</tbody>
+</table>
+<p>软件 archive 不包含气象资料和 provider credential。使用者可以另外下载演示 asset，或者准备自己
+的 locked dataset。</p>
+<h2 id="formal-build">Formal build 的主机条件<a class="headerlink" href="#formal-build" title="Permanent link">&para;</a></h2>
+<p>正式软件包在目标操作系统上原生构建：</p>
+<table>
+<thead>
+<tr>
+<th>软件包</th>
+<th>Rust host</th>
+<th>Build host</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows</td>
+<td><code>x86_64-pc-windows-gnu</code></td>
+<td>Windows x64 与同一 GNU ABI 的 native library</td>
+</tr>
+<tr>
+<td>Linux</td>
+<td><code>x86_64-unknown-linux-gnu</code></td>
+<td>Ubuntu 24.04 x86_64</td>
+</tr>
+</tbody>
+</table>
+<p>Package tool 会检查 Rust host triple。Ubuntu 24.04 以外的 Linux build 只有在显式使用 nonformal
+preflight flag 时才可生成，不能作为 release archive。</p>
+<p>Release binary 使用以下 feature set：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cargo build --offline --locked --release --package trajecta-cli \
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  --features trajecta-met/native-eccodes,trajecta-met/native-netcdf
+</code></pre></div>
+<p>Linux 软件包会加入 <code>$ORIGIN/lib</code> runtime search path。Windows builder 递归遍历 executable 的 DLL
+import，并从指定 native-library directory 复制非系统 dependency。</p>
+<h2 id="archive">确定性 archive 构造<a class="headerlink" href="#archive" title="Permanent link">&para;</a></h2>
+<p>编译前，package builder 先记录 source identity，其中包含 Git commit、tracked 与 unignored source
+file 的整体 digest、file count 和 dirty path。Release review 使用明确选择的 source tree；生成的
+target directory 与无关 run artifact 不属于 package input。</p>
+<p>Timestamp 来自 <code>SOURCE_DATE_EPOCH</code>，默认使用 commit time。Archive writer 随后规范化：</p>
+<ul>
+<li>使用正斜杠表示相对 member path；</li>
+<li>Root directory name；</li>
+<li>Member ordering；</li>
+<li>File 与 directory mode；</li>
+<li>Tar archive 中的 owner information；</li>
+<li>ZIP 与 gzip timestamp；</li>
+<li>Gzip filename metadata；</li>
+<li>JSON key order 和最终 line ending。</li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">每次构建使用新的 output root</p>
+<p>Builder 不会覆盖已有 stage、archive 或 checksum。每次 build 使用单独目录。</p>
+</div>
+<h2 id="probe">原生库收集与 probe<a class="headerlink" href="#probe" title="Permanent link">&para;</a></h2>
+<p>Archive 的 component inventory 必须各声明一次 ecCodes、netCDF-C 和 HDF5。Builder 会加载复制后
+的运行库，并调用 version API：</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Probe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ecCodes</td>
+<td><code>codes_get_api_version</code></td>
+</tr>
+<tr>
+<td>netCDF-C</td>
+<td><code>nc_inq_libvers</code></td>
+</tr>
+<tr>
+<td>HDF5</td>
+<td><code>H5get_libversion</code></td>
+</tr>
+</tbody>
+</table>
+<p>探测版本必须与 <code>--native-component</code> 提供的版本一致。这样可以发现 release metadata 描述的库和
+软件包实际收集的 DLL 或 shared object 不一致。</p>
+<p>Windows system DLL 由操作系统提供。Linux 会跳过系统 C runtime 与 loader，将其余已解析依赖复制
+到 <code>lib/</code>。出现 unresolved <code>ldd</code> entry 或递归 DLL import 缺失时，build 会停止。</p>
+<h2 id="build-manifest">Build manifest 与供应链清单<a class="headerlink" href="#build-manifest" title="Permanent link">&para;</a></h2>
+<p><code>BUILD-MANIFEST.json</code> 是软件包索引，记录：</p>
+<ul>
+<li>Product version、target triple 与 minimum operating system。</li>
+<li>Rust/Cargo version、feature set、source date 与 source-tree identity。</li>
+<li>Binary path、byte count 和 SHA-256。</li>
+<li>Archive format 与 root directory。</li>
+<li>每个 payload path 的 role、size 和 SHA-256。</li>
+<li>Native component 与 version probe result。</li>
+<li>SBOM 和 license-inventory identity。</li>
+</ul>
+<p>CycloneDX 文档根据锁定的 Cargo dependency closure 和三个 native component 生成。License
+inventory 使用相同 component set，并记录 source link 与 license expression。Package verify 会
+交叉检查这些文件，不会将它们视为互不相关的附件。</p>
+<h2 id="_3">软件包验证<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>Verify 从 archive 和相邻 checksum 开始：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python tools/m5_a4_package.py verify \
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  --archive &lt;archive&gt; \
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  --extract-root &lt;new-directory&gt; \
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  --result &lt;verification-result.json&gt;
+</code></pre></div>
+<p>Verifier 按以下顺序工作：</p>
 <ol>
-<li>通过 workspace、合同、文档和产品安装包门禁。</li>
-<li>在干净解压目录中构建并验证两个正式平台归档。</li>
-<li>在两个平台运行 domain-fill quickstart 与产品 smoke。</li>
-<li>构建演示资料 asset，并校验其冻结 manifest。</li>
-<li>使用 <code>mike</code> 建立不可变文档快照。</li>
-<li>发布软件归档、checksum、资料 asset 与 release notes。</li>
-<li>检查公开 Pages release URL、sitemap、canonical 元数据和语言切换。</li>
+<li>检查 archive SHA-256 和 checksum filename。</li>
+<li>拒绝 absolute path、parent traversal、duplicate member、link 和异常 archive root。</li>
+<li>解压到新目录，不覆盖现有 tree。</li>
+<li>验证 manifest schema 与 product/platform identity。</li>
+<li>重新计算每个 payload digest，并拒绝未列入清单的文件。</li>
+<li>检查 executable name，以及 Linux execute permission。</li>
+<li>验证 CycloneDX 与 license inventory。</li>
+<li>加载解压后的 native library，重复 version probe。</li>
 </ol>
-<p>M5.1 保持软件版本 <code>0.1.0-alpha.1</code>。普通文档提交只更新 <code>dev</code> 站点，不建立新发布版本。
-Provider 条款或 GitHub 登录尚未解决时，不能继续正式发布。</p>
+<p>输出 JSON 会记录后续 smoke test 使用的精确 extracted root 和 identity。Matrix runner 应读取该
+root，不应自行猜测 archive directory name。</p>
+<h2 id="asset">演示资料 asset<a class="headerlink" href="#asset" title="Permanent link">&para;</a></h2>
+<p><code>tools/build_m5_1_demo_asset.py</code> 构建单独发布的 CFSR sample。Input manifest 固定四个 GRIB filename、
+byte count、SHA-256、source information 和 data-use note。ZIP 使用固定 root 与 timestamp。</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python tools/build_m5_1_demo_asset.py \
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  --source &lt;directory-with-four-cfsr-files&gt; \
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  --output &lt;release-directory&gt;/trajecta-demo-cfsr-20090101-v1.zip
+</code></pre></div>
+<p>工具会写 archive、相邻 checksum 和 JSON build result。Quickstart runner 在解压后还会再次验证
+四个 file hash。</p>
+<h2 id="release">Release 前门禁<a class="headerlink" href="#release" title="Permanent link">&para;</a></h2>
+<p>Release candidate 应在准备打 tag 的同一 source commit 上通过以下分组：</p>
+<table>
+<thead>
+<tr>
+<th>分组</th>
+<th>要求结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Source</td>
+<td>Workspace test、clippy warnings denied、rustdoc、fmt、M4/M5 contract validator</td>
+</tr>
+<tr>
+<td>Documentation</td>
+<td>Generated reference、bilingual validator、validation asset、严格 release/dev build</td>
+</tr>
+<tr>
+<td>Package</td>
+<td>在全新目录 build 并 verify 两个 host-native archive</td>
+</tr>
+<tr>
+<td>Product smoke</td>
+<td>两个平台各两个 clean-package CFSR cell</td>
+</tr>
+<tr>
+<td>Product matrix</td>
+<td>Windows 三十格，Ubuntu 三十格</td>
+</tr>
+<tr>
+<td>Tutorial</td>
+<td>两个平台的 domain-fill 与 release；Ubuntu 的 air-mass 与 ozone</td>
+</tr>
+<tr>
+<td>Validation</td>
+<td>冻结 scientific/performance comparison aggregate 与 chart regeneration</td>
+</tr>
+<tr>
+<td>Operations</td>
+<td>每轮 matrix 后没有遗留 live daemon/worker；失败 attempt 连同 summary 保留</td>
+</tr>
+</tbody>
+</table>
+<p>Formal matrix 在首个失败处停止。实现发生修改后，应生成新的 source identity、package、extraction
+root 和 attempt tree；失败 artifact 保持原样。</p>
+<h2 id="github-workflow">GitHub workflow<a class="headerlink" href="#github-workflow" title="Permanent link">&para;</a></h2>
+<p>M5.1 在 <code>.github/workflows</code> 下使用三个 workflow：</p>
+<table>
+<thead>
+<tr>
+<th>Workflow</th>
+<th>Trigger</th>
+<th>工作内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>m5-1-docs-ci.yml</code></td>
+<td>文档相关 pull request 或手动运行</td>
+<td>构建 CLI 参考源，验证 helper 与文档，严格构建 release/dev site，运行 domain-fill source quickstart，检查 external link</td>
+</tr>
+<tr>
+<td><code>m5-1-docs-publish.yml</code></td>
+<td>Main 文档修改、release 或显式 dispatch</td>
+<td>构建 static site，上传 artifact，通过 <code>mike</code> 发布 mutable <code>dev</code> 或 immutable release docs</td>
+</tr>
+<tr>
+<td><code>m5-1-product-docs.yml</code></td>
+<td>每周计划、release 或手动运行</td>
+<td>下载公开软件包与 demo data，运行 packaged tutorial，检查公开 Pages 和 crawler asset</td>
+</tr>
+</tbody>
+</table>
+<p>Pull request 不发布 Pages。Main branch 的文档修改更新 <code>dev</code> 版本。Release event 或经过批准的手动
+snapshot 会创建不可变 <code>0.1.0-alpha.1</code> 目录，并更新 <code>latest</code> alias。</p>
+<h2 id="_4">文档发布<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>Release site 使用 <code>mkdocs.yml</code> 构建。Dev site 通过 <code>mkdocs.dev.yml</code> 继承配置，将 URL 改为 <code>/dev/</code>，
+并生成 <code>noindex</code> metadata。发布前，两个 static tree 都会作为 workflow artifact 上传。</p>
+<p><code>mike</code> 在 <code>gh-pages</code> branch 保存带版本 HTML。创建 release snapshot 前，workflow 会确认对应版本
+目录尚不存在。Root <code>robots.txt</code> 与 <code>sitemap.xml</code> 从 release build 生成；root sitemap 指向带版本
+canonical URL，crawler 不访问 <code>/dev/</code>。</p>
+<p>生成的 <code>site</code> 是普通静态内容。相同 artifact 可以由 GitHub Pages、Nginx 或 Caddy 提供，无需
+Node 或 Python server。</p>
+<h2 id="credential">Credential 与发布权限<a class="headerlink" href="#credential" title="Permanent link">&para;</a></h2>
+<p>Release workflow 使用 GitHub short-lived token 下载 release 并更新 Pages branch。ERA5 tutorial
+从 repository secret 读取 <code>CDSAPI_URL</code> 和 <code>CDSAPI_KEY</code>，只通过 process environment 传递。</p>
+<p>Stage release file 前，需要扫描 source 与计划上传的 artifact，检查常见 credential pattern、本机
+home path、provider configuration file 和 private key。Runtime log 与 provenance 可以记录 request
+identity 和公开 dataset metadata，不应包含 authorization header 或 secret environment value。</p>
+<h2 id="_5">发布顺序<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<ol>
+<li>选择 commit，并确认 workspace version 为 <code>0.1.0-alpha.1</code>。</li>
+<li>运行 source、documentation、validation 和 product gate。</li>
+<li>在新 output root 中构建每个 host-native archive。</li>
+<li>将每个 archive verify 到新 extraction directory，再运行 package smoke 和 formal matrix。</li>
+<li>构建并验证 demonstration-data asset。</li>
+<li>一并审阅 <code>BUILD-MANIFEST.json</code>、SBOM、license inventory、checksum 和 release note。</li>
+<li>为已选 commit 创建 tag，发布软件与资料 asset。</li>
+<li>发布不可变双语文档 snapshot。</li>
+<li>在全新 browser session 打开公开下载、quickstart、带版本手册、sitemap、language switch 与 chart。</li>
+<li>按 workflow artifact retention 设置保留 summary 和 failed-attempt artifact。</li>
+</ol>
+<p>Release 后的文档修订继续进入 <code>dev</code>。只有准备新的软件 release 时才修改软件版本。</p>
 
 
 

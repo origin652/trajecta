@@ -6,14 +6,14 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Understand the four documents that separate scientific intent from local execution in Trajecta.">
+        <meta name="description" content="Understand how Trajecta separates a study, scientific intent, local execution choices, and exact meteorological inputs.">
       
       
       
         <link rel="canonical" href="https://origin652.github.io/trajecta/0.1.0-alpha.1/concepts/">
       
       
-        <link rel="prev" href="../how-to/">
+        <link rel="prev" href="../how-to/ai-companion/">
       
       
         <link rel="next" href="domain-fill/">
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -758,9 +970,81 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#resolution-boundary" class="md-nav__link">
+  <a href="#project-the-study-container" class="md-nav__link">
     <span class="md-ellipsis">
-      Resolution boundary
+      Project: the study container
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#case-portable-scientific-intent" class="md-nav__link">
+    <span class="md-ellipsis">
+      Case: portable scientific intent
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runprofile-local-binding-and-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      RunProfile: local binding and resources
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datasetlock-exact-data-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      DatasetLock: exact data inventory
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#three-project-states" class="md-nav__link">
+    <span class="md-ellipsis">
+      Three project states
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-resolution-and-finalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validation, resolution, and finalization
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#path-containment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Path containment
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-a-run-preserves" class="md-nav__link">
+    <span class="md-ellipsis">
+      What a run preserves
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related concepts
     </span>
   </a>
   
@@ -970,6 +1254,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../operations/recovery/" class="md-nav__link">
         
   
@@ -1071,7 +1401,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1818,9 +2148,81 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#resolution-boundary" class="md-nav__link">
+  <a href="#project-the-study-container" class="md-nav__link">
     <span class="md-ellipsis">
-      Resolution boundary
+      Project: the study container
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#case-portable-scientific-intent" class="md-nav__link">
+    <span class="md-ellipsis">
+      Case: portable scientific intent
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runprofile-local-binding-and-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      RunProfile: local binding and resources
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datasetlock-exact-data-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      DatasetLock: exact data inventory
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#three-project-states" class="md-nav__link">
+    <span class="md-ellipsis">
+      Three project states
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-resolution-and-finalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validation, resolution, and finalization
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#path-containment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Path containment
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-a-run-preserves" class="md-nav__link">
+    <span class="md-ellipsis">
+      What a run preserves
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related concepts
     </span>
   </a>
   
@@ -1846,54 +2248,226 @@
 
 
 <h1 id="project-case-runprofile-and-datasetlock">Project, Case, RunProfile, and DatasetLock<a class="headerlink" href="#project-case-runprofile-and-datasetlock" title="Permanent link">&para;</a></h1>
-<p>Trajecta separates portable scientific intent from local execution details.</p>
+<p>Trajecta represents a run through four related objects. The split lets a study
+keep its scientific design stable while selecting data locations and machine
+resources for a particular computer.</p>
 <table>
 <thead>
 <tr>
 <th>Object</th>
-<th>Responsibility</th>
-<th>Typical owner</th>
-<th>Mutable before a run?</th>
+<th>Main question</th>
+<th>Typical contents</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Project</td>
-<td>Names Cases, Profiles, and dataset-profile mappings</td>
-<td>Study team</td>
-<td>Yes</td>
+<td>Which experiments belong together?</td>
+<td>Names and paths for Cases and Profiles; dataset-profile mappings; default Profile</td>
 </tr>
 <tr>
 <td>Case</td>
-<td>Defines time, domains, population, physics, numerics, and outputs</td>
-<td>Scientist</td>
-<td>Yes</td>
+<td>What physical simulation is intended?</td>
+<td>Time, direction, meteorological domains, population, substances, numerical model, boundaries, and outputs</td>
 </tr>
 <tr>
 <td>RunProfile</td>
-<td>Binds a Case to data roots, locks, output root, reader, and resources</td>
-<td>Operator</td>
-<td>Yes</td>
+<td>How will one Case run here?</td>
+<td>Case path, output root, dataset roots and locks, reader backend, worker threads, and memory budget</td>
 </tr>
 <tr>
 <td>DatasetLock</td>
-<td>Records exact files, hashes, coverage, profile, and capabilities</td>
-<td>Finalization</td>
-<td>Recreated explicitly</td>
+<td>Which exact meteorological input is admitted?</td>
+<td>File paths, byte sizes, hashes, valid times, grid signature, vertical signature, and interpretation-profile identity</td>
 </tr>
 </tbody>
 </table>
-<p>The project index provides names and relative paths. A Profile may select one
-Case, while a project may contain multiple Cases and multiple Profiles. Create
-separate Profile entries when one machine setting must run several Cases; each
-entry points to its intended Case and can share dataset-profile mappings.</p>
-<h2 id="resolution-boundary">Resolution boundary<a class="headerlink" href="#resolution-boundary" title="Permanent link">&para;</a></h2>
-<p>Validation checks document shape and references. Resolution expands component
-files into normalized content. Finalization inspects the actual local data and
-creates the exact lock required for admission. A submitted run stores resolved
-copies in its result directory, so later edits do not rewrite history.</p>
-<p>Project paths are jailed under the project root. Absolute paths, parent escapes,
-duplicate map keys, and duplicate logical names are rejected at discovery.</p>
+<p>The command line selects a Project and one named Profile. That Profile selects
+one Case. Together they resolve to one immutable input pair for the worker.</p>
+<h2 id="project-the-study-container">Project: the study container<a class="headerlink" href="#project-the-study-container" title="Permanent link">&para;</a></h2>
+<p>The project root contains <code>trajecta-project.yaml</code> plus project-relative files.
+A minimal index has this form:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">trajecta.project-index/v1</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">domain-fill-cfsr</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">cases</span><span class="p">:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">moisture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cases/moisture.yaml</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nt">profiles</span><span class="p">:</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nt">product</span><span class="p">:</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">profiles/product.yaml</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="nt">dataset_profiles</span><span class="p">:</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">      </span><span class="nt">cfsr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cfsr-pgbl-pressure-v0</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="nt">default_profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">product</span>
+</code></pre></div>
+<p>Names on the left are local project identifiers. A Case refers to the logical
+dataset <code>cfsr</code>; the selected project Profile maps it to the built-in
+interpretation profile <code>cfsr-pgbl-pressure-v0</code>.</p>
+<p>A project may contain any number of Cases and Profiles. Common arrangements
+include:</p>
+<ul>
+<li>one Case with several Profiles for different worker counts or readers;</li>
+<li>forward and backward Cases that share one meteorological collection;</li>
+<li>several seasonal Cases that use equivalent Profile entries;</li>
+<li>a published configuration plus smaller local Profiles for quick checks.</li>
+</ul>
+<p>Each Profile entry still points to one RunProfile document, and that document's
+<code>case_path</code> selects one indexed Case. If two Cases use identical execution
+settings, create two named Profile entries whose documents select their
+respective Cases. This keeps the submission command unambiguous.</p>
+<h2 id="case-portable-scientific-intent">Case: portable scientific intent<a class="headerlink" href="#case-portable-scientific-intent" title="Permanent link">&para;</a></h2>
+<p>A Case expresses choices that affect the physical trajectory calculation. For
+example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">case</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nt">metadata</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> name</span><span class="p">:</span><span class="w"> </span><span class="nv">domain-fill-cfsr</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nt">time</span><span class="p">:</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">start</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> seconds_since_unix_epoch</span><span class="p">:</span><span class="w"> </span><span class="nv">1230789600</span><span class="p p-Indicator">,</span><span class="nt"> nanosecond</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">end</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> seconds_since_unix_epoch</span><span class="p">:</span><span class="w"> </span><span class="nv">1230790200</span><span class="p p-Indicator">,</span><span class="nt"> nanosecond</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="nt">direction</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">forward</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="nt">meteorology</span><span class="p">:</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span><span class="nt">domains</span><span class="p">:</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">global</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">      </span><span class="nt">dataset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cfsr</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">      </span><span class="nt">priority</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">      </span><span class="nt">horizontal_halo_cells</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="nt">particle_population</span><span class="p">:</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">domain_fill_air_mass</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">  </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">moisture-air</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">  </span><span class="nt">domain_id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">global</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">  </span><span class="nt">target_particle_count</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="nt">substances</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="nt">numerics</span><span class="p">:</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">  </span><span class="nt">time_step</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> value</span><span class="p">:</span><span class="w"> </span><span class="nv">300</span><span class="p p-Indicator">,</span><span class="nt"> unit</span><span class="p">:</span><span class="w"> </span><span class="nv">s</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">  </span><span class="nt">integrator</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> model</span><span class="p">:</span><span class="w"> </span><span class="nv">rk2_spherical/v0</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">  </span><span class="nt">boundaries</span><span class="p">:</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">    </span><span class="nt">policies</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">surface_reflect/v0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">model_top_terminate/v0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">global_periodic/v0</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">  </span><span class="nt">random_seed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4202</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="nt">outputs</span><span class="p">:</span>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">product</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">particle_state/v1</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="w">    </span><span class="nt">schedule</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> mode</span><span class="p">:</span><span class="w"> </span><span class="nv">endpoints</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">    </span><span class="nt">sink</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> model</span><span class="p">:</span><span class="w"> </span><span class="nv">particle_state_sqlite/v1</span><span class="w"> </span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<p>The Case uses logical dataset names and contains no provider credential. Its
+timestamps are exact UTC instants represented as Unix seconds plus nanoseconds.
+Direction controls physical traversal from <code>start</code> toward <code>end</code>; the data
+coverage calculation later orders those two instants chronologically.</p>
+<p>Component references can move large domain, population, or output fragments
+into separate project files. <code>case resolve</code> expands those references and emits
+the normalized Case used for further checks.</p>
+<h2 id="runprofile-local-binding-and-resources">RunProfile: local binding and resources<a class="headerlink" href="#runprofile-local-binding-and-resources" title="Permanent link">&para;</a></h2>
+<p>The RunProfile connects the Case to paths and execution settings:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">run_profile</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">metadata</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> name</span><span class="p">:</span><span class="w"> </span><span class="nv">product</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="nt">case_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../cases/moisture.yaml</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">output_root</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../runs</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="nt">datasets</span><span class="p">:</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">dataset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cfsr</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="nt">lockfile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../locks/cfsr.lock.json</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="nt">data_roots</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> met</span><span class="p">:</span><span class="w"> </span><span class="nv">../data</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="nt">reader_backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rust</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="nt">execution</span><span class="p">:</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">  </span><span class="nt">worker_threads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">  </span><span class="nt">memory_budget_bytes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1073741824</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">  </span><span class="nt">executor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cpu</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span><span class="nt">meteorology_reader</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rust</span>
+</code></pre></div>
+<p>Paths are resolved relative to the RunProfile file and remain inside the
+project root. <code>data_roots</code> assigns a local directory to each root ID used by the
+DatasetLock. The same logical Case can therefore run from different storage
+layouts by selecting another Profile.</p>
+<p><code>worker_threads</code> and <code>memory_budget_bytes</code> become the queue resource request.
+The reader settings choose the implemented meteorological backend. They are
+recorded with the resolved Profile in the result directory.</p>
+<h2 id="datasetlock-exact-data-inventory">DatasetLock: exact data inventory<a class="headerlink" href="#datasetlock-exact-data-inventory" title="Permanent link">&para;</a></h2>
+<p>A DatasetLock is produced by finalization after Trajecta inspects local files.
+It binds the logical dataset and interpretation profile to:</p>
+<ul>
+<li>every selected file's root ID and relative path;</li>
+<li>exact byte length and SHA-256;</li>
+<li>physical valid times and file roles;</li>
+<li>normalized horizontal-grid signature;</li>
+<li>pressure-level or hybrid-coordinate signature;</li>
+<li>normalized dataset-profile SHA-256;</li>
+<li>generator name and version.</li>
+</ul>
+<p>The lock contains relative file locations. The RunProfile supplies the actual
+root directories, which allows the same lock structure to be resolved on
+Windows and Ubuntu when the locked content is placed under corresponding
+project roots.</p>
+<p>Finalization selects enough frames to cover the Case interval and its temporal
+interpolation neighbors. It also checks that the dataset profile exposes the
+capabilities required by the chosen population.</p>
+<h2 id="three-project-states">Three project states<a class="headerlink" href="#three-project-states" title="Permanent link">&para;</a></h2>
+<p><code>project status</code> derives one of three states:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Meaning</th>
+<th>Useful next action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>draft</code></td>
+<td>A recognizable Case or Profile is still missing required fields</td>
+<td>Continue incremental editing and validation</td>
+</tr>
+<tr>
+<td><code>configured</code></td>
+<td>The logical documents are complete; data or locks are pending</td>
+<td>Generate a data plan and prepare meteorology</td>
+</tr>
+<tr>
+<td><code>finalized</code></td>
+<td>Documents, paths, data files, profile identities, and locks agree</td>
+<td>Run <code>doctor --deep</code> and submit work</td>
+</tr>
+</tbody>
+</table>
+<p>An error can accompany any state, for example an invalid index path or a
+malformed document. Read the diagnostics as well as the state name.</p>
+<h2 id="validation-resolution-and-finalization">Validation, resolution, and finalization<a class="headerlink" href="#validation-resolution-and-finalization" title="Permanent link">&para;</a></h2>
+<p>These operations answer different questions:</p>
+<ol>
+<li><strong>Validation</strong> checks document shape, field types, references, and the
+   selected command intent.</li>
+<li><strong>Resolution</strong> expands local component references into normalized Case or
+   RunProfile content.</li>
+<li><strong>Finalization</strong> opens the selected data, verifies coverage and
+   capabilities, then creates or validates DatasetLocks.</li>
+</ol>
+<p>The split supports projects whose data arrives later. Case and RunProfile
+review can finish while the project is <code>configured</code>; file identity becomes
+available during finalization.</p>
+<h2 id="path-containment">Path containment<a class="headerlink" href="#path-containment" title="Permanent link">&para;</a></h2>
+<p>Project-relative paths are confined to the project root. Discovery and edits
+reject absolute paths, parent traversal, empty paths, duplicate logical names,
+duplicate raw YAML map keys, and symbolic-link targets outside the project.
+This provides one predictable location for documents, locks, data mappings,
+outputs, and fetch work.</p>
+<p>When a project moves between computers, preserve its relative layout. Machine
+configuration remains separate because daemon capacity and catalog location
+belong to the receiving computer.</p>
+<h2 id="what-a-run-preserves">What a run preserves<a class="headerlink" href="#what-a-run-preserves" title="Permanent link">&para;</a></h2>
+<p>After queue admission, the attempt owns resolved copies of the Case and
+RunProfile, input identities, execution settings, numerical identifiers, and a
+unique run ID. Later project edits apply to later submissions. They do not
+rewrite an existing attempt directory.</p>
+<p>This boundary is the reason a Profile can evolve during a study while old
+results remain readable. Use <code>result inspect</code> to see the values recorded for a
+particular attempt rather than reconstructing them from the current project.</p>
+<h2 id="related-concepts">Related concepts<a class="headerlink" href="#related-concepts" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="domain-fill/">Domain-fill water-vapor tracking</a> explains the dry-air
+  carrier representation and boundary exchange.</li>
+<li><a href="populations/">Particle populations</a> compares release, air-mass, and ozone
+  initialization.</li>
+<li><a href="coverage-identity/">Coverage and execution identity</a> follows time anchors,
+  job series, runs, and attempts.</li>
+<li><a href="provenance/">Provenance and result directories</a> shows how resolved inputs
+  connect to output samples.</li>
+</ul>
 
 
 

@@ -6,14 +6,14 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="说明 Trajecta 如何通过四类文档分离科研意图和本机执行条件。">
+        <meta name="description" content="了解 Trajecta 如何分别表示研究项目、科研意图、本机执行选择和确切气象输入。">
       
       
       
         <link rel="canonical" href="https://origin652.github.io/trajecta/0.1.0-alpha.1/zh-CN/concepts/">
       
       
-        <link rel="prev" href="../how-to/">
+        <link rel="prev" href="../how-to/ai-companion/">
       
       
         <link rel="next" href="domain-fill/">
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            操作指南
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -758,9 +970,81 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#resolution" class="md-nav__link">
+  <a href="#project" class="md-nav__link">
     <span class="md-ellipsis">
-      Resolution 边界
+      Project：研究容器
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#case" class="md-nav__link">
+    <span class="md-ellipsis">
+      Case：可移植的科研意图
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runprofile" class="md-nav__link">
+    <span class="md-ellipsis">
+      RunProfile：本机绑定与资源
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datasetlock" class="md-nav__link">
+    <span class="md-ellipsis">
+      DatasetLock：确切资料清单
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      三种项目状态
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validationresolution-finalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validation、resolution 与 finalization
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      路径范围
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      一次运行保留的内容
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      相关概念
     </span>
   </a>
   
@@ -970,6 +1254,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../operations/recovery/" class="md-nav__link">
         
   
@@ -1071,7 +1401,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1818,9 +2148,81 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#resolution" class="md-nav__link">
+  <a href="#project" class="md-nav__link">
     <span class="md-ellipsis">
-      Resolution 边界
+      Project：研究容器
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#case" class="md-nav__link">
+    <span class="md-ellipsis">
+      Case：可移植的科研意图
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runprofile" class="md-nav__link">
+    <span class="md-ellipsis">
+      RunProfile：本机绑定与资源
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datasetlock" class="md-nav__link">
+    <span class="md-ellipsis">
+      DatasetLock：确切资料清单
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      三种项目状态
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validationresolution-finalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validation、resolution 与 finalization
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      路径范围
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      一次运行保留的内容
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      相关概念
     </span>
   </a>
   
@@ -1846,52 +2248,198 @@
 
 
 <h1 id="projectcaserunprofile-datasetlock">Project、Case、RunProfile 与 DatasetLock<a class="headerlink" href="#projectcaserunprofile-datasetlock" title="Permanent link">&para;</a></h1>
-<p>Trajecta 将可移植科研意图与本机执行细节分开保存。</p>
+<p>Trajecta 使用四类相互关联的对象描述一次运行。这样的分层让科研设计保持稳定，同时可以为
+具体计算机选择资料位置和执行资源。</p>
 <table>
 <thead>
 <tr>
 <th>对象</th>
-<th>职责</th>
-<th>常见维护者</th>
-<th>运行前可修改</th>
+<th>回答的问题</th>
+<th>主要内容</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Project</td>
-<td>为 Case、Profile 和资料 profile 映射命名</td>
-<td>研究团队</td>
-<td>可以</td>
+<td>哪些实验属于同一项研究？</td>
+<td>Case 与 Profile 的名称和路径；dataset-profile 映射；默认 Profile</td>
 </tr>
 <tr>
 <td>Case</td>
-<td>定义时间、域、population、物理过程、数值参数和输出</td>
-<td>科研用户</td>
-<td>可以</td>
+<td>要进行怎样的物理模拟？</td>
+<td>时间、方向、气象域、population、substance、数值模型、边界与输出</td>
 </tr>
 <tr>
 <td>RunProfile</td>
-<td>绑定 Case、数据根、lock、输出根、reader 和资源</td>
-<td>运行人员</td>
-<td>可以</td>
+<td>这个 Case 在本机如何运行？</td>
+<td>Case 路径、输出根目录、资料根与 lock、reader backend、worker 和内存预算</td>
 </tr>
 <tr>
 <td>DatasetLock</td>
-<td>记录准确文件、摘要、覆盖、profile 和能力</td>
-<td>Finalize 流程</td>
-<td>需要显式重建</td>
+<td>本次接收哪些确切气象输入？</td>
+<td>文件路径、字节数、hash、有效时间、网格签名、垂直坐标签名和 interpretation-profile 身份</td>
 </tr>
 </tbody>
 </table>
-<p>Project index 提供名称和相对路径。一个 Profile 选择一个 Case，一个项目可以包含多个
-Case 和多个 Profile。同一组机器参数需要运行多个 Case 时，应建立多个 Profile entry；
-这些 entry 分别指向目标 Case，也可以共享 dataset-profile mapping。</p>
-<h2 id="resolution">Resolution 边界<a class="headerlink" href="#resolution" title="Permanent link">&para;</a></h2>
-<p>Validate 检查文档形状和引用。Resolve 将组件文件展开为规范化内容。Finalize 检查真实
-本地资料，并生成任务接收所需的准确 lock。提交运行时，resolved 副本进入结果目录，
-后续编辑不会改写历史。</p>
-<p>Project path 受项目根 jail 约束。绝对路径、父目录逃逸、重复 YAML map key 和重复逻辑
-名称均会在发现阶段被拒绝。</p>
+<p>命令行选择一个 Project 和其中一个具名 Profile。该 Profile 再选择一个 Case，两者共同解析为
+worker 使用的一对不可变输入。</p>
+<h2 id="project">Project：研究容器<a class="headerlink" href="#project" title="Permanent link">&para;</a></h2>
+<p>项目根目录包含 <code>trajecta-project.yaml</code> 和项目相对文件。一个简洁的索引如下：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">trajecta.project-index/v1</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">domain-fill-cfsr</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">cases</span><span class="p">:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">moisture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cases/moisture.yaml</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nt">profiles</span><span class="p">:</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nt">product</span><span class="p">:</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">profiles/product.yaml</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="nt">dataset_profiles</span><span class="p">:</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">      </span><span class="nt">cfsr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cfsr-pgbl-pressure-v0</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="nt">default_profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">product</span>
+</code></pre></div>
+<p>左侧名称是项目内部标识。Case 引用逻辑资料 <code>cfsr</code>；所选项目 Profile 将其映射到内置
+interpretation profile <code>cfsr-pgbl-pressure-v0</code>。</p>
+<p>一个项目可以包含多个 Case 和多个 Profile。常见组织方式包括：</p>
+<ul>
+<li>一个 Case 配置几种 Profile，用于不同 worker 数量或 reader；</li>
+<li>Forward 与 backward Case 共享同一套气象资料；</li>
+<li>多个季节 Case 使用等价的 Profile entry；</li>
+<li>在正式配置旁保留一个小规模本机检查 Profile。</li>
+</ul>
+<p>每个 Profile entry 仍指向一份 RunProfile 文档，其中的 <code>case_path</code> 选择一个已经进入索引的
+Case。两个 Case 使用相同执行设置时，可以创建两个具名 Profile entry，各自选择相应 Case。
+这样每条提交命令都有明确含义。</p>
+<h2 id="case">Case：可移植的科研意图<a class="headerlink" href="#case" title="Permanent link">&para;</a></h2>
+<p>Case 表达会影响物理轨迹计算的选择。例如：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">case</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nt">metadata</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> name</span><span class="p">:</span><span class="w"> </span><span class="nv">domain-fill-cfsr</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nt">time</span><span class="p">:</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">start</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> seconds_since_unix_epoch</span><span class="p">:</span><span class="w"> </span><span class="nv">1230789600</span><span class="p p-Indicator">,</span><span class="nt"> nanosecond</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">end</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> seconds_since_unix_epoch</span><span class="p">:</span><span class="w"> </span><span class="nv">1230790200</span><span class="p p-Indicator">,</span><span class="nt"> nanosecond</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="nt">direction</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">forward</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="nt">meteorology</span><span class="p">:</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span><span class="nt">domains</span><span class="p">:</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">global</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">      </span><span class="nt">dataset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cfsr</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">      </span><span class="nt">priority</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">      </span><span class="nt">horizontal_halo_cells</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="nt">particle_population</span><span class="p">:</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">domain_fill_air_mass</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">  </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">moisture-air</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">  </span><span class="nt">domain_id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">global</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">  </span><span class="nt">target_particle_count</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="nt">substances</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="nt">numerics</span><span class="p">:</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">  </span><span class="nt">time_step</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> value</span><span class="p">:</span><span class="w"> </span><span class="nv">300</span><span class="p p-Indicator">,</span><span class="nt"> unit</span><span class="p">:</span><span class="w"> </span><span class="nv">s</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">  </span><span class="nt">integrator</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> model</span><span class="p">:</span><span class="w"> </span><span class="nv">rk2_spherical/v0</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">  </span><span class="nt">boundaries</span><span class="p">:</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">    </span><span class="nt">policies</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">surface_reflect/v0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">model_top_terminate/v0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">global_periodic/v0</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">  </span><span class="nt">random_seed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4202</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="nt">outputs</span><span class="p">:</span>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">product</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">particle_state/v1</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="w">    </span><span class="nt">schedule</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> mode</span><span class="p">:</span><span class="w"> </span><span class="nv">endpoints</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">    </span><span class="nt">sink</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> model</span><span class="p">:</span><span class="w"> </span><span class="nv">particle_state_sqlite/v1</span><span class="w"> </span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<p>Case 使用逻辑 dataset name，不保存 provider credential。时间戳采用 Unix second 加 nanosecond，
+表示确切 UTC 时刻。Direction 控制从 <code>start</code> 向 <code>end</code> 的物理积分方向；资料覆盖计算会把两个
+时刻按实际先后排序。</p>
+<p>较大的 domain、population 或 output 片段可以放入独立项目文件，再由组件引用组合。<code>case
+resolve</code> 展开这些引用，并输出后续检查所使用的规范化 Case。</p>
+<h2 id="runprofile">RunProfile：本机绑定与资源<a class="headerlink" href="#runprofile" title="Permanent link">&para;</a></h2>
+<p>RunProfile 把 Case 连接到路径和执行设置：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">run_profile</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">metadata</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> name</span><span class="p">:</span><span class="w"> </span><span class="nv">product</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="nt">case_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../cases/moisture.yaml</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">output_root</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../runs</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="nt">datasets</span><span class="p">:</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">dataset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cfsr</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="nt">lockfile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../locks/cfsr.lock.json</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="nt">data_roots</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> met</span><span class="p">:</span><span class="w"> </span><span class="nv">../data</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="nt">reader_backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rust</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="nt">execution</span><span class="p">:</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">  </span><span class="nt">worker_threads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">  </span><span class="nt">memory_budget_bytes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1073741824</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">  </span><span class="nt">executor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cpu</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span><span class="nt">meteorology_reader</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rust</span>
+</code></pre></div>
+<p>路径相对于 RunProfile 文件解析，并保留在项目根目录内。<code>data_roots</code> 为 DatasetLock 使用的各
+root ID 指定本地目录。同一个逻辑 Case 可以选择另一份 Profile，从不同存储布局读取资料。</p>
+<p><code>worker_threads</code> 与 <code>memory_budget_bytes</code> 会成为队列资源请求。Reader 设置选择已经实现的
+气象读取后端。运行结束后，这些内容随 resolved Profile 保存在结果目录。</p>
+<h2 id="datasetlock">DatasetLock：确切资料清单<a class="headerlink" href="#datasetlock" title="Permanent link">&para;</a></h2>
+<p>Finalize 检查本地文件后生成 DatasetLock。它将逻辑 dataset 和 interpretation profile 绑定
+到以下内容：</p>
+<ul>
+<li>每个所选文件的 root ID 和相对路径；</li>
+<li>精确字节长度与 SHA-256；</li>
+<li>物理有效时间和文件 role；</li>
+<li>规范化水平网格签名；</li>
+<li>pressure-level 或 hybrid-coordinate 签名；</li>
+<li>规范化 dataset-profile SHA-256；</li>
+<li>生成工具名称与版本。</li>
+</ul>
+<p>Lock 中保存相对文件位置。RunProfile 提供实际 root directory，因此同一 lock 结构可以在
+Windows 和 Ubuntu 上解析，只需把相同内容放入各自项目根目录的对应位置。</p>
+<p>Finalize 会选择覆盖 Case 时段及其时间插值邻帧的资料，并检查 dataset profile 是否提供所选
+population 需要的 capability。</p>
+<h2 id="_1">三种项目状态<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p><code>project status</code> 派生以下状态：</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>含义</th>
+<th>后续工作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>draft</code></td>
+<td>可识别的 Case 或 Profile 仍缺少必填字段</td>
+<td>继续渐进编辑与校验</td>
+</tr>
+<tr>
+<td><code>configured</code></td>
+<td>逻辑文档完整，资料或 lock 尚未到齐</td>
+<td>生成 data-plan 并准备气象资料</td>
+</tr>
+<tr>
+<td><code>finalized</code></td>
+<td>文档、路径、资料文件、profile identity 与 lock 相互一致</td>
+<td>运行 <code>doctor --deep</code> 并提交任务</td>
+</tr>
+</tbody>
+</table>
+<p>任一状态都可能带有 error，例如索引路径无效或文档格式损坏。读取状态名称时，同时查看其
+diagnostic。</p>
+<h2 id="validationresolution-finalization">Validation、resolution 与 finalization<a class="headerlink" href="#validationresolution-finalization" title="Permanent link">&para;</a></h2>
+<p>三类操作处理不同层次：</p>
+<ol>
+<li><strong>Validation</strong> 检查文档形状、字段类型、引用和所选命令 intent。</li>
+<li><strong>Resolution</strong> 将本地组件引用展开为规范化 Case 或 RunProfile。</li>
+<li><strong>Finalization</strong> 打开所选资料，检查覆盖与 capability，随后创建或校验 DatasetLock。</li>
+</ol>
+<p>资料延后到达的项目可以先完成 Case 与 RunProfile 审阅，保持在 <code>configured</code>。文件身份在
+finalize 阶段加入项目。</p>
+<h2 id="_2">路径范围<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>项目相对路径限制在项目根目录中。Discovery 和编辑会拒绝绝对路径、父级穿越、空路径、
+重复逻辑名称、原始 YAML 中的重复 map key，以及指向项目外部的 symbolic link。文档、lock、
+资料映射、输出和 fetch 工作目录由此位于一个可预测的范围内。</p>
+<p>项目在计算机之间移动时，保留其相对布局。本机配置继续分开保存，因为 daemon capacity 与
+catalog 位置属于接收项目的计算机。</p>
+<h2 id="_3">一次运行保留的内容<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>队列接收后，attempt 拥有 resolved Case 与 RunProfile 副本，同时保存输入身份、执行设置、
+数值标识和唯一 run ID。后续项目编辑用于之后的提交，不会改写已经存在的 attempt 目录。</p>
+<p>因此，Profile 可以在研究过程中继续演进，旧结果仍保持可读。查看指定 attempt 时使用
+<code>result inspect</code>，直接读取该运行记录的值，无需从当前项目反推。</p>
+<h2 id="_4">相关概念<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="domain-fill/">Domain-fill 水汽追踪</a>解释 dry-air carrier 和边界交换。</li>
+<li><a href="populations/">粒子 population</a>比较 release、air-mass 和 ozone 初始化。</li>
+<li><a href="coverage-identity/">覆盖与运行身份</a>说明 time anchor、job series、run 和 attempt。</li>
+<li><a href="provenance/">Provenance 与结果目录</a>展示 resolved input 如何连接到 output sample。</li>
+</ul>
 
 
 

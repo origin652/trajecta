@@ -6,14 +6,14 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Preserve evidence and recover Trajecta jobs after abrupt shutdown, worker loss, memory pressure, disk exhaustion, or SQLite/WAL problems.">
+        <meta name="description" content="Reconcile Trajecta jobs after power loss, worker disappearance, force cancellation, disk failure, or an interrupted output closeout.">
       
       
       
         <link rel="canonical" href="https://origin652.github.io/trajecta/0.1.0-alpha.1/operations/recovery/">
       
       
-        <link rel="prev" href="../">
+        <link rel="prev" href="../storage-sqlite/">
       
       
         <link rel="next" href="../troubleshooting/">
@@ -24,7 +24,7 @@
     
     
       
-        <title>Recovery after power loss, OOM, disk failure, or interrupted output - Trajecta</title>
+        <title>Recover interrupted Trajecta jobs - Trajecta</title>
       
     
     
@@ -79,7 +79,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#recovery-and-forensics" class="md-skip">
+        <a href="#recovery-and-interrupted-attempts" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Recovery after power loss, OOM, disk failure, or interrupted output
+              Recover interrupted Trajecta jobs
             
           </span>
         </div>
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -916,6 +1128,52 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -969,45 +1227,72 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#abrupt-shutdown-or-worker-loss" class="md-nav__link">
+  <a href="#first-response" class="md-nav__link">
     <span class="md-ellipsis">
-      Abrupt shutdown or worker loss
+      First response
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#oom-and-external-memory-pressure" class="md-nav__link">
+  <a href="#read-the-reconciliation-outcome" class="md-nav__link">
     <span class="md-ellipsis">
-      OOM and external memory pressure
+      Read the reconciliation outcome
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#disk-exhaustion-or-write-failure" class="md-nav__link">
+  <a href="#inspect-the-attempt-directory" class="md-nav__link">
     <span class="md-ellipsis">
-      Disk exhaustion or write failure
+      Inspect the attempt directory
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#sqlite-and-wal-anomalies" class="md-nav__link">
+  <a href="#recovery-after-a-power-loss" class="md-nav__link">
     <span class="md-ellipsis">
-      SQLite and WAL anomalies
+      Recovery after a power loss
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#completed-work-during-queue-recovery" class="md-nav__link">
+  <a href="#recovery-after-safe-or-force-cancellation" class="md-nav__link">
     <span class="md-ellipsis">
-      Completed work during queue recovery
+      Recovery after safe or force cancellation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recovery-after-memory-pressure-or-oom" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recovery after memory pressure or OOM
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recovery-after-disk-exhaustion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recovery after disk exhaustion
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#completed-tasks-during-queue-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      Completed tasks during queue recovery
     </span>
   </a>
   
@@ -1107,7 +1392,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1854,45 +2139,72 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#abrupt-shutdown-or-worker-loss" class="md-nav__link">
+  <a href="#first-response" class="md-nav__link">
     <span class="md-ellipsis">
-      Abrupt shutdown or worker loss
+      First response
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#oom-and-external-memory-pressure" class="md-nav__link">
+  <a href="#read-the-reconciliation-outcome" class="md-nav__link">
     <span class="md-ellipsis">
-      OOM and external memory pressure
+      Read the reconciliation outcome
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#disk-exhaustion-or-write-failure" class="md-nav__link">
+  <a href="#inspect-the-attempt-directory" class="md-nav__link">
     <span class="md-ellipsis">
-      Disk exhaustion or write failure
+      Inspect the attempt directory
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#sqlite-and-wal-anomalies" class="md-nav__link">
+  <a href="#recovery-after-a-power-loss" class="md-nav__link">
     <span class="md-ellipsis">
-      SQLite and WAL anomalies
+      Recovery after a power loss
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#completed-work-during-queue-recovery" class="md-nav__link">
+  <a href="#recovery-after-safe-or-force-cancellation" class="md-nav__link">
     <span class="md-ellipsis">
-      Completed work during queue recovery
+      Recovery after safe or force cancellation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recovery-after-memory-pressure-or-oom" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recovery after memory pressure or OOM
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recovery-after-disk-exhaustion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recovery after disk exhaustion
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#completed-tasks-during-queue-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      Completed tasks during queue recovery
     </span>
   </a>
   
@@ -1917,50 +2229,236 @@
   
 
 
-<h1 id="recovery-and-forensics">Recovery and forensics<a class="headerlink" href="#recovery-and-forensics" title="Permanent link">&para;</a></h1>
-<p>Recovery begins by preserving state. Do not remove temporary files, WAL files,
-job rows, or partial result directories during the initial assessment.</p>
-<h2 id="abrupt-shutdown-or-worker-loss">Abrupt shutdown or worker loss<a class="headerlink" href="#abrupt-shutdown-or-worker-loss" title="Permanent link">&para;</a></h2>
+<h1 id="recovery-and-interrupted-attempts">Recovery and interrupted attempts<a class="headerlink" href="#recovery-and-interrupted-attempts" title="Permanent link">&para;</a></h1>
+<p>Recovery starts from the persistent job catalog and the files already present
+in an attempt directory. The daemon uses those two sources when it returns: it
+can reattach a matching live worker, reconcile a valid terminal manifest, or
+close a missing worker as an interrupted attempt.</p>
+<p>A restart never creates a rerun on its own. Completed attempts remain
+completed, queued attempts remain eligible for ordinary dispatch, and an
+interrupted attempt waits for an explicit <code>job rerun</code>.</p>
+<h2 id="first-response">First response<a class="headerlink" href="#first-response" title="Permanent link">&para;</a></h2>
+<p>Keep the machine configuration, project, job catalog, and attempt directories
+in their current locations while the initial state is being read. In
+particular, leave SQLite databases together with their <code>-wal</code> and <code>-shm</code>
+sidecars.</p>
+<p>Run the following commands with the same <code>--config</code> path used for submission:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --config workstation.toml config validate
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --config workstation.toml --project PROJECT doctor --deep
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>trajecta --config workstation.toml job list
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>trajecta --config workstation.toml --format json job status JOB_ID
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>trajecta --config workstation.toml --format json job events JOB_ID --since 0
+</code></pre></div>
+<p>The first job command starts or reconnects to the local daemon. Read the most
+recent events after startup reconciliation has had time to update the catalog.</p>
+<p>Record these values for every affected attempt:</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Where to read it</th>
+<th>Why it matters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Job-series ID</td>
+<td>Submission receipt or <code>job status</code></td>
+<td>Selects the logical task for later status and rerun commands</td>
+</tr>
+<tr>
+<td>Run ID and attempt number</td>
+<td><code>job status</code> and events</td>
+<td>Identifies the exact process and result directory affected</td>
+</tr>
+<tr>
+<td>Current state</td>
+<td><code>job status</code></td>
+<td>Determines whether the run is active, terminal, or still queued</td>
+</tr>
+<tr>
+<td>Output directory</td>
+<td><code>job status</code></td>
+<td>Locates the manifest, SQLite database, logs, and temporary files</td>
+</tr>
+<tr>
+<td>Last durable event sequence</td>
+<td><code>job events</code></td>
+<td>Gives the cursor for later event reads</td>
+</tr>
+</tbody>
+</table>
+<h2 id="read-the-reconciliation-outcome">Read the reconciliation outcome<a class="headerlink" href="#read-the-reconciliation-outcome" title="Permanent link">&para;</a></h2>
+<p>The startup event log usually contains one of the following paths:</p>
+<table>
+<thead>
+<tr>
+<th>Event or state</th>
+<th>Interpretation</th>
+<th>Next step</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>worker.reattached</code> and <code>running</code></td>
+<td>The owned worker is still alive and its lease matches</td>
+<td>Continue monitoring; avoid moving its output directory</td>
+</tr>
+<tr>
+<td><code>worker.terminal_reconciled</code> and a terminal state</td>
+<td>The worker had already written a matching terminal manifest</td>
+<td>Inspect and verify the terminal result</td>
+</tr>
+<tr>
+<td><code>worker.lost</code> followed by <code>run.interrupted.worker_lost</code></td>
+<td>No matching live worker or valid terminal closeout was found</td>
+<td>Inspect the partial directory, correct the cause, then rerun if needed</td>
+</tr>
+<tr>
+<td><code>queued</code></td>
+<td>The attempt had not started</td>
+<td>Leave it queued or cancel it according to the current plan</td>
+</tr>
+<tr>
+<td>Existing terminal state with no new dispatch event</td>
+<td>The catalog already considered the attempt finished</td>
+<td>Keep it terminal; use <code>job rerun</code> only when another attempt is wanted</td>
+</tr>
+</tbody>
+</table>
+<p><code>worker.lease_attach_failed</code> indicates that the daemon could not attach an
+accepted lease to the launched process. If ownership also cannot be recovered,
+<code>worker.uncontrolled_after_attach_failure</code> records the containment failure.
+Inspect the process list and the attempt directory before creating another
+worker for the same inputs.</p>
+<h2 id="inspect-the-attempt-directory">Inspect the attempt directory<a class="headerlink" href="#inspect-the-attempt-directory" title="Permanent link">&para;</a></h2>
+<p>Start with the product-level reader:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta --format json result inspect JOB_ID
+</code></pre></div>
+<p><code>result inspect</code> can resolve a job-series ID, run ID, or direct result path. A
+readable manifest with an unavailable SQLite database produces a partial
+inspection response and <code>result.inspect_sqlite_unavailable</code>. This still gives
+the manifest identity and artifact inventory.</p>
+<p>Then examine the directory without editing files. Useful items include:</p>
+<table>
+<thead>
+<tr>
+<th>File or directory</th>
+<th>What to note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run-manifest.json</code></td>
+<td>Lifecycle status, run identity, counts, input identity, and recorded failure</td>
+</tr>
+<tr>
+<td><code>particles.sqlite</code></td>
+<td>Presence, byte size, and whether result inspection can open it</td>
+</tr>
+<tr>
+<td><code>particles.sqlite-wal</code> and <code>particles.sqlite-shm</code></td>
+<td>Whether the writer stopped before checkpoint and closeout</td>
+</tr>
+<tr>
+<td>Provenance directory or bundle</td>
+<td>Whether provenance closeout had started or completed</td>
+</tr>
+<tr>
+<td>Worker stdout and stderr</td>
+<td>Native-library messages, allocation failures, or write errors</td>
+</tr>
+<tr>
+<td>Temporary and forensic entries</td>
+<td>Paths retained by the worker or daemon during the failed closeout</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Keep the original attempt intact</p>
+<p>A rerun uses a separate directory. Retain the old manifest, database,
+sidecars, and forensic files together.</p>
+</div>
+<p>For a terminal <code>complete</code> result, run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta result verify JOB_ID --full
+</code></pre></div>
+<p>An interrupted attempt often lacks the artifacts needed for full verification.
+Its partial inspection remains useful for locating the last manifest state and
+written SQLite rows.</p>
+<h2 id="recovery-after-a-power-loss">Recovery after a power loss<a class="headerlink" href="#recovery-after-a-power-loss" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Restart the machine and run <code>trajecta doctor --deep</code> with the same config.</li>
-<li>Run <code>trajecta job list</code>, then <code>job status JOB_ID</code> for non-terminal work.</li>
-<li>Read <code>job events JOB_ID --since 0</code> and record the last durable transition.</li>
-<li>Inspect the run directory without editing it.</li>
-<li>Allow daemon reconciliation to mark an unreattachable worker as interrupted.</li>
-<li>Use <code>job rerun JOB_ID</code> only after the attempt reaches a stable terminal state.</li>
+<li>Confirm that the project, data roots, output root, and machine configuration
+   are mounted at their original paths.</li>
+<li>Run <code>config validate</code> and project <code>doctor --deep</code>.</li>
+<li>Start the daemon through <code>job list</code>.</li>
+<li>Read <code>job status</code> and all events for each active series from before the
+   outage.</li>
+<li>Wait for reconciliation to produce a stable active or terminal state.</li>
+<li>Inspect every affected attempt directory.</li>
+<li>Run full verification for a reconciled complete result.</li>
+<li>Create a rerun only for work that should be computed again.</li>
 </ol>
-<p>A recovered terminal manifest is authoritative when its run identity matches
-the catalog. A missing worker with no valid terminal manifest becomes an
-interrupted attempt. Existing partial SQLite, WAL, manifest, temporary, and
-forensic files remain evidence.</p>
-<h2 id="oom-and-external-memory-pressure">OOM and external memory pressure<a class="headerlink" href="#oom-and-external-memory-pressure" title="Permanent link">&para;</a></h2>
-<p>External pressure emits <code>daemon.external_memory_pressure</code> once for an affected
-queued attempt and pauses dispatch. Wait for memory to recover or lower future
-requests. Running workers continue unless the operating system terminates one.</p>
-<p>An OS-level worker loss is reconciled as interruption. Preserve the operating
-system event, job events, worker stderr, manifest state, and peak-memory
-evidence. Lower <code>execution.memory_budget_bytes</code>, reduce concurrent jobs, or
-increase the configured pool only after identifying the actual working set.</p>
-<h2 id="disk-exhaustion-or-write-failure">Disk exhaustion or write failure<a class="headerlink" href="#disk-exhaustion-or-write-failure" title="Permanent link">&para;</a></h2>
-<p>Stop admitting new work. Restore free space on the same filesystem without
-touching active result directories. Run deep doctor, inspect the output root,
-then check each affected job. A write failure may leave a partial manifest,
-SQLite sidecar, or provenance temporary file; retain all of them.</p>
-<p>Move a terminal result only as a complete directory after full verification.
-Do not redirect a live writer by moving its files.</p>
-<h2 id="sqlite-and-wal-anomalies">SQLite and WAL anomalies<a class="headerlink" href="#sqlite-and-wal-anomalies" title="Permanent link">&para;</a></h2>
-<p>Never delete <code>particles.sqlite-wal</code> or <code>jobs.sqlite3-wal</code> to make a warning
-disappear. First copy the entire inactive directory for forensic preservation.
-Use <code>result inspect</code> and <code>result verify</code>; use <code>doctor --deep</code> for the job
-database environment. A successful terminal result requires SQLite integrity
-and a zero or absent terminal WAL.</p>
-<p>If integrity fails, keep the original bytes read-only. A rerun creates a new
-attempt. It does not repair or replace the damaged evidence.</p>
-<h2 id="completed-work-during-queue-recovery">Completed work during queue recovery<a class="headerlink" href="#completed-work-during-queue-recovery" title="Permanent link">&para;</a></h2>
-<p>Daemon restart does not resubmit completed tasks. Check the series, run ID,
-attempt number, terminal manifest, and artifact fingerprint. <code>job forget</code>
-removes a terminal record from routine listing while leaving artifacts and
-audit summaries intact. <code>job prune</code> only previews candidates in this release.</p>
+<p>If the output filesystem recovered with errors, copy the complete inactive
+attempt directory before further filesystem repair. Keep the main SQLite file
+and sidecars together.</p>
+<h2 id="recovery-after-safe-or-force-cancellation">Recovery after safe or force cancellation<a class="headerlink" href="#recovery-after-safe-or-force-cancellation" title="Permanent link">&para;</a></h2>
+<p>A safe cancellation ends in <code>cancelled</code> after the worker reaches a macro-step
+boundary and performs output closeout. The resulting partial run can normally
+be inspected, and its terminal WAL is checkpointed or absent.</p>
+<p>A force cancellation stops the owned worker immediately and records
+<code>interrupted</code>. A non-empty WAL, running manifest, or unfinished provenance
+temporary file is expected in that directory. Read it as a partial attempt and
+leave the files together.</p>
+<p>Check the final state before another attempt is created:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta job status JOB_ID
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>trajecta job events JOB_ID --since 0
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>trajecta result inspect JOB_ID
+</code></pre></div>
+<p>Rerun keeps the series identity and creates a separate attempt:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta --format json job rerun JOB_ID
+</code></pre></div>
+<p>If the Case, Profile, data lock, or resource request should change, edit the
+project and submit a new run instead of rerunning the stored series inputs.</p>
+<h2 id="recovery-after-memory-pressure-or-oom">Recovery after memory pressure or OOM<a class="headerlink" href="#recovery-after-memory-pressure-or-oom" title="Permanent link">&para;</a></h2>
+<p><code>daemon.external_memory_pressure</code> pauses queued dispatch and leaves active
+workers alone. Once host memory rises above the reserve, ordinary scheduling
+continues. There is no recovery action for an attempt that simply remained
+queued.</p>
+<p>An operating-system OOM termination appears as worker loss and interruption.
+Before rerunning:</p>
+<ol>
+<li>Read the resource events and operating-system memory record for the old run.</li>
+<li>Compare its working set with <code>execution.memory_budget_bytes</code>.</li>
+<li>Reduce concurrent admission, increase the machine reserve, or adjust the
+   Profile request to reflect the measured workload.</li>
+<li>Run deep doctor if SQLite or provenance writing was interrupted.</li>
+</ol>
+<p>Further sizing guidance is available in
+<a href="../shutdown-memory/">Shutdown and memory pressure</a>.</p>
+<h2 id="recovery-after-disk-exhaustion">Recovery after disk exhaustion<a class="headerlink" href="#recovery-after-disk-exhaustion" title="Permanent link">&para;</a></h2>
+<p>Restore enough free space without moving an active result directory. Once no
+worker is writing to the affected directory:</p>
+<ol>
+<li>Keep the main database and sidecars together.</li>
+<li>Run project <code>doctor --deep</code> to check create, sync, rename, WAL, and cleanup
+   operations on the current filesystem.</li>
+<li>Inspect the result and read its terminal event.</li>
+<li>Verify any run reconciled as complete.</li>
+<li>Rerun a failed or interrupted task into a new attempt directory after
+   storage has been corrected.</li>
+</ol>
+<p>The <a href="../storage-sqlite/">storage guide</a> covers WAL handling, output-size
+estimation, and moving terminal results.</p>
+<h2 id="completed-tasks-during-queue-recovery">Completed tasks during queue recovery<a class="headerlink" href="#completed-tasks-during-queue-recovery" title="Permanent link">&para;</a></h2>
+<p>The daemon does not dispatch terminal attempts again. This applies to
+<code>complete</code>, <code>completed_with_particle_errors</code>, <code>failed</code>, <code>cancelled</code>, and
+<code>interrupted</code>. A newer daemon process reads those states from the same catalog.</p>
+<p>Use <code>job rerun</code> to request another attempt. After a later complete attempt has
+passed full verification, older attempts may appear in the dry-run prune plan:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta --format json job prune
+</code></pre></div>
+<p>The plan is informational in <code>0.1.0-alpha.1</code>; it does not delete result
+directories or catalog history.</p>
 
 
 

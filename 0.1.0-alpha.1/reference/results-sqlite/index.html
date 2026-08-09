@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Result directory contract, preferred product commands, and advanced read-only SQLite schema guidance.">
+        <meta name="description" content="Read the Trajecta result-directory layout, product commands, SQLite version 1 tables, query ordering, WAL lifecycle, and digest relationships.">
       
       
       
@@ -24,7 +24,7 @@
     
     
       
-        <title>Results and SQLite - Trajecta</title>
+        <title>Results and SQLite reference - Trajecta</title>
       
     
     
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Results and SQLite
+              Results and SQLite reference
             
           </span>
         </div>
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -917,6 +1129,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1018,7 +1276,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1391,18 +1649,141 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#principal-files" class="md-nav__link">
+  <a href="#directory-layout" class="md-nav__link">
     <span class="md-ellipsis">
-      Principal files
+      Directory layout
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#sqlite-schema-version-1" class="md-nav__link">
+  <a href="#inspection" class="md-nav__link">
     <span class="md-ellipsis">
-      SQLite schema version 1
+      Inspection
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-and-full-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quick and full verification
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trajectory-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Trajectory reading
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run report
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sqlite-version-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      SQLite version 1
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SQLite version 1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#run" class="md-nav__link">
+    <span class="md-ellipsis">
+      run
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#particle" class="md-nav__link">
+    <span class="md-ellipsis">
+      particle
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#particle_mass" class="md-nav__link">
+    <span class="md-ellipsis">
+      particle_mass
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_event" class="md-nav__link">
+    <span class="md-ellipsis">
+      output_event
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#particle_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      particle_state
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#termination" class="md-nav__link">
+    <span class="md-ellipsis">
+      termination
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-only-query-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read-only query patterns
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wal-and-terminal-closeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      WAL and terminal closeout
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#digest-relationships" class="md-nav__link">
+    <span class="md-ellipsis">
+      Digest relationships
     </span>
   </a>
   
@@ -1827,18 +2208,141 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#principal-files" class="md-nav__link">
+  <a href="#directory-layout" class="md-nav__link">
     <span class="md-ellipsis">
-      Principal files
+      Directory layout
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#sqlite-schema-version-1" class="md-nav__link">
+  <a href="#inspection" class="md-nav__link">
     <span class="md-ellipsis">
-      SQLite schema version 1
+      Inspection
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-and-full-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quick and full verification
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trajectory-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Trajectory reading
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run report
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sqlite-version-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      SQLite version 1
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SQLite version 1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#run" class="md-nav__link">
+    <span class="md-ellipsis">
+      run
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#particle" class="md-nav__link">
+    <span class="md-ellipsis">
+      particle
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#particle_mass" class="md-nav__link">
+    <span class="md-ellipsis">
+      particle_mass
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_event" class="md-nav__link">
+    <span class="md-ellipsis">
+      output_event
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#particle_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      particle_state
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#termination" class="md-nav__link">
+    <span class="md-ellipsis">
+      termination
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-only-query-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read-only query patterns
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wal-and-terminal-closeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      WAL and terminal closeout
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#digest-relationships" class="md-nav__link">
+    <span class="md-ellipsis">
+      Digest relationships
     </span>
   </a>
   
@@ -1864,96 +2368,235 @@
 
 
 <h1 id="results-and-sqlite">Results and SQLite<a class="headerlink" href="#results-and-sqlite" title="Permanent link">&para;</a></h1>
-<p>The result directory is an immutable attempt artifact. Read it through product
-commands before opening SQLite directly.</p>
+<p>Every accepted attempt receives a separate result directory. Its manifest,
+database, resolved documents, and provenance belong to one run ID and attempt
+number. A rerun creates another directory and leaves the earlier attempt in
+place.</p>
+<p>Product commands are the first entry point:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta result inspect RESULT
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta result verify RESULT --full
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>trajecta result trajectory RESULT --particle-id 42
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>trajecta run report --result RESULT
 </code></pre></div>
-<p><code>run-report.md</code> is a derived, idempotent view. It is excluded from scientific
-content and canonical-output digests. Future exported products must use an
-explicit external destination; no export command exists in this release.</p>
-<h2 id="principal-files">Principal files<a class="headerlink" href="#principal-files" title="Permanent link">&para;</a></h2>
+<p><code>RESULT</code> accepts a job-series ID, exact run ID, or result-directory path. ID
+resolution uses the job catalog selected by <code>--config</code>; a direct path can be
+read without catalog lookup.</p>
+<h2 id="directory-layout">Directory layout<a class="headerlink" href="#directory-layout" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>Path</th>
-<th>Role</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>run-manifest.json</code></td>
-<td>Run identity, state, inputs, execution, quality, counts, and digests</td>
-</tr>
-<tr>
-<td><code>particles.sqlite</code></td>
-<td>Particle, sample, mass, event, and termination tables</td>
-</tr>
-<tr>
-<td><code>provenance-bundle.json</code></td>
-<td>Source-record and field-set attribution for samples</td>
-</tr>
-<tr>
-<td><code>resolved-case.json</code></td>
-<td>Exact Case admitted to the attempt</td>
-</tr>
-<tr>
-<td><code>resolved-run-profile.json</code></td>
-<td>Exact execution Profile admitted to the attempt</td>
-</tr>
-<tr>
-<td><code>run-report.md</code></td>
-<td>Optional derived human report</td>
-</tr>
-<tr>
-<td><code>forensic/</code></td>
-<td>Preserved interruption or failure evidence when present</td>
-</tr>
-</tbody>
-</table>
-<h2 id="sqlite-schema-version-1">SQLite schema version 1<a class="headerlink" href="#sqlite-schema-version-1" title="Permanent link">&para;</a></h2>
-<p>The public SQL definition is
-<a href="https://github.com/origin652/trajecta/blob/main/trajecta/testdata/M4_SQLITE_SCHEMA.v1.sql"><code>testdata/M4_SQLITE_SCHEMA.v1.sql</code></a>.</p>
-<table>
-<thead>
-<tr>
-<th>Table</th>
+<th>Lifecycle</th>
 <th>Content</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>run</code></td>
-<td>One run identity and terminal status</td>
+<td><code>run-manifest.json</code></td>
+<td>Created as running and replaced at closeout</td>
+<td>Run identity, state, inputs, resources, counts, quality, SQLite identity, provenance identity, and digests</td>
 </tr>
 <tr>
-<td><code>particle</code></td>
-<td>Stable particle identity and birth metadata</td>
+<td><code>particles.sqlite</code></td>
+<td>Written throughout the run</td>
+<td>Particles, mass, output events, states, meteorological samples, and terminations</td>
 </tr>
 <tr>
-<td><code>particle_mass</code></td>
-<td>Substance mass by particle</td>
+<td><code>particles.sqlite-wal</code></td>
+<td>Active-write sidecar; zero or absent after safe terminal closeout</td>
+<td>Committed pages waiting for checkpoint</td>
 </tr>
 <tr>
-<td><code>output_event</code></td>
-<td>Ordered physical output events</td>
+<td><code>particles.sqlite-shm</code></td>
+<td>SQLite shared-memory sidecar when present</td>
+<td>WAL coordination state</td>
 </tr>
 <tr>
-<td><code>particle_state</code></td>
-<td>Position, time, state, selected meteorology, quality, and provenance pointer</td>
+<td><code>resolved-case.json</code></td>
+<td>Written before numerical execution</td>
+<td>Exact normalized scientific Case admitted to the worker</td>
 </tr>
 <tr>
-<td><code>termination</code></td>
-<td>One classified terminal reason per terminated particle</td>
+<td><code>resolved-run-profile.json</code></td>
+<td>Written before numerical execution</td>
+<td>Exact local execution and dataset binding admitted to the worker</td>
+</tr>
+<tr>
+<td><code>provenance-bundle.json</code></td>
+<td>Finalized during output closeout</td>
+<td>Source-record, field-set, and sample attribution used by output rows</td>
+</tr>
+<tr>
+<td><code>run-report.md</code></td>
+<td>Created on request</td>
+<td>Idempotent human-readable view of the other result artifacts</td>
+</tr>
+<tr>
+<td><code>provenance-bundle.json.forensic-aborted*</code></td>
+<td>Present after selected interrupted provenance closeouts</td>
+<td>Retained partial provenance stream or bundle state</td>
 </tr>
 </tbody>
 </table>
-<p>Open the database read-only. Do not write tables, run a mutating migration, or
-checkpoint an active attempt from another process. A terminal successful result
-has <code>PRAGMA integrity_check = ok</code> and an empty terminal WAL. Copy the complete
-result directory before custom analysis that cannot guarantee read-only access.</p>
+<p>Temporary and worker diagnostic files can appear after a failed or interrupted
+attempt. <code>result inspect</code> returns the actual sorted artifact inventory instead
+of assuming that every terminal directory has the successful layout.</p>
+<h2 id="inspection">Inspection<a class="headerlink" href="#inspection" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta --format json result inspect RESULT
+</code></pre></div>
+<p>Inspection strictly parses the public manifest. For a readable manifest and
+unavailable SQLite database, it returns the manifest and artifact inventory as
+a partial response with <code>result.inspect_sqlite_unavailable</code>. SQL-derived fields
+are null in that response. A successful terminal manifest that lacks SQLite or
+provenance returns <code>result.artifact_missing</code>.</p>
+<p>Manifest SQLite row counts are compared with the opened database. A mismatch
+returns <code>result.manifest_sqlite_count_mismatch</code> rather than displaying two
+different totals as one result.</p>
+<h2 id="quick-and-full-verification">Quick and full verification<a class="headerlink" href="#quick-and-full-verification" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta result verify RESULT
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>trajecta result verify RESULT --full
+</code></pre></div>
+<p>Quick verification checks the result identity and low-cost structural
+relationships. Full verification adds lifecycle coverage, finite-value and
+quality checks, mass-ledger closure, SQLite counts and integrity, provenance
+semantics, and the canonical output digest.</p>
+<p>When a catalog-backed <code>complete</code> attempt passes full verification, the daemon
+records the verified run ID and canonical digest. That record can make older
+terminal attempts in the same series eligible for the dry-run prune plan.</p>
+<h2 id="trajectory-reading">Trajectory reading<a class="headerlink" href="#trajectory-reading" title="Permanent link">&para;</a></h2>
+<p>Select one or more particle IDs:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta result trajectory RESULT --particle-id 42
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>trajecta result trajectory RESULT --particle-id 42 --particle-id 105
+</code></pre></div>
+<p>The parser sorts IDs and rejects duplicates. It validates every requested ID
+before writing trajectory output, so a missing particle returns one diagnostic
+without a partial stream. <code>--all</code> selects every particle and cannot be combined
+with <code>--particle-id</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta --format jsonl result trajectory RESULT --all
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Output mode</th>
+<th>Shape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Human</td>
+<td>Deterministic field-oriented lines</td>
+</tr>
+<tr>
+<td>JSON</td>
+<td>One envelope containing header and records; SQLite rows are first spooled to a create-new temporary file so validation finishes before stdout begins</td>
+</tr>
+<tr>
+<td>JSONL</td>
+<td>Header item, one data item per trajectory row, and one final summary</td>
+</tr>
+</tbody>
+</table>
+<p>Records are ordered by particle ID and sample sequence. For a large complete
+population, JSONL avoids one large JSON document and lets a consumer process
+rows incrementally.</p>
+<h2 id="run-report">Run report<a class="headerlink" href="#run-report" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta run report --result RESULT
+</code></pre></div>
+<p>The output path is fixed at <code>RESULT/run-report.md</code>. The command writes a
+same-directory create-new temporary file, flushes and synchronizes it, then
+renames it into place. Running the command again over unchanged artifacts
+produces the same report bytes.</p>
+<p>The report excludes itself from the artifact digest calculation. It does not
+change scientific content, SQLite SQL identity, provenance content, or the
+canonical output digest.</p>
+<h2 id="sqlite-version-1">SQLite version 1<a class="headerlink" href="#sqlite-version-1" title="Permanent link">&para;</a></h2>
+<p>The public definition is
+<a href="https://github.com/origin652/trajecta/blob/main/trajecta/testdata/M4_SQLITE_SCHEMA.v1.sql"><code>testdata/M4_SQLITE_SCHEMA.v1.sql</code></a>.
+The database declares <code>PRAGMA user_version = 1</code>, 32 KiB pages, foreign keys,
+strict tables, WAL mode, and disabled automatic checkpointing. The Trajecta
+writer owns the terminal checkpoint.</p>
+<h3 id="run"><code>run</code><a class="headerlink" href="#run" title="Permanent link">&para;</a></h3>
+<p>One row identifies the database's run. Important columns are <code>run_id</code>,
+<code>manifest_schema</code>, <code>case_name</code>, <code>status</code>, and nanosecond-resolution start and
+finish timestamps. A running row has null finish fields; every terminal row has
+both finish components.</p>
+<h3 id="particle"><code>particle</code><a class="headerlink" href="#particle" title="Permanent link">&para;</a></h3>
+<p>One row per stable particle ID records <code>population_id</code>, origin, birth time, dry-
+air mass, and optional sensitivity weight. <code>origin_kind</code> is <code>release</code>,
+<code>domain_initial</code>, or <code>domain_boundary</code>; the accompanying event, domain, and
+boundary-face columns follow that choice.</p>
+<h3 id="particle_mass"><code>particle_mass</code><a class="headerlink" href="#particle_mass" title="Permanent link">&para;</a></h3>
+<p>The composite key <code>(run_id, particle_id, substance_id)</code> stores non-negative
+mass in kilograms for each tracked substance.</p>
+<h3 id="output_event"><code>output_event</code><a class="headerlink" href="#output_event" title="Permanent link">&para;</a></h3>
+<p>Events are ordered by <code>event_sequence</code> and carry physical seconds,
+nanoseconds, and one of <code>birth</code>, <code>start</code>, <code>interval</code>, <code>end</code>, or <code>termination</code>.
+The time index also orders by event sequence for coincident physical times.</p>
+<h3 id="particle_state"><code>particle_state</code><a class="headerlink" href="#particle_state" title="Permanent link">&para;</a></h3>
+<p>The primary key is <code>(run_id, particle_id, sample_sequence)</code>. Each row contains:</p>
+<ul>
+<li>the output event and physical timestamp;</li>
+<li>integration offset and elapsed particle age;</li>
+<li>longitude, latitude, and height above sea level;</li>
+<li><code>alive</code> or <code>terminated</code> status and optional termination reason;</li>
+<li>selected wind, pressure, and temperature values;</li>
+<li>validity and quality labels for sampled fields;</li>
+<li>an optional provenance ID into the bundle's attribution records.</li>
+</ul>
+<p>The public time index is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">particle_state_by_time</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">ON</span><span class="w"> </span><span class="n">particle_state</span><span class="w"> </span><span class="p">(</span><span class="n">run_id</span><span class="p">,</span><span class="w"> </span><span class="n">physical_seconds</span><span class="p">,</span><span class="w"> </span><span class="n">physical_nanosecond</span><span class="p">,</span><span class="w"> </span><span class="n">particle_id</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="termination"><code>termination</code><a class="headerlink" href="#termination" title="Permanent link">&para;</a></h3>
+<p>One row per terminated particle records reason, normal or abnormal
+classification, physical time, and an optional boundary-intersection fraction
+from zero through one.</p>
+<h2 id="read-only-query-patterns">Read-only query patterns<a class="headerlink" href="#read-only-query-patterns" title="Permanent link">&para;</a></h2>
+<p>Open the database with SQLite read-only mode. Keep <code>particles.sqlite-wal</code> and
+<code>particles.sqlite-shm</code> beside the main file while an attempt is active.</p>
+<p>Read one trajectory:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">particle_state</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">run_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">?</span><span class="mi">1</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">particle_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">?</span><span class="mi">2</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">sample_sequence</span><span class="p">;</span>
+</code></pre></div>
+<p>Read one physical output snapshot:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">particle_state</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">run_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">?</span><span class="mi">1</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">physical_seconds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">?</span><span class="mi">2</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">physical_nanosecond</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">?</span><span class="mi">3</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">particle_id</span><span class="p">;</span>
+</code></pre></div>
+<p>Read termination totals:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">classification</span><span class="p">,</span><span class="w"> </span><span class="n">reason</span><span class="p">,</span><span class="w"> </span><span class="k">COUNT</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">particles</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">termination</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">run_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">?</span><span class="mi">1</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">classification</span><span class="p">,</span><span class="w"> </span><span class="n">reason</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">classification</span><span class="p">,</span><span class="w"> </span><span class="n">reason</span><span class="p">;</span>
+</code></pre></div>
+<p>During active writing, use a read transaction and the indexed high-water state
+visible to that snapshot. Do not run schema changes, write transactions,
+<code>VACUUM</code>, or a checkpoint from a second process. Product commands already
+apply the supported snapshot behavior.</p>
+<h2 id="wal-and-terminal-closeout">WAL and terminal closeout<a class="headerlink" href="#wal-and-terminal-closeout" title="Permanent link">&para;</a></h2>
+<p>A non-empty WAL is ordinary while the writer is active. Safe completion and
+safe cancellation checkpoint the database and truncate the terminal WAL. A
+force-stopped or lost worker may leave a non-empty WAL and running manifest in
+its attempt directory.</p>
+<p>Keep the main database and sidecars together. Move or archive only an inactive
+complete directory, then run full verification at the destination. The
+<a href="../../operations/storage-sqlite/">storage guide</a> gives recovery procedures for
+disk exhaustion and interrupted WAL closeout.</p>
+<h2 id="digest-relationships">Digest relationships<a class="headerlink" href="#digest-relationships" title="Permanent link">&para;</a></h2>
+<p>The manifest records separate identities for normalized provenance content,
+SQLite SQL content, and canonical output. Path-normalized digests allow the same
+scientific product to be compared across different attempt roots. The optional
+report is excluded, so refreshing <code>run-report.md</code> leaves those identities
+unchanged.</p>
+<p>Future export products are planned to use a user-selected directory outside the
+run product. <code>0.1.0-alpha.1</code> provides the result commands and read-only SQLite
+interface shown on this page; it has no export command.</p>
 
 
 

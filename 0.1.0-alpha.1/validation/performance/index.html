@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Fair timing boundaries, repetitions, scaling, memory, and limitations of the Trajecta and FLEXPART comparison.">
+        <meta name="description" content="Read the frozen Trajecta and FLEXPART timing boundaries, repetitions, throughput, scaling, and peak-memory measurements.">
       
       
       
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -917,6 +1129,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1020,7 +1278,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1111,18 +1369,105 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#two-timing-boundaries" class="md-nav__link">
+  <a href="#benchmark-environment" class="md-nav__link">
     <span class="md-ellipsis">
-      Two timing boundaries
+      Benchmark environment
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#frozen-medians" class="md-nav__link">
+  <a href="#executable-identity" class="md-nav__link">
     <span class="md-ellipsis">
-      Frozen medians
+      Executable identity
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timing-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      Timing boundaries
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Timing boundaries">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#equivalent-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      Equivalent core
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#complete-product" class="md-nav__link">
+    <span class="md-ellipsis">
+      Complete product
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-samples-are-summarized" class="md-nav__link">
+    <span class="md-ellipsis">
+      How samples are summarized
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#median-wall-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      Median wall time
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#throughput" class="md-nav__link">
+    <span class="md-ellipsis">
+      Throughput
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scaling-from-10000-to-50000-particles" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scaling from 10,000 to 50,000 particles
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#peak-resident-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Peak resident memory
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#applying-the-numbers-to-another-workload" class="md-nav__link">
+    <span class="md-ellipsis">
+      Applying the numbers to another workload
     </span>
   </a>
   
@@ -1827,18 +2172,105 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#two-timing-boundaries" class="md-nav__link">
+  <a href="#benchmark-environment" class="md-nav__link">
     <span class="md-ellipsis">
-      Two timing boundaries
+      Benchmark environment
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#frozen-medians" class="md-nav__link">
+  <a href="#executable-identity" class="md-nav__link">
     <span class="md-ellipsis">
-      Frozen medians
+      Executable identity
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timing-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      Timing boundaries
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Timing boundaries">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#equivalent-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      Equivalent core
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#complete-product" class="md-nav__link">
+    <span class="md-ellipsis">
+      Complete product
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-samples-are-summarized" class="md-nav__link">
+    <span class="md-ellipsis">
+      How samples are summarized
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#median-wall-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      Median wall time
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#throughput" class="md-nav__link">
+    <span class="md-ellipsis">
+      Throughput
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scaling-from-10000-to-50000-particles" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scaling from 10,000 to 50,000 particles
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#peak-resident-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Peak resident memory
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#applying-the-numbers-to-another-workload" class="md-nav__link">
+    <span class="md-ellipsis">
+      Applying the numbers to another workload
     </span>
   </a>
   
@@ -1864,36 +2296,173 @@
 
 
 <h1 id="performance-measurement-method">Performance measurement method<a class="headerlink" href="#performance-measurement-method" title="Permanent link">&para;</a></h1>
-<p>The frozen comparison identifies FLEXPART 11.1 commit
-<code>dace3affa2ba71677f12f3858b04aaf59f8ee51e</code> and both executable hashes. It uses
-one Ubuntu 24.04 host, CPU set <code>0-3</code>, one warm-up per particle count, and three
-formal repetitions in rotated order.</p>
-<h2 id="two-timing-boundaries">Two timing boundaries<a class="headerlink" href="#two-timing-boundaries" title="Permanent link">&para;</a></h2>
+<p>The published benchmark separates numerical transport from the complete result
+product. This distinction matters for Trajecta because its default product
+includes a queryable particle-history database, lifecycle closeout, provenance,
+and verification work. A transport timing and a finished-product timing answer
+different operational questions.</p>
+<h2 id="benchmark-environment">Benchmark environment<a class="headerlink" href="#benchmark-environment" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Boundary</th>
-<th>FLEXPART</th>
-<th>Trajecta</th>
+<th>Item</th>
+<th>Frozen value</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Equivalent core</td>
-<td>Transport-focused execution</td>
-<td>Integrator, population, boundary, and meteorology path</td>
+<td>Operating system</td>
+<td>Ubuntu 24.04.1 LTS under WSL2</td>
 </tr>
 <tr>
-<td>Complete product</td>
-<td>Particle NetCDF</td>
-<td>SQLite lifecycle/science product plus provenance and verification work</td>
+<td>Architecture</td>
+<td>x86-64</td>
+</tr>
+<tr>
+<td>CPU affinity for formal runs</td>
+<td>Logical CPUs <code>0-3</code></td>
+</tr>
+<tr>
+<td>Worker or thread count</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Meteorology</td>
+<td>Aligned ERA5 hybrid-level case</td>
+</tr>
+<tr>
+<td>Simulation duration</td>
+<td>3,600 seconds</td>
+</tr>
+<tr>
+<td>Transport step</td>
+<td>600 seconds</td>
+</tr>
+<tr>
+<td>Product output interval</td>
+<td>1,200 seconds</td>
+</tr>
+<tr>
+<td>Particle counts</td>
+<td>10,000 and 50,000</td>
+</tr>
+<tr>
+<td>Warm-up</td>
+<td>One run of each mode at each particle count</td>
+</tr>
+<tr>
+<td>Formal samples</td>
+<td>Three runs of each mode at each particle count</td>
 </tr>
 </tbody>
 </table>
-<p>The equivalent-core gate is <code>Trajecta / FLEXPART &lt;= 1.5</code>. Complete-product
-times are reported without applying that gate because the products carry
-different audit work.</p>
-<h2 id="frozen-medians">Frozen medians<a class="headerlink" href="#frozen-medians" title="Permanent link">&para;</a></h2>
+<p>The three formal repetitions use rotated order. At 10,000 particles the order
+starts with each of the three modes in turn; the same rotation is used at
+50,000. This spreads first-run, cache, and neighboring-process effects across
+the measured modes.</p>
+<h2 id="executable-identity">Executable identity<a class="headerlink" href="#executable-identity" title="Permanent link">&para;</a></h2>
+<p>The comparison records the exact executable bytes:</p>
+<table>
+<thead>
+<tr>
+<th>Program</th>
+<th>Identity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Trajecta benchmark binary</td>
+<td>SHA-256 <code>266a3c31dfb98e5206ee3e1c1d885d207b667a0ecb9f6e6caee438435a81b24f</code></td>
+</tr>
+<tr>
+<td>Trajecta source tree</td>
+<td>SHA-256 <code>5fe6b857c1c59072b1eae3603fe6a51b77f01171481cdbe1e8313cba74e225c1</code></td>
+</tr>
+<tr>
+<td>FLEXPART</td>
+<td>Version 11.1, commit <code>dace3affa2ba71677f12f3858b04aaf59f8ee51e</code></td>
+</tr>
+<tr>
+<td>FLEXPART binary</td>
+<td>SHA-256 <code>5b6aacf1ac653c26dca2fd14e498d5e705bfdf7a38896a789869c3c11d24c629</code></td>
+</tr>
+<tr>
+<td>FLEXPART toolchain</td>
+<td>GNU Fortran 13.3.0, ecCodes 2.34.1, netCDF-Fortran 4.5.4</td>
+</tr>
+</tbody>
+</table>
+<p>The formal benchmark binary carried the internal pre-release version <code>0.0.0</code>.
+The source was subsequently stamped <code>0.1.0-alpha.1</code> without a numerical or
+performance change between the benchmark source identity and that version
+update. The tables on this page remain attached to the hashes above.</p>
+<h2 id="timing-boundaries">Timing boundaries<a class="headerlink" href="#timing-boundaries" title="Permanent link">&para;</a></h2>
+<p>Three modes are run independently:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Timed work</th>
+<th>Produced artifact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FLEXPART core</td>
+<td>The transport-oriented executable path with comparison output minimized</td>
+<td>Core-run status and timing record</td>
+</tr>
+<tr>
+<td>FLEXPART product</td>
+<td>Transport plus its particle NetCDF product</td>
+<td>One particle NetCDF and run record</td>
+</tr>
+<tr>
+<td>Trajecta product</td>
+<td>Packaged product run through its normal result lifecycle</td>
+<td>Manifest, SQLite, provenance, verification inputs, and run record</td>
+</tr>
+</tbody>
+</table>
+<h3 id="equivalent-core">Equivalent core<a class="headerlink" href="#equivalent-core" title="Permanent link">&para;</a></h3>
+<p>Trajecta instruments the production runner into named stages. Its equivalent-
+core time is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>runner_total - runner_output
+</code></pre></div>
+<p>This retains meteorological queries, population work, integration, and boundary
+handling while removing the measured output stage. It is compared with the
+FLEXPART core run. The formal ratio is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Trajecta equivalent-core median / FLEXPART core median
+</code></pre></div>
+<p>The frozen acceptance limit is <code>1.5</code>. Both particle counts fall below that
+ratio.</p>
+<h3 id="complete-product">Complete product<a class="headerlink" href="#complete-product" title="Permanent link">&para;</a></h3>
+<p>Complete-product wall time follows each program's ordinary product path.
+FLEXPART writes its particle NetCDF. Trajecta writes indexed SQLite particle
+history and closes the manifest and provenance product used by its result
+commands. The table reports these values side by side without applying the core
+ratio limit.</p>
+<div class="admonition tip">
+<p class="admonition-title">Choose one timing boundary</p>
+<p>Use equivalent-core when comparing transport work. Use complete-product
+when estimating the runtime a user waits for.</p>
+</div>
+<h2 id="how-samples-are-summarized">How samples are summarized<a class="headerlink" href="#how-samples-are-summarized" title="Permanent link">&para;</a></h2>
+<p>Warm-up runs establish the code and data path before formal measurement. They
+do not enter the published medians. For each formal mode and particle count:</p>
+<ol>
+<li>wall time is collected with nanosecond precision where the runner provides
+   it and with <code>/usr/bin/time -v</code> around the process;</li>
+<li>peak resident set size, user CPU time, system CPU time, and filesystem
+   counters are retained;</li>
+<li>the three wall-time samples are sorted;</li>
+<li>the middle sample becomes the published median;</li>
+<li>throughput is <code>particle count / median seconds</code>.</li>
+</ol>
+<p>The raw CSV includes every warm-up and formal sample. For example, one 50,000-
+particle FLEXPART core repetition took 2.87 seconds, while the other two took
+1.31 and 1.34 seconds. The published median is 1.34 seconds.</p>
+<h2 id="median-wall-time">Median wall time<a class="headerlink" href="#median-wall-time" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -1924,14 +2493,126 @@ different audit work.</p>
 </tr>
 </tbody>
 </table>
-<p>Median Trajecta product RSS is about 84 MiB at 10k and 163 MiB at 50k. The
-50k complete-product difference is dominated by SQLite and provenance
-finalization. Core and product timings must remain separate in interpretation.</p>
-<p>The formal run immediately preceded the one-time version stamp from <code>0.0.0</code> to
-<code>0.1.0-alpha.1</code>. Published packages subsequently passed clean-download product
-smoke tests on Windows and Ubuntu 24.04. The timing table remains tied to the
-frozen executable identity in the aggregate; it is not a promise for other
-hardware or workloads.</p>
+<p>At 10,000 particles, Trajecta's measured transport path is shorter than the
+FLEXPART core median. At 50,000, the two core paths are close, with Trajecta at
+about 1.10 times the FLEXPART median.</p>
+<p>The Trajecta complete product grows more strongly because output rows grow with
+the particle population. At 50,000 particles, 1.469 seconds belong to the
+equivalent-core boundary and the complete product takes 8.680 seconds. The
+remaining interval includes the SQLite and provenance output path plus the
+surrounding product closeout.</p>
+<h2 id="throughput">Throughput<a class="headerlink" href="#throughput" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Particles</th>
+<th style="text-align: right;">FLEXPART core</th>
+<th style="text-align: right;">Trajecta equivalent core</th>
+<th style="text-align: right;">FLEXPART product</th>
+<th style="text-align: right;">Trajecta product</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">10,000</td>
+<td style="text-align: right;">7,519 particles/s</td>
+<td style="text-align: right;">21,486 particles/s</td>
+<td style="text-align: right;">7,634 particles/s</td>
+<td style="text-align: right;">4,556 particles/s</td>
+</tr>
+<tr>
+<td style="text-align: right;">50,000</td>
+<td style="text-align: right;">37,313 particles/s</td>
+<td style="text-align: right;">34,029 particles/s</td>
+<td style="text-align: right;">36,496 particles/s</td>
+<td style="text-align: right;">5,760 particles/s</td>
+</tr>
+</tbody>
+</table>
+<p>Throughput is useful for this fixed one-hour workload; it is not a rate per
+model step or per output row. A longer simulation adds transport steps, while a
+shorter output interval adds product rows. Those changes affect the two timing
+boundaries differently.</p>
+<h2 id="scaling-from-10000-to-50000-particles">Scaling from 10,000 to 50,000 particles<a class="headerlink" href="#scaling-from-10000-to-50000-particles" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Boundary</th>
+<th style="text-align: right;">50k / 10k wall-time ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FLEXPART core</td>
+<td style="text-align: right;">1.008</td>
+</tr>
+<tr>
+<td>FLEXPART product</td>
+<td style="text-align: right;">1.046</td>
+</tr>
+<tr>
+<td>Trajecta equivalent core</td>
+<td style="text-align: right;">3.157</td>
+</tr>
+<tr>
+<td>Trajecta product</td>
+<td style="text-align: right;">3.955</td>
+</tr>
+</tbody>
+</table>
+<p>The FLEXPART time is nearly flat over these two populations. This is a short
+six-step case, so its fixed startup, meteorology preparation, and step-level
+array work occupy much of the measured interval; increasing the particle array
+from 10,000 to 50,000 adds little to the median on this host.</p>
+<p>Trajecta's equivalent-core time grows by 3.16 times for five times as many
+particles. Batching and the in-memory numerical path keep this below linear
+growth. The product time grows by 3.95 times because SQLite state rows and
+provenance records scale with the population and output events.</p>
+<p>These ratios describe one step count and output cadence. With a longer
+simulation, fixed startup occupies a smaller fraction of each run. With more
+frequent output, product writing occupies a larger fraction.</p>
+<h2 id="peak-resident-memory">Peak resident memory<a class="headerlink" href="#peak-resident-memory" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Particles</th>
+<th style="text-align: right;">FLEXPART core</th>
+<th style="text-align: right;">FLEXPART product</th>
+<th style="text-align: right;">Trajecta product</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">10,000</td>
+<td style="text-align: right;">354.0 MiB</td>
+<td style="text-align: right;">354.6 MiB</td>
+<td style="text-align: right;">84.0 MiB</td>
+</tr>
+<tr>
+<td style="text-align: right;">50,000</td>
+<td style="text-align: right;">361.8 MiB</td>
+<td style="text-align: right;">368.5 MiB</td>
+<td style="text-align: right;">163.1 MiB</td>
+</tr>
+</tbody>
+</table>
+<p>Values are medians of the formal process peak RSS observations. Trajecta's
+product path uses less peak resident memory in this matrix and shows a clearer
+population-dependent increase. The RunProfile memory budget should still be
+sized from the intended dataset, domain, duration, reader, and concurrency;
+the queue uses that declared budget for admission.</p>
+<h2 id="applying-the-numbers-to-another-workload">Applying the numbers to another workload<a class="headerlink" href="#applying-the-numbers-to-another-workload" title="Permanent link">&para;</a></h2>
+<p>A small local calibration gives a better estimate than multiplying one table
+entry across a different study. Keep the intended dataset and output cadence,
+then run two particle counts and record:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta result inspect RESULT
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>trajecta run report --result RESULT
+</code></pre></div>
+<p>Compare runner time, output rows, SQLite size, peak RSS, and the number of
+output events. For long studies, vary duration separately from particle count.
+This separates cost per transport step from cost per stored particle state.</p>
+<p>The <a href="../data/">frozen data and charts</a> page provides all repetitions and the
+static wall-time, throughput, and memory plots.</p>
 
 
 

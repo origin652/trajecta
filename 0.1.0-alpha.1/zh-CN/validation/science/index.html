@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="说明 Trajecta 验证中的气象对齐、生命周期硬门、集合指标、重复运行和解释限制。">
+        <meta name="description" content="了解 Trajecta 所采用的气象对齐、粒子核算、集合指标与冻结一小时科学对比。">
       
       
       
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            操作指南
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -917,6 +1129,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1020,7 +1278,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1088,9 +1346,60 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#case" class="md-nav__link">
+    <span class="md-ellipsis">
+      冻结 Case
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      气象对齐
+      气象资料对齐
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="气象资料对齐">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Source identity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-coordinate" class="md-nav__link">
+    <span class="md-ellipsis">
+      Field 与 coordinate
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#query-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Query coverage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trajecta-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      Trajecta run 检查
     </span>
   </a>
   
@@ -1099,16 +1408,100 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      内部硬门
+      集合指标定义
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="集合指标定义">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      水平质心
     </span>
   </a>
   
 </li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      垂直质心
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      输送距离
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      水平离散
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#occupied-audit-cell" class="md-nav__link">
+    <span class="md-ellipsis">
+      Occupied audit cell
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
-      跨模型指标
+      发布的集合值
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="发布的集合值">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#10000" class="md-nav__link">
+    <span class="md-ellipsis">
+      10,000 个粒子
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#50000" class="md-nav__link">
+    <span class="md-ellipsis">
+      50,000 个粒子
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      结果适用范围
     </span>
   </a>
   
@@ -1836,9 +2229,60 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#case" class="md-nav__link">
+    <span class="md-ellipsis">
+      冻结 Case
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      气象对齐
+      气象资料对齐
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="气象资料对齐">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Source identity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-coordinate" class="md-nav__link">
+    <span class="md-ellipsis">
+      Field 与 coordinate
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#query-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Query coverage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trajecta-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      Trajecta run 检查
     </span>
   </a>
   
@@ -1847,16 +2291,100 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      内部硬门
+      集合指标定义
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="集合指标定义">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      水平质心
     </span>
   </a>
   
 </li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      垂直质心
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      输送距离
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      水平离散
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#occupied-audit-cell" class="md-nav__link">
+    <span class="md-ellipsis">
+      Occupied audit cell
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
-      跨模型指标
+      发布的集合值
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="发布的集合值">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#10000" class="md-nav__link">
+    <span class="md-ellipsis">
+      10,000 个粒子
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#50000" class="md-nav__link">
+    <span class="md-ellipsis">
+      50,000 个粒子
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      结果适用范围
     </span>
   </a>
   
@@ -1882,29 +2410,246 @@
 
 
 <h1 id="_1">科学验证方法<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>冻结的 M5-A5 对比使用官方 ERA5 hybrid 层资料和一小时平流 Case。两个程序均采用
-600 秒输送步长、1,200 秒输出间隔、四个 CPU thread，以及相等的 10,000 或 50,000
-粒子 population。</p>
-<h2 id="_2">气象对齐<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>审计冻结源文件身份、查询点、物理时刻、单位、垂直解释和编码值。覆盖缺失、变量含义
-不明确、异常非有限值或输入内容变化都会使审计失败。</p>
-<h2 id="_3">内部硬门<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p>每次 Trajecta 运行必须 Complete，异常粒子数为零，并通过以下项目：</p>
+<p>发布的科学对比让两个独立轨迹实现运行同一个紧凑 advection Case，观察气象资料交接和粒子
+集合在共同物理时刻的演变。两侧程序先完成各自生命周期与产品检查，随后才将输出用于
+对比。</p>
+<h2 id="case">冻结 Case<a class="headerlink" href="#case" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>设置</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>气象资料</td>
+<td>Official ERA5 hybrid-level source content</td>
+</tr>
+<tr>
+<td>输送起点</td>
+<td>2018-12-01 03:00:00 UTC</td>
+</tr>
+<tr>
+<td>模拟时长</td>
+<td>3,600 秒</td>
+</tr>
+<tr>
+<td>Transport step</td>
+<td>600 秒</td>
+</tr>
+<tr>
+<td>共同输出间隔</td>
+<td>1,200 秒</td>
+</tr>
+<tr>
+<td>对比输出时刻</td>
+<td>03:20、03:40 与 04:00 UTC</td>
+</tr>
+<tr>
+<td>粒子 population</td>
+<td>10,000 与 50,000</td>
+</tr>
+<tr>
+<td>CPU allocation</td>
+<td>CPU set <code>0-3</code> 上的四个 thread</td>
+</tr>
+<tr>
+<td>对比中启用的过程</td>
+<td>Advection 和 metric set 使用的共同 trajectory state</td>
+</tr>
+</tbody>
+</table>
+<p>集合指标使用的源位置为 5.25° E、49.25° N。本 Case 关闭 wet deposition 和 convection。
+Trajecta prepared dataset 中仍保留 surface-flux field，但这些 field 不进入共同 advection
+quantity set。</p>
+<h2 id="_2">气象资料对齐<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>两条执行路径从同一组 official source file 开始。Reader 与 staging format 各自不同，因此
+对齐工作分为几个层级。</p>
+<h3 id="source-identity">Source identity<a class="headerlink" href="#source-identity" title="Permanent link">&para;</a></h3>
+<p>Source NetCDF 与 GRIB 文件通过 byte length 和 SHA-256 固定。Trajecta prepared file 与
+staged FLEXPART GRIB 也有从这些 source 派生的各自 identity。完整列表位于
+<code>M5_A5_METEOROLOGY_EQUIVALENCE.json</code>。</p>
+<h3 id="field-coordinate">Field 与 coordinate<a class="headerlink" href="#field-coordinate" title="Permanent link">&para;</a></h3>
+<p>对齐内容包括：</p>
 <ul>
-<li>生命周期与 population 核算；</li>
-<li>有限值与质量检查；</li>
-<li>质量账本闭合；</li>
-<li>输出事件顺序；</li>
-<li>SQLite integrity 与终态 WAL；</li>
-<li>Provenance 与 canonical-output 身份；</li>
-<li>重复运行确定性。</li>
+<li>四个 valid time；</li>
+<li>137 个 model level 和 138 个 hybrid half-level coefficient；</li>
+<li>Longitude 与 latitude axis；</li>
+<li>Horizontal wind、vertical motion、temperature 与 specific humidity；</li>
+<li>Logarithmic surface pressure 及其派生 surface-pressure value；</li>
+<li>所选 advection setup 使用的 surface 与 near-surface field。</li>
 </ul>
-<h2 id="_4">跨模型指标<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<p>对比在共同物理输出时刻计算集合质心、输送距离、水平离散、垂直均值和占用审计网格。
-源采样随机数发生器与轨迹积分器不同，因此不建立 particle-ID crosswalk。集合差异属于
-报告指标，不取代任一程序的内部硬门。</p>
-<p>冻结重复运行的水平质心距离约为 61 至 277 m，离散宽度比为 1.0012 至 1.0051。这些
-数值只描述当前合同与资料，不作为通用精度容差。</p>
+<p>Trajecta-ready array 直接与 prepared source array 比较。由 logarithmic pressure 重建的
+surface pressure 使用明确 round-off tolerance。为 FLEXPART staging 的 GRIB value 则在每条
+message 的 ecCodes packing error 以内比较。这样可以容纳 GRIB packing 引入的 quantization，
+同时保持 unit 与 physical interpretation 对齐。</p>
+<h3 id="query-coverage">Query coverage<a class="headerlink" href="#query-coverage" title="Permanent link">&para;</a></h3>
+<p>Reader check 覆盖 Case 所需的物理时刻、grid location 和 vertical range。Dataset safe spatial
+core 内的 query 应返回指定 field 与有限值。DatasetLock 固定 production run 随后使用的文件
+和 coverage。</p>
+<h2 id="trajecta-run">Trajecta run 检查<a class="headerlink" href="#trajecta-run" title="Permanent link">&para;</a></h2>
+<p>Trajecta 输出进入 cross-model metric 前，run 需要以 <code>complete</code> 收尾，abnormal termination
+为零。Full verification 包含：</p>
+<table>
+<thead>
+<tr>
+<th>区域</th>
+<th>检查内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Population</td>
+<td>Initial count、active count 与全部 termination 保持相互一致</td>
+</tr>
+<tr>
+<td>Lifecycle</td>
+<td>Scheduled output state 有序，每个粒子具有一条有效 state path</td>
+</tr>
+<tr>
+<td>数值</td>
+<td>Coordinate / height / time / population quantity 为有限值，并满足各自 constraint</td>
+</tr>
+<tr>
+<td>Mass ledger</td>
+<td>每个 event 的 initial / active / boundary / terminated mass 闭合</td>
+</tr>
+<tr>
+<td>Boundary</td>
+<td>Domain 与 vertical boundary classification 符合所选 Case</td>
+</tr>
+<tr>
+<td>Output</td>
+<td>Manifest count 与 SQLite 一致；integrity 通过；terminal WAL 已 truncate 或不存在</td>
+</tr>
+<tr>
+<td>Provenance</td>
+<td>Resolved input、software identity 与 canonical output digest 完整</td>
+</tr>
+<tr>
+<td>确定性</td>
+<td>Formal repetition 保持规定 normalized content、SQL 与 canonical identity</td>
+</tr>
+</tbody>
+</table>
+<p>对应 FLEXPART product run 也要成功结束，并包含预期粒子数和三个共同输出时刻。</p>
+<h2 id="_3">集合指标定义<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>每个共同物理时刻只使用有限 active particle coordinate 计算指标。</p>
+<h3 id="_4">水平质心<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<p>经纬度先转换为单位球面 Cartesian coordinate，取平均后再转回 geographic coordinate。这种
+spherical mean 可以处理 longitude wraparound。水平质心距离按 great-circle distance 计算，
+使用 6,371,008.8 m mean Earth radius。</p>
+<h3 id="_5">垂直质心<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<p>高度以 metre above sea level 表示。FLEXPART particle product 在计算集合平均前，将 terrain
+height 加到 stored height。发布的 vertical difference 为：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Trajecta mean height ASL - FLEXPART mean height ASL
+</code></pre></div>
+<h3 id="_6">输送距离<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
+<p>分别计算两个质心到 5.25° E、49.25° N 的 great-circle distance。表中报告 Trajecta distance
+减去 FLEXPART distance。正值表示该输出时刻的 Trajecta 质心离 source 更远。</p>
+<h3 id="_7">水平离散<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
+<p>先计算每个粒子到自身集合质心的 great-circle distance，再对这些距离取 root mean square，
+得到 horizontal dispersion width。发布 ratio 为：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Trajecta RMS dispersion / FLEXPART RMS dispersion
+</code></pre></div>
+<h3 id="occupied-audit-cell">Occupied audit cell<a class="headerlink" href="#occupied-audit-cell" title="Permanent link">&para;</a></h3>
+<p>Coordinate 被分配到 diagnostic grid。网格分辨率为 0.1° longitude、0.1° latitude 和 250 m
+height。Occupancy 是至少包含一个粒子的 distinct cell 数量。发布值以 Trajecta count 除以
+FLEXPART count。</p>
+<h2 id="_8">发布的集合值<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<p>每档 population 的 formal repetition 得到相同 scientific row，因此各时刻 median 与下表
+相同。</p>
+<h3 id="10000">10,000 个粒子<a class="headerlink" href="#10000" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">经过时间</th>
+<th style="text-align: right;">水平质心距离</th>
+<th style="text-align: right;">垂直差</th>
+<th style="text-align: right;">输送距离差</th>
+<th style="text-align: right;">Dispersion ratio</th>
+<th style="text-align: right;">Occupancy ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">20 min</td>
+<td style="text-align: right;">214.89 m</td>
+<td style="text-align: right;">-22.46 m</td>
+<td style="text-align: right;">214.68 m</td>
+<td style="text-align: right;">1.00116</td>
+<td style="text-align: right;">0.98148</td>
+</tr>
+<tr>
+<td style="text-align: right;">40 min</td>
+<td style="text-align: right;">229.48 m</td>
+<td style="text-align: right;">-37.87 m</td>
+<td style="text-align: right;">214.22 m</td>
+<td style="text-align: right;">1.00191</td>
+<td style="text-align: right;">1.01802</td>
+</tr>
+<tr>
+<td style="text-align: right;">60 min</td>
+<td style="text-align: right;">276.55 m</td>
+<td style="text-align: right;">-49.79 m</td>
+<td style="text-align: right;">175.45 m</td>
+<td style="text-align: right;">1.00373</td>
+<td style="text-align: right;">0.98291</td>
+</tr>
+</tbody>
+</table>
+<h3 id="50000">50,000 个粒子<a class="headerlink" href="#50000" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">经过时间</th>
+<th style="text-align: right;">水平质心距离</th>
+<th style="text-align: right;">垂直差</th>
+<th style="text-align: right;">输送距离差</th>
+<th style="text-align: right;">Dispersion ratio</th>
+<th style="text-align: right;">Occupancy ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">20 min</td>
+<td style="text-align: right;">60.66 m</td>
+<td style="text-align: right;">-19.29 m</td>
+<td style="text-align: right;">30.45 m</td>
+<td style="text-align: right;">1.00288</td>
+<td style="text-align: right;">0.98182</td>
+</tr>
+<tr>
+<td style="text-align: right;">40 min</td>
+<td style="text-align: right;">143.45 m</td>
+<td style="text-align: right;">-34.64 m</td>
+<td style="text-align: right;">22.25 m</td>
+<td style="text-align: right;">1.00344</td>
+<td style="text-align: right;">0.99130</td>
+</tr>
+<tr>
+<td style="text-align: right;">60 min</td>
+<td style="text-align: right;">271.88 m</td>
+<td style="text-align: right;">-46.43 m</td>
+<td style="text-align: right;">-20.33 m</td>
+<td style="text-align: right;">1.00514</td>
+<td style="text-align: right;">0.97521</td>
+</tr>
+</tbody>
+</table>
+<p>50,000 粒子集合减小了早期质心采样差异；60 分钟时，两档 population 的质心距离相近。
+Dispersion ratio 在整个 Case 中接近一。垂直差为负，表示共同输出时刻的 Trajecta 质心略低于
+FLEXPART 质心。</p>
+<h2 id="_9">结果适用范围<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
+<p>该对比对应一小时 ERA5 hybrid-level advection Case，参数见本页开头表格。两个程序采用
+不同随机采样与数值路径，因此使用集合统计量。一个输出中的 particle ID <code>42</code> 没有分配到
+另一输出中的对应粒子。</p>
+<p>Chemistry 与 deposition 需要单独的 aligned case 和 metric。Convection 与 turbulence
+configuration 也需要另行设置。Long-duration accumulation、其他 grid 和其他 release
+geometry 同样应使用符合其问题的 comparison contract。
+<a href="../comparability/">可比较性矩阵</a>会标出本次发布对比中的 exact、aligned、aggregate-only 与
+未纳入项目。</p>
 
 
 

@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Prepare and run a limited-domain air-mass population with ERA5 pressure-level meteorology.">
+        <meta name="description" content="Prepare official ERA5 pressure-level data and run a limited-domain dry-air population with Trajecta.">
       
       
       
@@ -617,18 +617,81 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#project-sources" class="md-nav__link">
+  <a href="#read-the-project-binding" class="md-nav__link">
     <span class="md-ellipsis">
-      Project sources
+      Read the project binding
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#prepare-data-before-finalization" class="md-nav__link">
+  <a href="#understand-the-era5-request" class="md-nav__link">
     <span class="md-ellipsis">
-      Prepare data before finalization
+      Understand the ERA5 request
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#create-the-plan-before-the-data-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Create the plan before the data exists
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#preview-and-fetch-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preview and fetch data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#finalize-the-prepared-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      Finalize the prepared project
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-the-limited-domain-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run the limited-domain Case
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-motion-near-a-finite-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read motion near a finite boundary
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adapt-the-tutorial-area" class="md-nav__link">
+    <span class="md-ellipsis">
+      Adapt the tutorial area
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next steps
     </span>
   </a>
   
@@ -702,9 +765,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -713,7 +792,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -979,6 +1254,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1080,7 +1401,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1827,18 +2148,81 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#project-sources" class="md-nav__link">
+  <a href="#read-the-project-binding" class="md-nav__link">
     <span class="md-ellipsis">
-      Project sources
+      Read the project binding
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#prepare-data-before-finalization" class="md-nav__link">
+  <a href="#understand-the-era5-request" class="md-nav__link">
     <span class="md-ellipsis">
-      Prepare data before finalization
+      Understand the ERA5 request
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#create-the-plan-before-the-data-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Create the plan before the data exists
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#preview-and-fetch-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preview and fetch data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#finalize-the-prepared-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      Finalize the prepared project
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-the-limited-domain-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run the limited-domain Case
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-motion-near-a-finite-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read motion near a finite boundary
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adapt-the-tutorial-area" class="md-nav__link">
+    <span class="md-ellipsis">
+      Adapt the tutorial area
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next steps
     </span>
   </a>
   
@@ -1864,10 +2248,17 @@
 
 
 <h1 id="era5-pressure-level-air-mass-workflow">ERA5 pressure-level air-mass workflow<a class="headerlink" href="#era5-pressure-level-air-mass-workflow" title="Permanent link">&para;</a></h1>
-<p>This project applies dry-air domain filling to a limited ERA5 pressure-level
-domain. The Case selects the logical dataset and domain. The RunProfile binds
-that dataset to local files and the <code>era5-cf-pressure-netcdf-v0</code> profile.</p>
-<h2 id="project-sources">Project sources<a class="headerlink" href="#project-sources" title="Permanent link">&para;</a></h2>
+<p>This tutorial keeps the equal dry-air carrier population introduced by the
+CFSR domain-fill project and moves it to a limited ERA5 pressure-level grid.
+The change introduces three practical topics: planning a provider request from
+an unfinished project, preparing pressure and surface files together, and
+interpreting normal particle outflow at a finite horizontal boundary.</p>
+<p>The Case runs from 06:00 to 06:10 UTC on 1 December 2018. The supplied data
+helper uses a tutorial box from 53° N to 45° N and 0° E to 10° E. One thousand
+particles are initialized by dry-air mass inside the safe core of that grid.</p>
+<h2 id="read-the-project-binding">Read the project binding<a class="headerlink" href="#read-the-project-binding" title="Permanent link">&para;</a></h2>
+<p>The project index connects logical dataset <code>era5-pressure</code> with public profile
+<code>era5-cf-pressure-netcdf-v0</code>:</p>
 <p>schema_version: trajecta.project-index/v1
 name: air-mass-era5-pressure
 cases:
@@ -1878,6 +2269,7 @@ profiles:
     dataset_profiles:
       era5-pressure: era5-cf-pressure-netcdf-v0
 default_profile: product</p>
+<p>The Case selects the limited domain and dry-air population:</p>
 <p>schema_version: 0
 kind: case
 metadata: { name: air-mass-era5-pressure }
@@ -1907,20 +2299,194 @@ outputs:
   - product: particle_state/v1
     schedule: { mode: endpoints }
     sink: { model: particle_state_sqlite/v1 }</p>
-<h2 id="prepare-data-before-finalization">Prepare data before finalization<a class="headerlink" href="#prepare-data-before-finalization" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project examples/air-mass-era5-pressure project data-plan --output era5-plan.json
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>python tools/fetch_trajecta_data.py --project examples/air-mass-era5-pressure --plan era5-plan.json
+<p>The RunProfile contains the machine-facing paths and execution request:</p>
+<p>schema_version: 0
+kind: run_profile
+metadata: { name: product }
+case_path: ../cases/air-mass.yaml
+output_root: ../runs
+datasets:
+  - dataset: era5-pressure
+    lockfile: ../locks/era5-pressure.lock.json
+    data_roots: { met: ../data }
+    reader_backend: rust
+execution:
+  worker_threads: 1
+  memory_budget_bytes: 1073741824
+  executor: cpu
+  meteorology_reader: rust</p>
+<p>The three files divide the study cleanly. The Case supplies time, direction,
+population, boundary rules, and output. The index selects the dataset profile.
+The Profile points to <code>data/</code>, <code>locks/era5-pressure.lock.json</code>, and <code>runs/</code>,
+then requests one Rust-reader worker with a 1 GiB memory budget.</p>
+<h2 id="understand-the-era5-request">Understand the ERA5 request<a class="headerlink" href="#understand-the-era5-request" title="Permanent link">&para;</a></h2>
+<p>The pressure-level profile has a six-hour frame cadence. For the ten-minute
+Case, the helper rounds physical coverage and plans 00, 06, 12, and 18 UTC on
+1 December 2018. Each date produces three provider requests:</p>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Variables and role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pressure levels</td>
+<td>Temperature, two horizontal wind components, pressure vertical velocity, specific humidity, and geopotential on 37 levels from 1 to 1,000 hPa</td>
+</tr>
+<tr>
+<td>Surface base</td>
+<td>Surface pressure, geopotential, 10 m wind, 2 m temperature and dew point, roughness, boundary-layer height, and friction velocity</td>
+</tr>
+<tr>
+<td>Surface flux</td>
+<td>Instantaneous sensible-heat and moisture flux</td>
+</tr>
+</tbody>
+</table>
+<p>The provider files first enter a private work directory below the project's
+data root. The preparation stage checks their variables and coordinates, adds
+the dataset-family metadata expected by Trajecta, and promotes ready NetCDF
+files to <code>data/ready/</code>. The resulting files can be read through either the Rust
+or native NetCDF path selected by a Profile.</p>
+<h2 id="create-the-plan-before-the-data-exists">Create the plan before the data exists<a class="headerlink" href="#create-the-plan-before-the-data-exists" title="Permanent link">&para;</a></h2>
+<p>Project validation succeeds in a configured state while <code>data/</code> is still
+empty:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project examples/air-mass-era5-pressure project validate
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --project examples/air-mass-era5-pressure project data-plan --output era5-plan.json
 </code></pre></div>
-<p>Review the provider request, target paths, times, variables, pressure levels,
-and area. Supply CDS credentials through the official CDS configuration or
-environment. Credentials must not enter the project, logs, or provenance.
-Add <code>--execute</code> only after approving the request.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python tools/fetch_trajecta_data.py --project examples/air-mass-era5-pressure --plan era5-plan.json --execute
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>trajecta --project examples/air-mass-era5-pressure project finalize
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>trajecta --project examples/air-mass-era5-pressure run --profile product
+<p>The plan requirement contains:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Expected value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Case/Profile</td>
+<td><code>air-mass</code> / <code>product</code></td>
+</tr>
+<tr>
+<td>Dataset</td>
+<td><code>era5-pressure</code></td>
+</tr>
+<tr>
+<td>Dataset profile</td>
+<td><code>era5-cf-pressure-netcdf-v0</code></td>
+</tr>
+<tr>
+<td>Reader</td>
+<td><code>rust</code></td>
+</tr>
+<tr>
+<td>Lock path</td>
+<td><code>locks/era5-pressure.lock.json</code></td>
+</tr>
+<tr>
+<td>Data root</td>
+<td><code>data</code></td>
+</tr>
+<tr>
+<td>Capabilities</td>
+<td><code>domain_fill</code>, <code>near_surface_transport</code>, <code>transport</code></td>
+</tr>
+<tr>
+<td>Physical coverage</td>
+<td>2018-12-01 06:00–06:10 UTC</td>
+</tr>
+</tbody>
+</table>
+<p>This staged state is useful when a Case is prepared before a data request is
+submitted. Editing the Case changes <code>project_sha256</code>; the helper compares that
+identity with the supplied plan and asks for a fresh plan when they differ.</p>
+<h2 id="preview-and-fetch-data">Preview and fetch data<a class="headerlink" href="#preview-and-fetch-data" title="Permanent link">&para;</a></h2>
+<p>The package's data dependencies can be installed in a Python environment:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python -m pip install -r requirements-data.txt
 </code></pre></div>
-<p>Limited-domain outflow is a normal termination. Investigate invalid
-meteorology, reflection limits, and lifecycle mismatches as abnormal outcomes.</p>
+<p>Preview the exact request first:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python tools/fetch_trajecta_data.py --project examples/air-mass-era5-pressure --plan era5-plan.json
+</code></pre></div>
+<p>The JSON output lists the area in north-west-south-east order, acquisition
+anchors, provider dataset names, variables, pressure levels, target paths, and
+current file states. The supplied project reports the built-in tutorial area
+<code>[53, 0, 45, 10]</code>.</p>
+<p>The Climate Data Store client reads account credentials from its standard
+configuration or environment. The helper output and
+<code>TRAJECTA_FETCH_MANIFEST.json</code> contain request metadata and file hashes rather
+than credential values.</p>
+<p>Start the download and preparation pipeline with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>python tools/fetch_trajecta_data.py --project examples/air-mass-era5-pressure --plan era5-plan.json --execute
+</code></pre></div>
+<p>The service may take time to stage a request. Existing matching targets are
+reused. Downloads and transformations are kept under <code>data/.trajecta-fetch/</code>
+until ready files can be promoted. A successful completion removes that work
+directory and writes <code>data/TRAJECTA_FETCH_MANIFEST.json</code>.</p>
+<h2 id="finalize-the-prepared-project">Finalize the prepared project<a class="headerlink" href="#finalize-the-prepared-project" title="Permanent link">&para;</a></h2>
+<p>Inspect one ready file, finalize, and run the local filesystem check:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta data inspect examples/air-mass-era5-pressure/data/ready/ERA5_READY_FILE.nc
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>trajecta --project examples/air-mass-era5-pressure project finalize
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>trajecta --project examples/air-mass-era5-pressure doctor --deep
+</code></pre></div>
+<p>Replace <code>ERA5_READY_FILE.nc</code> with a file name shown by the fetch helper. Data
+inspection reports the family marker, valid times, grid, pressure levels, and
+source roles.</p>
+<p>Finalization scans the ready set as one logical dataset. The DatasetLock records
+every prepared file, its content hash and size, time coverage, grid signature,
+vertical signature, profile identity, and capabilities. The project status then
+moves from <code>configured</code> to <code>finalized</code>.</p>
+<h2 id="run-the-limited-domain-case">Run the limited-domain Case<a class="headerlink" href="#run-the-limited-domain-case" title="Permanent link">&para;</a></h2>
+<p>Submit the Profile in the foreground:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta --project examples/air-mass-era5-pressure run --profile product
+</code></pre></div>
+<p>After completion, read the result through the product commands:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>trajecta result verify RESULT --full
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>trajecta result inspect RESULT
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>trajecta result trajectory RESULT --particle-id 0
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>trajecta run report --result RESULT
+</code></pre></div>
+<p>The initial output event contains the 1,000 dry-air particles. The final count
+depends on whether a trajectory reaches the safe grid boundary during the ten
+minutes. A particle intersecting that boundary receives a terminal state at the
+intersection time and a <code>domain_boundary</code> normal termination.</p>
+<p>The limited-domain policy therefore makes a smaller final row count meaningful:
+it describes resolved outflow. The inspect summary separates that outcome from
+particle errors such as invalid meteorology. Mass-ledger rows place outgoing
+and terminated carrier mass alongside the mass that remains active.</p>
+<h2 id="read-motion-near-a-finite-boundary">Read motion near a finite boundary<a class="headerlink" href="#read-motion-near-a-finite-boundary" title="Permanent link">&para;</a></h2>
+<p>For one particle, compare its two scheduled states and any terminal state:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>trajecta --format jsonl result trajectory RESULT --particle-id 0
+</code></pre></div>
+<p><code>physical_time</code> gives the actual meteorological time. <code>integration_offset_ns</code>
+is positive for this forward Case, and <code>elapsed_age_ns</code> measures time since the
+particle's birth. When a particle terminates between endpoint events, its final
+record carries the exact intersection time rather than being shifted to the
+next scheduled output.</p>
+<p>The sampled wind, pressure, and temperature columns also carry validity and
+quality labels. These are useful when comparing a Rust-reader Profile with a
+native-reader Profile on the same locked inputs.</p>
+<h2 id="adapt-the-tutorial-area">Adapt the tutorial area<a class="headerlink" href="#adapt-the-tutorial-area" title="Permanent link">&para;</a></h2>
+<p>The generic helper obtains an area from release geometry when a Case has one.
+This domain-fill Case has no source geometry, so the supplied ERA5 tutorials
+use the documented 53–45° N, 0–10° E default. For another limited region, the
+provider utility accepts an explicit north-west-south-east box:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>python tools/fetch_era5_pressure_cds.py --out-dir PROJECT_DATA_WORK --date YYYY-MM-DD --times 00:00 06:00 12:00 --area NORTH WEST SOUTH EAST
+</code></pre></div>
+<p>Run <code>prepare_era5_pressure_anchors.py</code> on that work root, place its ready files
+under the Profile's data root, and finalize the project. The prepared grid
+defines the meteorological domain used by <code>limited_domain_terminate/v0</code>.</p>
+<p>When increasing the spatial box, also consider file size, memory budget, and
+query locality. When extending time, regenerate the project plan so acquisition
+anchors cover every physical sample. Keep <code>horizontal_halo_cells</code> large enough
+for the interpolation stencil used near the grid edge.</p>
+<h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<p>The <a href="../ozone/">ozone tutorial</a> retains the same limited tutorial box and moves
+to 137 hybrid model levels, three-hour anchors, backward execution, and a
+potential-vorticity-based population. The
+<a href="../data-families/">data-family comparison</a> summarizes the different source
+layouts.</p>
 
 
 

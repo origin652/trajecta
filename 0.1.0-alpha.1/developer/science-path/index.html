@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Source indexing, profile selection, query preparation, interpolation, domain filling, and particle integration in Trajecta.">
+        <meta name="description" content="Dataset locking, meteorological preparation, interpolation, spherical RK2 integration, boundaries, and domain-fill populations in Trajecta.">
       
       
       
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -917,6 +1129,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1018,7 +1276,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1556,27 +1814,123 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#meteorological-loading" class="md-nav__link">
+  <a href="#input-binding" class="md-nav__link">
     <span class="md-ellipsis">
-      Meteorological loading
+      Input binding
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#query-and-integration" class="md-nav__link">
+  <a href="#profile-compilation-and-source-inventory" class="md-nav__link">
     <span class="md-ellipsis">
-      Query and integration
+      Profile compilation and source inventory
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#domain-filling" class="md-nav__link">
+  <a href="#frame-selection" class="md-nav__link">
     <span class="md-ellipsis">
-      Domain filling
+      Frame selection
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prepare-and-execute-phases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prepare and execute phases
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transport-sampling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transport sampling
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spherical-midpoint-rk2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spherical midpoint RK2
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#boundary-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      Boundary order
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#population-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Population lifecycle
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Population lifecycle">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#release-population" class="md-nav__link">
+    <span class="md-ellipsis">
+      Release population
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#domain-fill-air-mass" class="md-nav__link">
+    <span class="md-ellipsis">
+      Domain-fill air mass
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stratospheric-ozone" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stratospheric ozone
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#determinism-and-provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      Determinism and provenance
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reviewing-a-scientific-path-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reviewing a scientific-path change
     </span>
   </a>
   
@@ -1836,27 +2190,123 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#meteorological-loading" class="md-nav__link">
+  <a href="#input-binding" class="md-nav__link">
     <span class="md-ellipsis">
-      Meteorological loading
+      Input binding
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#query-and-integration" class="md-nav__link">
+  <a href="#profile-compilation-and-source-inventory" class="md-nav__link">
     <span class="md-ellipsis">
-      Query and integration
+      Profile compilation and source inventory
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#domain-filling" class="md-nav__link">
+  <a href="#frame-selection" class="md-nav__link">
     <span class="md-ellipsis">
-      Domain filling
+      Frame selection
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prepare-and-execute-phases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prepare and execute phases
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transport-sampling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transport sampling
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spherical-midpoint-rk2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spherical midpoint RK2
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#boundary-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      Boundary order
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#population-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Population lifecycle
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Population lifecycle">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#release-population" class="md-nav__link">
+    <span class="md-ellipsis">
+      Release population
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#domain-fill-air-mass" class="md-nav__link">
+    <span class="md-ellipsis">
+      Domain-fill air mass
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stratospheric-ozone" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stratospheric ozone
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#determinism-and-provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      Determinism and provenance
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reviewing-a-scientific-path-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reviewing a scientific-path change
     </span>
   </a>
   
@@ -1882,36 +2332,319 @@
 
 
 <h1 id="meteorology-and-numerical-path">Meteorology and numerical path<a class="headerlink" href="#meteorology-and-numerical-path" title="Permanent link">&para;</a></h1>
-<h2 id="meteorological-loading">Meteorological loading<a class="headerlink" href="#meteorological-loading" title="Permanent link">&para;</a></h2>
-<p><code>project finalize</code> gives the runtime a DatasetLock containing profile identity,
-file hashes, time coverage, grid signature, vertical signature, and capabilities.
-The worker verifies that binding before it loads data.</p>
-<p>The meteorology path then:</p>
+<p>The scientific path begins with immutable input documents and ends with an
+ordered particle batch ready for scheduled output. File interpretation belongs
+to <code>trajecta-met</code>; particle lifecycle belongs to <code>trajecta-core</code>. The boundary
+between them is a typed, prepared meteorological query.</p>
+<p>This page traces the production path. Module and type names are included so a
+contributor can move from the description to the relevant source.</p>
+<h2 id="input-binding">Input binding<a class="headerlink" href="#input-binding" title="Permanent link">&para;</a></h2>
+<p>A production run receives a resolved Case, a resolved RunProfile, and one
+DatasetLock for each selected dataset profile. Project finalization creates this
+binding before queue admission.</p>
+<p>The lock carries the parts of the data selection that must remain fixed during
+execution:</p>
+<table>
+<thead>
+<tr>
+<th>Lock content</th>
+<th>Runtime use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dataset profile and lock schema identity</td>
+<td>Select the intended interpretation contract</td>
+</tr>
+<tr>
+<td>Ordered file inventory and SHA-256</td>
+<td>Detect replacement, truncation, or selection drift</td>
+</tr>
+<tr>
+<td>Time coverage</td>
+<td>Check that start, midpoint, release, boundary, and output queries are bracketed</td>
+</tr>
+<tr>
+<td>Spatial and vertical signatures</td>
+<td>Bind the Case domain to the indexed grid and levels</td>
+</tr>
+<tr>
+<td>Capability set</td>
+<td>Confirm that transport and population fields can be produced</td>
+</tr>
+<tr>
+<td>Source metadata</td>
+<td>Carry dataset identity into the run manifest and provenance</td>
+</tr>
+</tbody>
+</table>
+<p><code>trajecta-case</code> owns the lock shape. The production loader verifies the lock and
+uses only declared data roots. It does not discover a more convenient file after
+the attempt has started.</p>
+<h2 id="profile-compilation-and-source-inventory">Profile compilation and source inventory<a class="headerlink" href="#profile-compilation-and-source-inventory" title="Permanent link">&para;</a></h2>
+<p>A Dataset Profile describes how source records become canonical fields. Direct
+field mappings specify exact GRIB or NetCDF identities, source units, temporal
+semantics, and an ordered set of explicitly allowed alternatives. Derived fields
+are a typed computation graph.</p>
+<p>Profile compilation performs static checks before any particle query:</p>
+<ul>
+<li>graph node identifiers and outputs are unique;</li>
+<li>dependencies form an acyclic graph;</li>
+<li>units and physical dimensions agree across each operation;</li>
+<li>array shape and vertical staggering remain compatible;</li>
+<li>an operation runs only at a legal frame, tile, column, or sample stage;</li>
+<li>required source alternatives and capabilities can be resolved.</li>
+</ul>
+<p>The operation set is closed and named. It includes arithmetic and unit
+conversion, accumulated-field differencing, thermodynamic functions, hybrid
+pressure construction, and native-grid diagnostics. A Profile cannot execute
+arbitrary code or perform I/O from a computation node.</p>
+<p>The source inventory is built from metadata rather than filenames alone. It
+records container format, valid time, grid description, vertical topology, field
+identity, and dataset attributes. Exact Profile matchers select records from
+that inventory. Duplicate or incompatible candidates become diagnostics instead
+of implicit last-file-wins behavior.</p>
+<h2 id="frame-selection">Frame selection<a class="headerlink" href="#frame-selection" title="Permanent link">&para;</a></h2>
+<p>The runner enumerates every physical time that the simulation can query. This
+set includes run endpoints, RK2 stage midpoints, continuous-release windows,
+population operations, and scheduled output times. The builder then selects a
+contiguous set of source frames that brackets the full interval.</p>
+<p>An exact query at a source timestamp can still need neighboring frames when a
+derived field requires temporal differencing. Warm-up depth is taken from the
+dependency closure of the requested capabilities, so accumulated quantities
+receive the preceding support required by their graph.</p>
+<p>For every selected frame, <code>trajecta-met</code> performs the following work:</p>
 <ol>
-<li>scans only declared data roots;</li>
-<li>matches containers to the requested dataset Profile;</li>
-<li>indexes source-native coordinates, roles, valid times, and fields;</li>
-<li>derives canonical fields with explicit quality and provenance;</li>
-<li>prepares the frame window and query structures before particle execution.</li>
+<li>Decode source-native arrays and validity masks.</li>
+<li>Normalize units while preserving source identity and quality.</li>
+<li>Execute frame-stage and tile-stage graph nodes.</li>
+<li>Construct vertical geometry for pressure-level or hybrid-level data.</li>
+<li>Store canonical fields and provenance assignments in <code>RawMetFrame</code>.</li>
+<li>Place the frame in the bounded <code>FrameCache</code> and form a <code>PreparedWindow</code> for
+   the requested time.</li>
 </ol>
-<p>Particle-loop queries read prepared memory. Hidden source-file I/O during the
-execute phase is forbidden by the performance contract.</p>
-<h2 id="query-and-integration">Query and integration<a class="headerlink" href="#query-and-integration" title="Permanent link">&para;</a></h2>
-<p>The query engine performs spatial and temporal interpolation on the source
-topology. It returns typed status, quality, values, and provenance assignments.
-The core integrator consumes this public result and advances particle state with
-the selected direction and time step. Boundary policies classify crossings and
-terminal conditions.</p>
-<p>Exact repeated queries may be reused within the frozen cache contract. Reuse
-cannot merge scientifically distinct keys or alter normalized output identity.</p>
-<h2 id="domain-filling">Domain filling<a class="headerlink" href="#domain-filling" title="Permanent link">&para;</a></h2>
-<p>Domain-fill populations derive native atmospheric cells from meteorology,
-compute valid layer mass, and assign particles according to the selected air-mass
-or stratospheric-ozone rule. Boundary inflow may create later cohorts. Stable
-particle identity is independent of worker scheduling, so deterministic output
-does not depend on thread count.</p>
-<p>Changes in this path require real-data replay, mass-ledger verification,
-determinism checks, and the relevant numerical contracts.</p>
+<p>Horizontal topology stays source-native. Preparation does not create a hidden
+global regridded dataset. A regular latitude-longitude source is queried through
+its own grid backend, with spherical vector handling for wind components.</p>
+<h2 id="prepare-and-execute-phases">Prepare and execute phases<a class="headerlink" href="#prepare-and-execute-phases" title="Permanent link">&para;</a></h2>
+<p>Meteorological queries deliberately have two phases:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>MetEngine::prepare_for_domain(time, domain)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    -&gt; PreparedWindow
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>PreparedWindow::prepare_transport_batch(plan, points, workspace)
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    -&gt; PreparedTransportBatch
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>PreparedTransportBatch::execute(execution_context, workspace)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    -&gt; TransportOutput
+</code></pre></div>
+<p>The prepare phase may select cached frames, construct columns, calculate
+horizontal placement, and pin the required stencils. The execute phase receives
+only those pinned structures. It has no reader or provider handle and therefore
+does not open meteorological files while particles are being sampled.</p>
+<p><code>BatchWorkspace</code> owns reusable scratch vectors. Callers can retain it across
+batches to avoid repeated allocations. The execution context supplies the
+worker count; transport batches below 256 points run serially, while larger
+batches use a Rayon pool keyed by that count.</p>
+<p>Caches remain part of query preparation and execution mechanics:</p>
+<table>
+<thead>
+<tr>
+<th>Cache</th>
+<th>Key idea</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Frame cache</td>
+<td>Dataset frame identity</td>
+<td>Retain decoded canonical fields within a memory budget</td>
+</tr>
+<tr>
+<td>Tile and column caches</td>
+<td>Field, frame, spatial support, vertical request</td>
+<td>Reuse derived neighborhoods and column geometry</td>
+</tr>
+<tr>
+<td>Boundary stencil session</td>
+<td>Exact path-query support</td>
+<td>Keep stencils pinned while a boundary path is evaluated</td>
+</tr>
+<tr>
+<td>Last exact transport query</td>
+<td>Window identity, query plan, domain, point arrays and floating-point bits</td>
+<td>Reuse only a byte-for-byte equivalent transport request</td>
+</tr>
+</tbody>
+</table>
+<p>The exact transport key includes the frame window, temporal weights, plan,
+vertical coordinate, and point values. A changed cohort, coordinate, time, or
+domain produces a different key. Cache reuse returns the same typed output and
+provenance assignments as executing that exact request.</p>
+<h2 id="transport-sampling">Transport sampling<a class="headerlink" href="#transport-sampling" title="Permanent link">&para;</a></h2>
+<p>The integrator asks for three transport components at height above sea level:</p>
+<ul>
+<li>eastward wind in metres per second;</li>
+<li>northward wind in metres per second;</li>
+<li>geometric vertical velocity in metres per second.</li>
+</ul>
+<p>The query engine locates horizontal support, builds the source-appropriate
+vertical column, resolves surface-layer rules, and blends the two temporal
+frames. Vector wind interpolation accounts for spherical bases. Scalar fields
+and vertical velocity follow their registered interpolation and derivation
+semantics.</p>
+<p>Each output row contains values plus a <code>SampleStatus</code>, field quality, bounds, and
+provenance. Status distinguishes conditions such as valid data, below-ground
+sampling, surface-layer limits, model-top exit, domain exit, and invalid source
+support. The integrator does not infer validity from a sentinel floating-point
+value.</p>
+<p>Boundary-related status can be handed to the continuous boundary path. For
+example, a predictor outside the domain or beyond available vertical support may
+still define a segment whose first physical intersection is a normal boundary
+termination. A genuinely unavailable transport sample becomes an abnormal
+<code>invalid_meteorology</code> termination.</p>
+<h2 id="spherical-midpoint-rk2">Spherical midpoint RK2<a class="headerlink" href="#spherical-midpoint-rk2" title="Permanent link">&para;</a></h2>
+<p><code>Rk2Spherical</code> is the production integrator in <code>trajecta-core/src/integrator</code>.
+For one particle beginning at time (t) with signed step (\Delta t), it
+performs two batched transport queries:</p>
+<ol>
+<li>Query velocity at the starting position and time (t).</li>
+<li>Use half of (\Delta t) to form a midpoint position.</li>
+<li>Query velocity at that midpoint and at (t + \Delta t/2).</li>
+<li>Advance the original position through the full step with the midpoint
+   velocity.</li>
+</ol>
+<p>Horizontal displacement is calculated on a sphere and longitude is normalized.
+Vertical motion uses geometric vertical velocity. Forward and backward runs use
+the same equations with the sign of (\Delta t) changed; particle age increases
+by the absolute duration.</p>
+<p>Rows born inside a macro step can have distinct exact start times. The timed
+integrator groups equal query times in stable order, advances each row once to
+the common macro-step endpoint, and reverses time-group traversal for backward
+integration. A batch cannot mix forward and backward signs.</p>
+<p>Non-finite coordinates, overflow, or a failed spherical displacement terminate
+the affected particle as a numerical failure. Other live rows remain in the
+batch so the terminal manifest can report the complete population outcome.</p>
+<h2 id="boundary-order">Boundary order<a class="headerlink" href="#boundary-order" title="Permanent link">&para;</a></h2>
+<p>The integrator returns a proposed batch before boundary policies are applied.
+The runner then evaluates the continuous path from the previous state to the
+proposal. This separation keeps lifecycle order independent of the integrator
+implementation.</p>
+<p>Production policies cover:</p>
+<table>
+<thead>
+<tr>
+<th>Boundary</th>
+<th>Outcome</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Surface</td>
+<td>Reflect the path according to the configured surface policy, subject to its reflection limit</td>
+</tr>
+<tr>
+<td>Model top</td>
+<td>Terminate at the first top intersection</td>
+</tr>
+<tr>
+<td>Limited horizontal domain</td>
+<td>Terminate at the first domain intersection</td>
+</tr>
+<tr>
+<td>Global longitude</td>
+<td>Apply periodic longitude handling</td>
+</tr>
+</tbody>
+</table>
+<p>When several intersections are possible, ordered path segments and intersection
+fractions determine the first event. Termination time and position are written
+at the intersection, which keeps lifecycle samples monotonic in both integration
+directions.</p>
+<h2 id="population-lifecycle">Population lifecycle<a class="headerlink" href="#population-lifecycle" title="Permanent link">&para;</a></h2>
+<p>The <code>PopulationModel</code> interface owns work around advection:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>initialize
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>pre-step and emission
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>advection by the shared integrator
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>post-advection accounting
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>boundary maintenance
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>finalize
+</code></pre></div>
+<h3 id="release-population">Release population<a class="headerlink" href="#release-population" title="Permanent link">&para;</a></h3>
+<p>A release population creates rows from configured release events. The vertical
+resolver queries meteorology when a release coordinate needs pressure, terrain,
+or model-level interpretation. Birth time, origin event, mass, and stable
+particle identity are set before the row joins an integration cohort.</p>
+<h3 id="domain-fill-air-mass">Domain-fill air mass<a class="headerlink" href="#domain-fill-air-mass" title="Permanent link">&para;</a></h3>
+<p>Domain filling derives finite atmospheric cells from the selected native grid
+and vertical geometry. Valid layer dry-air mass is calculated from the
+meteorological state, then apportioned among particles according to the Case.
+The initial cohort records <code>domain_initial</code> origin.</p>
+<p>For a limited domain, boundary-face layers carry dry-air flux. The integration
+direction determines which signed flux is inflow. Mass below one particle share
+is retained as a residual and carried into later steps; it is not rounded away
+at every boundary event. New rows receive <code>domain_boundary</code> origin, face
+identity, exact birth time, and stable IDs.</p>
+<h3 id="stratospheric-ozone">Stratospheric ozone<a class="headerlink" href="#stratospheric-ozone" title="Permanent link">&para;</a></h3>
+<p>The ozone population uses the same domain-fill transport and dry-air accounting
+with an ozone-specific seeding rule. Its meteorological capability set includes
+the fields required to classify the stratospheric source and assign ozone mass.
+Population-specific science stays in the seeding and accounting layer; particle
+motion still uses the shared transport query and RK2 implementation.</p>
+<h2 id="determinism-and-provenance">Determinism and provenance<a class="headerlink" href="#determinism-and-provenance" title="Permanent link">&para;</a></h2>
+<p>Stable ordering is established before parallel query execution. Particle IDs,
+birth identities, output event sequences, and sorted SQLite insertion do not
+depend on Rayon completion order. Changing worker count can alter wall time but
+must preserve the normalized scientific content for the same resolved inputs.</p>
+<p>Every sampled or derived meteorological value carries a provenance assignment.
+The final bundle records source records and transformations separately from the
+particle table, then the manifest binds the bundle and SQLite identities. See
+<a href="../runtime/">Output and runtime</a> for terminalization details.</p>
+<h2 id="reviewing-a-scientific-path-change">Reviewing a scientific-path change<a class="headerlink" href="#reviewing-a-scientific-path-change" title="Permanent link">&para;</a></h2>
+<p>Choose checks according to the rule being changed:</p>
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>Minimum focused coverage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Profile mapping or unit conversion</td>
+<td>Profile compile tests and a real source inventory</td>
+</tr>
+<tr>
+<td>Reader metadata or array layout</td>
+<td>Native/pure differential test across all selected times and levels</td>
+</tr>
+<tr>
+<td>Derived field</td>
+<td>Graph type checks, quality/provenance assertions, reference values</td>
+</tr>
+<tr>
+<td>Interpolation or vertical support</td>
+<td>In-domain values, each typed boundary status, forward/backward replay</td>
+</tr>
+<tr>
+<td>Integrator</td>
+<td>Convergence case, signed-time symmetry, pole/dateline handling, abnormal classification</td>
+</tr>
+<tr>
+<td>Boundary</td>
+<td>Exact intersection, ordering, reflection limit, monotonic lifecycle output</td>
+</tr>
+<tr>
+<td>Domain fill</td>
+<td>Layer mass, residual carry, boundary inflow direction, stable birth identity</td>
+</tr>
+<tr>
+<td>Query performance</td>
+<td>Exact-key audit, execute-phase I/O counters, output digest, scaling matrix</td>
+</tr>
+</tbody>
+</table>
+<p>Real-data tests should use the smallest fixture that still exercises the
+production reader and relevant topology. Performance work is accepted only
+after normalized outputs remain consistent with the intended scientific change.</p>
 
 
 

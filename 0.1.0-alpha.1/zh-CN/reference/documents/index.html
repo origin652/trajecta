@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Trajecta 项目文档的职责、关系、路径规则、draft 状态和 finalize 合同。">
+        <meta name="description" content="查找 Trajecta 项目关系、文档字段、路径规则、draft 状态、data plan、lock 与 finalize 行为。">
       
       
       
@@ -24,7 +24,7 @@
     
     
       
-        <title>Project、Case、Profile 与 DatasetLock - Trajecta</title>
+        <title>Project、Case、RunProfile 与 DatasetLock 参考 - Trajecta</title>
       
     
     
@@ -79,7 +79,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#projectcaseprofile-datasetlock" class="md-skip">
+        <a href="#projectcaserunprofile-datasetlock" class="md-skip">
           跳转至
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Project、Case、Profile 与 DatasetLock
+              Project、Case、RunProfile 与 DatasetLock 参考
             
           </span>
         </div>
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            操作指南
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -917,6 +1129,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1018,7 +1276,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1301,25 +1559,94 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      文档关系
+      文档职责
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#draft" class="md-nav__link">
+  <a href="#project-index" class="md-nav__link">
     <span class="md-ellipsis">
-      路径与 draft 文档
+      Project index
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Project index">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      字段
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#case-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      Case 与 Profile 的关系
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#finalize" class="md-nav__link">
+  <a href="#case-document" class="md-nav__link">
     <span class="md-ellipsis">
-      Finalize
+      Case document
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runprofile-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      RunProfile document
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project" class="md-nav__link">
+    <span class="md-ellipsis">
+      Project 路径规则
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#draftconfigured-finalized" class="md-nav__link">
+    <span class="md-ellipsis">
+      Draft、configured 与 finalized
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data plan
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datasetlock-finalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      DatasetLock 与 finalization
     </span>
   </a>
   
@@ -1838,25 +2165,94 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      文档关系
+      文档职责
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#draft" class="md-nav__link">
+  <a href="#project-index" class="md-nav__link">
     <span class="md-ellipsis">
-      路径与 draft 文档
+      Project index
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Project index">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      字段
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#case-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      Case 与 Profile 的关系
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#finalize" class="md-nav__link">
+  <a href="#case-document" class="md-nav__link">
     <span class="md-ellipsis">
-      Finalize
+      Case document
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runprofile-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      RunProfile document
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project" class="md-nav__link">
+    <span class="md-ellipsis">
+      Project 路径规则
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#draftconfigured-finalized" class="md-nav__link">
+    <span class="md-ellipsis">
+      Draft、configured 与 finalized
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data plan
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datasetlock-finalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      DatasetLock 与 finalization
     </span>
   </a>
   
@@ -1881,56 +2277,348 @@
   
 
 
-<h1 id="projectcaseprofile-datasetlock">Project、Case、Profile 与 DatasetLock<a class="headerlink" href="#projectcaseprofile-datasetlock" title="Permanent link">&para;</a></h1>
-<p>这些文档将科学意图、本机执行设置和已校验资料内容分开管理。</p>
+<h1 id="projectcaserunprofile-datasetlock">Project、Case、RunProfile 与 DatasetLock<a class="headerlink" href="#projectcaserunprofile-datasetlock" title="Permanent link">&para;</a></h1>
+<p>Trajecta 将 portable scientific intent、machine-local execution 与 run 使用的准确气象文件分开
+保存。Project 通过名称连接这些部分，同时让每份 source document 保持独立可读。</p>
+<h2 id="_1">文档职责<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>文档</th>
-<th>职责</th>
-<th>常用格式</th>
+<th>格式</th>
+<th>主要职责</th>
+<th>创建或读取它的命令</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Project index</td>
-<td>命名 Case 与 Profile，映射资料并选择默认 Profile</td>
-<td><code>trajecta-project.yaml</code></td>
+<td>YAML，<code>trajecta-project.yaml</code></td>
+<td>命名 Case 与 Profile，选择 dataset profile，记录 optional default Profile</td>
+<td><code>project init</code>、<code>project get/set</code>、<code>project validate</code>、<code>project finalize</code></td>
 </tr>
 <tr>
 <td>Case</td>
-<td>科学时间、区域、population、边界、气象需求和输出</td>
-<td>YAML</td>
+<td>YAML 或 JSON</td>
+<td>定义 scientific time、meteorology requirement、population、numerics、physics 与 output schedule</td>
+<td><code>case validate</code>、<code>case resolve</code>、project validation、worker</td>
 </tr>
 <tr>
 <td>RunProfile</td>
-<td>执行资源、reader、输出根目录和一条所选 Case 路径</td>
-<td>YAML</td>
+<td>YAML 或 JSON</td>
+<td>选择一个 Case，并提供 local output、dataset binding、reader 与 resource</td>
+<td>Project validation、finalization、scheduler、worker</td>
+</tr>
+<tr>
+<td>Data plan</td>
+<td>JSON，<code>trajecta.data-plan/v1</code></td>
+<td>列出确定性 file 与 capability requirement，以及 current local status</td>
+<td><code>project data-plan</code></td>
 </tr>
 <tr>
 <td>DatasetLock</td>
-<td>一个资料绑定的已校验文件、摘要、能力与覆盖范围</td>
 <td>JSON</td>
+<td>将一个 logical dataset 绑定到 immutable local file、hash、coverage 与 capability</td>
+<td><code>data lock</code>、<code>project finalize</code>、<code>doctor --deep</code>、worker</td>
+</tr>
+<tr>
+<td>Resolved Case</td>
+<td>JSON result artifact</td>
+<td>完整展开 Case component 并记录 source digest</td>
+<td><code>case resolve</code>、run admission、worker</td>
+</tr>
+<tr>
+<td>Resolved RunProfile</td>
+<td>JSON result artifact</td>
+<td>Canonicalize local path，并记录准确 execution binding</td>
+<td>Run admission 与 worker</td>
 </tr>
 </tbody>
 </table>
-<h2 id="_1">文档关系<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
-<p>一个项目可以索引多个 Case 和多个 Profile。每个 Profile 选择一个已索引且可解析的
-Case。多个 Profile 可以选择同一个 Case，用于表达不同资源或 reader 设置。单个
-Profile 不会展开为多个 Case；每项可运行的 Case 关联应有独立 Profile 条目。</p>
-<p><code>dataset_profiles</code> 将所选 Case 需要的各 dataset 标识映射到命名资料 Profile。
-Finalize 会解析该映射，并将其绑定到 DatasetLock。</p>
-<h2 id="draft">路径与 draft 文档<a class="headerlink" href="#draft" title="Permanent link">&para;</a></h2>
-<p>索引路径使用 <code>/</code>，保持为项目根目录内的相对路径，并且不能包含 <code>.</code> 或 <code>..</code> 段。
-绝对路径与规范化后越界的路径会在触碰项目外文件前被拒绝。YAML mapping 中的重复键
-同样无效。</p>
-<p>Profile 缺少必填字段时，可以在项目组装期间保持 <code>draft</code>。未知字段、类型错误、重复键，
-以及真实 Case 或 Profile 语义错误均按 error 报告。Draft 可以接受评审并参与资料规划，
-但不能进入执行队列。</p>
-<h2 id="finalize">Finalize<a class="headerlink" href="#finalize" title="Permanent link">&para;</a></h2>
-<p><code>project finalize</code> 会校验所选文档、检查真实资料与覆盖能力，随后原子写入 lock。该命令
-不会下载资料。Case、Profile、dataset 映射或输入文件变化后，旧绑定会失效；用户需要
-重新生成 data-plan 并显式 finalize。</p>
+<h2 id="project-index">Project index<a class="headerlink" href="#project-index" title="Permanent link">&para;</a></h2>
+<p>Project index 使用 schema identity <code>trajecta.project-index/v1</code>。</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">trajecta.project-index/v1</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">moisture-study</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">cases</span><span class="p">:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">wet-season</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cases/wet-season.yaml</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">dry-season</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cases/dry-season.yaml</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nt">profiles</span><span class="p">:</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="nt">wet-local</span><span class="p">:</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">profiles/wet-local.yaml</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="nt">dataset_profiles</span><span class="p">:</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">      </span><span class="nt">met</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">era5-hybrid</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="nt">dry-local</span><span class="p">:</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">profiles/dry-local.yaml</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="nt">dataset_profiles</span><span class="p">:</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">      </span><span class="nt">met</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">era5-hybrid</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="nt">default_profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">wet-local</span>
+</code></pre></div>
+<h3 id="_2">字段<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Constraint</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>schema_version</code></td>
+<td>准确等于 <code>trajecta.project-index/v1</code></td>
+<td>Index format identity</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>Non-empty string</td>
+<td>Human project name</td>
+</tr>
+<tr>
+<td><code>cases</code></td>
+<td>Mapping，name 与 path 非空且唯一</td>
+<td>Case name 到 project-relative document path</td>
+</tr>
+<tr>
+<td><code>profiles</code></td>
+<td>Mapping，name 非空且唯一</td>
+<td>Runnable Profile entry</td>
+</tr>
+<tr>
+<td><code>profiles.&lt;name&gt;.path</code></td>
+<td>Non-empty project-relative path</td>
+<td>Entry 选择的 RunProfile document</td>
+</tr>
+<tr>
+<td><code>profiles.&lt;name&gt;.dataset_profiles</code></td>
+<td>Logical dataset ID 到 named profile 的 mapping</td>
+<td>为每个 Case dataset 选择 preparation 与 lock behavior</td>
+</tr>
+<tr>
+<td><code>profiles.&lt;name&gt;.template</code></td>
+<td>Optional non-empty name</td>
+<td>准备期间使用的 machine configuration Profile template</td>
+</tr>
+<tr>
+<td><code>profiles.&lt;name&gt;.template_sha256</code></td>
+<td>与 <code>template</code> 同时出现；64 个 hexadecimal character</td>
+<td>Selected template content identity</td>
+</tr>
+<tr>
+<td><code>default_profile</code></td>
+<td>Optional existing Profile name</td>
+<td>Project-aware command 允许省略 selection 时采用的 Profile</td>
+</tr>
+</tbody>
+</table>
+<p>同一 mapping level 中的 key 保持唯一。Typed index conversion 前会拒绝 duplicate YAML mapping
+key，其中也包括 <code>dataset_profiles</code> 内的重复项。</p>
+<h2 id="case-profile">Case 与 Profile 的关系<a class="headerlink" href="#case-profile" title="Permanent link">&para;</a></h2>
+<p>一个 project 可以包含多个 Case 和多个 Profile。每个 Profile entry 选择一份 RunProfile
+document，其中的 <code>case_path</code> 再选择一个 indexed Case。多个 Profile 可以引用同一个 Case，
+从而表达不同 reader、thread、memory 或 output choice。</p>
+<p>一个 Profile 不会展开到多个 Case。需要以两种机器配置运行四个 Case 时，可以为需要的组合
+建立单独 named Profile entry。每次 run receipt 由此对应一个 resolved Case 和一个 resolved
+RunProfile。</p>
+<p>Selected Case 使用的 logical dataset identifier 应出现在 Profile entry 的
+<code>dataset_profiles</code> mapping 中。缺少 mapping 或出现额外 mapping 时，project validation 与
+finalize preflight 会返回相应 diagnostic。</p>
+<h2 id="case-document">Case document<a class="headerlink" href="#case-document" title="Permanent link">&para;</a></h2>
+<p>Case 使用当前 numeric Case schema version 和 <code>kind: case</code>。Top-level object 会拒绝 unknown
+field。</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>schema_version</code></td>
+<td>Numeric Case document contract version</td>
+</tr>
+<tr>
+<td><code>kind</code></td>
+<td><code>case</code></td>
+</tr>
+<tr>
+<td><code>metadata</code></td>
+<td>Metadata contract 支持的 name、description、authorship 或 label</td>
+</tr>
+<tr>
+<td><code>time</code></td>
+<td>Direction、start/end instant、transport step 与 output timing requirement</td>
+</tr>
+<tr>
+<td><code>meteorology</code></td>
+<td>Domain、logical dataset reference、required field、coverage 与 vertical interpretation</td>
+</tr>
+<tr>
+<td><code>particle_population</code></td>
+<td>Release、air-mass、ozone 或 domain-fill initialization 与 lifecycle setting</td>
+</tr>
+<tr>
+<td><code>substances</code></td>
+<td>Tracked substance definition 与 initial mass relationship</td>
+</tr>
+<tr>
+<td><code>numerics</code></td>
+<td>Integration 与 boundary-control setting</td>
+</tr>
+<tr>
+<td><code>physics</code></td>
+<td>Selected physical module 及其 parameter</td>
+</tr>
+<tr>
+<td><code>outputs</code></td>
+<td>Product 与 output-event specification</td>
+</tr>
+</tbody>
+</table>
+<p>Component 可以 inline，也可以引用 local component document。<code>case resolve</code> 会展开 reference，
+normalize value，并记录每个 source digest。Worker 接收 resolved form，因此 source component
+在 admission 之后的编辑不会改变该 attempt 的内容。</p>
+<p>Validation intent 改变 minimum complete shape：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta case validate cases/study.yaml --intent simulation
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>trajecta case validate cases/study.yaml --intent met-probe
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>trajecta case validate cases/study.yaml --intent migration
+</code></pre></div>
+<p>Simulation intent 要求 numerical run 所需 component。Meteorological probe 可以使用更小的
+Case，集中描述 query coverage。Migration intent 用于 document conversion check。</p>
+<h2 id="runprofile-document">RunProfile document<a class="headerlink" href="#runprofile-document" title="Permanent link">&para;</a></h2>
+<p>RunProfile 使用当前 numeric Case schema version 和 <code>kind: run_profile</code>。</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>schema_version</code></td>
+<td>Numeric RunProfile contract version</td>
+</tr>
+<tr>
+<td><code>kind</code></td>
+<td><code>run_profile</code></td>
+</tr>
+<tr>
+<td><code>metadata</code></td>
+<td>Descriptive Profile metadata</td>
+</tr>
+<tr>
+<td><code>case_path</code></td>
+<td>指向一个 selected Case 的 local path</td>
+</tr>
+<tr>
+<td><code>output_root</code></td>
+<td>创建 unique run 与 attempt directory 的 root</td>
+</tr>
+<tr>
+<td><code>datasets</code></td>
+<td>Logical dataset binding，其中包含 lockfile、root、optional cache root 与 reader override</td>
+</tr>
+<tr>
+<td><code>profile_sources</code></td>
+<td>Meteorological reader 使用的 explicit Profile file 或 non-recursive directory source</td>
+</tr>
+<tr>
+<td><code>execution.worker_threads</code></td>
+<td>Positive scheduler CPU request</td>
+</tr>
+<tr>
+<td><code>execution.memory_budget_bytes</code></td>
+<td>以 byte 表示的 positive scheduler memory request</td>
+</tr>
+<tr>
+<td><code>execution.executor</code></td>
+<td>Non-empty executor identity</td>
+</tr>
+<tr>
+<td><code>execution.meteorology_reader</code></td>
+<td>Binding 未 override 时采用的 default <code>rust</code> 或 <code>native</code> reader</td>
+</tr>
+</tbody>
+</table>
+<p>Resolved RunProfile 会 canonicalize local path，并记录 source digest。Memory budget 向上取整到
+MiB 后用于 queue admission。Dataset binding 可以为一个 logical dataset override Profile
+reader。</p>
+<h2 id="project">Project 路径规则<a class="headerlink" href="#project" title="Permanent link">&para;</a></h2>
+<p>Project index 中的路径遵守 lexical 与 canonical project jail：</p>
+<ul>
+<li>路径相对于 project root；</li>
+<li>Index 使用 <code>/</code> 作为 portable separator；</li>
+<li>Empty component、repeated separator、<code>.</code> segment 与 <code>..</code> segment 会被拒绝；</li>
+<li>Absolute path 和 normalize 后越过 root 的路径会被拒绝；</li>
+<li>已存在 filesystem object 的 canonicalization 也不能越过 project root。</li>
+</ul>
+<p><code>project set</code> 在写入前校验 resulting complete index。路径被拒绝后，index byte 保持不变，
+project 外也不会创建文件。</p>
+<p>RunProfile data root 与 output root 是 resolved Profile contract 中的 machine-local path。Public
+project format 要求 project-relative path 时，project preparation 会让 generated plan 和 lock
+path 保持相对形式。</p>
+<h2 id="draftconfigured-finalized">Draft、configured 与 finalized<a class="headerlink" href="#draftconfigured-finalized" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>含义</th>
+<th>可进行的工作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>draft</code></td>
+<td>一个或多个 required Case / Profile value 仍缺失</td>
+<td>继续 incremental <code>project set</code>，查看 partial status</td>
+</tr>
+<tr>
+<td><code>configured</code></td>
+<td>Document 能解析和 resolve，data、lock 或 output preparation 仍未完成</td>
+<td>生成 data plan，准备文件并运行 validation</td>
+</tr>
+<tr>
+<td><code>finalized</code></td>
+<td>Required document、lock、capability、coverage 与 output root 已就绪</td>
+<td>运行 doctor 并提交 selected Profile</td>
+</tr>
+</tbody>
+</table>
+<p>增量设置期间，缺少 required RunProfile value 可以保持 draft。Unknown field、wrong type、
+duplicate key 和 semantic Case error 会报告为 document error，不会当成 draft field。</p>
+<h2 id="data-plan">Data plan<a class="headerlink" href="#data-plan" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta --project PROJECT project data-plan
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>trajecta --format json --project PROJECT project data-plan --output data-plan.json
+</code></pre></div>
+<p>Plan 从 selected Case 派生 temporal 与 spatial coverage，再按 dataset 与 capability 列出
+requirement。它会报告 current local state 为 missing、partial 或 ready。Requirement、root 与
+capability 使用确定性排序，因此相同 project state 会产生相同 plan byte。</p>
+<p>Project 可以在资料到达前完成配置。Plan 描述准备内容，不创建 DatasetLock。文件就绪后，
+explicit finalization 会读取真实 metadata 与 content。</p>
+<h2 id="datasetlock-finalization">DatasetLock 与 finalization<a class="headerlink" href="#datasetlock-finalization" title="Permanent link">&para;</a></h2>
+<p>DatasetLock 记录：</p>
+<ul>
+<li>Schema 与 dataset-profile identity；</li>
+<li>Coverage interval 与 spatial capability set；</li>
+<li>每个 selected file 的 relative path、size 与 SHA-256；</li>
+<li>解析 locked path 使用的 named local root；</li>
+<li>校验 binding 所需的 reader 与 metadata。</li>
+</ul>
+<p><code>data lock</code> 根据 root、profile 与 Case 直接构建一个 lock：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta data lock --root DATA --profile PROFILE --case CASE --output LOCKFILE
+</code></pre></div>
+<p><code>--replace</code> 允许在完整 build 成功后替换已有 output。未使用该 option 且 lock 已存在时，命令
+返回 <code>data.lock_exists</code>。</p>
+<p>Project finalization 会一起处理全部 selected mapping：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta --project PROJECT project finalize
+</code></pre></div>
+<p>它会校验 index 与 referenced document，检查 Profile-to-Case selection，读取 data root，派生
+required coverage 与 capability，构建 candidate lock，并检查 output root。Complete preflight
+成功后才替换已有 lockfile。Preflight 失败会返回 nested diagnostic，同时保留 previous lock
+byte。</p>
+<p>修改 Case、Profile、mapping、template identity 或 locked input file 会使旧 binding 过期。
+提交该 Profile 前，可以生成新 plan，准备变化的文件，再次运行 finalize。</p>
 
 
 

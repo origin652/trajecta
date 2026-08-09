@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Run a point-source release experiment with explicit mass, geometry, height, and reproducible output.">
+        <meta name="description" content="Run a deterministic point release with explicit event time, geometry, height, particle count, and tracer mass.">
       
       
       
@@ -594,18 +594,135 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#case-source" class="md-nav__link">
+  <a href="#read-the-case" class="md-nav__link">
     <span class="md-ellipsis">
-      Case source
+      Read the Case
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#execute-and-read" class="md-nav__link">
+  <a href="#understand-event-allocation" class="md-nav__link">
     <span class="md-ellipsis">
-      Execute and read
+      Understand event allocation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Understand event allocation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#time-and-mass" class="md-nav__link">
+    <span class="md-ellipsis">
+      Time and mass
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#geometry-and-vertical-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      Geometry and vertical position
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prepare-the-shared-cfsr-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prepare the shared CFSR data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-the-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run the release
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-origin-and-tracer-mass" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read origin and tracer mass
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Read origin and tracer mass">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#population-and-mass-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      Population and mass records
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#individual-trajectories" class="md-nav__link">
+    <span class="md-ellipsis">
+      Individual trajectories
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adapt-the-release-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      Adapt the release design
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Adapt the release design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#add-time-or-multiple-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      Add time or multiple events
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#change-geometry-or-vertical-coordinates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Change geometry or vertical coordinates
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next steps
     </span>
   </a>
   
@@ -702,9 +819,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -713,7 +846,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -979,6 +1308,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1080,7 +1455,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1827,18 +2202,135 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#case-source" class="md-nav__link">
+  <a href="#read-the-case" class="md-nav__link">
     <span class="md-ellipsis">
-      Case source
+      Read the Case
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#execute-and-read" class="md-nav__link">
+  <a href="#understand-event-allocation" class="md-nav__link">
     <span class="md-ellipsis">
-      Execute and read
+      Understand event allocation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Understand event allocation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#time-and-mass" class="md-nav__link">
+    <span class="md-ellipsis">
+      Time and mass
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#geometry-and-vertical-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      Geometry and vertical position
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prepare-the-shared-cfsr-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prepare the shared CFSR data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-the-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run the release
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-origin-and-tracer-mass" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read origin and tracer mass
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Read origin and tracer mass">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#population-and-mass-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      Population and mass records
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#individual-trajectories" class="md-nav__link">
+    <span class="md-ellipsis">
+      Individual trajectories
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adapt-the-release-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      Adapt the release design
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Adapt the release design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#add-time-or-multiple-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      Add time or multiple events
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#change-geometry-or-vertical-coordinates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Change geometry or vertical coordinates
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next steps
     </span>
   </a>
   
@@ -1864,11 +2356,16 @@
 
 
 <h1 id="scheduled-release-tutorial">Scheduled release tutorial<a class="headerlink" href="#scheduled-release-tutorial" title="Permanent link">&para;</a></h1>
-<p>A release-driven population creates particles from one or more events. Each
-event defines a time interval, particle count, substance mass, geometry, and
-vertical placement. This model is suitable when a source is part of the
-scientific question.</p>
-<h2 id="case-source">Case source<a class="headerlink" href="#case-source" title="Permanent link">&para;</a></h2>
+<p>A release Case begins with a source event. The event states when particles are
+born, where they are placed horizontally and vertically, how many are created,
+and how much named substance mass they carry. This is the natural population
+model for a known source, injection, observation site, or receptor experiment.</p>
+<p>The supplied project creates 1,000 particles at longitude 0°, latitude 0° and
+1,000 m above sea level. All particles are born at 06:00 UTC on 1 January 2009,
+carry a share of one kilogram of a tracer named <code>water</code>, and move forward for
+ten minutes through global CFSR meteorology.</p>
+<h2 id="read-the-case">Read the Case<a class="headerlink" href="#read-the-case" title="Permanent link">&para;</a></h2>
+<p>The complete scientific source comes directly from the example project:</p>
 <p>schema_version: 0
 kind: case
 metadata: { name: release-cfsr }
@@ -1909,20 +2406,169 @@ outputs:
   - product: particle_state/v1
     schedule: { mode: endpoints }
     sink: { model: particle_state_sqlite/v1 }</p>
-<p>The example releases 1,000 particles at one point and assigns one kilogram of
-the <code>water</code> tracer across the event. Adjust the mass and geometry to match the
-study; do not interpret the tutorial value as an emission inventory.</p>
-<h2 id="execute-and-read">Execute and read<a class="headerlink" href="#execute-and-read" title="Permanent link">&para;</a></h2>
-<p>Copy or link the four demonstration frames into <code>examples/release-cfsr/data</code>,
-then run:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project examples/release-cfsr project validate
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --project examples/release-cfsr project finalize
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>trajecta --project examples/release-cfsr run --profile product
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>trajecta result verify RESULT --full
+<p>The Case uses the same numerical step, global boundary policies, endpoint
+output, and CFSR interval as the domain-fill example. Its population section is
+different:</p>
+<table>
+<thead>
+<tr>
+<th>Release field</th>
+<th>Value in the example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Population ID</td>
+<td><code>release</code></td>
+</tr>
+<tr>
+<td>Event ID</td>
+<td><code>event</code></td>
+</tr>
+<tr>
+<td>Event interval</td>
+<td>One instant at 2009-01-01 06:00 UTC</td>
+</tr>
+<tr>
+<td>Particle count</td>
+<td>1,000</td>
+</tr>
+<tr>
+<td>Substance mass</td>
+<td>1 kg of <code>water</code> across the event</td>
+</tr>
+<tr>
+<td>Horizontal geometry</td>
+<td>Inline GeoJSON point <code>[0, 0]</code></td>
+</tr>
+<tr>
+<td>Vertical coordinate</td>
+<td>Fixed 1,000 m above sea level</td>
+</tr>
+<tr>
+<td>Random seed</td>
+<td>4201</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>substances</code> section gives the stable identifier <code>water</code> a readable label.
+Result tables use the identifier as the particle-mass column key.</p>
+<h2 id="understand-event-allocation">Understand event allocation<a class="headerlink" href="#understand-event-allocation" title="Permanent link">&para;</a></h2>
+<h3 id="time-and-mass">Time and mass<a class="headerlink" href="#time-and-mass" title="Permanent link">&para;</a></h3>
+<p>When <code>start</code> equals <code>end</code>, every particle has the same birth time. For an event
+covering a nonzero interval, Trajecta assigns deterministic stratified birth
+times across that interval. The event-local particle ordinal and Case seed make
+the schedule independent of worker order.</p>
+<p>Mass is divided by particle count for each named substance. In this tutorial,
+the first 999 particles receive the ordinary floating-point share of 0.001 kg;
+the final share compensates any rounding remainder so the stored particle
+masses sum to the declared one kilogram.</p>
+<p>Release particles use zero dry-air carrier mass. Their scientific payload is
+stored in <code>particle_mass</code>, keyed by particle and substance.</p>
+<h3 id="geometry-and-vertical-position">Geometry and vertical position<a class="headerlink" href="#geometry-and-vertical-position" title="Permanent link">&para;</a></h3>
+<p>A <code>Point</code> places every particle at one longitude and latitude. Other supported
+GeoJSON forms are <code>MultiPoint</code>, <code>LineString</code>, <code>MultiLineString</code>, <code>Polygon</code>, and
+<code>MultiPolygon</code>. Sampling follows equal point weight, great-circle line length,
+or spherical polygon area as appropriate. Geometries may be embedded in the
+Case or loaded from a project-relative <code>.geojson</code> file.</p>
+<p>Vertical placement supports height above sea level, height above local ground,
+and pressure. A missing upper bound gives a fixed value. Supplying both lower
+and upper bounds samples a closed interval. Above-ground and pressure releases
+are resolved against meteorology at each particle's exact birth position and
+time before transport begins.</p>
+<h2 id="prepare-the-shared-cfsr-data">Prepare the shared CFSR data<a class="headerlink" href="#prepare-the-shared-cfsr-data" title="Permanent link">&para;</a></h2>
+<p>The release project uses the same four-frame asset as the quickstart. Copy the
+files into its local data root:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Windows PowerShell</label><label for="__tabbed_1_2">Ubuntu 24.04</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">Copy-Item</span> <span class="p">.\</span><span class="n">examples</span><span class="p">\</span><span class="n">domain-fill-cfsr</span><span class="p">\</span><span class="n">data</span><span class="p">\*</span> <span class="p">`</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  <span class="p">.\</span><span class="n">examples</span><span class="p">\</span><span class="n">release-cfsr</span><span class="p">\</span><span class="n">data</span><span class="p">\</span>
 </code></pre></div>
-<p>Use <code>result trajectory</code> for individual paths. Use <code>result inspect</code> for release,
-termination, lifecycle, and quality totals. Save the resolved Case and Profile
-from the result directory with any publication analysis.</p>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cp<span class="w"> </span>examples/domain-fill-cfsr/data/*<span class="w"> </span>examples/release-cfsr/data/
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>Then validate and inspect the requirement:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta --project examples/release-cfsr project validate
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>trajecta --project examples/release-cfsr project data-plan --output release-plan.json
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>python tools/fetch_trajecta_data.py --project examples/release-cfsr --plan release-plan.json
+</code></pre></div>
+<p>This population requests <code>transport</code> and <code>near_surface_transport</code>. Its initial
+positions come from the release geometry, so the capability set ends there.</p>
+<p>Create the DatasetLock and run the deep local check:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta --project examples/release-cfsr project finalize
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>trajecta --project examples/release-cfsr doctor --deep
+</code></pre></div>
+<p>The new <code>locks/cfsr.lock.json</code> belongs to this project even when the underlying
+CFSR files were copied from or shared with the domain-fill project.</p>
+<h2 id="run-the-release">Run the release<a class="headerlink" href="#run-the-release" title="Permanent link">&para;</a></h2>
+<p>Submit the Profile in the foreground:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta --project examples/release-cfsr run --profile product
+</code></pre></div>
+<p>Use the reported result directory in the following commands:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta result verify RESULT --full
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>trajecta result inspect RESULT
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>trajecta run report --result RESULT
+</code></pre></div>
+<p>With the supplied endpoint schedule, a complete run contains two output events.
+All 1,000 particles are present at the initial event. Particles that remain
+inside the vertical model bounds also appear at the final event. The inspect
+summary shows the exact state-row count and any normal terminations.</p>
+<h2 id="read-origin-and-tracer-mass">Read origin and tracer mass<a class="headerlink" href="#read-origin-and-tracer-mass" title="Permanent link">&para;</a></h2>
+<h3 id="population-and-mass-records">Population and mass records<a class="headerlink" href="#population-and-mass-records" title="Permanent link">&para;</a></h3>
+<p>Release particles have <code>origin_kind: release</code> and <code>origin_event_id: event</code>.
+This origin remains attached to the particle after it moves away from the
+source. The <code>particle_mass</code> table stores one <code>water</code> row per particle, while
+<code>particle_state</code> stores time-varying position, transport fields, status, and
+termination details.</p>
+<p>The run report summarizes declared and represented substance mass. For a
+multi-event Case, origin event IDs let an analysis group trajectories and mass
+by release without inferring the event from a timestamp.</p>
+<h3 id="individual-trajectories">Individual trajectories<a class="headerlink" href="#individual-trajectories" title="Permanent link">&para;</a></h3>
+<p>Read several paths in one stream:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>trajecta result trajectory RESULT --particle-id 0 --particle-id 1 --particle-id 2
+</code></pre></div>
+<p>At the first event, the three particles share the same point and height. Their
+stable IDs and mass rows remain distinct. The final rows show how the local
+wind separates or co-locates them over the two integration steps.</p>
+<p>For a larger selection, JSONL avoids building one large in-memory response:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>trajecta --format jsonl result trajectory RESULT --all
+</code></pre></div>
+<p>Redirect that stream to a file when an external analysis tool will consume the
+complete result.</p>
+<h2 id="adapt-the-release-design">Adapt the release design<a class="headerlink" href="#adapt-the-release-design" title="Permanent link">&para;</a></h2>
+<h3 id="add-time-or-multiple-events">Add time or multiple events<a class="headerlink" href="#add-time-or-multiple-events" title="Permanent link">&para;</a></h3>
+<p>An event interval can represent continuous release by setting distinct
+<code>start</code> and <code>end</code> values. The declared particle count is distributed across
+the interval with exact per-particle birth times. Set the simulation interval
+to contain the relevant event times in the chosen direction.</p>
+<p>Additional entries under <code>events</code> can describe separate source periods,
+locations, substances, or heights. Give every event a stable unique ID. Each
+event has its own particle count and mass map, while all events share the
+population seed and Case numerics.</p>
+<p>After changing event time, regenerate data-plan so meteorological coverage
+includes every birth and the subsequent trajectory interval.</p>
+<h3 id="change-geometry-or-vertical-coordinates">Change geometry or vertical coordinates<a class="headerlink" href="#change-geometry-or-vertical-coordinates" title="Permanent link">&para;</a></h3>
+<p>Use a project-relative GeoJSON file for a detailed line or polygon. The resolved
+run records both the source-file hash and a canonical geometry hash. For a
+point or short coordinate list, inline geometry keeps the Case self-contained.</p>
+<p>Choose <code>above_ground</code> when the intended height follows terrain and
+<code>above_sea_level</code> for an absolute geometric altitude. Pressure placement is
+useful when the source is naturally described on an isobaric surface. A lower
+and upper value creates a vertical layer rather than a single release surface.</p>
+<p>Particle count controls spatial and temporal sampling of the release. Total
+substance mass remains the event value, so increasing particle count reduces
+mass per particle. Output cadence and run duration then determine the number of
+state rows produced by those particles.</p>
+<h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<p>The <a href="../air-mass/">air-mass tutorial</a> returns to domain filling and introduces a
+limited ERA5 region with data downloaded through the project plan. The
+<a href="../../concepts/populations/">population concepts</a> page compares release,
+air-mass, and ozone lifecycles in one place.</p>
 
 
 

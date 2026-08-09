@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="说明 Trajecta 快速入门资料的来源、文件清单、SHA-256 身份和使用条件。">
+        <meta name="description" content="下载、校验、检查并放置 Trajecta 快速入门使用的四帧 CFSR 资料。">
       
       
       
@@ -477,7 +477,7 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      冻结清单
+      归档内容
     </span>
   </a>
   
@@ -486,7 +486,61 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      来源与使用条件
+      为什么示例使用四帧
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      下载并校验
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      放入示例项目
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trajecta" class="md-nav__link">
+    <span class="md-ellipsis">
+      使用 Trajecta 检查单帧
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      示例读取的字段
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      来源与引用
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      在其他项目中使用
     </span>
   </a>
   
@@ -702,9 +756,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -713,7 +783,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            操作指南
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -979,6 +1245,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1080,7 +1392,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1829,7 +2141,7 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      冻结清单
+      归档内容
     </span>
   </a>
   
@@ -1838,7 +2150,61 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      来源与使用条件
+      为什么示例使用四帧
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      下载并校验
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      放入示例项目
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trajecta" class="md-nav__link">
+    <span class="md-ellipsis">
+      使用 Trajecta 检查单帧
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      示例读取的字段
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      来源与引用
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      在其他项目中使用
     </span>
   </a>
   
@@ -1864,12 +2230,19 @@
 
 
 <h1 id="cfsr">CFSR 演示资料<a class="headerlink" href="#cfsr" title="Permanent link">&para;</a></h1>
-<p>快速入门资产包含 2009 年 1 月 1 日的四帧 CFSR 六小时压力层 GRIB2 资料。该资产与
-平台安装包分开发布。</p>
-<h2 id="_1">冻结清单<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>Trajecta 的第一个项目使用 Climate Forecast System Reanalysis 的一个小型资料片段。资产
+包含 2009 年 1 月 1 日的四帧全球压力层分析，每六小时一帧，总量约 22 MiB，普通工作站
+即可方便地完成首次运行。</p>
+<p>资料作为独立 release asset 发布，与 Windows 和 Ubuntu 安装包分开。下载一次后，两种
+平台包均可使用，程序更新时也可继续保留这份资料。</p>
+<h2 id="_1">归档内容<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>下载
+<a href="https://github.com/origin652/trajecta/releases/download/v0.1.0-alpha.1/trajecta-demo-cfsr-20090101-v1.zip"><code>trajecta-demo-cfsr-20090101-v1.zip</code></a>。
+解压目录包含 <code>data/</code>、<code>MANIFEST.json</code> 和来源说明。</p>
 <table>
 <thead>
 <tr>
+<th>有效时次</th>
 <th>文件</th>
 <th style="text-align: right;">字节数</th>
 <th>SHA-256</th>
@@ -1877,43 +2250,174 @@
 </thead>
 <tbody>
 <tr>
+<td>2009-01-01 00:00 UTC</td>
 <td><code>pgbl00.gdas.2009010100.grb2</code></td>
 <td style="text-align: right;">5,465,079</td>
 <td><code>fd3949957d371b720617c0ebf4b984fdee27cd15a12733a03dedd883dd34d65c</code></td>
 </tr>
 <tr>
+<td>2009-01-01 06:00 UTC</td>
 <td><code>pgbl00.gdas.2009010106.grb2</code></td>
 <td style="text-align: right;">5,436,947</td>
 <td><code>00a6340960a47502b3ca043c77a02bb7e3381a0f30dc18b77203ad989d3c591b</code></td>
 </tr>
 <tr>
+<td>2009-01-01 12:00 UTC</td>
 <td><code>pgbl00.gdas.2009010112.grb2</code></td>
 <td style="text-align: right;">5,452,202</td>
 <td><code>f3cf06669e267fa69ed8d389d9180f0cfe395918a34baa2ab6bdcdf59373c5c5</code></td>
 </tr>
 <tr>
+<td>2009-01-01 18:00 UTC</td>
 <td><code>pgbl00.gdas.2009010118.grb2</code></td>
 <td style="text-align: right;">5,494,468</td>
 <td><code>a10c5bddf9e01a5c519fbb45461ac019e2b3916661467b07c940ea99ee4ddade</code></td>
 </tr>
 </tbody>
 </table>
-<p>确定性 ZIP 还包含 <code>MANIFEST.json</code> 和来源说明。归档 SHA-256 为
-<code>cd2c38083130c014daac4b4fcde0680d3f3d6bc2df43daf22c8cd015e95919f8</code>。</p>
-<h2 id="_2">来源与使用条件<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>文件来自
+<p>归档本身的 SHA-256 为：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cd2c38083130c014daac4b4fcde0680d3f3d6bc2df43daf22c8cd015e95919f8
+</code></pre></div>
+<p><code>MANIFEST.json</code> 以机器可读形式重复记录文件名、字节数、散列、来源地址和有效时次。</p>
+<h2 id="_2">为什么示例使用四帧<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>内置 <code>cfsr-pgbl-pressure-v0</code> dataset profile 描述六小时间隔的资料。轨迹每次采样时，
+Trajecta 会选择包围该时刻的两帧，并在时间方向插值得到气象字段。快速入门从 06:00
+运行至 06:10 UTC，因此采样时刻位于 06 UTC 分析场及其后一帧附近。</p>
+<p>演示项目会锁定完整的四帧资产。这组文件覆盖一整天的源分析场，后续教程扩展 Case 时
+还有可用余量。DatasetLock 记录四个文件的身份，查询引擎则按每次采样时间选择所需的
+时间括号。</p>
+<h2 id="_3">下载并校验<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>ZIP 下载完成后计算散列并解压：</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Windows PowerShell</label><label for="__tabbed_1_2">Ubuntu 24.04</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">Get-FileHash</span> <span class="p">.\</span><span class="n">trajecta-demo-cfsr</span><span class="p">-</span><span class="n">20090101-v1</span><span class="p">.</span><span class="n">zip</span> <span class="n">-Algorithm</span> <span class="n">SHA256</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">Expand-Archive</span> <span class="p">`</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  <span class="p">.\</span><span class="n">trajecta-demo-cfsr</span><span class="p">-</span><span class="n">20090101-v1</span><span class="p">.</span><span class="n">zip</span> <span class="p">`</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  <span class="n">-DestinationPath</span> <span class="p">.\</span><span class="n">demo-data</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sha256sum<span class="w"> </span>trajecta-demo-cfsr-20090101-v1.zip
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>unzip<span class="w"> </span>trajecta-demo-cfsr-20090101-v1.zip<span class="w"> </span>-d<span class="w"> </span>demo-data
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>后续步骤使用的解压路径为：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>demo-data/trajecta-demo-cfsr-20090101-v1/data/
+</code></pre></div>
+<p>在不同机器之间复制资料时，也可以按照上表重新计算单个文件的散列。</p>
+<h2 id="_4">放入示例项目<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>安装包中的项目从 <code>examples/domain-fill-cfsr/data/</code> 读取文件：</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Windows PowerShell</label><label for="__tabbed_2_2">Ubuntu 24.04</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">Copy-Item</span> <span class="p">`</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  <span class="p">.\</span><span class="n">demo-data</span><span class="p">\</span><span class="n">trajecta-demo-cfsr</span><span class="p">-</span><span class="n">20090101-v1</span><span class="p">\</span><span class="n">data</span><span class="p">\*</span> <span class="p">`</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>  <span class="p">.\</span><span class="n">examples</span><span class="p">\</span><span class="n">domain-fill-cfsr</span><span class="p">\</span><span class="n">data</span><span class="p">\</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cp<span class="w"> </span>demo-data/trajecta-demo-cfsr-20090101-v1/data/*<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>examples/domain-fill-cfsr/data/
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>Release 教程使用另一个项目目录。可以修改其 Profile 中的 <code>data_roots.met</code>，让两个项目
+指向同一物理资料目录；也可以复制一份文件，得到完全独立的教程目录。</p>
+<h2 id="trajecta">使用 Trajecta 检查单帧<a class="headerlink" href="#trajecta" title="Permanent link">&para;</a></h2>
+<p><code>data inspect</code> 只读取源资料元数据，不会启动粒子运行：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>trajecta --format json data inspect examples/domain-fill-cfsr/data/pgbl00.gdas.2009010100.grb2
+</code></pre></div>
+<p>该文件会报告以下主要属性：</p>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>容器</td>
+<td>GRIB2</td>
+</tr>
+<tr>
+<td>Dataset family</td>
+<td><code>cfsr_pgbl_pressure</code></td>
+</tr>
+<tr>
+<td>水平网格</td>
+<td>144 × 73，经度周期</td>
+</tr>
+<tr>
+<td>垂直坐标</td>
+<td>37 个压力层</td>
+</tr>
+<tr>
+<td>气压范围</td>
+<td>1 至 1,000 hPa</td>
+</tr>
+<tr>
+<td>Profile 帧间隔</td>
+<td>21,600 秒</td>
+</tr>
+</tbody>
+</table>
+<p>项目 finalize 时，命令返回的网格签名和层次签名会进入 DatasetLock。</p>
+<h2 id="_5">示例读取的字段<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p>CFSR 源文件包含许多消息。Dataset profile 选择 Trajecta 使用的字段，并将源单位和层次
+类型映射到统一字段模型。</p>
+<table>
+<thead>
+<tr>
+<th>用途</th>
+<th>选取的字段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>三维输送</td>
+<td>东西风、南北风、压力垂直速度、气温、比湿和位势高度</td>
+</tr>
+<tr>
+<td>地表状态</td>
+<td>地表气压和地表位势</td>
+</tr>
+<tr>
+<td>近地输送</td>
+<td>10 m 风、2 m 气温、2 m 比湿、粗糙度、边界层高度、热通量和摩擦速度</td>
+</tr>
+<tr>
+<td>Domain-fill 初始化</td>
+<td>风场、气温、比湿、位势高度、地表气压和地形</td>
+</tr>
+</tbody>
+</table>
+<p>快速入门会使用 domain-fill 初始化与输送字段。近地面和边界层字段也保留在同一 profile
+中，较长的案例可以直接使用相应物理过程。工作流请求 diagnostics capability 时，
+potential vorticity 会从压力层字段派生。</p>
+<h2 id="_6">来源与引用<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>四个文件均按源字节取自
 <a href="https://www.ncei.noaa.gov/data/climate-forecast-system/access/reanalysis/6-hourly-low-resolution/2009/200901/20090101/">NOAA NCEI CFSR 六小时低分辨率目录</a>。
-<a href="https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C00765">CFSR 官方元数据</a>
-使用 GRBLOW 标记低分辨率 GRIdded Binary (GRIB) 产品。Use Constraints 要求引用数据集，并说明资料不附带准确性
-或完整性担保。Access Constraints 给出分发责任声明，没有禁止电子再分发。
-<a href="https://www.noaa.gov/information-technology/open-data-dissemination">NOAA Open Data 页面</a>
-说明 NOAA 数据向公众开放，同时说明 full and open access 方针。这些官方页面已于
-2026 年 8 月 2 日核查。</p>
-<p>演示归档保留源文件的名称和内容，并附加 manifest、内容散列与来源说明。使用资料时
-请引用 Saha et al. (2010)：
-<a href="https://doi.org/10.1175/2010BAMS3001.1"><em>The National Centers for Environmental Prediction (NCEP) Climate Forecast System Reanalysis</em></a>。
-Trajecta 的 MIT 许可仅覆盖项目代码和自建元数据，不替代源资料条件。该归档不表示
-NOAA 对 Trajecta 的认可。</p>
+<a href="https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C00765">CFSR 元数据记录</a>
+介绍低分辨率 GRBLOW collection 及其使用条件；NOAA 的
+<a href="https://www.noaa.gov/information-technology/open-data-dissemination">开放数据页面</a>
+给出更广泛的访问政策。上述来源页面于 2026 年 8 月 2 日核查。</p>
+<p>使用这些文件开展科研工作时，可引用：</p>
+<p>Saha et al. (2010)，
+<a href="https://doi.org/10.1175/2010BAMS3001.1"><em>The National Centers for Environmental Prediction Climate Forecast System Reanalysis</em></a>。</p>
+<p>资产内的来源说明把数据集名称、提供机构、源地址、引用和访问日期与四个原始文件一同
+保存。</p>
+<h2 id="_7">在其他项目中使用<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<p>RunProfile 可以把逻辑数据集绑定到任何含有这些文件的本地目录。绑定内容包括资料根、
+reader 和 DatasetLock 路径；Case 仍只引用逻辑数据集名称。多个项目因此可以共享同一
+只读资料集合，同时各自维护 lock 与结果目录。</p>
+<p>使用其他日期或更长时段时，先生成项目 data-plan，再把它传给
+<code>tools/fetch_trajecta_data.py</code>。助手根据 Case coverage 整理 provider 请求和本地目标路径。
+所需帧到位后，<code>project finalize</code> 会检查文件并创建运行使用的 lock。</p>
 
 
 

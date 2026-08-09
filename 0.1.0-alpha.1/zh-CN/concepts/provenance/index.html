@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="说明 manifest、SQLite 输出、resolved input、provenance bundle、报告和 forensic 产物之间的关系。">
+        <meta name="description" content="了解 Trajecta 的 run manifest、SQLite 输出与 resolved input，以及 field provenance、digest 和 interrupted artifact。">
       
       
       
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            操作指南
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -809,6 +1021,19 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Provenance and results
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -820,6 +1045,115 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      目录布局
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-manifest" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run manifest
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resolved-input-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resolved input document
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#particle-state-sqlite" class="md-nav__link">
+    <span class="md-ellipsis">
+      Particle-state SQLite 数据库
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#field-level-provenance-bundle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Field-level provenance bundle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exact-file-normalized-digest" class="md-nav__link">
+    <span class="md-ellipsis">
+      Exact-file 与 normalized digest
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lifecycle-provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lifecycle 与 provenance 完成顺序
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      派生 run report
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      日常分析中的读取顺序
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      复制与保留结果
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -912,6 +1246,52 @@
   
   <span class="md-ellipsis">
     Operations manual
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
     
   </span>
   
@@ -1030,7 +1410,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1770,6 +2150,104 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      目录布局
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-manifest" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run manifest
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resolved-input-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resolved input document
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#particle-state-sqlite" class="md-nav__link">
+    <span class="md-ellipsis">
+      Particle-state SQLite 数据库
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#field-level-provenance-bundle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Field-level provenance bundle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exact-file-normalized-digest" class="md-nav__link">
+    <span class="md-ellipsis">
+      Exact-file 与 normalized digest
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lifecycle-provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lifecycle 与 provenance 完成顺序
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      派生 run report
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      日常分析中的读取顺序
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      复制与保留结果
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1788,50 +2266,246 @@
 
 
 <h1 id="provenance">Provenance 与结果目录<a class="headerlink" href="#provenance" title="Permanent link">&para;</a></h1>
-<p>任务进入终态后，结果目录构成不可变证据边界。主要产物如下：</p>
+<p>每个已接收的 attempt 都有独立结果目录。数值输出与输入身份、field lineage 一起保存在目录
+中，用于说明该结果的生成过程。项目后续修改不会作用于已经保存的 attempt。</p>
+<h2 id="_1">目录布局<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>完成的正式运行通常包含：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>attempt-1/
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── run-manifest.json
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── resolved-case.json
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── resolved-run-profile.json
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── particles.sqlite
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── particles.sqlite-wal
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── provenance-bundle.json
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>└── run-report.md                 # 运行 `run report` 后出现
+</code></pre></div>
+<p>Interrupted attempt 还可能包含 worker log、部分数据库状态，或名称带有 <code>forensic-aborted</code> 的
+文件。Manifest status 和 artifact list 可以用于判断它到达了哪条终态路径。</p>
+<h2 id="run-manifest">Run manifest<a class="headerlink" href="#run-manifest" title="Permanent link">&para;</a></h2>
+<p><code>run-manifest.json</code> 是目录索引。它以 <code>running</code> 状态创建，并在生命周期信息变化时原子替换。
+Terminal manifest 包含以下部分：</p>
 <table>
 <thead>
 <tr>
-<th>产物</th>
-<th>用途</th>
+<th>区域</th>
+<th>内容</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>run-manifest.json</code></td>
-<td>生命周期、身份、计数、质量、输入清单和输出引用</td>
+<td>Identity</td>
+<td>Job series、run ID 与 attempt；Case name；开始和结束时间</td>
 </tr>
 <tr>
-<td><code>particles.sqlite</code></td>
-<td>粒子状态及输出事件记录</td>
+<td>Software</td>
+<td>Package 与 crate version，以及可用时的 source revision</td>
 </tr>
 <tr>
-<td><code>provenance-bundle.json</code></td>
-<td>按内容寻址的输入、配置、程序和输出身份</td>
+<td>Inputs</td>
+<td>Case 与 RunProfile；DatasetLock 与 dataset profile；dataset-content hash</td>
 </tr>
 <tr>
-<td><code>resolved-case.json</code></td>
-<td>Worker 实际执行的科学意图</td>
+<td>Execution</td>
+<td>Worker 数与内存预算；executor 与 reader；wall time、peak RSS 和可提供的 I/O counter</td>
 </tr>
 <tr>
-<td><code>resolved-run-profile.json</code></td>
-<td>任务接收时的本机执行绑定</td>
+<td>Numerical</td>
+<td>Random seed 与 integrator；boundary policy 与 population；sink、tolerance registry 和 deterministic flag</td>
 </tr>
 <tr>
-<td><code>run-report.md</code></td>
-<td>确定性人类可读派生视图</td>
+<td>Geometry</td>
+<td>Resolved release source identity 与 canonical geometry summary</td>
 </tr>
 <tr>
-<td>Forensic entries</td>
-<td>存在中断或强制取消时保留的证据</td>
+<td>Outputs</td>
+<td>Case 选择的 effective product 与 schedule</td>
+</tr>
+<tr>
+<td>SQLite</td>
+<td>Schema version、journal setting、table row count 与相对路径</td>
+</tr>
+<tr>
+<td>Provenance</td>
+<td>Bundle path、exact 与 normalized digest，以及 record count</td>
+</tr>
+<tr>
+<td>Lifecycle</td>
+<td>Status、termination summary、mass ledger 与可选 failure</td>
 </tr>
 </tbody>
 </table>
-<p>Manifest 指向 SQLite 和 provenance 身份。Full verify 会重新计算内容摘要与语义摘要，
-不会只检查文件是否存在。报告不参与科学摘要，因此重复生成保持幂等。</p>
-<p>Worker 进入终态且 WAL 处理完成后，才可以复制结果目录。复制时应将目录作为整体保留。
-日常分析先使用 <code>result inspect</code>、<code>result verify</code> 和 <code>result trajectory</code>，高级分析再直接
-读取 SQLite。</p>
+<p>Manifest 声明的路径都相对于 attempt 目录。产品命令在打开前会检查路径范围。</p>
+<h2 id="resolved-input-document">Resolved input document<a class="headerlink" href="#resolved-input-document" title="Permanent link">&para;</a></h2>
+<p><code>resolved-case.json</code> 保存展开本地组件引用后的规范化 scientific Case。
+<code>resolved-run-profile.json</code> 保存 worker 实际使用的 execution 与 dataset binding。</p>
+<p>项目发生变化后，可以通过这两份文件回答当时的运行问题：</p>
+<ul>
+<li>Attempt 使用了哪个 direction 与 time step？</li>
+<li>当时选择的 population、seed 和 output schedule 是什么？</li>
+<li>逻辑 dataset 映射到哪个 lock 与 reader？</li>
+<li>Attempt 请求了多少 worker 和内存？</li>
+</ul>
+<p>Manifest 保存两份文档的 SHA-256 identity。归档或共享结果时，将 resolved copy 与目录一并
+保留。</p>
+<h2 id="particle-state-sqlite">Particle-state SQLite 数据库<a class="headerlink" href="#particle-state-sqlite" title="Permanent link">&para;</a></h2>
+<p><code>particles.sqlite</code> 是主要可查询结果。公开 schema 包含六张表：</p>
+<table>
+<thead>
+<tr>
+<th>表</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run</code></td>
+<td>一条 run identity 和 terminal status</td>
+</tr>
+<tr>
+<td><code>particle</code></td>
+<td>稳定 particle identity 与 population；origin 与 birth；carrier mass 和 sensitivity weight</td>
+</tr>
+<tr>
+<td><code>particle_mass</code></td>
+<td>与粒子关联的 substance mass</td>
+</tr>
+<tr>
+<td><code>output_event</code></td>
+<td>按物理顺序排列的 output time 和 event kind</td>
+</tr>
+<tr>
+<td><code>particle_state</code></td>
+<td>各 sample 的粒子位置与所选气象量；quality 与 provenance pointer</td>
+</tr>
+<tr>
+<td><code>termination</code></td>
+<td>每个已终止粒子的一条 classified terminal reason</td>
+</tr>
+</tbody>
+</table>
+<p>Compound key 包含 <code>run_id</code>，复制后的行仍可归入一个确切 attempt。产品流中的 particle state
+按稳定 particle ID 与 per-particle sample sequence 排序。</p>
+<p>Worker 活动期间，SQLite 使用 write-ahead logging。正常 terminal finalization 会 checkpoint 并
+truncate WAL。运行中 reader 可以使用 indexed high-water snapshot；归档和 full verification
+则在终态后进行。</p>
+<h2 id="field-level-provenance-bundle">Field-level provenance bundle<a class="headerlink" href="#field-level-provenance-bundle" title="Permanent link">&para;</a></h2>
+<p><code>provenance-bundle.json</code> 将 <code>particle_state</code> 中所选气象值连接到 source record。它覆盖五个已
+存储字段：</p>
+<ul>
+<li>Eastward wind；</li>
+<li>Northward wind；</li>
+<li>Geometric vertical velocity；</li>
+<li>Air pressure；</li>
+<li>Air temperature。</li>
+</ul>
+<p>每项不同的 field lineage 对应一条 content-addressed record：</p>
+<table>
+<thead>
+<tr>
+<th>部分</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Field token</td>
+<td>Canonical field name</td>
+</tr>
+<tr>
+<td>Quality</td>
+<td>Source、derived、estimated 或其他声明 quality</td>
+</tr>
+<tr>
+<td>Sources</td>
+<td>按科研顺序排列的 locked source identity</td>
+</tr>
+<tr>
+<td>Transforms</td>
+<td>Profile/query path 依次执行的 operation ID 与 parameter</td>
+</tr>
+<tr>
+<td>Fallback reason</td>
+<td>选择 fallback field path 时的可选说明</td>
+</tr>
+<tr>
+<td>Profile SHA-256</td>
+<td>确切 interpretation-profile identity</td>
+</tr>
+</tbody>
+</table>
+<p>Bundle 根据 canonical JSON SHA-256 复用重复 record。第二个 dictionary 将五个可选 field slot
+组合为 content-addressed field set。最后，每个 <code>(particle_id, sample_sequence)</code> 指向一个
+field-set SHA-256。这样无需在每个 particle sample 中重复完整 source 与 transform chain。</p>
+<p>Sample assignment order 与 SQLite particle-state order 一致。某个已存储气象值缺失时，对应
+field-set slot 为 null；SQLite validity 与 quality field 说明该 sample 状态。</p>
+<h2 id="exact-file-normalized-digest">Exact-file 与 normalized digest<a class="headerlink" href="#exact-file-normalized-digest" title="Permanent link">&para;</a></h2>
+<p>几类 hash 用于不同的比较：</p>
+<table>
+<thead>
+<tr>
+<th>Digest</th>
+<th>哪些变化会更新它</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SQLite SHA-256</td>
+<td>Finalized database file 的任意字节变化</td>
+</tr>
+<tr>
+<td>Canonical SQL digest</td>
+<td>规范化公开 table content 或 order 变化</td>
+</tr>
+<tr>
+<td>Provenance-bundle SHA-256</td>
+<td>Final JSON bundle 的任意字节变化</td>
+</tr>
+<tr>
+<td>Provenance content digest</td>
+<td>Normalized record、field set 或 sample assignment 变化</td>
+</tr>
+<tr>
+<td>Canonical output digest</td>
+<td>Canonical SQL content 或 normalized provenance content 变化</td>
+</tr>
+</tbody>
+</table>
+<p>Manifest 将这些身份连接起来。Provenance block 包含 SQLite exact hash、canonical SQL hash、
+bundle hash、normalized provenance hash 和 canonical output hash。<code>result verify</code> 会从文件
+重新计算这些值。</p>
+<p>Exact-file hash 适合传输检查。Normalized digest 适合比较容器字节因存储原因不同、内容仍
+等价的输出。</p>
+<h2 id="lifecycle-provenance">Lifecycle 与 provenance 完成顺序<a class="headerlink" href="#lifecycle-provenance" title="Permanent link">&para;</a></h2>
+<p>Formal provenance bundle 在 SQLite output 关闭后 finalize，因为它包含最终 SQLite SHA-256。
+<code>complete</code>、<code>completed_with_particle_errors</code> 和安全 <code>cancelled</code> 都会得到 terminal database
+与 formal bundle。</p>
+<p>Output finalization 中途停止时，已部分构建的 bundle 会移动到唯一的 <code>forensic-aborted</code> 名称，
+不会占用 formal <code>provenance-bundle.json</code> 路径。<code>result inspect</code> 会列出这些文件，便于查看中断
+后保留下来的内容。</p>
+<h2 id="run-report">派生 run report<a class="headerlink" href="#run-report" title="Permanent link">&para;</a></h2>
+<p><code>trajecta run report --result RESULT</code> 根据 <code>result inspect</code> 创建 <code>run-report.md</code>。报告在一份
+Markdown 中先整理 identity、lifecycle 和 input，再汇总 resource、particle count 与 quality。
+Mass accounting、verification state 和 artifact path 位于后续章节。</p>
+<p>报告通过原子方式重新生成，并排除在 canonical output digest 之外。Full verification 或
+forget 操作可能更新 catalog view，此后可以刷新报告；数值结果身份保持不变。</p>
+<h2 id="_2">日常分析中的读取顺序<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>可以从简到繁读取：</p>
+<ol>
+<li>用 <code>result inspect</code> 查看 lifecycle、count、identity 与 artifact path。</li>
+<li>文件传输后用 <code>result verify</code> 检查 file 与 digest。</li>
+<li>用 <code>result verify --full</code> 检查 row、lifecycle、quality、termination 与 mass。</li>
+<li>用 <code>result trajectory</code> 读取 particle metadata 与 ordered state record。</li>
+<li>专门分析再使用 read-only SQLite 和 provenance-bundle query。</li>
+</ol>
+<p>Trajectory stream 在各条 state 上带有 <code>provenance_id</code>。公开 provenance bundle 使用相同
+particle ID 与 sample sequence，把 state 连接到五字段 field set。</p>
+<h2 id="_3">复制与保留结果<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>Attempt 进入终态后，将整个目录作为一个单元复制。Manifest、resolved document 与 SQLite
+database 一起保留。存在时的 WAL entry，以及 provenance bundle、report 与 forensic file
+也放入同一份副本。目标
+位置先运行 quick verification，长期归档再运行 full verification。</p>
+<p>分析输出适合放在用户选择的相邻目录。Attempt 目录由此保持稳定，图件、表格和未来的导出
+产品也可以使用各自的命名与保留策略。</p>
 
 
 

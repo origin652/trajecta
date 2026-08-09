@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Learn how manifests, SQLite output, resolved inputs, provenance bundles, reports, and forensic artifacts relate.">
+        <meta name="description" content="Understand the run manifest, SQLite output, resolved inputs, field provenance, digests, reports, and interrupted artifacts.">
       
       
       
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -809,6 +1021,19 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Provenance and results
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -820,6 +1045,115 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#directory-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      Directory layout
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-manifest" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run manifest
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resolved-input-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resolved input documents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#particle-state-sqlite-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      Particle-state SQLite database
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#field-level-provenance-bundle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Field-level provenance bundle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exact-file-and-normalized-digests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Exact-file and normalized digests
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lifecycle-and-provenance-completion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lifecycle and provenance completion
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#derived-run-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      Derived run report
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-provenance-in-routine-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reading provenance in routine analysis
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#copying-and-retaining-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      Copying and retaining results
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -912,6 +1246,52 @@
   
   <span class="md-ellipsis">
     Operations manual
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
     
   </span>
   
@@ -1030,7 +1410,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1770,6 +2150,104 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#directory-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      Directory layout
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-manifest" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run manifest
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resolved-input-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resolved input documents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#particle-state-sqlite-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      Particle-state SQLite database
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#field-level-provenance-bundle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Field-level provenance bundle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exact-file-and-normalized-digests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Exact-file and normalized digests
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lifecycle-and-provenance-completion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lifecycle and provenance completion
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#derived-run-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      Derived run report
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-provenance-in-routine-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reading provenance in routine analysis
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#copying-and-retaining-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      Copying and retaining results
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1788,54 +2266,269 @@
 
 
 <h1 id="provenance-and-result-directories">Provenance and result directories<a class="headerlink" href="#provenance-and-result-directories" title="Permanent link">&para;</a></h1>
-<p>A result directory is an immutable evidence boundary after terminalization.
-Its main artifacts are:</p>
+<p>Every accepted attempt receives its own result directory. The directory keeps
+the numerical output together with the input identities and field lineage that
+describe how it was produced. A later project edit has no effect on this stored
+attempt.</p>
+<h2 id="directory-layout">Directory layout<a class="headerlink" href="#directory-layout" title="Permanent link">&para;</a></h2>
+<p>A completed product run normally contains:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>attempt-1/
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── run-manifest.json
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── resolved-case.json
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── resolved-run-profile.json
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── particles.sqlite
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── particles.sqlite-wal
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── provenance-bundle.json
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>└── run-report.md                 # present after `run report`
+</code></pre></div>
+<p>An interrupted attempt can also contain worker logs, partial database state,
+or files whose names include <code>forensic-aborted</code>. The manifest status and
+artifact list indicate which terminal path was reached.</p>
+<h2 id="run-manifest">Run manifest<a class="headerlink" href="#run-manifest" title="Permanent link">&para;</a></h2>
+<p><code>run-manifest.json</code> is the directory index. It starts in <code>running</code> state and is
+atomically replaced as lifecycle information changes. A terminal manifest
+contains:</p>
 <table>
 <thead>
 <tr>
-<th>Artifact</th>
-<th>Purpose</th>
+<th>Section</th>
+<th>Contents</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>run-manifest.json</code></td>
-<td>Lifecycle, identities, counts, quality, input inventory, output references</td>
+<td>Identity</td>
+<td>Job series, run ID, attempt, Case name, start and finish time</td>
 </tr>
 <tr>
-<td><code>particles.sqlite</code></td>
-<td>Particle state and output-event records</td>
+<td>Software</td>
+<td>Package and crate versions plus source revision when available</td>
 </tr>
 <tr>
-<td><code>provenance-bundle.json</code></td>
-<td>Content-addressed input, configuration, executable, and output identity</td>
+<td>Inputs</td>
+<td>Case, RunProfile, DatasetLock, dataset profile, and dataset-content hashes</td>
 </tr>
 <tr>
-<td><code>resolved-case.json</code></td>
-<td>Scientific intent executed by the worker</td>
+<td>Execution</td>
+<td>Worker count, memory budget, executor, readers, wall time, peak RSS, and available I/O counters</td>
 </tr>
 <tr>
-<td><code>resolved-run-profile.json</code></td>
-<td>Local execution binding admitted for the run</td>
+<td>Numerical</td>
+<td>Random seed, integrator, boundary policies, population, sink, tolerance registry, and deterministic flag</td>
 </tr>
 <tr>
-<td><code>run-report.md</code></td>
-<td>Deterministic human-readable derived view</td>
+<td>Geometry</td>
+<td>Resolved release source identities and canonical geometry summaries</td>
 </tr>
 <tr>
-<td>Forensic entries</td>
-<td>Preserved interruption or force-cancel evidence when present</td>
+<td>Outputs</td>
+<td>Effective product and schedule selected by the Case</td>
+</tr>
+<tr>
+<td>SQLite</td>
+<td>Schema version, journal settings, table row counts, and relative path</td>
+</tr>
+<tr>
+<td>Provenance</td>
+<td>Bundle path, exact and normalized digests, and record counts</td>
+</tr>
+<tr>
+<td>Lifecycle</td>
+<td>Status, termination summary, mass ledger, and optional failure</td>
 </tr>
 </tbody>
 </table>
-<p>The manifest points to SQLite and provenance identities. Full verification
-recomputes content and semantic digests rather than relying on file existence.
-The report is excluded from scientific digests, so regenerating it remains
-idempotent.</p>
-<p>Copy a result directory only after the worker reaches a terminal state and WAL
-handling is complete. Preserve the directory as a unit. For routine analysis,
-use <code>result inspect</code>, <code>result verify</code>, and <code>result trajectory</code> before opening
-SQLite directly.</p>
+<p>Paths declared by the manifest are relative to the attempt directory. Product
+commands check containment before opening them.</p>
+<h2 id="resolved-input-documents">Resolved input documents<a class="headerlink" href="#resolved-input-documents" title="Permanent link">&para;</a></h2>
+<p><code>resolved-case.json</code> contains the normalized scientific Case after local
+component references have been expanded. <code>resolved-run-profile.json</code> contains
+the exact execution and dataset binding used by the worker.</p>
+<p>These files answer practical questions that the current project cannot answer
+after it has changed:</p>
+<ul>
+<li>Which direction and time step did this attempt use?</li>
+<li>Which population, seed, and output schedule were active?</li>
+<li>Which logical dataset mapped to which lock and reader?</li>
+<li>How many workers and how much memory did the attempt request?</li>
+</ul>
+<p>The manifest stores SHA-256 identities for both documents. Keep the resolved
+copies with the result when archiving or sharing it.</p>
+<h2 id="particle-state-sqlite-database">Particle-state SQLite database<a class="headerlink" href="#particle-state-sqlite-database" title="Permanent link">&para;</a></h2>
+<p><code>particles.sqlite</code> is the main queryable result. Its public schema has six
+tables:</p>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run</code></td>
+<td>One row for run identity and terminal status</td>
+</tr>
+<tr>
+<td><code>particle</code></td>
+<td>Stable particle identity, population, origin, birth, carrier mass, and sensitivity weight</td>
+</tr>
+<tr>
+<td><code>particle_mass</code></td>
+<td>Substance mass associated with a particle</td>
+</tr>
+<tr>
+<td><code>output_event</code></td>
+<td>Ordered physical output times and event kinds</td>
+</tr>
+<tr>
+<td><code>particle_state</code></td>
+<td>Particle position, selected meteorology, quality, and provenance pointer at each sample</td>
+</tr>
+<tr>
+<td><code>termination</code></td>
+<td>One classified terminal reason for every terminated particle</td>
+</tr>
+</tbody>
+</table>
+<p>The compound keys include <code>run_id</code>, so copied rows remain attributable to one
+attempt. Particle states are ordered by stable particle ID and per-particle
+sample sequence in product streams.</p>
+<p>SQLite uses write-ahead logging while the worker is active. Normal terminal
+finalization checkpoints and truncates the WAL. Readers can use indexed high-
+water snapshots during a run, while archival and full verification wait for a
+terminal state.</p>
+<h2 id="field-level-provenance-bundle">Field-level provenance bundle<a class="headerlink" href="#field-level-provenance-bundle" title="Permanent link">&para;</a></h2>
+<p><code>provenance-bundle.json</code> connects selected meteorological values in
+<code>particle_state</code> to their source records. It covers five stored fields:</p>
+<ul>
+<li>eastward wind;</li>
+<li>northward wind;</li>
+<li>geometric vertical velocity;</li>
+<li>air pressure;</li>
+<li>air temperature.</li>
+</ul>
+<p>For each distinct field lineage, a content-addressed record stores:</p>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Field token</td>
+<td>Canonical field name</td>
+</tr>
+<tr>
+<td>Quality</td>
+<td>Source, derived, estimated, or other declared quality</td>
+</tr>
+<tr>
+<td>Sources</td>
+<td>Locked source identities used in scientific order</td>
+</tr>
+<tr>
+<td>Transforms</td>
+<td>Ordered operation IDs and parameters applied by the profile/query path</td>
+</tr>
+<tr>
+<td>Fallback reason</td>
+<td>Optional explanation when a fallback field path was selected</td>
+</tr>
+<tr>
+<td>Profile SHA-256</td>
+<td>Exact interpretation-profile identity</td>
+</tr>
+</tbody>
+</table>
+<p>The bundle interns repeated records by their canonical JSON SHA-256. A second
+dictionary groups the five optional field slots into content-addressed field
+sets. Finally, every <code>(particle_id, sample_sequence)</code> points to one field-set
+SHA-256. This layout avoids repeating the complete source and transform chain
+for every particle sample.</p>
+<p>The sample assignment order matches the SQLite particle-state order. A missing
+stored meteorological value has a null field-set slot; its SQLite validity and
+quality fields describe that sample.</p>
+<h2 id="exact-file-and-normalized-digests">Exact-file and normalized digests<a class="headerlink" href="#exact-file-and-normalized-digests" title="Permanent link">&para;</a></h2>
+<p>Several hashes serve different comparison needs:</p>
+<table>
+<thead>
+<tr>
+<th>Digest</th>
+<th>What changes it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SQLite SHA-256</td>
+<td>Any byte-level change to the finalized database file</td>
+</tr>
+<tr>
+<td>Canonical SQL digest</td>
+<td>A change to normalized public table content or order</td>
+</tr>
+<tr>
+<td>Provenance-bundle SHA-256</td>
+<td>Any byte-level change to the final JSON bundle</td>
+</tr>
+<tr>
+<td>Provenance content digest</td>
+<td>A change to normalized records, field sets, or sample assignments</td>
+</tr>
+<tr>
+<td>Canonical output digest</td>
+<td>A change to canonical SQL content or normalized provenance content</td>
+</tr>
+</tbody>
+</table>
+<p>The manifest connects these identities: the provenance block includes the
+SQLite exact hash, canonical SQL hash, bundle hash, normalized provenance hash,
+and canonical output hash. <code>result verify</code> recalculates them from the files.</p>
+<p>Exact-file hashes are useful during transfer. Normalized digests are useful
+when comparing equivalent output whose container bytes may differ for a benign
+storage reason.</p>
+<h2 id="lifecycle-and-provenance-completion">Lifecycle and provenance completion<a class="headerlink" href="#lifecycle-and-provenance-completion" title="Permanent link">&para;</a></h2>
+<p>The formal provenance bundle is finalized after SQLite output closes, because
+it contains the final SQLite SHA-256. Successful states—<code>complete</code>,
+<code>completed_with_particle_errors</code>, and safely <code>cancelled</code>—therefore have both a
+terminal database and formal bundle.</p>
+<p>If output finalization stops partway through, a partially built bundle is moved
+to a unique <code>forensic-aborted</code> name. It does not occupy the formal
+<code>provenance-bundle.json</code> path. <code>result inspect</code> lists those files so that an
+operator can see what remained after interruption.</p>
+<h2 id="derived-run-report">Derived run report<a class="headerlink" href="#derived-run-report" title="Permanent link">&para;</a></h2>
+<p><code>trajecta run report --result RESULT</code> creates <code>run-report.md</code> from
+<code>result inspect</code>. The report collects identity, lifecycle, inputs, resources,
+particle counts, quality, mass accounting, verification state, and artifact
+paths in one Markdown file.</p>
+<p>The report is regenerated atomically and is excluded from the canonical output
+digest. It can be refreshed after a full-verification or forget operation,
+because those catalog views may have changed while the numerical result stayed
+the same.</p>
+<h2 id="reading-provenance-in-routine-analysis">Reading provenance in routine analysis<a class="headerlink" href="#reading-provenance-in-routine-analysis" title="Permanent link">&para;</a></h2>
+<p>Start with progressively deeper views:</p>
+<ol>
+<li><code>result inspect</code> for lifecycle, counts, identities, and artifact paths.</li>
+<li><code>result verify</code> for file/digest checks after transfer.</li>
+<li><code>result verify --full</code> for row, lifecycle, quality, termination, and mass
+   audits.</li>
+<li><code>result trajectory</code> for particle metadata and ordered state records.</li>
+<li>Direct read-only SQLite and provenance-bundle queries for specialized
+   analysis.</li>
+</ol>
+<p>The trajectory stream includes <code>provenance_id</code> on each state. The public
+provenance bundle uses the matching particle ID and sample sequence to connect
+that state to a five-field set.</p>
+<h2 id="copying-and-retaining-results">Copying and retaining results<a class="headerlink" href="#copying-and-retaining-results" title="Permanent link">&para;</a></h2>
+<p>Copy the attempt directory as one unit after it reaches a terminal state. Keep
+the manifest, resolved documents, SQLite database, WAL entry when present,
+provenance bundle, report, and forensic files together. Run quick verification
+at the destination, followed by full verification for a long-term archive.</p>
+<p>Analysis outputs belong in a neighboring directory chosen by the user. This
+keeps the attempt directory stable and lets figures, tables, or future exported
+products have their own naming and retention policy.</p>
 
 
 

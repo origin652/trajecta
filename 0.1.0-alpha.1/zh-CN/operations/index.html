@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="安全管理本地资源池、队列、daemon、worker 和并发 reader。">
+        <meta name="description" content="管理 Trajecta 本地队列与资源池，查看 worker 状态，并在 daemon 重启后继续使用任务记录和结果。">
       
       
       
@@ -16,7 +16,7 @@
         <link rel="prev" href="../concepts/extensibility/">
       
       
-        <link rel="next" href="recovery/">
+        <link rel="next" href="shutdown-memory/">
       
       
       <link rel="icon" href="../../assets/logo.svg">
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            操作指南
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -948,25 +1160,85 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      资源池与调度
+      涉及的进程与文件
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#attempt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Attempt 生命周期
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      资源接收
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="资源接收">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#backfill" class="md-nav__link">
+    <span class="md-ellipsis">
+      队列顺序与 backfill
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      外部内存压力
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
         <li class="md-nav__item">
   <a href="#daemon" class="md-nav__link">
     <span class="md-ellipsis">
-      Daemon 生命周期
+      Daemon 启动、空闲退出与重启
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#worker" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      Worker 生命周期
+      观察运行中的队列
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行期间读取结果
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      日常运行检查
     </span>
   </a>
   
@@ -976,6 +1248,52 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -1089,7 +1407,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1838,25 +2156,85 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      资源池与调度
+      涉及的进程与文件
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#attempt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Attempt 生命周期
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      资源接收
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="资源接收">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#backfill" class="md-nav__link">
+    <span class="md-ellipsis">
+      队列顺序与 backfill
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      外部内存压力
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
         <li class="md-nav__item">
   <a href="#daemon" class="md-nav__link">
     <span class="md-ellipsis">
-      Daemon 生命周期
+      Daemon 启动、空闲退出与重启
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#worker" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      Worker 生命周期
+      观察运行中的队列
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行期间读取结果
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      日常运行检查
     </span>
   </a>
   
@@ -1882,28 +2260,239 @@
 
 
 <h1 id="_1">运维手册<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>Trajecta 使用本地 control plane。CLI 向 daemon 提交任务；daemon 在 job database 中
-持久化 series、run、attempt、事件、资源和 lease；worker 执行不可变 resolved input 并
-写入结果目录。</p>
-<h2 id="_2">资源池与调度<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p><code>resources.cpu_slots</code>、<code>resources.memory_pool_mib</code> 和
-<code>resources.memory_reserve_mib</code> 定义接收容量。每个 RunProfile 请求 worker thread 和
-内存预算。请求能够放入可用容量时，scheduler 才接收任务。</p>
-<p>内存 reserve 必须小于 pool。Pool 用于 Trajecta worker，同时应为 daemon、操作系统、
-reader 和临时分配保留空间。外部内存压力会暂停新任务派发，不会取消运行中的 worker。</p>
-<h2 id="daemon">Daemon 生命周期<a class="headerlink" href="#daemon" title="Permanent link">&para;</a></h2>
-<p>CLI 按需启动本地 daemon 或重新连接。Daemon 记录 instance identity 与进程 start token，
-避免复用的 PID 冒充旧 lease。Idle shutdown 只释放进程；任务数据库和完成产物继续留在
-磁盘上。</p>
-<p>重启后，daemon 会协调 catalog state、worker lease、终态 manifest 和已保留 forensic。
-完成的 attempt 保持终态，不会重跑。只有身份与 lease 检查通过时，已接收 worker 才能
-重新附着。</p>
-<h2 id="worker">Worker 生命周期<a class="headerlink" href="#worker" title="Permanent link">&para;</a></h2>
-<p>Worker 依次经历 queued、running 和 terminal 状态。安全取消等待数值边界，并生成终态
-manifest、完成收尾的 SQLite、provenance，以及零字节或不存在的终态 WAL。强制取消会
-保留可获得的部分产物与 forensic 证据。</p>
-<p>自动化应使用事件流，单次状态查看使用 <code>job status</code>。并发结果 reader 应遵守 indexed
-high-water 合同并使用读快照；writer 独占生命周期收尾权。</p>
+<p>Trajecta 的队列和 worker 都运行在本机。CLI 提交的命令先进入持久化任务目录，等待 CPU 与
+内存资源，随后交给独立 worker 进程。Daemon 接收任务后，即使提交命令所在的终端关闭，
+任务仍会留在队列中。</p>
+<p>本章关注科学运行周围的机器管理工作，包括资源接收、队列观察、daemon 重启、worker
+中断、存储维护和结果并发读取。Case 与 RunProfile 的配置方式见<a href="../concepts/">概念</a>
+和<a href="../how-to/">操作指南</a>。</p>
+<h2 id="_2">涉及的进程与文件<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>本机安装包含三类持久化状态：</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>选择方式</th>
+<th>保存内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>机器配置</td>
+<td><code>--config</code>、<code>TRAJECTA_CONFIG</code> 或平台默认路径</td>
+<td>资源池、daemon endpoint、任务目录路径、监测间隔和本机 Profile 模板</td>
+</tr>
+<tr>
+<td>任务目录</td>
+<td>由机器配置选择</td>
+<td>Job series、attempt、状态转换、事件、worker lease 和验证状态</td>
+</tr>
+<tr>
+<td>结果目录</td>
+<td>由 Project 与 RunProfile 决定</td>
+<td>Run manifest、<code>particles.sqlite</code>、provenance bundle、报告及中断后保留的文件</td>
+</tr>
+</tbody>
+</table>
+<p>Daemon 负责本机协调。Windows 使用 named pipe，Linux 使用 Unix socket。数值计算位于子
+worker 进程中，因此模拟运行期间仍可查询队列。Daemon 空闲退出后，任务目录与结果目录
+继续保留在磁盘上。</p>
+<p>多个终端管理同一个队列时，应始终选择同一份配置：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --config workstation.toml job list
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --config workstation.toml job status JOB_ID
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>trajecta --config workstation.toml job events JOB_ID --follow
+</code></pre></div>
+<p>若命令选择了另一份配置，它可能会连接到同一台计算机上的另一个 daemon 和任务目录。</p>
+<h2 id="attempt">Attempt 生命周期<a class="headerlink" href="#attempt" title="Permanent link">&para;</a></h2>
+<p>首次提交会创建 job series 及其第一个 attempt。Rerun 保持 series 不变，同时生成新的
+run ID 和 attempt number。</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>运维含义</th>
+<th>常见后续状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>queued</code></td>
+<td>请求已持久化，正在等待资源</td>
+<td><code>starting</code> 或 <code>cancelled</code></td>
+</tr>
+<tr>
+<td><code>starting</code></td>
+<td>资源已预留，worker 正在启动</td>
+<td><code>running</code>、<code>failed</code> 或 <code>interrupted</code></td>
+</tr>
+<tr>
+<td><code>running</code></td>
+<td>Worker 已接管结果目录并推进模拟</td>
+<td><code>complete</code>、<code>completed_with_particle_errors</code>、<code>cancelling</code>、<code>failed</code> 或 <code>interrupted</code></td>
+</tr>
+<tr>
+<td><code>cancelling</code></td>
+<td>安全取消正在等待数值边界</td>
+<td><code>cancelled</code> 或 <code>interrupted</code></td>
+</tr>
+<tr>
+<td><code>complete</code></td>
+<td>Run 已完整结束，没有异常粒子终止</td>
+<td>终态</td>
+</tr>
+<tr>
+<td><code>completed_with_particle_errors</code></td>
+<td>输出已完成，同时存在异常粒子终止</td>
+<td>终态</td>
+</tr>
+<tr>
+<td><code>cancelled</code></td>
+<td>协作式取消已完成输出收尾</td>
+<td>终态</td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td>启动、执行或输出收尾返回错误</td>
+<td>终态</td>
+</tr>
+<tr>
+<td><code>interrupted</code></td>
+<td>Worker 在正常收尾前消失或被强制停止</td>
+<td>终态</td>
+</tr>
+</tbody>
+</table>
+<p>当前快照可通过以下命令查看：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta --format json job status JOB_ID
+</code></pre></div>
+<p>事件记录展示快照之前发生的状态变化：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta --format jsonl job events JOB_ID --since 0 --follow
+</code></pre></div>
+<p>读取事件不会消费记录。多个终端或监测程序可以各自跟随同一个队列。</p>
+<h2 id="_3">资源接收<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>机器配置定义共享容量：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>resources.cpu_slots
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>resources.memory_pool_mib
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>resources.memory_reserve_mib
+</code></pre></div>
+<p>RunProfile 向 scheduler 提交两项请求：</p>
+<table>
+<thead>
+<tr>
+<th>RunProfile 字段</th>
+<th>Scheduler 请求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>execution.worker_threads</code></td>
+<td>数值相同的 CPU slot</td>
+</tr>
+<tr>
+<td><code>execution.memory_budget_bytes</code></td>
+<td>向上取整到完整 MiB 的内存</td>
+</tr>
+</tbody>
+</table>
+<p>可调度内存为 <code>memory_pool_mib - memory_reserve_mib</code>。CPU 和内存请求同时放得进当前剩余容量
+时，attempt 才会启动。资源预留用于限制 Trajecta 接收的总工作量；操作系统仍会受到其他
+应用内存变化的影响。</p>
+<h3 id="backfill">队列顺序与 backfill<a class="headerlink" href="#backfill" title="Permanent link">&para;</a></h3>
+<p>Scheduler 以先入先出顺序开始检查。最早的 attempt 暂时放不进剩余容量时，后面能够放入的
+小任务可以先启动。Safe backfill 会利用空闲资源，同时继续保留队首任务的位置。</p>
+<p>队首最多被越过三次。达到第三次后，后续任务会等待资源为队首释放。持续提交小任务时，
+较大的请求仍可获得启动机会。</p>
+<h3 id="_4">外部内存压力<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<p>Daemon 会比较主机可用内存与配置的 reserve。可用内存低于 reserve 时，新任务暂停派发。
+运行中的 worker 保持已有资源预留；只要操作系统或操作者没有终止它，它会继续运行。</p>
+<p>受到影响的 queued attempt 会在该次压力期间收到一条
+<code>daemon.external_memory_pressure</code> warning。主机内存恢复后，队列继续派发。
+<a href="shutdown-memory/">关机与内存压力</a>介绍如何区分这种暂停和操作系统终止 worker。</p>
+<h2 id="daemon">Daemon 启动、空闲退出与重启<a class="headerlink" href="#daemon" title="Permanent link">&para;</a></h2>
+<p>运行类命令会连接所选配置中的本机 endpoint。没有 daemon 监听时，CLI 会启动一个实例，
+并等待它就绪。Daemon 持有 instance ID、PID 和进程启动 token，避免复用的 PID 被识别为
+原有 worker owner。</p>
+<p>队列没有活跃任务时，<code>daemon.idle_shutdown_seconds</code> 决定 daemon 保持运行的时长。空闲退出
+只关闭进程和 endpoint，不会移除任务行、事件、结果目录或验证记录。值设为 <code>0</code> 后，daemon
+会保持可用，直至机器或该进程停止。</p>
+<p>Daemon 启动时会逐项协调持久化 attempt：</p>
+<table>
+<thead>
+<tr>
+<th>Catalog 与 worker 状态</th>
+<th>协调动作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Worker identity 与 lease 仍然有效</td>
+<td>重新附着并写入 <code>worker.reattached</code></td>
+</tr>
+<tr>
+<td>已有身份匹配的有效终态 manifest</td>
+<td>协调为终态并写入 <code>worker.terminal_reconciled</code></td>
+</tr>
+<tr>
+<td>活跃 catalog row 找不到对应 worker 或终态 manifest</td>
+<td>通过 <code>worker.lost</code> 和 <code>run.interrupted.worker_lost</code> 将 attempt 标记为 interrupted</td>
+</tr>
+<tr>
+<td>Attempt 仍为 queued</td>
+<td>保持 queued，等待正常接收</td>
+</tr>
+<tr>
+<td>Attempt 已为终态</td>
+<td>保持原状态，不创建新 attempt</td>
+</tr>
+</tbody>
+</table>
+<p>机器重启或进程异常退出后的命令顺序见<a href="recovery/">恢复流程</a>。</p>
+<h2 id="_5">观察运行中的队列<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p>日常检查可以结合三个视图：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta job list
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>trajecta --format json job status JOB_ID
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>trajecta --format jsonl job events JOB_ID --since 0 --follow
+</code></pre></div>
+<p><code>job list</code> 为每个可见 series 显示一个当前条目。<code>job status</code> 还会给出队列位置、资源请求、
+run identity、时间戳和输出路径。事件流记录进度、资源采样、diagnostic 与产物转换。</p>
+<p>长期运行的本地队列可以保存 <code>data.sequence</code> 中的持久化事件序号。监测程序重启后，使用
+<code>--since SEQUENCE</code> 接续。JSONL 外层 sequence 只统计本次流中的行，不能作为接续游标。</p>
+<h2 id="_6">运行期间读取结果<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>结果命令使用只读快照。Run 活跃时，SQLite reader 只读取当前 indexed high-water 以内的
+数据，不参与 writer 的 checkpoint 与生命周期收尾。</p>
+<p>运行中可以使用：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta result inspect JOB_ID
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>trajecta result trajectory JOB_ID --particle-id 42
+</code></pre></div>
+<p>两次快照之间的行数可能增加。进入终态后，结果还会具备最终 manifest、完成收尾的
+provenance，以及已经 checkpoint 或不存在的 WAL。此时再运行完整验证：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>trajecta result verify JOB_ID --full
+</code></pre></div>
+<p>直接读取 SQLite 时，可参照<a href="../reference/results-sqlite/">结果参考</a>中的只读结构和快照说明。</p>
+<h2 id="_7">日常运行检查<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<p>开始一组长任务前：</p>
+<ol>
+<li>选择运行时使用的机器配置，并执行 <code>config validate</code>。</li>
+<li>对 finalized project 执行 <code>doctor --deep</code>。</li>
+<li>检查任务目录、资料目录和输出目录所在磁盘的剩余空间。</li>
+<li>将各 Profile 的请求与 CPU pool、可调度内存进行比较。</li>
+<li>以 detached 方式提交任务，并保存完整 JSON receipt。</li>
+</ol>
+<p>任务完成后：</p>
+<ol>
+<li>使用 <code>job status</code> 确认终态。</li>
+<li>对准备保留或分析的结果运行 <code>result verify --full</code>。</li>
+<li>需要便于阅读的摘要时生成 <code>run-report.md</code>。</li>
+<li>归档或复制时，以完整终态结果目录为单位处理。</li>
+<li>需要估算可回收空间时查看 <code>job prune</code>；当前版本仅返回 dry-run plan。</li>
+</ol>
+<p>相关流程：</p>
+<ul>
+<li><a href="shutdown-memory/">关机与内存压力</a></li>
+<li><a href="storage-sqlite/">存储、SQLite 与 WAL</a></li>
+<li><a href="recovery/">恢复与中断 attempt</a></li>
+<li><a href="troubleshooting/">按症状或 code 排查故障</a></li>
+</ul>
 
 
 

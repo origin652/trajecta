@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Trajecta workspace crate 面向贡献者的 Rust API 文档与兼容性状态。">
+        <meta name="description" content="面向贡献者的 Rust module、主要入口、文档构建和 alpha 兼容策略。">
       
       
       
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            操作指南
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -917,6 +1129,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1018,7 +1276,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1630,6 +1888,19 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Rust API
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1641,6 +1912,139 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#api" class="md-nav__link">
+    <span class="md-ellipsis">
+      构建 API 文档
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#crate" class="md-nav__link">
+    <span class="md-ellipsis">
+      Crate 入口
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Crate 入口">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trajecta-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      trajecta-case
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trajecta-met" class="md-nav__link">
+    <span class="md-ellipsis">
+      trajecta-met
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trajecta-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      trajecta-core
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trajecta-job" class="md-nav__link">
+    <span class="md-ellipsis">
+      trajecta-job
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trajecta-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      trajecta-cli
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-diagnostic" class="md-nav__link">
+    <span class="md-ellipsis">
+      Error 与 diagnostic 约定
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#serialization-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Serialization boundary
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trait-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Trait boundary
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alpha" class="md-nav__link">
+    <span class="md-ellipsis">
+      Alpha 阶段的兼容性
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#public-item" class="md-nav__link">
+    <span class="md-ellipsis">
+      增加或修改 public item
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1770,6 +2174,128 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#api" class="md-nav__link">
+    <span class="md-ellipsis">
+      构建 API 文档
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#crate" class="md-nav__link">
+    <span class="md-ellipsis">
+      Crate 入口
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Crate 入口">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trajecta-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      trajecta-case
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trajecta-met" class="md-nav__link">
+    <span class="md-ellipsis">
+      trajecta-met
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trajecta-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      trajecta-core
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trajecta-job" class="md-nav__link">
+    <span class="md-ellipsis">
+      trajecta-job
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trajecta-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      trajecta-cli
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-diagnostic" class="md-nav__link">
+    <span class="md-ellipsis">
+      Error 与 diagnostic 约定
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#serialization-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Serialization boundary
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trait-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Trait boundary
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alpha" class="md-nav__link">
+    <span class="md-ellipsis">
+      Alpha 阶段的兼容性
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#public-item" class="md-nav__link">
+    <span class="md-ellipsis">
+      增加或修改 public item
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1788,15 +2314,377 @@
 
 
 <h1 id="rust-api">Rust API<a class="headerlink" href="#rust-api" title="Permanent link">&para;</a></h1>
-<p>在本地生成 crate API 文档：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cargo doc --offline --no-deps --workspace
+<p>Trajecta 的 Rust API 连接五个 workspace crate，也用于直接 integration test。Public item 有完整
+文档，并通过 crate boundary 进行类型检查。在 <code>0.1.0-alpha.1</code> 中，它们仍属于贡献者接口；稳定
+automation surface 由 CLI、公开 document schema、machine envelope 和 result artifact 组成。</p>
+<h2 id="api">构建 API 文档<a class="headerlink" href="#api" title="Permanent link">&para;</a></h2>
+<p>为全部 workspace crate 生成 rustdoc：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cargo doc --offline --locked --no-deps --workspace
 </code></pre></div>
-<p>打开 <code>target/doc/trajecta_case/index.html</code>，并沿 workspace crate 链接浏览。Crate 顶层合同
-注释说明职责与模块边界。Workspace 对公开项启用 missing-docs deny，并全局禁止 unsafe
-代码。</p>
-<p><code>0.1.0-alpha.1</code> 的 Rust API 面向贡献者，不属于稳定自动化产品面。外部集成应使用 CLI
-与公开 schema，也可以读取机器 envelope、DatasetLock、manifest 和 provenance bundle。
-结果产品仅支持只读访问。</p>
+<p>根据工作范围打开相应入口：</p>
+<table>
+<thead>
+<tr>
+<th>Crate</th>
+<th>本地 rustdoc 入口</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>trajecta-case</code></td>
+<td><code>target/doc/trajecta_case/index.html</code></td>
+</tr>
+<tr>
+<td><code>trajecta-met</code></td>
+<td><code>target/doc/trajecta_met/index.html</code></td>
+</tr>
+<tr>
+<td><code>trajecta-core</code></td>
+<td><code>target/doc/trajecta_core/index.html</code></td>
+</tr>
+<tr>
+<td><code>trajecta-job</code></td>
+<td><code>target/doc/trajecta_job/index.html</code></td>
+</tr>
+<tr>
+<td><code>trajecta-cli</code></td>
+<td><code>target/doc/trajecta_cli/index.html</code></td>
+</tr>
+</tbody>
+</table>
+<p>Windows 可通过 Explorer 或 browser 打开文件。Ubuntu desktop session 可以执行
+<code>xdg-open target/doc/trajecta_core/index.html</code>。</p>
+<p>Workspace 会拒绝 public item 缺少文档，也禁止 unsafe code。因此 rustdoc generation 同时是 source
+gate 和阅读入口。</p>
+<h2 id="crate">Crate 入口<a class="headerlink" href="#crate" title="Permanent link">&para;</a></h2>
+<h3 id="trajecta-case"><code>trajecta-case</code><a class="headerlink" href="#trajecta-case" title="Permanent link">&para;</a></h3>
+<p>该 crate 不需要 meteorological reader 或 runtime process。主要 public area 为：</p>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>document</code></td>
+<td>Case、RunProfile、resolved document 和 metadata type</td>
+</tr>
+<tr>
+<td><code>schema</code></td>
+<td>解析 YAML/JSON，并验证 resolved shape</td>
+</tr>
+<tr>
+<td><code>expand</code></td>
+<td>将 local component reference 展开成一份 resolved document</td>
+</tr>
+<tr>
+<td><code>intent</code></td>
+<td>检查特定 operation 所需内容是否存在</td>
+</tr>
+<tr>
+<td><code>lockfile</code></td>
+<td>DatasetLock、locked file、root、coverage 和 capability identity</td>
+</tr>
+<tr>
+<td><code>diagnostic</code></td>
+<td>Typed path、severity、code 和稳定 diagnostic ordering</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td>Case document 使用的 scientific component specification</td>
+</tr>
+<tr>
+<td><code>quantity</code></td>
+<td>Unit registry 与 SI-normalized quantity</td>
+</tr>
+<tr>
+<td><code>reference</code> 与 <code>resolver</code></td>
+<td>受 containment 约束的 local reference 和 source digest</td>
+</tr>
+</tbody>
+</table>
+<p>Parser 入口包括 <code>parse_case_yaml</code>、<code>parse_case_json</code>、<code>parse_run_profile_yaml</code> 和
+<code>parse_run_profile_json</code>。Expansion function 接收 path 与 resolver context，使 diagnostic 能保留
+document location。</p>
+<p>该 crate 会在 schema boundary 拒绝 unknown field。Downstream code 应使用 resolved type，不应重复
+通过字符串访问 YAML。</p>
+<h3 id="trajecta-met"><code>trajecta-met</code><a class="headerlink" href="#trajecta-met" title="Permanent link">&para;</a></h3>
+<p><code>trajecta-met</code> 将 locked source inventory 转换为 typed query output：</p>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>profile</code></td>
+<td>解析并编译 Dataset Profile 与 computation graph</td>
+</tr>
+<tr>
+<td><code>io</code></td>
+<td>Inspect、index 与 decode GRIB/NetCDF source</td>
+</tr>
+<tr>
+<td><code>field</code></td>
+<td>Canonical field registry、capability、quality 和 field key</td>
+</tr>
+<tr>
+<td><code>frame</code></td>
+<td>Raw field、computed frame、prepared window 和 frame cache</td>
+</tr>
+<tr>
+<td><code>grid</code></td>
+<td>Source-native grid placement 与 spherical vector interpolation</td>
+</tr>
+<tr>
+<td><code>vertical</code></td>
+<td>Pressure/hybrid geometry、column、bound 和 stencil</td>
+</tr>
+<tr>
+<td><code>derive</code></td>
+<td>有名称的 meteorological 与 domain-fill derivation</td>
+</tr>
+<tr>
+<td><code>query</code></td>
+<td>Query plan、prepared batch、output column、execution context 和 cache</td>
+</tr>
+<tr>
+<td><code>provenance</code></td>
+<td>Source record、transformation 和 assignment</td>
+</tr>
+<tr>
+<td><code>validation</code></td>
+<td>Tolerance 与 comparison report type</td>
+</tr>
+</tbody>
+</table>
+<p><code>MetEngine</code> 拥有 preparation state。Caller 先取得 <code>PreparedWindow</code>，使用 compiled plan 准备 batch，
+随后通过 <code>ExecutionContext</code> 与 caller-owned <code>BatchWorkspace</code> 执行。该顺序属于 no-hidden-I/O contract。</p>
+<p><code>RayonExecutionContext</code> 是 production CPU policy。Test 可以提供另一种 execution context，无需改动
+interpolation code。</p>
+<h3 id="trajecta-core"><code>trajecta-core</code><a class="headerlink" href="#trajecta-core" title="Permanent link">&para;</a></h3>
+<p>Core crate 负责科学执行和结果收尾：</p>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>clock</code> 与 <code>lifecycle_clock</code></td>
+<td>Signed simulation time 和 host lifecycle timestamp</td>
+</tr>
+<tr>
+<td><code>particle</code></td>
+<td>Structure-of-arrays particle batch、status、origin 和 termination</td>
+</tr>
+<tr>
+<td><code>integrator</code></td>
+<td><code>IntegratorModel</code>、<code>Rk2Spherical</code>、timed cohort 和 step result</td>
+</tr>
+<tr>
+<td><code>boundary</code></td>
+<td>Boundary path sampling、policy、decision 和 intersection</td>
+</tr>
+<tr>
+<td><code>population</code> 与 <code>release</code></td>
+<td>Release 和 domain-fill lifecycle model</td>
+</tr>
+<tr>
+<td><code>output</code></td>
+<td>Schedule、product trait、SQLite sink 和 provenance bundle</td>
+</tr>
+<tr>
+<td><code>manifest</code> 与 <code>manifest_store</code></td>
+<td>Run identity、lifecycle record 和 atomic persistence</td>
+</tr>
+<tr>
+<td><code>runner</code></td>
+<td>Production builder、<code>SimulationRunner</code>、runner control 和 <code>RunOutcome</code></td>
+</tr>
+<tr>
+<td><code>verification</code></td>
+<td>Quick/full result-directory verification</td>
+</tr>
+</tbody>
+</table>
+<p><code>build_runner</code> 构造直接运行。<code>build_runner_for_attempt</code> 将 output 绑定到 durable job-series ID、run ID
+和 attempt number。返回的 <code>SimulationRunner</code> 提供 <code>run</code> 与 <code>run_with_control</code>，后者供 worker
+报告 progress 和处理 cancellation。</p>
+<p><code>verify_run_directory</code> 读取已有产品，不启动 simulation。Result reader 与 runner construction 保持
+分离，可以避免 inspect 修改科学状态。</p>
+<h3 id="trajecta-job"><code>trajecta-job</code><a class="headerlink" href="#trajecta-job" title="Permanent link">&para;</a></h3>
+<p>Job crate 是带类型的本地 control plane：</p>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>model</code></td>
+<td>Job state、identity、event、progress、resource 和 submit request</td>
+</tr>
+<tr>
+<td><code>backend</code></td>
+<td>CLI client 与 daemon implementation 使用的 backend operation</td>
+</tr>
+<tr>
+<td><code>catalog</code></td>
+<td>SQLite-backed local queue、transition、lease 和 recovery</td>
+</tr>
+<tr>
+<td><code>scheduler</code></td>
+<td>纯 resource-accounted FIFO 与 bounded backfill plan</td>
+</tr>
+<tr>
+<td><code>daemon</code></td>
+<td>Dispatch cycle、worker process trait 和 runner-control bridge</td>
+</tr>
+<tr>
+<td><code>ipc</code></td>
+<td>有 frame 上限的 same-release local request/response transport</td>
+</tr>
+<tr>
+<td><code>history</code></td>
+<td>Attempt、full-verification record、rerun、forget 和 prune plan</td>
+</tr>
+</tbody>
+</table>
+<p><code>JobBackend</code> 是日常 control interface，<code>JobHistoryBackend</code> 增加 attempt operation。
+<code>LocalJobCatalog</code> 实现 durable behavior，<code>LocalJobClient</code> 通过 IPC 与 daemon 通信。
+<code>plan_dispatch</code> 保持纯函数，因此 scheduler decision 可在没有进程或 database 的 test 中检查。</p>
+<p>Backend trait 为后续 scheduler integration 保留边界。当前 release 没有动态 plugin interface。</p>
+<h3 id="trajecta-cli"><code>trajecta-cli</code><a class="headerlink" href="#trajecta-cli" title="Permanent link">&para;</a></h3>
+<p>CLI crate 是 adapter。<code>main_entry</code> 接收 <code>OsString</code> iterator 并返回 process exit code，使完整 invocation
+可以在 test 中执行，无需调用 <code>std::process::exit</code>。</p>
+<p>Public module 覆盖 argument type、parsed command、envelope rendering 和 output selection。Project、
+runtime 与 result implementation 使用 public library contract，没有另设 scientific API。</p>
+<p>外部 Rust application 不宜调用 CLI internal 来绕过 document 或 job validation。Automation 可执行
+产品 binary，选择 JSON 或 JSONL 输出，再按公开 schema 校验。</p>
+<h2 id="error-diagnostic">Error 与 diagnostic 约定<a class="headerlink" href="#error-diagnostic" title="Permanent link">&para;</a></h2>
+<p>Library error 保留足够结构，使 adapter 可以选择 public diagnostic code。Configuration diagnostic
+还会携带可排序 path 与 severity，因此一次能够返回多个 document problem。</p>
+<p>跨越 crate boundary 时遵循以下约定：</p>
+<ul>
+<li>可恢复 input、I/O、resource 和 lifecycle failure 使用 <code>Result</code>；</li>
+<li>持久化前验证完整 public type；</li>
+<li>Machine code 保持稳定，human message 不包含 secret；</li>
+<li>Source 或 path context 有助于定位字段时予以保留；</li>
+<li>Numerical layer 完成分类前，不把 typed meteorological sample status 提前压成 generic string。</li>
+</ul>
+<p>Workspace lint 会在 production code 中拒绝 <code>panic!</code>、<code>unwrap</code>、<code>expect</code>、<code>todo!</code> 和
+<code>unimplemented!</code>。Test 可以为 fixture setup 与 assertion 使用局部 allowance。</p>
+<h2 id="serialization-boundary">Serialization boundary<a class="headerlink" href="#serialization-boundary" title="Permanent link">&para;</a></h2>
+<p><code>serde</code> 用于对应 Rust type 与 document，但 derived serializer 只构成公开格式的一部分。Public
+disk/stream type 还包括：</p>
+<ul>
+<li>文档内部的 schema identifier；</li>
+<li><code>testdata</code> 下的 JSON Schema 或 frozen SQL schema；</li>
+<li>Valid example；</li>
+<li>Producer 与 consumer test；</li>
+<li>身份需要 hash 时的 deterministic ordering 或 canonicalization rule。</li>
+</ul>
+<p>Unknown-field policy 在 schema boundary 决定。大多数 configuration 与 control-plane record 使用
+<code>deny_unknown_fields</code>，使拼写错误及时显现。Forward compatibility 应通过显式 schema decision 引入，
+不由某一个 reader 任意忽略 field。</p>
+<h2 id="trait-boundary">Trait boundary<a class="headerlink" href="#trait-boundary" title="Permanent link">&para;</a></h2>
+<p>以下 trait 用于隔离 policy 或 platform code：</p>
+<table>
+<thead>
+<tr>
+<th>Trait</th>
+<th>边界</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DataProvider</code></td>
+<td>定位已经声明的 local dataset root</td>
+</tr>
+<tr>
+<td><code>GridBackend</code></td>
+<td>Source-native horizontal placement</td>
+</tr>
+<tr>
+<td><code>ExecutionContext</code></td>
+<td>Prepared query execution 的 worker-count policy</td>
+</tr>
+<tr>
+<td><code>IntegratorModel</code></td>
+<td>Boundary handling 前的 deterministic particle advance</td>
+</tr>
+<tr>
+<td><code>BoundaryPolicy</code></td>
+<td>根据 physical boundary 分类 ordered path</td>
+</tr>
+<tr>
+<td><code>PopulationModel</code></td>
+<td>Shared advection step 前后的 population work</td>
+</tr>
+<tr>
+<td><code>OutputProduct</code> 与 <code>ParticleStateSink</code></td>
+<td>Scheduled scientific output 与 storage</td>
+</tr>
+<tr>
+<td><code>RunnerControl</code></td>
+<td>Macro-step boundary 上的 progress 和 cancellation</td>
+</tr>
+<tr>
+<td><code>JobBackend</code></td>
+<td>Client-visible local job operation</td>
+</tr>
+<tr>
+<td><code>WorkerProcessManager</code></td>
+<td>平台进程启动和 force-stop behavior</td>
+</tr>
+</tbody>
+</table>
+<p>Trait 使 focused test 更容易编写，也保持 dependency direction 清晰。Implementation 仍需满足 product
+schema 与 lifecycle rule；实现 public trait 本身不会注册产品 extension。</p>
+<h2 id="alpha">Alpha 阶段的兼容性<a class="headerlink" href="#alpha" title="Permanent link">&para;</a></h2>
+<p>兼容性分为两组：</p>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th><code>0.1.0-alpha.1</code> 中的处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CLI syntax、machine envelope、configuration、Project/Case/Profile document、DatasetLock、manifest、provenance、SQLite、package manifest</td>
+<td>产品合同；修改时需要 schema、example、test、docs 和 compatibility decision</td>
+</tr>
+<tr>
+<td>Public Rust module、trait、constructor 和 error enum</td>
+<td>贡献者合同；alpha 期间可随产品实现完善而调整</td>
+</tr>
+</tbody>
+</table>
+<p>将来如果发布供第三方 embedding 的 crate，还需制定明确 stability policy，发布 crate package，提供
+dependency-version guidance，并建立 integration compatibility suite。当前 release 暂无这些承诺。</p>
+<h2 id="public-item">增加或修改 public item<a class="headerlink" href="#public-item" title="Permanent link">&para;</a></h2>
+<ol>
+<li>将规则放在拥有其含义的 crate。</li>
+<li>Rustdoc 说明 input、output、failure case 和 lifecycle effect。</li>
+<li>优先复用现有 public type，不另建平行 string 或 map representation。</li>
+<li>增加 focused unit test；必要时增加 public-boundary integration test。</li>
+<li>运行 <code>cargo doc</code> 和 warnings-denied clippy。</li>
+<li>按 dependency order 更新 downstream crate。</li>
+<li>Item 改变 product format 时，同步 schema 和 user reference。</li>
+<li>运行该 boundary 对应的 real-data、runtime 或 package matrix。</li>
+</ol>
+<p>每个 <code>src/lib.rs</code> 顶部的 crate-level comment 都会概述 ownership。阅读单个 rustdoc type 前，可先从
+这里开始。</p>
 
 
 

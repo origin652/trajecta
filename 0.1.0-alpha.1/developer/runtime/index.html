@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Worker execution, durable job control, SQLite output, manifests, provenance, cancellation, and recovery internals.">
+        <meta name="description" content="Durable job control, daemon and worker processes, output transactions, cancellation, attempts, and recovery internals.">
       
       
       
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -917,6 +1129,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1018,7 +1276,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1579,27 +1837,123 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#job-lifecycle" class="md-nav__link">
+  <a href="#request-admission" class="md-nav__link">
     <span class="md-ellipsis">
-      Job lifecycle
+      Request admission
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#output-commit" class="md-nav__link">
+  <a href="#durable-state-machine" class="md-nav__link">
     <span class="md-ellipsis">
-      Output commit
+      Durable state machine
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#cancellation-and-interruption" class="md-nav__link">
+  <a href="#catalog-storage" class="md-nav__link">
     <span class="md-ellipsis">
-      Cancellation and interruption
+      Catalog storage
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scheduler-and-resource-pools" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scheduler and resource pools
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#daemon-ownership-and-local-ipc" class="md-nav__link">
+    <span class="md-ellipsis">
+      Daemon ownership and local IPC
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worker-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      Worker execution
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scientific-output-transaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scientific output transaction
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cancellation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cancellation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#safe-cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Safe cancellation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#force-cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Force cancellation
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#restart-and-crash-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      Restart and crash recovery
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#attempt-history-and-cleanup-planning" class="md-nav__link">
+    <span class="md-ellipsis">
+      Attempt history and cleanup planning
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-change-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtime change checklist
     </span>
   </a>
   
@@ -1836,27 +2190,123 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#job-lifecycle" class="md-nav__link">
+  <a href="#request-admission" class="md-nav__link">
     <span class="md-ellipsis">
-      Job lifecycle
+      Request admission
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#output-commit" class="md-nav__link">
+  <a href="#durable-state-machine" class="md-nav__link">
     <span class="md-ellipsis">
-      Output commit
+      Durable state machine
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#cancellation-and-interruption" class="md-nav__link">
+  <a href="#catalog-storage" class="md-nav__link">
     <span class="md-ellipsis">
-      Cancellation and interruption
+      Catalog storage
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scheduler-and-resource-pools" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scheduler and resource pools
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#daemon-ownership-and-local-ipc" class="md-nav__link">
+    <span class="md-ellipsis">
+      Daemon ownership and local IPC
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worker-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      Worker execution
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scientific-output-transaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scientific output transaction
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cancellation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cancellation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#safe-cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Safe cancellation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#force-cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Force cancellation
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#restart-and-crash-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      Restart and crash recovery
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#attempt-history-and-cleanup-planning" class="md-nav__link">
+    <span class="md-ellipsis">
+      Attempt history and cleanup planning
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-change-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtime change checklist
     </span>
   </a>
   
@@ -1882,31 +2332,309 @@
 
 
 <h1 id="output-and-runtime">Output and runtime<a class="headerlink" href="#output-and-runtime" title="Permanent link">&para;</a></h1>
-<h2 id="job-lifecycle">Job lifecycle<a class="headerlink" href="#job-lifecycle" title="Permanent link">&para;</a></h2>
-<p>The CLI admits a request to the local durable catalog. The scheduler checks CPU
-and memory pools, allocates an attempt, and launches a separate worker process.
-Daemon ownership allows admitted work to survive a client disconnect.</p>
-<p>The catalog records state transitions and monotonically sequenced events. A
-rerun creates a new attempt under the same job series. Recovery reconciles
-worker leases, terminal manifests, and interrupted processes without rerunning a
-completed attempt.</p>
-<h2 id="output-commit">Output commit<a class="headerlink" href="#output-commit" title="Permanent link">&para;</a></h2>
-<p>The core writes <code>particles.sqlite</code> in WAL mode with foreign keys and bounded
-transactions. It records the run, particles, masses, physical output events,
-states, and terminations. Terminal completion performs integrity checks and a
-WAL checkpoint before manifest closure.</p>
-<p>The run manifest binds software, resolved inputs, execution settings, numerical
-settings, row counts, termination classes, mass ledger, SQLite identity, and
-provenance identity. The provenance bundle maps sampled fields back to source
-records and transformations.</p>
-<h2 id="cancellation-and-interruption">Cancellation and interruption<a class="headerlink" href="#cancellation-and-interruption" title="Permanent link">&para;</a></h2>
-<p>Safe cancellation requests a worker checkpoint and classified terminal close.
-Force cancellation retains forensic state when a cooperative close does not
-arrive. Process loss, host shutdown, memory pressure, and disk errors are
-reconciled as explicit failure or interruption paths. Cleanup code must retain
-evidence needed by <code>result verify</code> and operations diagnosis.</p>
-<p>No daemon or worker path may perform scientific calculation independently of
-<code>trajecta-core</code>.</p>
+<p>The runtime surrounds one <code>trajecta-core</code> simulation with durable local job
+control. It accepts a validated request, reserves host resources, starts a
+separate worker, records progress, and reconciles the final result. The worker
+uses the same numerical runner exercised by direct core tests.</p>
+<p>Two SQLite databases appear in this design:</p>
+<table>
+<thead>
+<tr>
+<th>Database</th>
+<th>Owner</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Local job catalog</td>
+<td><code>trajecta-job</code></td>
+<td>Queue state, resource reservations, worker leases, events, attempts, verification history</td>
+</tr>
+<tr>
+<td><code>particles.sqlite</code> in an attempt directory</td>
+<td><code>trajecta-core</code></td>
+<td>Scientific particle, mass, event, state, and termination products</td>
+</tr>
+</tbody>
+</table>
+<p>They have independent schemas and lifecycles. Job status can be read without
+opening a scientific result, and result inspection can continue after the daemon
+has stopped.</p>
+<h2 id="request-admission">Request admission<a class="headerlink" href="#request-admission" title="Permanent link">&para;</a></h2>
+<p><code>trajecta-cli</code> turns <code>run</code> arguments into a <code>SubmitRequest</code>. An input is either a
+finalized project plus a named Profile, or an explicit resolved Case and
+RunProfile pair. The request also contains:</p>
+<ul>
+<li>CPU slots reserved in the local resource pool;</li>
+<li>memory reservation in mebibytes;</li>
+<li>worker-thread count, which cannot exceed the CPU reservation.</li>
+</ul>
+<p>The daemon validates the request against its configured capacity before writing
+it to the catalog. Admission creates two UUIDv7 identities:</p>
+<table>
+<thead>
+<tr>
+<th>Identity</th>
+<th>Lifetime</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Job series ID</td>
+<td>Groups the original submission and every later rerun</td>
+</tr>
+<tr>
+<td>Run ID</td>
+<td>Identifies one immutable attempt and its output directory</td>
+</tr>
+</tbody>
+</table>
+<p>Attempt numbers begin at one and increase within a series. A rerun copies the
+validated input and resource request into a new queued attempt; it does not
+reuse or overwrite an earlier directory.</p>
+<h2 id="durable-state-machine">Durable state machine<a class="headerlink" href="#durable-state-machine" title="Permanent link">&para;</a></h2>
+<p>The scheduler-visible states are:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>queued -&gt; starting -&gt; running -&gt; complete
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                         |       completed_with_particle_errors
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>                         |       failed
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                         |       interrupted
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                         +-&gt; cancelling -&gt; cancelled
+</code></pre></div>
+<p><code>starting</code> covers resource reservation and process launch. <code>cancelling</code> records
+a cooperative request while the worker waits for a safe macro-step boundary.
+Terminal states cannot transition again and are never dispatched by recovery.</p>
+<p>Every transition is applied through a catalog transaction. The state row,
+resource reservation, worker lease, diagnostic, and persistent event are
+updated as one catalog operation where the transition requires them. Illegal
+state edges fail with a typed backend error.</p>
+<h2 id="catalog-storage">Catalog storage<a class="headerlink" href="#catalog-storage" title="Permanent link">&para;</a></h2>
+<p><code>LocalJobCatalog</code> uses SQLite with foreign keys, WAL journal mode, a five-second
+busy timeout, and full synchronous durability for daemon-owned queue changes.
+Worker telemetry uses a separate connection with normal synchronous mode because
+heartbeats and progress samples are advisory; attempt state transitions remain
+on the daemon connection.</p>
+<p>The catalog records:</p>
+<ul>
+<li>one current snapshot for each attempt;</li>
+<li>resource requests and output-directory allocation;</li>
+<li>daemon and worker leases;</li>
+<li>monotonically sequenced fan-out events;</li>
+<li>full-verification identity for successful attempts;</li>
+<li>supersession relationships between reruns;</li>
+<li>visibility changes made by <code>job forget</code>.</li>
+</ul>
+<p>Event reads never consume rows. Two readers can ask for the same sequence range,
+and <code>job events --follow</code> continues from its own cursor. This property lets a
+terminal, a monitoring process, and an AI assistant observe the same job without
+competing for messages.</p>
+<h2 id="scheduler-and-resource-pools">Scheduler and resource pools<a class="headerlink" href="#scheduler-and-resource-pools" title="Permanent link">&para;</a></h2>
+<p><code>plan_dispatch</code> is a pure scheduling function. It receives configured capacity,
+current active reservations, the durable FIFO queue, and an external-memory-
+pressure flag. It returns selected run IDs plus any queue-head bypass counters
+that the catalog must persist atomically.</p>
+<p>Ordinary behavior is FIFO. If the head does not fit in the currently available
+CPU or memory pool, a smaller later request may backfill unused capacity. The
+same blocked head can be bypassed at most three times. Once it reaches that cap,
+the scheduler reserves future capacity for it and stops selecting later work.</p>
+<p>Dispatch pauses when external memory pressure is active. A request larger than
+the daemon's total capacity is rejected at submission, so an impossible job
+cannot remain at the head indefinitely.</p>
+<p>The scheduler only reserves declared capacity. The operating system can still
+reduce available memory after admission. Worker termination and recovery handle
+that condition; the resource model does not claim to control other processes on
+the host.</p>
+<h2 id="daemon-ownership-and-local-ipc">Daemon ownership and local IPC<a class="headerlink" href="#daemon-ownership-and-local-ipc" title="Permanent link">&para;</a></h2>
+<p>One daemon owns a catalog at a time. Its lease contains an instance ID, process
+ID, process-start token, and heartbeat. The start token distinguishes the
+original process from a later process that reused the same numeric PID.</p>
+<p>CLI clients communicate with the same-release daemon through the local IPC
+transport. Requests and responses are typed by <code>trajecta-job::ipc</code>; a frame is
+bounded to 4 MiB. Job events remain in the catalog, so IPC is used to request a
+query rather than to hold a transient event queue.</p>
+<p>The daemon dispatch loop is non-blocking:</p>
+<ol>
+<li>Read queued attempts and active reservations.</li>
+<li>Calculate one dispatch plan.</li>
+<li>Move selected rows to <code>starting</code> and persist bypass updates.</li>
+<li>Launch the current executable in hidden <code>__worker</code> mode.</li>
+<li>Probe its process identity and attach the worker lease.</li>
+<li>Mark a controlled launch or lease failure with a terminal diagnostic.</li>
+</ol>
+<p>Windows launches the worker without a visible console window. Ubuntu uses an
+independent child process. Foreground and detached CLI modes differ in whether
+the client waits; both submit to the same daemon and create the same attempt
+shape.</p>
+<h2 id="worker-execution">Worker execution<a class="headerlink" href="#worker-execution" title="Permanent link">&para;</a></h2>
+<p>The worker receives one run ID and reopens the catalog. It validates that its
+lease and start token match the attempt before starting scientific work. It then:</p>
+<ol>
+<li>reloads and validates the resolved project input;</li>
+<li>constructs the production <code>SimulationRunner</code> for the allocated attempt;</li>
+<li>changes catalog state to <code>running</code>;</li>
+<li>executes macro steps through <code>trajecta-core</code>;</li>
+<li>reports heartbeat and progress at a bounded sampling interval;</li>
+<li>closes output artifacts and returns the manifest terminal state to the
+   catalog.</li>
+</ol>
+<p>Progress includes the completed macro-step count, simulation time, active
+particles, and normal and abnormal termination totals. Resource observation
+currently has a durable shape for wall time, CPU time, and RSS; fields that are
+not sampled remain absent rather than being estimated.</p>
+<p>Scientific logic is not reproduced in the worker adapter. The adapter resolves
+documents, supplies runner control, and maps <code>RunOutcome</code> to the catalog.</p>
+<h2 id="scientific-output-transaction">Scientific output transaction<a class="headerlink" href="#scientific-output-transaction" title="Permanent link">&para;</a></h2>
+<p>An attempt directory receives a running manifest, <code>particles.sqlite</code>, temporary
+provenance files, worker logs, and any retained forensic material. The SQLite
+sink uses the versioned schema described in
+<a href="../../reference/results-sqlite/">Result and SQLite reference</a>.</p>
+<p>During a run:</p>
+<ul>
+<li>foreign keys remain enabled;</li>
+<li>output events define physical sample times;</li>
+<li>particles are inserted before their masses and states;</li>
+<li>lifecycle events use bounded transactions;</li>
+<li>ordinary scheduled output commits its transaction;</li>
+<li>SQLite remains in WAL mode so indexed readers can observe a high-water
+  snapshot without blocking the writer.</li>
+</ul>
+<p>Terminal completion follows a strict order:</p>
+<ol>
+<li>Commit pending SQLite rows and set the terminal run row.</li>
+<li>Run <code>PRAGMA wal_checkpoint(TRUNCATE)</code> and require an empty terminal WAL.</li>
+<li>Check schema pragmas and <code>PRAGMA integrity_check</code>.</li>
+<li>Count every public table and compute the canonical SQL digest.</li>
+<li>Close the writer connection and hash the standalone SQLite database.</li>
+<li>Stream the provenance bundle from sorted temporary runs while validating it
+   against the SQLite sample cursor.</li>
+<li>Validate the temporary bundle, atomically rename it, and compute content and
+   canonical-output digests.</li>
+<li>Add row counts, termination summaries, mass ledgers, SQLite identity, and
+   provenance identity to the terminal manifest.</li>
+<li>Write the manifest through a same-directory temporary file, <code>sync_all</code>, and
+   atomic rename.</li>
+</ol>
+<p>This sequence makes the terminal manifest the last binding record. A <code>complete</code>
+manifest therefore refers to already-closed artifacts with known identities.</p>
+<p>If bundle or SQLite finalization fails, the runner aborts or quarantines the
+affected output and writes a failed manifest when it can do so safely. Temporary
+files and forensic files have different roles: successful cleanup removes
+ephemeral sort runs, while interrupted material remains available for diagnosis.</p>
+<h2 id="cancellation">Cancellation<a class="headerlink" href="#cancellation" title="Permanent link">&para;</a></h2>
+<p>Safe and force cancellation have different artifact semantics.</p>
+<h3 id="safe-cancellation">Safe cancellation<a class="headerlink" href="#safe-cancellation" title="Permanent link">&para;</a></h3>
+<p>The daemon writes a safe-cancel request into the worker lease. At a sampled
+macro-step boundary, <code>CatalogRunnerControl</code> returns <code>Cancel</code> to the runner. The
+runner finishes the legal partial output, writes a <code>cancelled</code> manifest, and the
+catalog adopts that terminal state.</p>
+<div class="admonition tip">
+<p class="admonition-title">Safe cancellation has no resume checkpoint</p>
+<p><code>job rerun</code> creates a new attempt from the resolved input.</p>
+</div>
+<h3 id="force-cancellation">Force cancellation<a class="headerlink" href="#force-cancellation" title="Permanent link">&para;</a></h3>
+<p>The daemon verifies both PID and process-start token before stopping the worker.
+It then inspects the attempt:</p>
+<ul>
+<li>if the worker completed its terminal manifest during the narrow stop race,
+  the catalog adopts that validated terminal state;</li>
+<li>otherwise the attempt becomes <code>interrupted</code>, and forensic files are retained.</li>
+</ul>
+<p>Queued work can be cancelled without starting a worker. Repeating cancellation
+against a terminal attempt does not reopen it.</p>
+<h2 id="restart-and-crash-recovery">Restart and crash recovery<a class="headerlink" href="#restart-and-crash-recovery" title="Permanent link">&para;</a></h2>
+<p>After daemon restart, recovery compares durable leases with platform process
+identity and attempt manifests. Each active attempt receives one disposition:</p>
+<table>
+<thead>
+<tr>
+<th>Observation</th>
+<th>Recovery action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Worker PID and start token are still live</td>
+<td>Reattach the lease to the new daemon instance</td>
+</tr>
+<tr>
+<td>A valid terminal manifest is already present</td>
+<td>Reconcile that state into the catalog</td>
+</tr>
+<tr>
+<td>No matching live worker and no valid terminal result</td>
+<td>Mark the attempt interrupted and keep its directory</td>
+</tr>
+</tbody>
+</table>
+<p>The process-start token prevents an unrelated process with a reused PID from
+being treated as a Trajecta worker. Recovery also releases the attempt's CPU and
+memory reservation when it becomes terminal, allowing queued jobs to proceed.</p>
+<p>Completed attempts are immutable. Daemon restart, client restart, or a new queue
+submission does not rerun them. <code>job rerun</code> is the explicit operation that
+creates another attempt.</p>
+<h2 id="attempt-history-and-cleanup-planning">Attempt history and cleanup planning<a class="headerlink" href="#attempt-history-and-cleanup-planning" title="Permanent link">&para;</a></h2>
+<p>History keeps all attempts in ascending attempt order. A successful full verify
+can record the canonical output identity on a complete attempt. If a later
+attempt in the same series is fully verified, history can mark the earlier
+attempt as superseded while leaving its files intact.</p>
+<p><code>job forget</code> changes catalog visibility; it does not delete an attempt directory.
+The current prune operation returns a deterministic dry-run plan listing paths
+eligible for later cleanup. No production command removes those paths in
+<code>0.1.0-alpha.1</code>.</p>
+<h2 id="runtime-change-checklist">Runtime change checklist<a class="headerlink" href="#runtime-change-checklist" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Checks to add or rerun</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>State transition</td>
+<td>Legal and illegal edge tests, event order, resource release</td>
+</tr>
+<tr>
+<td>Catalog schema</td>
+<td>Fresh create, reopen, WAL behavior, concurrent readers, schema version rejection</td>
+</tr>
+<tr>
+<td>Scheduler</td>
+<td>FIFO order, three-bypass cap, capacity overflow, external pressure</td>
+</tr>
+<tr>
+<td>IPC message</td>
+<td>Encode/decode round trip, frame bound, same-release client/server</td>
+</tr>
+<tr>
+<td>Worker launch</td>
+<td>PID token probe, launch failure, lease-attachment race, retained log</td>
+</tr>
+<tr>
+<td>Safe cancellation</td>
+<td>Macro-step polling, cancelled manifest, final event, partial result verification</td>
+</tr>
+<tr>
+<td>Force cancellation</td>
+<td>PID reuse protection, terminal race reconciliation, interrupted forensic</td>
+</tr>
+<tr>
+<td>Output sink</td>
+<td>Transaction rollback, table counts, reader snapshots, terminal checkpoint</td>
+</tr>
+<tr>
+<td>Manifest or provenance</td>
+<td>Atomic replacement, identity mismatch, failure quarantine, full verify</td>
+</tr>
+<tr>
+<td>Rerun/history</td>
+<td>New run ID, increasing attempt, completed-attempt preservation, dry-run prune</td>
+</tr>
+</tbody>
+</table>
+<p>Runtime integration tests should launch the production daemon and worker binary.
+Mock process managers remain useful for rare launch and recovery races, while the
+end-to-end contract confirms that the adapters reach the real runner.</p>
 
 
 

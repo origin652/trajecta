@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="使用 ERA5 压力层资料准备并运行有限域气团 population。">
+        <meta name="description" content="准备官方 ERA5 压力层资料，并使用 Trajecta 运行有限域干空气 population。">
       
       
       
@@ -619,7 +619,34 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      项目真源
+      阅读项目绑定
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#era5" class="md-nav__link">
+    <span class="md-ellipsis">
+      了解 ERA5 请求
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      在资料到位前创建 plan
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      预览并获取资料
     </span>
   </a>
   
@@ -628,7 +655,43 @@
         <li class="md-nav__item">
   <a href="#finalize" class="md-nav__link">
     <span class="md-ellipsis">
-      Finalize 前准备资料
+      Finalize 准备后的项目
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#case" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行有限域 Case
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      读取有限边界附近的运动
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      调整教程区域
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      后续步骤
     </span>
   </a>
   
@@ -702,9 +765,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -713,7 +792,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            操作指南
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -979,6 +1254,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1080,7 +1401,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1829,7 +2150,34 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      项目真源
+      阅读项目绑定
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#era5" class="md-nav__link">
+    <span class="md-ellipsis">
+      了解 ERA5 请求
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      在资料到位前创建 plan
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      预览并获取资料
     </span>
   </a>
   
@@ -1838,7 +2186,43 @@
         <li class="md-nav__item">
   <a href="#finalize" class="md-nav__link">
     <span class="md-ellipsis">
-      Finalize 前准备资料
+      Finalize 准备后的项目
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#case" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行有限域 Case
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      读取有限边界附近的运动
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      调整教程区域
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      后续步骤
     </span>
   </a>
   
@@ -1864,9 +2248,14 @@
 
 
 <h1 id="era5-air-mass">ERA5 压力层 air-mass 工作流<a class="headerlink" href="#era5-air-mass" title="Permanent link">&para;</a></h1>
-<p>本项目在有限 ERA5 压力层区域上应用干空气 domain filling。Case 选择逻辑资料集和域，
-RunProfile 将该资料集绑定到本地文件及 <code>era5-cf-pressure-netcdf-v0</code> profile。</p>
-<h2 id="_1">项目真源<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>本教程保留 CFSR domain-fill 项目中的等干空气载体 population，并转到有限的 ERA5
+压力层网格。变化集中在三个方面：从尚未备齐资料的项目规划 provider request，将压力层
+与地表文件共同准备，以及解释有限水平边界上的正常粒子流出。</p>
+<p>Case 覆盖 2018 年 12 月 1 日 06:00 至 06:10 UTC。随包资料助手采用北纬 53° 至 45°、
+东经 0° 至 10° 的教程区域。1,000 个粒子按该网格安全核心中的干空气质量初始化。</p>
+<h2 id="_1">阅读项目绑定<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>项目索引把逻辑数据集 <code>era5-pressure</code> 连接到公开 profile
+<code>era5-cf-pressure-netcdf-v0</code>：</p>
 <p>schema_version: trajecta.project-index/v1
 name: air-mass-era5-pressure
 cases:
@@ -1877,6 +2266,7 @@ profiles:
     dataset_profiles:
       era5-pressure: era5-cf-pressure-netcdf-v0
 default_profile: product</p>
+<p>Case 选择有限域与干空气 population：</p>
 <p>schema_version: 0
 kind: case
 metadata: { name: air-mass-era5-pressure }
@@ -1906,18 +2296,174 @@ outputs:
   - product: particle_state/v1
     schedule: { mode: endpoints }
     sink: { model: particle_state_sqlite/v1 }</p>
-<h2 id="finalize">Finalize 前准备资料<a class="headerlink" href="#finalize" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project examples/air-mass-era5-pressure project data-plan --output era5-plan.json
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>python tools/fetch_trajecta_data.py --project examples/air-mass-era5-pressure --plan era5-plan.json
+<p>RunProfile 保存面向本机的路径和执行申请：</p>
+<p>schema_version: 0
+kind: run_profile
+metadata: { name: product }
+case_path: ../cases/air-mass.yaml
+output_root: ../runs
+datasets:
+  - dataset: era5-pressure
+    lockfile: ../locks/era5-pressure.lock.json
+    data_roots: { met: ../data }
+    reader_backend: rust
+execution:
+  worker_threads: 1
+  memory_budget_bytes: 1073741824
+  executor: cpu
+  meteorology_reader: rust</p>
+<p>三份文件各自承担清楚的职责。Case 提供模拟时间与方向，同时声明 population、边界规则
+和输出。项目索引选择 dataset profile。Profile 指向 <code>data/</code>、
+<code>locks/era5-pressure.lock.json</code> 和 <code>runs/</code>，并申请一个使用 Rust reader、预算 1 GiB 的
+worker。</p>
+<h2 id="era5">了解 ERA5 请求<a class="headerlink" href="#era5" title="Permanent link">&para;</a></h2>
+<p>Pressure-level profile 的帧间隔为六小时。对于十分钟 Case，助手会规划 2018 年 12 月
+1 日 00、06、12 和 18 UTC。每个日期形成三组 provider request：</p>
+<table>
+<thead>
+<tr>
+<th>请求</th>
+<th>变量与作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>压力层</td>
+<td>气温、两个水平风分量、压力垂直速度、比湿和位势；包含 1 至 1,000 hPa 的 37 个层</td>
+</tr>
+<tr>
+<td>地表基础场</td>
+<td>地表气压、位势、10 m 风、2 m 气温与露点、粗糙度、边界层高度和摩擦速度</td>
+</tr>
+<tr>
+<td>地表通量</td>
+<td>瞬时感热通量和水汽通量</td>
+</tr>
+</tbody>
+</table>
+<p>Provider 文件先进入项目 data root 下的私有工作目录。准备阶段检查变量与坐标，添加
+Trajecta 识别的 dataset-family metadata，再把 ready NetCDF 提升到 <code>data/ready/</code>。
+准备后的文件可以由 Profile 选择 Rust 或 native NetCDF 路径读取。</p>
+<h2 id="plan">在资料到位前创建 plan<a class="headerlink" href="#plan" title="Permanent link">&para;</a></h2>
+<p>即使 <code>data/</code> 仍为空，项目也可以保持 configured 状态并通过文档校验：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project examples/air-mass-era5-pressure project validate
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --project examples/air-mass-era5-pressure project data-plan --output era5-plan.json
 </code></pre></div>
-<p>请检查 provider request 中的目标路径、时间、变量、压力层和区域。CDS 凭据只能来自
-官方 CDS 配置或环境，不得写入项目、日志和 provenance。批准请求后再增加 <code>--execute</code>。</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python tools/fetch_trajecta_data.py --project examples/air-mass-era5-pressure --plan era5-plan.json --execute
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>trajecta --project examples/air-mass-era5-pressure project finalize
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>trajecta --project examples/air-mass-era5-pressure run --profile product
+<p>Plan requirement 应包含：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>预期值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Case/Profile</td>
+<td><code>air-mass</code> / <code>product</code></td>
+</tr>
+<tr>
+<td>Dataset</td>
+<td><code>era5-pressure</code></td>
+</tr>
+<tr>
+<td>Dataset profile</td>
+<td><code>era5-cf-pressure-netcdf-v0</code></td>
+</tr>
+<tr>
+<td>Reader</td>
+<td><code>rust</code></td>
+</tr>
+<tr>
+<td>Lock path</td>
+<td><code>locks/era5-pressure.lock.json</code></td>
+</tr>
+<tr>
+<td>Data root</td>
+<td><code>data</code></td>
+</tr>
+<tr>
+<td>Capabilities</td>
+<td><code>domain_fill</code>、<code>near_surface_transport</code>、<code>transport</code></td>
+</tr>
+<tr>
+<td>Physical coverage</td>
+<td>2018-12-01 06:00–06:10 UTC</td>
+</tr>
+</tbody>
+</table>
+<p>这种 staged state 适合先准备 Case，再提交资料请求。修改 Case 会改变 <code>project_sha256</code>；
+助手会把当前项目与输入 plan 比较，二者变化后需要重新生成 plan。</p>
+<h2 id="_2">预览并获取资料<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>可以在 Python 环境中安装产品包列出的资料依赖：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python -m pip install -r requirements-data.txt
 </code></pre></div>
-<p>有限域流出属于正常终止。Invalid meteorology、reflection limit 和 lifecycle mismatch
-属于异常结果，需要单独调查。</p>
+<p>先预览准确请求：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python tools/fetch_trajecta_data.py --project examples/air-mass-era5-pressure --plan era5-plan.json
+</code></pre></div>
+<p>JSON 输出先列出 north-west-south-east 顺序的区域和 acquisition anchors，随后给出
+provider dataset 与变量清单。每项请求还包含压力层、目标路径和当前文件状态。随包项目
+会显示内置教程区域 <code>[53, 0, 45, 10]</code>。</p>
+<p>Climate Data Store client 从标准配置或环境读取账户凭据。助手输出和
+<code>TRAJECTA_FETCH_MANIFEST.json</code> 记录 request metadata 与文件散列，不包含凭据值。</p>
+<p>启动下载与准备流程：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>python tools/fetch_trajecta_data.py --project examples/air-mass-era5-pressure --plan era5-plan.json --execute
+</code></pre></div>
+<p>服务端可能需要一些时间准备请求。已经存在且内容相同的 target 会继续使用。下载和转换
+先保存在 <code>data/.trajecta-fetch/</code>，ready files 完成后再提升到正式位置。成功结束时，工作
+目录被清理，并写入 <code>data/TRAJECTA_FETCH_MANIFEST.json</code>。</p>
+<h2 id="finalize">Finalize 准备后的项目<a class="headerlink" href="#finalize" title="Permanent link">&para;</a></h2>
+<p>检查一份 ready file，随后 finalize 并运行本地文件系统检查：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta data inspect examples/air-mass-era5-pressure/data/ready/ERA5_READY_FILE.nc
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>trajecta --project examples/air-mass-era5-pressure project finalize
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>trajecta --project examples/air-mass-era5-pressure doctor --deep
+</code></pre></div>
+<p>将 <code>ERA5_READY_FILE.nc</code> 替换为资料助手返回的文件名。Data inspection 会报告 family
+marker、有效时次、网格、压力层和 source role。</p>
+<p>Finalization 把 ready set 作为一个逻辑数据集扫描。DatasetLock 记录每份 prepared file
+的内容散列与大小，并保存时间覆盖和网格签名。垂直签名、profile identity 与 capability
+也写入同一个 lock。项目状态随后从 <code>configured</code> 变为 <code>finalized</code>。</p>
+<h2 id="case">运行有限域 Case<a class="headerlink" href="#case" title="Permanent link">&para;</a></h2>
+<p>以前台方式提交 Profile：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta --project examples/air-mass-era5-pressure run --profile product
+</code></pre></div>
+<p>完成后通过产品命令读取结果：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>trajecta result verify RESULT --full
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>trajecta result inspect RESULT
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>trajecta result trajectory RESULT --particle-id 0
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>trajecta run report --result RESULT
+</code></pre></div>
+<p>初始 output event 包含 1,000 个干空气粒子。最终数量取决于十分钟内是否有轨迹到达安全
+网格边界。与边界相交的粒子会在交点时刻获得 terminal state，并记录
+<code>domain_boundary</code> normal termination。</p>
+<p>有限域运行的末端行数较少时，表示已经解析的边界流出。Inspect summary 会把该结果与
+invalid meteorology 等 particle error 分开。质量账本也会同时列出 outgoing mass、
+terminated carrier mass 和仍然活动的质量。</p>
+<h2 id="_3">读取有限边界附近的运动<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>选择一个粒子，比较两个 scheduled state 及可能存在的 terminal state：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>trajecta --format jsonl result trajectory RESULT --particle-id 0
+</code></pre></div>
+<p><code>physical_time</code> 是实际气象时刻。这个正向 Case 的 <code>integration_offset_ns</code> 为正，
+<code>elapsed_age_ns</code> 表示出生后的经过时间。粒子若在两个 endpoint event 之间终止，最后一条
+记录会使用准确交点时间。</p>
+<p>采样风、气压和气温列还带有 validity 与 quality label。使用同一 locked input 比较
+Rust-reader Profile 和 native-reader Profile 时，可以同时读取这些字段。</p>
+<h2 id="_4">调整教程区域<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>当 Case 含 release geometry 时，通用助手可以由几何范围得到请求区域。当前 domain-fill
+Case 没有 source geometry，因此随包 ERA5 教程采用已记录的北纬 53–45°、东经 0–10°
+默认值。其他有限区域可以通过 provider utility 显式传入 north-west-south-east box：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>python tools/fetch_era5_pressure_cds.py --out-dir PROJECT_DATA_WORK --date YYYY-MM-DD --times 00:00 06:00 12:00 --area NORTH WEST SOUTH EAST
+</code></pre></div>
+<p>随后在该 work root 上运行 <code>prepare_era5_pressure_anchors.py</code>，把 ready files 放入 Profile
+指定的 data root，再 finalize 项目。Prepared grid 定义 <code>limited_domain_terminate/v0</code>
+使用的气象域。</p>
+<p>扩大空间范围时，需要同步考虑文件体积、内存预算和 query locality。延长时间以后重新生成
+project plan，确保 acquisition anchors 覆盖全部物理采样时刻。<code>horizontal_halo_cells</code>
+还要为网格边缘附近的插值 stencil 留出足够支撑。</p>
+<h2 id="_5">后续步骤<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p><a href="../ozone/">Ozone 教程</a>继续使用同一有限教程区域，并转到 137 个 hybrid 模式层、三小时
+anchors、反向执行和基于 potential vorticity 的 population。
+<a href="../data-families/">资料家族对照</a>汇总这些源布局差异。</p>
 
 
 

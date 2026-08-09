@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Trajecta 的源资料索引、Profile 选择、查询准备、插值、domain filling 和粒子积分路径。">
+        <meta name="description" content="Trajecta 中的资料锁定、气象准备、插值、球面 RK2 积分、边界处理和 domain-fill population。">
       
       
       
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            操作指南
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -917,6 +1129,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1018,7 +1276,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1558,7 +1816,52 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      气象资料加载
+      输入绑定
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      Profile 编译与源资料清单
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frame" class="md-nav__link">
+    <span class="md-ellipsis">
+      Frame 选择
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prepare-execute" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prepare 与 execute
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transport" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transport 采样
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#midpoint-rk2" class="md-nav__link">
+    <span class="md-ellipsis">
+      球面 midpoint RK2
     </span>
   </a>
   
@@ -1567,16 +1870,67 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      查询与积分
+      边界顺序
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#domain-filling" class="md-nav__link">
+  <a href="#population" class="md-nav__link">
     <span class="md-ellipsis">
-      Domain filling
+      Population 生命周期
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Population 生命周期">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#release-population" class="md-nav__link">
+    <span class="md-ellipsis">
+      Release population
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#domain-fill-air-mass" class="md-nav__link">
+    <span class="md-ellipsis">
+      Domain-fill air mass
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stratospheric-ozone" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stratospheric ozone
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      确定性与 provenance
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      审查科学路径修改
     </span>
   </a>
   
@@ -1838,7 +2192,52 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      气象资料加载
+      输入绑定
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      Profile 编译与源资料清单
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frame" class="md-nav__link">
+    <span class="md-ellipsis">
+      Frame 选择
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prepare-execute" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prepare 与 execute
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transport" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transport 采样
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#midpoint-rk2" class="md-nav__link">
+    <span class="md-ellipsis">
+      球面 midpoint RK2
     </span>
   </a>
   
@@ -1847,16 +2246,67 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      查询与积分
+      边界顺序
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#domain-filling" class="md-nav__link">
+  <a href="#population" class="md-nav__link">
     <span class="md-ellipsis">
-      Domain filling
+      Population 生命周期
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Population 生命周期">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#release-population" class="md-nav__link">
+    <span class="md-ellipsis">
+      Release population
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#domain-fill-air-mass" class="md-nav__link">
+    <span class="md-ellipsis">
+      Domain-fill air mass
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stratospheric-ozone" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stratospheric ozone
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      确定性与 provenance
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      审查科学路径修改
     </span>
   </a>
   
@@ -1882,29 +2332,277 @@
 
 
 <h1 id="_1">气象资料与数值路径<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<h2 id="_2">气象资料加载<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p><code>project finalize</code> 向运行时提供 DatasetLock，其中包含 Profile 身份、文件摘要、时间覆盖、
-网格签名、垂直签名和能力。Worker 会在加载资料前校验该绑定。</p>
-<p>随后执行以下气象资料路径：</p>
+<p>科学计算链从不可变输入文档开始，最终得到等待定时输出的有序粒子 batch。<code>trajecta-met</code> 负责
+解释资料，<code>trajecta-core</code> 负责粒子生命周期。两者通过带类型的 prepared meteorological query
+连接。</p>
+<p>本页沿生产路径展开，并保留关键 module 与 type 名，方便贡献者直接定位源码。</p>
+<h2 id="_2">输入绑定<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>生产运行接收已经解析的 Case、RunProfile，以及每个已选 Dataset Profile 对应的 DatasetLock。
+项目在进入队列前通过 finalize 建立这组绑定。</p>
+<p>Lock 固定运行期间不能漂移的资料选择：</p>
+<table>
+<thead>
+<tr>
+<th>Lock 内容</th>
+<th>运行时用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dataset Profile 与 lock schema 身份</td>
+<td>选择预期的资料解释合同</td>
+</tr>
+<tr>
+<td>有序文件清单与 SHA-256</td>
+<td>发现文件被替换、截断或选择发生漂移</td>
+</tr>
+<tr>
+<td>时间覆盖</td>
+<td>检查起点、中点、release、边界和输出查询都有 frame bracket</td>
+</tr>
+<tr>
+<td>水平与垂直 signature</td>
+<td>将 Case domain 绑定到已索引网格和 level</td>
+</tr>
+<tr>
+<td>Capability set</td>
+<td>确认能够生成 transport 与 population 所需字段</td>
+</tr>
+<tr>
+<td>Source metadata</td>
+<td>将资料集身份写入 run manifest 和 provenance</td>
+</tr>
+</tbody>
+</table>
+<p><code>trajecta-case</code> 定义 lock 结构。生产 loader 验证 lock 后，只访问声明的数据根目录。Attempt 启动后
+不会临时寻找另一份更方便的文件。</p>
+<h2 id="profile">Profile 编译与源资料清单<a class="headerlink" href="#profile" title="Permanent link">&para;</a></h2>
+<p>Dataset Profile 描述源记录如何生成 canonical field。直接映射会指定准确的 GRIB 或 NetCDF
+身份、源单位、时间语义，以及顺序明确的允许替代项。推导字段使用带类型的 computation graph。</p>
+<p>Profile compiler 会在粒子查询开始前完成静态检查：</p>
+<ul>
+<li>Graph node ID 与 output 保持唯一；</li>
+<li>Dependency graph 中没有 cycle；</li>
+<li>每个 operation 的单位和物理 dimension 一致；</li>
+<li>Array shape 与 vertical stagger 相容；</li>
+<li>Operation 只在合法的 frame、tile、column 或 sample stage 执行；</li>
+<li>所需 source alternative 和 capability 可以解析。</li>
+</ul>
+<p>Operation 集合是有名称的封闭集合，涵盖算术、单位换算、累计量差分、热力函数、hybrid pressure
+构造和 native-grid diagnostic。Profile 中的 computation node 不能运行任意代码，也不能自行
+访问文件。</p>
+<p>Source inventory 主要依据 metadata 建立，不会只看文件名。Inventory 记录 container format、
+valid time、grid description、vertical topology、field identity 和 dataset attribute。Profile 中的
+exact matcher 从中选择记录。出现重复候选或不相容候选时，loader 会生成诊断，不采用隐式的
+last-file-wins 规则。</p>
+<h2 id="frame">Frame 选择<a class="headerlink" href="#frame" title="Permanent link">&para;</a></h2>
+<p>Runner 会枚举模拟期间所有可能查询的物理时刻。其中包括运行端点、RK2 stage midpoint、连续
+release window、population operation 和 scheduled output time。Builder 随后选择能够 bracket
+整个时间区间的连续 source frame。</p>
+<p>查询恰好落在 source timestamp 上时，推导字段仍可能需要相邻 frame，例如累计量差分。所需
+warm-up depth 取自 capability dependency closure，因此累计字段会保留 graph 要求的前序支持。</p>
+<p>每个已选 frame 会经过以下处理：</p>
 <ol>
-<li>只扫描声明的数据根目录；</li>
-<li>将 container 与请求的 dataset Profile 匹配；</li>
-<li>索引源生坐标、role、有效时刻和字段；</li>
-<li>使用显式质量与 provenance 派生规范字段；</li>
-<li>在粒子执行前准备 frame window 和查询结构。</li>
+<li>解码 source-native array 和 validity mask。</li>
+<li>规范化单位，同时保留 source identity 与 quality。</li>
+<li>执行 frame-stage 和 tile-stage graph node。</li>
+<li>为 pressure-level 或 hybrid-level 资料构造 vertical geometry。</li>
+<li>将 canonical field 与 provenance assignment 存入 <code>RawMetFrame</code>。</li>
+<li>把 frame 放入有内存上限的 <code>FrameCache</code>，并为查询时刻组成 <code>PreparedWindow</code>。</li>
 </ol>
-<p>粒子循环只读取已准备的内存。性能合同禁止 execute 阶段隐藏访问源资料文件。</p>
-<h2 id="_3">查询与积分<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p>查询引擎在源资料拓扑上执行空间与时间插值，并返回有类型的状态、质量、数值和
-provenance 归属。Core integrator 使用该公开结果，按所选方向和时间步推进粒子状态。
-边界策略负责分类越界与终止条件。</p>
-<p>冻结 cache 合同允许复用完全相同的查询。复用不能合并科学含义不同的 key，也不能改变
-规范化输出身份。</p>
-<h2 id="domain-filling">Domain filling<a class="headerlink" href="#domain-filling" title="Permanent link">&para;</a></h2>
-<p>Domain-fill population 从气象资料构造原生大气网格单元，计算有效层质量，并根据所选
-air-mass 或 stratospheric-ozone 规则分配粒子。边界入流可以建立后续 cohort。稳定粒子
-身份与 worker 调度无关，因此确定性输出不依赖线程数。</p>
-<p>修改该路径时，需要执行真实资料 replay、质量账本验证、确定性检查和相应数值合同。</p>
+<p>水平 topology 保持源资料原生形式。准备阶段不会暗中建立全局重网格资料。规则经纬网资料通过
+自己的 grid backend 查询，风矢量插值会处理球面 basis。</p>
+<h2 id="prepare-execute">Prepare 与 execute<a class="headerlink" href="#prepare-execute" title="Permanent link">&para;</a></h2>
+<p>气象查询分为两个清晰阶段：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>MetEngine::prepare_for_domain(time, domain)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    -&gt; PreparedWindow
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>PreparedWindow::prepare_transport_batch(plan, points, workspace)
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    -&gt; PreparedTransportBatch
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>PreparedTransportBatch::execute(execution_context, workspace)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    -&gt; TransportOutput
+</code></pre></div>
+<p>Prepare 阶段可以选择 cached frame，构造 column，计算 horizontal placement，并 pin 所需
+stencil。Execute 阶段只接收这些已经固定的结构。它没有 reader 或 provider handle，因此粒子
+采样时不会打开气象文件。</p>
+<p><code>BatchWorkspace</code> 保存可复用的 scratch vector。Caller 可在多个 batch 之间保留它，减少重复
+allocation。Execution context 提供 worker count；少于 256 个 point 的 transport batch 串行执行，
+较大的 batch 使用按 worker count 复用的 Rayon pool。</p>
+<p>Cache 只承担查询准备和执行层面的复用：</p>
+<table>
+<thead>
+<tr>
+<th>Cache</th>
+<th>Key 的核心内容</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Frame cache</td>
+<td>Dataset frame identity</td>
+<td>在内存预算内保留解码后的 canonical field</td>
+</tr>
+<tr>
+<td>Tile 与 column cache</td>
+<td>Field、frame、空间支持和 vertical request</td>
+<td>复用推导 neighborhood 与 column geometry</td>
+</tr>
+<tr>
+<td>Boundary stencil session</td>
+<td>精确的 path-query support</td>
+<td>边界路径计算期间保持 stencil pinned</td>
+</tr>
+<tr>
+<td>Last exact transport query</td>
+<td>Window identity、query plan、domain、point array 与浮点 bit</td>
+<td>只复用逐字节等价的 transport request</td>
+</tr>
+</tbody>
+</table>
+<p>Exact transport key 包含 frame window、temporal weight、plan、vertical coordinate 和 point value。
+Cohort、坐标、时刻或 domain 发生变化都会生成新 key。Cache hit 返回与该精确请求重新执行相同
+的 typed output 和 provenance assignment。</p>
+<h2 id="transport">Transport 采样<a class="headerlink" href="#transport" title="Permanent link">&para;</a></h2>
+<p>积分器在海拔高度上查询三个 transport component：</p>
+<ul>
+<li>东向风，单位为米每秒；</li>
+<li>北向风，单位为米每秒；</li>
+<li>几何垂直速度，单位为米每秒。</li>
+</ul>
+<p>Query engine 查找水平 support，构造与源资料相符的 vertical column，应用 surface-layer rule，
+随后混合两个 temporal frame。风矢量插值会考虑 spherical basis。Scalar field 与 vertical
+velocity 遵循注册表中的 interpolation 和 derivation semantics。</p>
+<p>每个 output row 同时包含数值、<code>SampleStatus</code>、field quality、bounds 和 provenance。Status 能够
+区分有效资料、地下采样、surface-layer limit、model-top exit、domain exit 与 source support
+无效。积分器不会依靠某个浮点 sentinel 推断有效性。</p>
+<p>与边界有关的 status 可以交给连续边界路径处理。例如 predictor 已离开 domain，或者超过当前
+垂直支持时，仍可能形成一条有明确首个物理交点的 segment，并正常终止在边界。确实缺少 transport
+support 的 row 会记为异常 <code>invalid_meteorology</code>。</p>
+<h2 id="midpoint-rk2">球面 midpoint RK2<a class="headerlink" href="#midpoint-rk2" title="Permanent link">&para;</a></h2>
+<p>生产积分器 <code>Rk2Spherical</code> 位于 <code>trajecta-core/src/integrator</code>。粒子从时刻 (t) 出发，带符号
+step 为 (\Delta t) 时，会进行两次 batch transport query：</p>
+<ol>
+<li>在起始位置和时刻 (t) 查询速度。</li>
+<li>使用一半 (\Delta t) 构造 midpoint position。</li>
+<li>在 midpoint 位置和 (t + \Delta t/2) 查询速度。</li>
+<li>以 midpoint velocity 从原始位置推进完整 step。</li>
+</ol>
+<p>水平位移在球面上计算，并规范化 longitude。垂直运动使用 geometric vertical velocity。正向和
+反向运行共用一组方程，通过 (\Delta t) 的符号区分方向；particle age 按 step 绝对时长增加。</p>
+<p>在 macro step 内出生的 row 可以拥有不同的精确 start time。Timed integrator 会按稳定顺序组合
+相同 query time，每个 row 只推进一次，终点统一落在 macro-step endpoint。反向积分会逆序遍历
+time group；同一个 batch 不允许混合两个积分方向。</p>
+<p>坐标非有限、数值溢出或球面位移失败时，受影响的粒子按 numerical failure 终止。其余 live row
+继续执行，因此终态 manifest 能够记录完整 population outcome。</p>
+<h2 id="_3">边界顺序<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>Integrator 先返回尚未应用 boundary policy 的 proposal batch。Runner 随后检查 previous state
+到 proposal 之间的连续 path。这样的分层使生命周期顺序不受积分器具体实现影响。</p>
+<p>生产 policy 覆盖以下边界：</p>
+<table>
+<thead>
+<tr>
+<th>边界</th>
+<th>处理结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>地表</td>
+<td>按配置的 surface policy 反射，并受 reflection limit 约束</td>
+</tr>
+<tr>
+<td>Model top</td>
+<td>在首个 top intersection 终止</td>
+</tr>
+<tr>
+<td>有限水平 domain</td>
+<td>在首个 domain intersection 终止</td>
+</tr>
+<tr>
+<td>全球 longitude</td>
+<td>应用 periodic longitude handling</td>
+</tr>
+</tbody>
+</table>
+<p>同一段路径可能出现多个 intersection 时，ordered path segment 和 intersection fraction 共同确定
+首个事件。Termination time 与 position 写在交点上，从而在两个积分方向中保持 lifecycle sample
+单调。</p>
+<h2 id="population">Population 生命周期<a class="headerlink" href="#population" title="Permanent link">&para;</a></h2>
+<p><code>PopulationModel</code> interface 管理 advection 前后的工作：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>initialize
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>pre-step and emission
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>advection by the shared integrator
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>post-advection accounting
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>boundary maintenance
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>finalize
+</code></pre></div>
+<h3 id="release-population">Release population<a class="headerlink" href="#release-population" title="Permanent link">&para;</a></h3>
+<p>Release population 按配置的 release event 创建 row。Release coordinate 需要解释 pressure、terrain
+或 model level 时，vertical resolver 会查询气象资料。Row 加入 integration cohort 前，birth time、
+origin event、mass 和 stable particle identity 已经确定。</p>
+<h3 id="domain-fill-air-mass">Domain-fill air mass<a class="headerlink" href="#domain-fill-air-mass" title="Permanent link">&para;</a></h3>
+<p>Domain filling 从已选 native grid 和 vertical geometry 推导有限 atmospheric cell。有效 layer 的
+dry-air mass 由气象状态计算，再按 Case 分配给粒子。初始 cohort 使用 <code>domain_initial</code> origin。</p>
+<p>有限 domain 的 boundary-face layer 会携带 dry-air flux。积分方向决定哪个 signed flux 属于 inflow。
+不足一个 particle share 的 mass 会作为 residual 保留到后续 step，不会在每次 boundary event
+直接舍入。新 row 带有 <code>domain_boundary</code> origin、face identity、exact birth time 与 stable ID。</p>
+<h3 id="stratospheric-ozone">Stratospheric ozone<a class="headerlink" href="#stratospheric-ozone" title="Permanent link">&para;</a></h3>
+<p>Ozone population 共用 domain-fill transport 和 dry-air accounting，并采用 ozone-specific seeding
+rule。它的 meteorological capability set 会包含判定 stratospheric source 与分配 ozone mass 所需
+的字段。Population 特有科学规则位于 seeding 和 accounting 层；粒子运动仍使用公共 transport
+query 与 RK2 implementation。</p>
+<h2 id="provenance">确定性与 provenance<a class="headerlink" href="#provenance" title="Permanent link">&para;</a></h2>
+<p>Parallel query 开始前已经建立稳定顺序。Particle ID、birth identity、output event sequence 和排序
+后的 SQLite insert 不依赖 Rayon task 的完成次序。相同 resolved input 改变 worker count 时，
+wall time 可以变化，规范化科学内容应保持一致。</p>
+<p>采样值与推导值都有 provenance assignment。最终 bundle 将 source record 和 transformation 独立于
+particle table 记录，manifest 再绑定 bundle 与 SQLite identity。终态处理详见<a href="../runtime/">输出与运行时</a>。</p>
+<h2 id="_4">审查科学路径修改<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>根据修改的规则选择检查范围：</p>
+<table>
+<thead>
+<tr>
+<th>修改</th>
+<th>最小聚焦覆盖</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Profile mapping 或单位换算</td>
+<td>Profile compile test 与真实 source inventory</td>
+</tr>
+<tr>
+<td>Reader metadata 或 array layout</td>
+<td>覆盖已选 time 和 level 的 native/pure differential test</td>
+</tr>
+<tr>
+<td>Derived field</td>
+<td>Graph type check、quality/provenance assertion、reference value</td>
+</tr>
+<tr>
+<td>Interpolation 或 vertical support</td>
+<td>Domain 内数值、各类 typed boundary status、正反向 replay</td>
+</tr>
+<tr>
+<td>Integrator</td>
+<td>Convergence case、signed-time symmetry、极区/日界线、异常分类</td>
+</tr>
+<tr>
+<td>Boundary</td>
+<td>精确交点、事件顺序、reflection limit、单调 lifecycle output</td>
+</tr>
+<tr>
+<td>Domain fill</td>
+<td>Layer mass、residual carry、boundary inflow direction、stable birth identity</td>
+</tr>
+<tr>
+<td>Query performance</td>
+<td>Exact-key audit、execute-phase I/O counter、output digest、scaling matrix</td>
+</tr>
+</tbody>
+</table>
+<p>真实资料测试宜选择仍能覆盖生产 reader 和相关 topology 的最小 fixture。性能修改完成后，还需确认
+规范化输出与本次科学调整的预期一致。</p>
 
 
 

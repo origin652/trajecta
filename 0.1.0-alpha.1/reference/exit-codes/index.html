@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Stable process exit meanings for Trajecta commands, detached admission, and non-successful terminal runs.">
+        <meta name="description" content="Interpret Trajecta shell status for successful commands, usage errors, foreground and detached runs, waits, inspection, and verification.">
       
       
       
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -917,6 +1129,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1018,7 +1276,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1327,6 +1585,19 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Exit codes
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1338,6 +1609,103 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#command-success-and-run-success" class="md-nav__link">
+    <span class="md-ellipsis">
+      Command success and run success
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parsing-and-application-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parsing and application errors
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-submission" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run submission
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Run submission">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#foreground" class="md-nav__link">
+    <span class="md-ellipsis">
+      Foreground
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#detached" class="md-nav__link">
+    <span class="md-ellipsis">
+      Detached
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#events-and-streams" class="md-nav__link">
+    <span class="md-ellipsis">
+      Events and streams
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Result commands
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shell-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Shell examples
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1770,6 +2138,92 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#command-success-and-run-success" class="md-nav__link">
+    <span class="md-ellipsis">
+      Command success and run success
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parsing-and-application-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parsing and application errors
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-submission" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run submission
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Run submission">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#foreground" class="md-nav__link">
+    <span class="md-ellipsis">
+      Foreground
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#detached" class="md-nav__link">
+    <span class="md-ellipsis">
+      Detached
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#events-and-streams" class="md-nav__link">
+    <span class="md-ellipsis">
+      Events and streams
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Result commands
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shell-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Shell examples
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1788,36 +2242,181 @@
 
 
 <h1 id="process-exit-codes">Process exit codes<a class="headerlink" href="#process-exit-codes" title="Permanent link">&para;</a></h1>
+<p>Trajecta uses three product-level process exit codes:</p>
 <table>
 <thead>
 <tr>
-<th>Code</th>
+<th style="text-align: right;">Code</th>
+<th>Shell meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;"><code>0</code></td>
+<td>The command completed its requested operation</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>1</code></td>
+<td>The parsed command encountered an application, validation, runtime, or non-successful terminal-run condition</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>2</code></td>
+<td>Command-line syntax, option placement, or an argument value failed during parsing</td>
+</tr>
+</tbody>
+</table>
+<p>Operating-system loader errors, process signals, and forced termination can
+produce other platform values before the CLI returns a product status.</p>
+<h2 id="command-success-and-run-success">Command success and run success<a class="headerlink" href="#command-success-and-run-success" title="Permanent link">&para;</a></h2>
+<p>Machine output separates the command operation from the scientific run:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
 <th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>0</code></td>
-<td>Command succeeded, or a detached job was durably admitted</td>
+<td><code>ok</code></td>
+<td>The CLI operation produced its requested response</td>
 </tr>
 <tr>
-<td><code>1</code></td>
-<td>Application failure, failed validation, or a run reached a non-success terminal state</td>
-</tr>
-<tr>
-<td><code>2</code></td>
-<td>Command-line usage or parse error</td>
+<td><code>run_success</code></td>
+<td>The selected attempt has the <code>complete</code> success state, when a command reports run lifecycle</td>
 </tr>
 </tbody>
 </table>
-<p>For run-related commands, inspect the machine envelope as well as the process
-status. <code>ok</code> states whether the command itself completed. <code>run_success</code>, when
-present, states whether the selected run completed successfully. A detached
-submission exits <code>0</code> after admission; later worker failure is observed with
-<code>job status</code>, <code>job wait</code>, or <code>job events</code>.</p>
-<p>Signals, forced process termination, and operating-system loader failures may
-produce platform exit values outside this table. Treat them as interrupted
-execution and preserve the job database plus attempt directory.</p>
+<p>For example, <code>result inspect</code> can successfully inspect an interrupted result.
+The process exits <code>0</code> and <code>ok</code> is true, while <code>run_success</code> is false. Automation
+that needs a completed scientific run checks both values.</p>
+<h2 id="parsing-and-application-errors">Parsing and application errors<a class="headerlink" href="#parsing-and-application-errors" title="Permanent link">&para;</a></h2>
+<p>In human mode, usage text is written to stderr and the process exits <code>2</code>.
+Application errors exit <code>1</code>. Help exits <code>0</code> and is written to stdout.</p>
+<p>In JSON or JSONL mode, parse and application failures use a structured envelope
+or diagnostic stream item on stdout. A usage error retains exit <code>2</code>; a parsed
+application failure returns <code>1</code>. Structured application responses do not also
+write their diagnostic to stderr.</p>
+<h2 id="run-submission">Run submission<a class="headerlink" href="#run-submission" title="Permanent link">&para;</a></h2>
+<h3 id="foreground">Foreground<a class="headerlink" href="#foreground" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project PROJECT run --profile PROFILE
+</code></pre></div>
+<p>The command first waits for durable admission and then follows the current
+attempt to a terminal state:</p>
+<table>
+<thead>
+<tr>
+<th>Terminal state</th>
+<th style="text-align: right;">Exit code</th>
+<th><code>run_success</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>complete</code></td>
+<td style="text-align: right;"><code>0</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>completed_with_particle_errors</code></td>
+<td style="text-align: right;"><code>1</code></td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td style="text-align: right;"><code>1</code></td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>cancelled</code></td>
+<td style="text-align: right;"><code>1</code></td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>interrupted</code></td>
+<td style="text-align: right;"><code>1</code></td>
+<td><code>false</code></td>
+</tr>
+</tbody>
+</table>
+<p>Closing the terminal after admission disconnects that foreground client. The
+daemon continues to own the accepted attempt; reconnect with <code>job status</code> or
+<code>job wait</code>.</p>
+<h3 id="detached">Detached<a class="headerlink" href="#detached" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta --project PROJECT run --profile PROFILE --detach
+</code></pre></div>
+<p>Exit <code>0</code> means the queue durably accepted the receipt. The worker may still be
+queued or may fail later. Read its later status with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta job wait JOB_ID
+</code></pre></div>
+<p><code>job wait</code> uses the same terminal-state exit table as a foreground run.</p>
+<h2 id="events-and-streams">Events and streams<a class="headerlink" href="#events-and-streams" title="Permanent link">&para;</a></h2>
+<p>A one-shot <code>job events</code> request exits <code>0</code> when the requested batch is read. In
+follow mode for one job, the final JSONL summary includes <code>run_success</code>. The
+process exit follows the selected attempt's terminal state. A stream-wide read
+or encoding error exits <code>1</code>, and a diagnostic item precedes the summary when the
+stream has already started.</p>
+<p>Meteorological probe and replay commands use their own native stream processing
+and return <code>1</code> for a reader or stream failure. Machine envelope mode requires
+native meteorological records to be directed to <code>--output FILE</code>.</p>
+<h2 id="result-commands">Result commands<a class="headerlink" href="#result-commands" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Exit <code>0</code> means</th>
+<th>Additional lifecycle field</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>result inspect</code></td>
+<td>Manifest and available artifacts were inspected; partial SQLite inspection may be returned with a warning</td>
+<td><code>run_success</code> reports manifest lifecycle</td>
+</tr>
+<tr>
+<td><code>result verify</code></td>
+<td>The selected quick or full verification operation completed successfully</td>
+<td><code>run_success</code> reports whether the verified run is <code>complete</code></td>
+</tr>
+<tr>
+<td><code>result trajectory</code></td>
+<td>All requested particle IDs were validated and the selected records were written</td>
+<td>Header and summary include run lifecycle</td>
+</tr>
+<tr>
+<td><code>run report</code></td>
+<td><code>RESULT/run-report.md</code> was written or refreshed</td>
+<td>Report body includes run lifecycle</td>
+</tr>
+</tbody>
+</table>
+<p><code>result verify</code> can return <code>0</code> for a structurally valid cancelled or failed run
+whose available terminal product passes the selected verification checks. Read
+<code>run_success</code> when the workflow requires <code>complete</code>.</p>
+<h2 id="shell-examples">Shell examples<a class="headerlink" href="#shell-examples" title="Permanent link">&para;</a></h2>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Windows PowerShell</label><label for="__tabbed_1_2">Ubuntu 24.04</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">.\</span><span class="n">trajecta</span><span class="p">.</span><span class="n">exe</span> <span class="p">-</span><span class="n">-format</span> <span class="n">json</span> <span class="n">job</span> <span class="n">wait</span> <span class="nv">$jobId</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nv">$code</span> <span class="p">=</span> <span class="nv">$LASTEXITCODE</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">if</span> <span class="p">(</span><span class="nv">$code</span> <span class="o">-eq</span> <span class="n">0</span><span class="p">)</span> <span class="p">{</span> <span class="s2">&quot;complete&quot;</span> <span class="p">}</span> <span class="k">else</span> <span class="p">{</span> <span class="s2">&quot;exit=$code&quot;</span> <span class="p">}</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">if</span><span class="w"> </span>./trajecta<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span>job<span class="w"> </span><span class="nb">wait</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$job_id</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="nb">complete</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="k">else</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nv">code</span><span class="o">=</span><span class="nv">$?</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$code</span><span class="s2">&quot;</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="k">fi</span>
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>For machine output, parse the complete JSON response before replacing it with a
+single Boolean shell status. The <a href="../schemas/">schema reference</a> gives the exact
+envelope and stream shapes.</p>
 
 
 

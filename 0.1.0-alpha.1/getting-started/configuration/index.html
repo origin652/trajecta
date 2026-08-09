@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Create a Trajecta machine configuration incrementally and check it with validate and deep doctor.">
+        <meta name="description" content="Create a Trajecta machine configuration, size its local resource pool, and inspect a project with doctor.">
       
       
       
@@ -452,27 +452,129 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#path-selection" class="md-nav__link">
+  <a href="#what-the-configuration-controls" class="md-nav__link">
     <span class="md-ellipsis">
-      Path selection
+      What the configuration controls
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#incremental-setup" class="md-nav__link">
+  <a href="#select-the-configuration-file" class="md-nav__link">
     <span class="md-ellipsis">
-      Incremental setup
+      Select the configuration file
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#doctor-levels" class="md-nav__link">
+  <a href="#initialize-and-inspect-it" class="md-nav__link">
     <span class="md-ellipsis">
-      Doctor levels
+      Initialize and inspect it
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#size-the-resource-pool" class="md-nav__link">
+    <span class="md-ellipsis">
+      Size the resource pool
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Size the resource pool">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cpu-slots" class="md-nav__link">
+    <span class="md-ellipsis">
+      CPU slots
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-pool-and-reserve" class="md-nav__link">
+    <span class="md-ellipsis">
+      Memory pool and reserve
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reader-and-daemon-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reader and daemon settings
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-an-execution-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      Add an execution template
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-doctor" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run doctor
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Run doctor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#normal-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      Normal check
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deep-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deep check
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#change-settings-safely" class="md-nav__link">
+    <span class="md-ellipsis">
+      Change settings safely
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-first-run-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common first-run issues
     </span>
   </a>
   
@@ -711,9 +813,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -722,7 +840,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -988,6 +1302,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1089,7 +1449,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1836,27 +2196,129 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#path-selection" class="md-nav__link">
+  <a href="#what-the-configuration-controls" class="md-nav__link">
     <span class="md-ellipsis">
-      Path selection
+      What the configuration controls
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#incremental-setup" class="md-nav__link">
+  <a href="#select-the-configuration-file" class="md-nav__link">
     <span class="md-ellipsis">
-      Incremental setup
+      Select the configuration file
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#doctor-levels" class="md-nav__link">
+  <a href="#initialize-and-inspect-it" class="md-nav__link">
     <span class="md-ellipsis">
-      Doctor levels
+      Initialize and inspect it
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#size-the-resource-pool" class="md-nav__link">
+    <span class="md-ellipsis">
+      Size the resource pool
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Size the resource pool">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cpu-slots" class="md-nav__link">
+    <span class="md-ellipsis">
+      CPU slots
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-pool-and-reserve" class="md-nav__link">
+    <span class="md-ellipsis">
+      Memory pool and reserve
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reader-and-daemon-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reader and daemon settings
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-an-execution-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      Add an execution template
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-doctor" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run doctor
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Run doctor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#normal-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      Normal check
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deep-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deep check
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#change-settings-safely" class="md-nav__link">
+    <span class="md-ellipsis">
+      Change settings safely
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-first-run-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common first-run issues
     </span>
   </a>
   
@@ -1882,38 +2344,224 @@
 
 
 <h1 id="configuration-initialization-and-doctor">Configuration initialization and doctor<a class="headerlink" href="#configuration-initialization-and-doctor" title="Permanent link">&para;</a></h1>
-<p>A machine configuration describes local resource limits and daemon behavior.
-It does not contain a Case or scientific intent. Project documents remain
-portable because machine-local paths are supplied through RunProfile bindings.</p>
-<h2 id="path-selection">Path selection<a class="headerlink" href="#path-selection" title="Permanent link">&para;</a></h2>
-<p>Trajecta selects the configuration in this order:</p>
+<p>Every Trajecta command selects one machine configuration. This file describes
+the resources available to the local scheduler, the default meteorology reader,
+monitoring cadence, and daemon idle time. Scientific settings remain in the
+project's Case, while dataset paths and per-run resource requests remain in its
+RunProfile.</p>
+<p>Keeping these concerns separate makes a project portable. The same project can
+use a four-core laptop Profile on one machine and a larger Profile on another
+without changing its simulation period, population, or numerical settings.</p>
+<h2 id="what-the-configuration-controls">What the configuration controls<a class="headerlink" href="#what-the-configuration-controls" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Main fields</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reader default</td>
+<td><code>default_reader_backend</code></td>
+<td>Reader used when a Profile leaves the choice open</td>
+</tr>
+<tr>
+<td>Local daemon</td>
+<td><code>daemon.idle_shutdown_seconds</code></td>
+<td>How long an idle local daemon remains available</td>
+</tr>
+<tr>
+<td>CPU pool</td>
+<td><code>resources.cpu_slots</code></td>
+<td>Total CPU slots admitted across active jobs</td>
+</tr>
+<tr>
+<td>Memory pool</td>
+<td><code>resources.memory_pool_mib</code> and <code>resources.memory_reserve_mib</code></td>
+<td>Total memory considered by admission and the portion kept outside worker allocation</td>
+</tr>
+<tr>
+<td>Monitoring</td>
+<td><code>monitoring.sample_interval_ms</code></td>
+<td>Interval used for runtime resource observations</td>
+</tr>
+<tr>
+<td>Templates</td>
+<td><code>profile_templates.&lt;name&gt;</code></td>
+<td>Reusable execution values for project Profiles</td>
+</tr>
+</tbody>
+</table>
+<p><code>config init</code> detects the host's logical CPU count and physical memory. It sets
+the initial memory reserve to one quarter of physical memory and chooses the
+Rust reader. These values are a starting point; <code>config get</code> and <code>config set</code>
+make the final resource policy explicit.</p>
+<h2 id="select-the-configuration-file">Select the configuration file<a class="headerlink" href="#select-the-configuration-file" title="Permanent link">&para;</a></h2>
+<p>Trajecta resolves the path in this order:</p>
 <ol>
-<li>global <code>--config PATH</code>;</li>
-<li><code>TRAJECTA_CONFIG</code> environment variable;</li>
-<li>the platform default path.</li>
+<li>the global <code>--config PATH</code> option;</li>
+<li>the <code>TRAJECTA_CONFIG</code> environment variable;</li>
+<li>the platform default.</li>
 </ol>
-<p>Use <code>config path</code> to display the selected path without changing it.</p>
-<h2 id="incremental-setup">Incremental setup<a class="headerlink" href="#incremental-setup" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --config local.toml config init
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --config local.toml config set resources.cpu_slots 4
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>trajecta --config local.toml config set resources.memory_reserve_mib 512
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>trajecta --config local.toml config set resources.memory_pool_mib 4096
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>trajecta --config local.toml config validate
+<p>The default path is <code>%APPDATA%\Trajecta\config.toml</code> on Windows. On Ubuntu it
+is <code>$XDG_CONFIG_HOME/trajecta/config.toml</code>, or
+<code>$HOME/.config/trajecta/config.toml</code> when <code>XDG_CONFIG_HOME</code> is empty.</p>
+<p>Display the selected location with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta config path
 </code></pre></div>
-<p><code>memory_reserve_mib</code> must be smaller than <code>memory_pool_mib</code>. A failed update
-leaves the previous configuration bytes unchanged. <code>config get</code>, <code>set</code>, and
-<code>unset</code> support an iterative human or AI-assisted setup; no intermediate JSON
-file is required.</p>
-<h2 id="doctor-levels">Doctor levels<a class="headerlink" href="#doctor-levels" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta --config local.toml doctor
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>trajecta --config local.toml --project PROJECT doctor --deep
+<p>An explicit path is convenient for tutorials and isolated projects:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta --config quickstart.toml config path
 </code></pre></div>
-<p>The normal doctor checks configuration and local runtime prerequisites. Deep
-mode also performs a real SQLite create/WAL/integrity/checkpoint/cleanup cycle.
-When a project is selected, it checks existing locks and data roots through
-public verification APIs.</p>
-<p>Treat a doctor error as a preflight failure. Record its diagnostic code and
-correct the selected configuration or project before submitting work.</p>
+<p>For a setting shared by several shells, define the environment variable once
+in the shell profile. The global option still takes precedence for an
+individual command.</p>
+<h2 id="initialize-and-inspect-it">Initialize and inspect it<a class="headerlink" href="#initialize-and-inspect-it" title="Permanent link">&para;</a></h2>
+<p>Create a new file and display its leaf values:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta --config local.toml config init
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>trajecta --config local.toml config list
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>trajecta --config local.toml config get resources.cpu_slots
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>trajecta --config local.toml config get resources.memory_pool_mib
+</code></pre></div>
+<p><code>config list</code> is useful when comparing two machines because it emits every
+setting by its dotted selector. Machine-readable output uses the same selectors:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta --format json --config local.toml config list
+</code></pre></div>
+<p>If <code>local.toml</code> already exists, <code>config init</code> keeps the existing file. Continue
+with <code>get</code>, <code>set</code>, or <code>validate</code> for that configuration.</p>
+<h2 id="size-the-resource-pool">Size the resource pool<a class="headerlink" href="#size-the-resource-pool" title="Permanent link">&para;</a></h2>
+<p>The scheduler admits a job only when its Profile request fits inside the free
+CPU and memory pool. Several small jobs may run together; a larger request
+waits in the queue until enough capacity is available.</p>
+<h3 id="cpu-slots">CPU slots<a class="headerlink" href="#cpu-slots" title="Permanent link">&para;</a></h3>
+<p>For a workstation where four logical cores may be used by Trajecta:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta --config local.toml config set resources.cpu_slots 4
+</code></pre></div>
+<p>A RunProfile's <code>execution.worker_threads</code> fits within this value. Leaving some
+cores outside the pool keeps an interactive workstation responsive during a
+long run. A dedicated machine can expose more of its logical cores.</p>
+<h3 id="memory-pool-and-reserve">Memory pool and reserve<a class="headerlink" href="#memory-pool-and-reserve" title="Permanent link">&para;</a></h3>
+<p>The scheduler's usable memory is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>memory_pool_mib - memory_reserve_mib
+</code></pre></div>
+<p>For a machine where Trajecta may schedule within a 4 GiB pool while 512 MiB is
+held aside:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>trajecta --config local.toml config set resources.memory_pool_mib 4096
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>trajecta --config local.toml config set resources.memory_reserve_mib 512
+</code></pre></div>
+<p>The reserve remains smaller than the pool. Each RunProfile declares
+<code>execution.memory_budget_bytes</code>; the queue compares that request with currently
+available memory. Memory used by unrelated applications can still change while
+a job runs, so a workstation usually benefits from a reserve larger than the
+minimum needed to pass validation.</p>
+<h2 id="reader-and-daemon-settings">Reader and daemon settings<a class="headerlink" href="#reader-and-daemon-settings" title="Permanent link">&para;</a></h2>
+<p>The default reader can be selected directly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>trajecta --config local.toml config set default_reader_backend rust
+</code></pre></div>
+<p>A RunProfile may choose <code>rust</code> or <code>native</code> for a particular dataset. The
+Profile value is the clearest choice for a project intended to use an explicit
+reader on several machines; the machine default is convenient for exploratory
+work.</p>
+<p>The local daemon starts when a job command needs it. After the queue and active
+worker set become empty, <code>daemon.idle_shutdown_seconds</code> controls how long it
+waits before exiting:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>trajecta --config local.toml config set daemon.idle_shutdown_seconds 600
+</code></pre></div>
+<p>Queue and worker communication stays on the local machine. The current schema
+keeps <code>daemon.local_ipc_only</code> set to <code>true</code>.</p>
+<h2 id="add-an-execution-template">Add an execution template<a class="headerlink" href="#add-an-execution-template" title="Permanent link">&para;</a></h2>
+<p>Named templates collect execution values that can be reused while preparing
+RunProfiles. This example defines a one-thread Rust-reader template with a
+1 GiB memory budget:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Windows PowerShell</label><label for="__tabbed_1_2">Ubuntu 24.04</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nv">$value</span> <span class="p">=</span> <span class="s1">&#39;{&quot;execution&quot;:{&quot;worker_threads&quot;:1,&quot;memory_budget_bytes&quot;:1073741824,&quot;executor&quot;:&quot;cpu&quot;,&quot;meteorology_reader&quot;:&quot;rust&quot;}}&#39;</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="p">.\</span><span class="n">trajecta</span><span class="p">.</span><span class="n">exe</span> <span class="p">-</span><span class="n">-config</span> <span class="n">local</span><span class="p">.</span><span class="n">toml</span> <span class="n">config</span> <span class="nb">set </span><span class="n">profile_templates</span><span class="p">.</span><span class="n">one_worker</span> <span class="nv">$value</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>./trajecta<span class="w"> </span>--config<span class="w"> </span>local.toml<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>profile_templates.one_worker<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="s1">&#39;{&quot;execution&quot;:{&quot;worker_threads&quot;:1,&quot;memory_budget_bytes&quot;:1073741824,&quot;executor&quot;:&quot;cpu&quot;,&quot;meteorology_reader&quot;:&quot;rust&quot;}}&#39;</span>
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>Template names are local configuration keys. Remove a template with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>trajecta --config local.toml config unset profile_templates.one_worker
+</code></pre></div>
+<h2 id="run-doctor">Run doctor<a class="headerlink" href="#run-doctor" title="Permanent link">&para;</a></h2>
+<p>Doctor reads the same configuration selected by the later run command. With an
+explicit project, it also resolves and validates that project.</p>
+<h3 id="normal-check">Normal check<a class="headerlink" href="#normal-check" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>trajecta --config local.toml doctor
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>trajecta --config local.toml --project examples/domain-fill-cfsr doctor
+</code></pre></div>
+<p>The first form checks the configuration and reports whether a project was
+discovered from the current directory. The second form selects the project
+directly and includes its state in the response.</p>
+<h3 id="deep-check">Deep check<a class="headerlink" href="#deep-check" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>trajecta --config local.toml --project examples/domain-fill-cfsr doctor --deep
+</code></pre></div>
+<p>Deep mode creates a temporary directory under the project and exercises file
+creation, synchronization, rename, and cleanup. It verifies existing
+DatasetLocks against local files, opens a supported meteorological source from
+each populated data root, and performs a SQLite create, write-ahead log,
+integrity, checkpoint, and cleanup cycle. The temporary probe directory is
+removed when the check completes.</p>
+<p>Run deep doctor after placing data and finalizing the project. It is also useful
+after moving a project to another disk or changing filesystem permissions.</p>
+<h2 id="change-settings-safely">Change settings safely<a class="headerlink" href="#change-settings-safely" title="Permanent link">&para;</a></h2>
+<p>Finish an editing session with validation:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>trajecta --config local.toml config validate
+</code></pre></div>
+<p><code>config set</code> parses the supplied value, validates the complete document, and
+then replaces the file atomically. A rejected value leaves the previous
+configuration in place. Values such as reader names may be passed as plain
+text; arrays and objects use JSON syntax.</p>
+<p>For AI-assisted configuration, work through the same small sequence used by a
+person: read with <code>get</code>, change one selector with <code>set</code>, run <code>config validate</code>,
+and finish with <code>doctor --deep</code> against the chosen project. This keeps the file
+itself as the shared configuration source.</p>
+<h2 id="common-first-run-issues">Common first-run issues<a class="headerlink" href="#common-first-run-issues" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely point to inspect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>config.not_found</code></td>
+<td>The selected <code>--config</code> path or <code>TRAJECTA_CONFIG</code> value</td>
+</tr>
+<tr>
+<td><code>config.invalid_schema</code></td>
+<td>A field name, value type, reserve/pool relationship, or template request</td>
+</tr>
+<tr>
+<td>Job remains queued</td>
+<td>The Profile's CPU or memory request compared with free pool capacity</td>
+</tr>
+<tr>
+<td><code>doctor.filesystem_unwritable</code></td>
+<td>Write and rename permissions in the project root</td>
+</tr>
+<tr>
+<td><code>doctor.lock_invalid</code></td>
+<td>DatasetLock paths, file content, or a project moved without its data</td>
+</tr>
+<tr>
+<td><code>doctor.data_inspect_failed</code></td>
+<td>Reader choice and the first supported file under the configured data root</td>
+</tr>
+</tbody>
+</table>
+<p>The <a href="../../reference/configuration/">configuration reference</a> lists every field
+and constraint. Diagnostic details are indexed in the
+<a href="../../operations/troubleshooting/">troubleshooting guide</a>.</p>
 
 
 

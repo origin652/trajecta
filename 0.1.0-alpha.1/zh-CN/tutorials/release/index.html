@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="使用显式质量、几何、垂直位置和可复现输出来运行点源释放实验。">
+        <meta name="description" content="使用明确的事件时刻、geometry、高度、粒子数和 tracer 质量运行确定性点源 release。">
       
       
       
@@ -24,7 +24,7 @@
     
     
       
-        <title>常规 release 教程 - Trajecta</title>
+        <title>定时 release 教程 - Trajecta</title>
       
     
     
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              常规 release 教程
+              定时 release 教程
             
           </span>
         </div>
@@ -596,7 +596,7 @@
         <li class="md-nav__item">
   <a href="#case" class="md-nav__link">
     <span class="md-ellipsis">
-      Case 真源
+      阅读 Case
     </span>
   </a>
   
@@ -605,7 +605,124 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      执行与读取
+      理解事件分配
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="理解事件分配">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      时间与质量
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#geometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      Geometry 与垂直位置
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cfsr" class="md-nav__link">
+    <span class="md-ellipsis">
+      准备共享 CFSR 资料
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#release_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行 release
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#origin-tracer" class="md-nav__link">
+    <span class="md-ellipsis">
+      读取 origin 与 tracer 质量
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="读取 origin 与 tracer 质量">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#population" class="md-nav__link">
+    <span class="md-ellipsis">
+      Population 和质量记录
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      单粒子轨迹
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#release_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      调整 release 设计
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="调整 release 设计">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      增加时段或多个事件
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#geometry_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      更换 geometry 或垂直坐标
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      后续步骤
     </span>
   </a>
   
@@ -702,9 +819,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -713,7 +846,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            操作指南
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -979,6 +1308,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1080,7 +1455,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1829,7 +2204,7 @@
         <li class="md-nav__item">
   <a href="#case" class="md-nav__link">
     <span class="md-ellipsis">
-      Case 真源
+      阅读 Case
     </span>
   </a>
   
@@ -1838,7 +2213,124 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      执行与读取
+      理解事件分配
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="理解事件分配">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      时间与质量
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#geometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      Geometry 与垂直位置
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cfsr" class="md-nav__link">
+    <span class="md-ellipsis">
+      准备共享 CFSR 资料
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#release_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行 release
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#origin-tracer" class="md-nav__link">
+    <span class="md-ellipsis">
+      读取 origin 与 tracer 质量
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="读取 origin 与 tracer 质量">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#population" class="md-nav__link">
+    <span class="md-ellipsis">
+      Population 和质量记录
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      单粒子轨迹
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#release_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      调整 release 设计
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="调整 release 设计">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      增加时段或多个事件
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#geometry_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      更换 geometry 或垂直坐标
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      后续步骤
     </span>
   </a>
   
@@ -1863,10 +2355,15 @@
   
 
 
-<h1 id="release">常规 release 教程<a class="headerlink" href="#release" title="Permanent link">&para;</a></h1>
-<p>Release-driven population 通过一个或多个事件创建粒子。每个事件定义时间区间、粒子数、
-物质质量、几何形状和垂直位置。当研究问题包含明确源项时，可以采用该模型。</p>
-<h2 id="case">Case 真源<a class="headerlink" href="#case" title="Permanent link">&para;</a></h2>
+<h1 id="release">定时 release 教程<a class="headerlink" href="#release" title="Permanent link">&para;</a></h1>
+<p>Release Case 从一个源事件开始。事件声明粒子的出生时段、水平与垂直位置、创建数量，以及
+携带的命名物质质量。已知源区、注入过程、观测站或受体实验都可以采用这种 population
+模型。</p>
+<p>示例项目在经度 0°、纬度 0°、海拔 1,000 m 的位置创建 1,000 个粒子。所有粒子出生于
+2009 年 1 月 1 日 06:00 UTC，共同携带一千克名为 <code>water</code> 的 tracer，并在全球 CFSR
+气象场中向前运行十分钟。</p>
+<h2 id="case">阅读 Case<a class="headerlink" href="#case" title="Permanent link">&para;</a></h2>
+<p>完整科学配置直接来自示例项目：</p>
 <p>schema_version: 0
 kind: case
 metadata: { name: release-cfsr }
@@ -1907,17 +2404,146 @@ outputs:
   - product: particle_state/v1
     schedule: { mode: endpoints }
     sink: { model: particle_state_sqlite/v1 }</p>
-<p>示例在一个点释放 1,000 个粒子，并在事件中分配一千克 <code>water</code> tracer。请按具体研究
-调整质量和几何参数；教程数值不代表排放清单。</p>
-<h2 id="_1">执行与读取<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
-<p>将四帧演示资料复制或链接到 <code>examples/release-cfsr/data</code>，随后运行：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project examples/release-cfsr project validate
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --project examples/release-cfsr project finalize
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>trajecta --project examples/release-cfsr run --profile product
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>trajecta result verify RESULT --full
+<p>Case 与 domain-fill 示例采用相同的数值步、全球边界规则、端点输出和 CFSR 时段。
+Population 部分则改为：</p>
+<table>
+<thead>
+<tr>
+<th>Release 字段</th>
+<th>示例值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Population ID</td>
+<td><code>release</code></td>
+</tr>
+<tr>
+<td>Event ID</td>
+<td><code>event</code></td>
+</tr>
+<tr>
+<td>Event interval</td>
+<td>2009-01-01 06:00 UTC 这一时刻</td>
+</tr>
+<tr>
+<td>粒子数</td>
+<td>1,000</td>
+</tr>
+<tr>
+<td>物质质量</td>
+<td>整个事件共 1 kg <code>water</code></td>
+</tr>
+<tr>
+<td>水平 geometry</td>
+<td>Inline GeoJSON point <code>[0, 0]</code></td>
+</tr>
+<tr>
+<td>垂直坐标</td>
+<td>固定海拔 1,000 m</td>
+</tr>
+<tr>
+<td>随机种子</td>
+<td>4201</td>
+</tr>
+</tbody>
+</table>
+<p><code>substances</code> 将稳定标识符 <code>water</code> 与可读名称关联起来。结果表使用该标识符作为粒子质量
+列的键。</p>
+<h2 id="_1">理解事件分配<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<h3 id="_2">时间与质量<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<p>当 <code>start</code> 等于 <code>end</code> 时，所有粒子的 birth time 相同。事件覆盖非零时段时，Trajecta
+会在区间内分配确定性的分层出生时刻。Event 内的粒子 ordinal 与 Case seed 共同确定
+schedule，因此 worker 执行顺序不会改变出生时刻。</p>
+<p>每种命名物质的质量按粒子数分配。本教程前 999 个粒子使用常规浮点份额 0.001 kg，最后
+一个份额补偿舍入余量，使保存的粒子质量合计为声明的一千克。</p>
+<p>Release 粒子不表示干空气载体，因此 <code>dry_air_mass_kg</code> 为零。科学 payload 保存在
+<code>particle_mass</code> 中，并以 particle 与 substance 为键。</p>
+<h3 id="geometry">Geometry 与垂直位置<a class="headerlink" href="#geometry" title="Permanent link">&para;</a></h3>
+<p><code>Point</code> 会把全部粒子放在同一经纬度。其他可用 GeoJSON 类型包括 <code>MultiPoint</code>、
+<code>LineString</code>、<code>MultiLineString</code>、<code>Polygon</code> 和 <code>MultiPolygon</code>。对应的采样权重分别来自
+等点权、球面大圆线长或球面多边形面积。Geometry 可以直接写入 Case，也可以从项目内
+相对路径指向 <code>.geojson</code> 文件。</p>
+<p>垂直位置支持海拔高度、距地高度和气压。缺少 upper bound 时采用固定值；同时提供 lower
+与 upper 时在闭区间中采样。距地高度和气压 release 会在粒子准确的出生位置与时刻查询
+气象资料，解析为几何海拔后再开始输送。</p>
+<h2 id="cfsr">准备共享 CFSR 资料<a class="headerlink" href="#cfsr" title="Permanent link">&para;</a></h2>
+<p>Release 项目使用快速入门的同一四帧资产。把文件复制到它的本地 data root：</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Windows PowerShell</label><label for="__tabbed_1_2">Ubuntu 24.04</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">Copy-Item</span> <span class="p">.\</span><span class="n">examples</span><span class="p">\</span><span class="n">domain-fill-cfsr</span><span class="p">\</span><span class="n">data</span><span class="p">\*</span> <span class="p">`</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  <span class="p">.\</span><span class="n">examples</span><span class="p">\</span><span class="n">release-cfsr</span><span class="p">\</span><span class="n">data</span><span class="p">\</span>
 </code></pre></div>
-<p><code>result trajectory</code> 用于读取单条路径。<code>result inspect</code> 汇总释放、终止、生命周期和质量
-状态。发表分析时，应同时保存结果目录中的 resolved Case 与 Profile。</p>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cp<span class="w"> </span>examples/domain-fill-cfsr/data/*<span class="w"> </span>examples/release-cfsr/data/
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>随后校验并查看 requirement：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta --project examples/release-cfsr project validate
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>trajecta --project examples/release-cfsr project data-plan --output release-plan.json
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>python tools/fetch_trajecta_data.py --project examples/release-cfsr --plan release-plan.json
+</code></pre></div>
+<p>该 population 请求 <code>transport</code> 与 <code>near_surface_transport</code>。初始位置来自 release
+geometry，因此 requirement 中没有 <code>domain_fill</code> capability。</p>
+<p>创建 DatasetLock 并运行 deep local check：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta --project examples/release-cfsr project finalize
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>trajecta --project examples/release-cfsr doctor --deep
+</code></pre></div>
+<p>即使底层 CFSR 文件来自 domain-fill 项目或共享目录，新建的 <code>locks/cfsr.lock.json</code> 仍属于
+当前 release 项目。</p>
+<h2 id="release_1">运行 release<a class="headerlink" href="#release_1" title="Permanent link">&para;</a></h2>
+<p>以前台方式提交 Profile：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta --project examples/release-cfsr run --profile product
+</code></pre></div>
+<p>后续命令使用运行返回的结果目录：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta result verify RESULT --full
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>trajecta result inspect RESULT
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>trajecta run report --result RESULT
+</code></pre></div>
+<p>示例的 endpoint schedule 包含两个 output event。初始事件中会出现全部 1,000 个粒子；
+仍位于垂直模式范围内的粒子也会出现在末端事件。Inspect summary 给出准确状态行数和全部
+正常终止统计。</p>
+<h2 id="origin-tracer">读取 origin 与 tracer 质量<a class="headerlink" href="#origin-tracer" title="Permanent link">&para;</a></h2>
+<h3 id="population">Population 和质量记录<a class="headerlink" href="#population" title="Permanent link">&para;</a></h3>
+<p>Release 粒子的 <code>origin_kind</code> 为 <code>release</code>，<code>origin_event_id</code> 为 <code>event</code>。离开源点后，
+这个 origin 仍随粒子保存。<code>particle_mass</code> 为每个粒子保存一条 <code>water</code> 记录；
+<code>particle_state</code> 保存随时间变化的位置、输送字段、状态和终止信息。</p>
+<p>Run report 汇总声明质量与粒子表示的物质质量。多事件 Case 可以按 origin event ID 聚合
+轨迹和质量，无需根据时间戳反推 release 来源。</p>
+<h3 id="_3">单粒子轨迹<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<p>一次读取三条路径：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>trajecta result trajectory RESULT --particle-id 0 --particle-id 1 --particle-id 2
+</code></pre></div>
+<p>初始事件中，三个粒子共享相同位置和高度，各自的 stable ID 与质量行仍彼此独立。末端记录
+展示局地风场在两个积分步内使它们分离或保持共位的情况。</p>
+<p>较大的选择可以采用 JSONL，避免在内存中组装一个很大的响应：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>trajecta --format jsonl result trajectory RESULT --all
+</code></pre></div>
+<p>外部分析工具需要读取完整结果时，可以把 stream 重定向到分析文件。</p>
+<h2 id="release_2">调整 release 设计<a class="headerlink" href="#release_2" title="Permanent link">&para;</a></h2>
+<h3 id="_4">增加时段或多个事件<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<p>设置不同的 <code>start</code> 与 <code>end</code> 可以表达持续 release。声明的粒子数会分布在该区间内，每个
+粒子拥有准确 birth time。模拟区间需要沿所选方向包含相关 event time。</p>
+<p>在 <code>events</code> 下增加条目，可以描述不同源时段、位置、物质或高度。每个事件使用稳定且唯一
+的 ID，并拥有自己的粒子数和质量 map；所有事件共享 population seed 与 Case numerics。</p>
+<p>Event time 改变以后重新生成 data-plan。气象 coverage 需要覆盖全部出生时刻和随后的轨迹
+区间。</p>
+<h3 id="geometry_1">更换 geometry 或垂直坐标<a class="headerlink" href="#geometry_1" title="Permanent link">&para;</a></h3>
+<p>复杂线段或多边形可以保存在项目相对路径的 GeoJSON 文件中。Resolved run 会记录源文件
+散列和 canonical geometry hash。点或较短的坐标列表适合直接写入 Case。</p>
+<p>源高度随地形变化时选择 <code>above_ground</code>，绝对几何海拔则选择 <code>above_sea_level</code>。以等压面
+描述的源可以选择 pressure。Lower 与 upper 同时存在时，release 会覆盖一个垂直层，而非
+单一表面。</p>
+<p>粒子数控制 release 的空间与时间采样。物质总质量仍取 event 声明值，因此增加粒子后，
+每粒子质量会降低。输出 cadence 与运行时长随后决定这些粒子产生的状态行数。</p>
+<h2 id="_5">后续步骤<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p><a href="../air-mass/">Air-mass 教程</a>会回到 domain filling，并引入通过项目 plan 下载的有限域
+ERA5 资料。<a href="../../concepts/populations/">Population 概念</a>集中比较 release、air-mass 与
+ozone lifecycle。</p>
 
 
 

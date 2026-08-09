@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Meteorology alignment, lifecycle gates, ensemble metrics, repeated runs, and interpretation limits for Trajecta validation.">
+        <meta name="description" content="Understand the meteorological alignment, particle accounting, ensemble metrics, and frozen one-hour scientific comparison used for Trajecta.">
       
       
       
@@ -640,9 +640,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../how-to/" class="md-nav__link">
+    
+    
+    
+    
+      
         
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -651,7 +667,203 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Choose a procedure
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/progressive-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Build configuration incrementally
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/deferred-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configure before data arrives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run in front or through the queue
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Follow job events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cancel-rerun-prune/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cancel, rerun, forget, and prune
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inspect and read results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/ai-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI-assisted configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -917,6 +1129,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/shutdown-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shutdown and memory pressure
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/storage-sqlite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage, SQLite, and WAL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/recovery/" class="md-nav__link">
         
   
@@ -1020,7 +1278,7 @@
   
   
   <span class="md-ellipsis">
-    Evidence policy
+    Validation overview
     
   </span>
   
@@ -1088,27 +1346,162 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#frozen-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      Frozen case
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#meteorological-alignment" class="md-nav__link">
     <span class="md-ellipsis">
       Meteorological alignment
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Meteorological alignment">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Source identity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fields-and-coordinates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fields and coordinates
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#query-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Query coverage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
-  <a href="#internal-hard-gates" class="md-nav__link">
+  <a href="#trajecta-run-checks" class="md-nav__link">
     <span class="md-ellipsis">
-      Internal hard gates
+      Trajecta run checks
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#cross-model-measures" class="md-nav__link">
+  <a href="#ensemble-metric-definitions" class="md-nav__link">
     <span class="md-ellipsis">
-      Cross-model measures
+      Ensemble metric definitions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Ensemble metric definitions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#horizontal-centroid" class="md-nav__link">
+    <span class="md-ellipsis">
+      Horizontal centroid
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vertical-centroid" class="md-nav__link">
+    <span class="md-ellipsis">
+      Vertical centroid
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transport-distance" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transport distance
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#horizontal-dispersion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Horizontal dispersion
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#occupied-audit-cells" class="md-nav__link">
+    <span class="md-ellipsis">
+      Occupied audit cells
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#published-ensemble-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      Published ensemble values
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Published ensemble values">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#10000-particles" class="md-nav__link">
+    <span class="md-ellipsis">
+      10,000 particles
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#50000-particles" class="md-nav__link">
+    <span class="md-ellipsis">
+      50,000 particles
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scope-of-the-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scope of the result
     </span>
   </a>
   
@@ -1836,27 +2229,162 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#frozen-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      Frozen case
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#meteorological-alignment" class="md-nav__link">
     <span class="md-ellipsis">
       Meteorological alignment
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Meteorological alignment">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Source identity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fields-and-coordinates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fields and coordinates
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#query-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Query coverage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
-  <a href="#internal-hard-gates" class="md-nav__link">
+  <a href="#trajecta-run-checks" class="md-nav__link">
     <span class="md-ellipsis">
-      Internal hard gates
+      Trajecta run checks
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#cross-model-measures" class="md-nav__link">
+  <a href="#ensemble-metric-definitions" class="md-nav__link">
     <span class="md-ellipsis">
-      Cross-model measures
+      Ensemble metric definitions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Ensemble metric definitions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#horizontal-centroid" class="md-nav__link">
+    <span class="md-ellipsis">
+      Horizontal centroid
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vertical-centroid" class="md-nav__link">
+    <span class="md-ellipsis">
+      Vertical centroid
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transport-distance" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transport distance
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#horizontal-dispersion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Horizontal dispersion
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#occupied-audit-cells" class="md-nav__link">
+    <span class="md-ellipsis">
+      Occupied audit cells
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#published-ensemble-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      Published ensemble values
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Published ensemble values">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#10000-particles" class="md-nav__link">
+    <span class="md-ellipsis">
+      10,000 particles
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#50000-particles" class="md-nav__link">
+    <span class="md-ellipsis">
+      50,000 particles
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scope-of-the-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scope of the result
     </span>
   </a>
   
@@ -1882,35 +2410,265 @@
 
 
 <h1 id="scientific-validation-method">Scientific validation method<a class="headerlink" href="#scientific-validation-method" title="Permanent link">&para;</a></h1>
-<p>The frozen M5-A5 comparison uses official ERA5 hybrid-level meteorology and a
-one-hour advection case. Both executables use a 600-second transport step, a
-1,200-second output interval, four CPU threads, and equal 10,000 or 50,000
-particle populations.</p>
+<p>The published scientific comparison follows a compact advection case through
+two independent trajectory implementations. Its purpose is to examine the
+meteorological handoff and the evolution of a particle ensemble at common
+physical times. Each program also completes its own lifecycle and product
+checks before its output enters the comparison.</p>
+<h2 id="frozen-case">Frozen case<a class="headerlink" href="#frozen-case" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Meteorology</td>
+<td>Official ERA5 hybrid-level source content</td>
+</tr>
+<tr>
+<td>Start of transport</td>
+<td>2018-12-01 03:00:00 UTC</td>
+</tr>
+<tr>
+<td>Simulation duration</td>
+<td>3,600 seconds</td>
+</tr>
+<tr>
+<td>Transport step</td>
+<td>600 seconds</td>
+</tr>
+<tr>
+<td>Common output interval</td>
+<td>1,200 seconds</td>
+</tr>
+<tr>
+<td>Compared output times</td>
+<td>03:20, 03:40, and 04:00 UTC</td>
+</tr>
+<tr>
+<td>Particle populations</td>
+<td>10,000 and 50,000</td>
+</tr>
+<tr>
+<td>CPU allocation</td>
+<td>Four threads on CPU set <code>0-3</code></td>
+</tr>
+<tr>
+<td>Processes enabled for comparison</td>
+<td>Advection and the shared trajectory state used by the metric set</td>
+</tr>
+</tbody>
+</table>
+<p>The source location used by the ensemble metrics is 5.25° E, 49.25° N. Wet
+deposition and convection are disabled in this case. Trajecta surface-flux
+fields remain present in its prepared dataset and sit outside the shared
+advection quantity set.</p>
 <h2 id="meteorological-alignment">Meteorological alignment<a class="headerlink" href="#meteorological-alignment" title="Permanent link">&para;</a></h2>
-<p>The audit fixes source-file identities, query points, physical times, units,
-vertical interpretation, and encoded values. It rejects missing coverage,
-ambiguous fields, unexpected non-finite values, or changed input content.</p>
-<h2 id="internal-hard-gates">Internal hard gates<a class="headerlink" href="#internal-hard-gates" title="Permanent link">&para;</a></h2>
-<p>Every Trajecta run must complete with zero abnormal particles and pass:</p>
+<p>Both execution paths begin with the same official source files. Their reader
+and staging formats differ, so alignment is recorded at several levels.</p>
+<h3 id="source-identity">Source identity<a class="headerlink" href="#source-identity" title="Permanent link">&para;</a></h3>
+<p>The source NetCDF and GRIB files are fixed by byte length and SHA-256. The
+prepared Trajecta files and staged FLEXPART GRIB files have their own identities
+derived from those sources. The complete lists are stored in
+<code>M5_A5_METEOROLOGY_EQUIVALENCE.json</code>.</p>
+<h3 id="fields-and-coordinates">Fields and coordinates<a class="headerlink" href="#fields-and-coordinates" title="Permanent link">&para;</a></h3>
+<p>The alignment includes:</p>
 <ul>
-<li>lifecycle and population accounting;</li>
-<li>finite-value and quality checks;</li>
-<li>mass-ledger closure;</li>
-<li>output-event ordering;</li>
-<li>SQLite integrity and terminal WAL checks;</li>
-<li>provenance and canonical-output identity;</li>
-<li>repeated-run determinism.</li>
+<li>four valid times;</li>
+<li>137 model levels and 138 hybrid half-level coefficients;</li>
+<li>longitude and latitude axes;</li>
+<li>horizontal wind, vertical motion, temperature, and specific humidity;</li>
+<li>logarithmic surface pressure and its derived surface-pressure value;</li>
+<li>the surface and near-surface fields used by the selected advection setup.</li>
 </ul>
-<h2 id="cross-model-measures">Cross-model measures<a class="headerlink" href="#cross-model-measures" title="Permanent link">&para;</a></h2>
-<p>The comparison evaluates common physical output times with ensemble centroid,
-transport distance, horizontal dispersion, vertical mean, and occupied audit
-cells. Different source-sampling random generators and trajectory integrators
-prevent a particle-ID crosswalk. Ensemble differences are report-only; they do
-not replace either program's internal hard gates.</p>
-<p>Across the frozen repetitions, horizontal centroid separation ranges from
-about 61 m to 277 m. Dispersion-width ratios range from 1.0012 to 1.0051.
-These values describe this one contract and dataset. They are not universal
-accuracy tolerances.</p>
+<p>Trajecta-ready arrays are compared directly with the prepared source arrays.
+Surface pressure reconstructed from logarithmic pressure uses an explicit
+round-off tolerance. GRIB values staged for FLEXPART are compared with their
+source values within each message's ecCodes packing error. This accounts for
+the quantization introduced by GRIB packing while keeping units and physical
+interpretation aligned.</p>
+<h3 id="query-coverage">Query coverage<a class="headerlink" href="#query-coverage" title="Permanent link">&para;</a></h3>
+<p>Reader checks cover the physical times, grid locations, and vertical range
+needed by the Case. A query must return the requested fields with finite values
+inside the dataset's safe spatial core. The DatasetLock fixes the files and
+coverage that the production run later uses.</p>
+<h2 id="trajecta-run-checks">Trajecta run checks<a class="headerlink" href="#trajecta-run-checks" title="Permanent link">&para;</a></h2>
+<p>Before a Trajecta output is used for cross-model metrics, the run closes with
+<code>complete</code> and zero abnormal terminations. Its full verification includes:</p>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Population</td>
+<td>Initial count, active count, and every termination remain mutually consistent</td>
+</tr>
+<tr>
+<td>Lifecycle</td>
+<td>Scheduled output states are ordered and each particle has one valid state path</td>
+</tr>
+<tr>
+<td>Numeric values</td>
+<td>Coordinates, height, time, and population quantities remain finite and within their declared constraints</td>
+</tr>
+<tr>
+<td>Mass ledger</td>
+<td>Initial, active, boundary, and terminated mass entries close at each event</td>
+</tr>
+<tr>
+<td>Boundaries</td>
+<td>Domain and vertical boundary classifications follow the selected Case</td>
+</tr>
+<tr>
+<td>Output</td>
+<td>Manifest counts agree with SQLite; integrity succeeds; the terminal WAL is truncated or absent</td>
+</tr>
+<tr>
+<td>Provenance</td>
+<td>Resolved inputs, software identity, and canonical output digest are complete</td>
+</tr>
+<tr>
+<td>Determinism</td>
+<td>Formal repetitions retain the required normalized content, SQL, and canonical identities</td>
+</tr>
+</tbody>
+</table>
+<p>The corresponding FLEXPART product run is also required to finish successfully
+and to contain the expected particle count and three common output times.</p>
+<h2 id="ensemble-metric-definitions">Ensemble metric definitions<a class="headerlink" href="#ensemble-metric-definitions" title="Permanent link">&para;</a></h2>
+<p>Metrics are calculated from finite active particle coordinates at each common
+time.</p>
+<h3 id="horizontal-centroid">Horizontal centroid<a class="headerlink" href="#horizontal-centroid" title="Permanent link">&para;</a></h3>
+<p>Longitude and latitude are converted to unit-sphere Cartesian coordinates,
+averaged, and converted back to geographic coordinates. This spherical mean
+handles longitude wraparound. Horizontal centroid separation is the great-
+circle distance between the two ensemble centroids using a mean Earth radius of
+6,371,008.8 m.</p>
+<h3 id="vertical-centroid">Vertical centroid<a class="headerlink" href="#vertical-centroid" title="Permanent link">&para;</a></h3>
+<p>Height is expressed as metres above sea level. For the FLEXPART particle
+product, terrain height is added to the stored height before the ensemble mean
+is calculated. The reported vertical difference is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Trajecta mean height ASL - FLEXPART mean height ASL
+</code></pre></div>
+<h3 id="transport-distance">Transport distance<a class="headerlink" href="#transport-distance" title="Permanent link">&para;</a></h3>
+<p>Each centroid's great-circle distance from 5.25° E, 49.25° N is calculated.
+The table reports the Trajecta distance minus the FLEXPART distance. A positive
+value places the Trajecta centroid farther from the source at that output time.</p>
+<h3 id="horizontal-dispersion">Horizontal dispersion<a class="headerlink" href="#horizontal-dispersion" title="Permanent link">&para;</a></h3>
+<p>For each particle, the great-circle distance from its ensemble centroid is
+calculated. The root mean square of those distances gives the horizontal
+dispersion width. The published ratio is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Trajecta RMS dispersion / FLEXPART RMS dispersion
+</code></pre></div>
+<h3 id="occupied-audit-cells">Occupied audit cells<a class="headerlink" href="#occupied-audit-cells" title="Permanent link">&para;</a></h3>
+<p>Coordinates are assigned to a diagnostic grid with 0.1° longitude, 0.1°
+latitude, and 250 m height cells. Occupancy counts the distinct cells containing
+at least one particle. The published value divides the Trajecta count by the
+FLEXPART count.</p>
+<h2 id="published-ensemble-values">Published ensemble values<a class="headerlink" href="#published-ensemble-values" title="Permanent link">&para;</a></h2>
+<p>Formal repetitions produced the same scientific rows within each population,
+so the median at each time equals the row shown below.</p>
+<h3 id="10000-particles">10,000 particles<a class="headerlink" href="#10000-particles" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Elapsed time</th>
+<th style="text-align: right;">Horizontal centroid separation</th>
+<th style="text-align: right;">Vertical difference</th>
+<th style="text-align: right;">Transport-distance difference</th>
+<th style="text-align: right;">Dispersion ratio</th>
+<th style="text-align: right;">Occupancy ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">20 min</td>
+<td style="text-align: right;">214.89 m</td>
+<td style="text-align: right;">-22.46 m</td>
+<td style="text-align: right;">214.68 m</td>
+<td style="text-align: right;">1.00116</td>
+<td style="text-align: right;">0.98148</td>
+</tr>
+<tr>
+<td style="text-align: right;">40 min</td>
+<td style="text-align: right;">229.48 m</td>
+<td style="text-align: right;">-37.87 m</td>
+<td style="text-align: right;">214.22 m</td>
+<td style="text-align: right;">1.00191</td>
+<td style="text-align: right;">1.01802</td>
+</tr>
+<tr>
+<td style="text-align: right;">60 min</td>
+<td style="text-align: right;">276.55 m</td>
+<td style="text-align: right;">-49.79 m</td>
+<td style="text-align: right;">175.45 m</td>
+<td style="text-align: right;">1.00373</td>
+<td style="text-align: right;">0.98291</td>
+</tr>
+</tbody>
+</table>
+<h3 id="50000-particles">50,000 particles<a class="headerlink" href="#50000-particles" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Elapsed time</th>
+<th style="text-align: right;">Horizontal centroid separation</th>
+<th style="text-align: right;">Vertical difference</th>
+<th style="text-align: right;">Transport-distance difference</th>
+<th style="text-align: right;">Dispersion ratio</th>
+<th style="text-align: right;">Occupancy ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">20 min</td>
+<td style="text-align: right;">60.66 m</td>
+<td style="text-align: right;">-19.29 m</td>
+<td style="text-align: right;">30.45 m</td>
+<td style="text-align: right;">1.00288</td>
+<td style="text-align: right;">0.98182</td>
+</tr>
+<tr>
+<td style="text-align: right;">40 min</td>
+<td style="text-align: right;">143.45 m</td>
+<td style="text-align: right;">-34.64 m</td>
+<td style="text-align: right;">22.25 m</td>
+<td style="text-align: right;">1.00344</td>
+<td style="text-align: right;">0.99130</td>
+</tr>
+<tr>
+<td style="text-align: right;">60 min</td>
+<td style="text-align: right;">271.88 m</td>
+<td style="text-align: right;">-46.43 m</td>
+<td style="text-align: right;">-20.33 m</td>
+<td style="text-align: right;">1.00514</td>
+<td style="text-align: right;">0.97521</td>
+</tr>
+</tbody>
+</table>
+<p>The 50,000-particle ensemble reduces the early centroid sampling difference;
+the separation at 60 minutes is similar for the two population sizes. The
+dispersion ratios remain close to one throughout this case, while the negative
+vertical values place the Trajecta centroid modestly below the FLEXPART
+centroid at the common times.</p>
+<h2 id="scope-of-the-result">Scope of the result<a class="headerlink" href="#scope-of-the-result" title="Permanent link">&para;</a></h2>
+<p>This comparison concerns a one-hour ERA5 hybrid-level advection case with the
+settings in the table above. It uses ensemble statistics because the two
+programs draw and integrate individual particles through different random
+sampling and numerical paths. Particle ID <code>42</code> in one output has no assigned
+counterpart in the other output.</p>
+<p>Chemistry, wet or dry deposition, convection, turbulence configurations,
+long-duration accumulation, other grids, and other release geometries require
+their own aligned cases and metric choices. The
+<a href="../comparability/">comparability matrix</a> records which fields are exact,
+aligned, aggregate-only, or outside this publication comparison.</p>
 
 
 
