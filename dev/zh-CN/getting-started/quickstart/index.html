@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="使用四帧 CFSR 演示资料运行并完整验证一个小型 domain-fill 水汽案例。">
+        <meta name="description" content="使用四个时次的 CFSR 演示资料，运行并完整验证一个小型区域填充水汽案例。">
       
       
       
@@ -24,7 +24,7 @@
     
     
       
-        <title>十五分钟 domain-fill 快速入门 - Trajecta</title>
+        <title>十五分钟区域填充快速入门 - Trajecta</title>
       
     
     
@@ -81,7 +81,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#domain-fill" class="md-skip">
+        <a href="#_1" class="md-skip">
           跳转至
         </a>
       
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              十五分钟 domain-fill 快速入门
+              十五分钟区域填充快速入门
             
           </span>
         </div>
@@ -467,18 +467,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-data-plan" class="md-nav__link">
+  <a href="#5" class="md-nav__link">
     <span class="md-ellipsis">
-      5. 校验项目并生成 data-plan
+      5. 校验项目并生成资料计划
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-finalize" class="md-nav__link">
+  <a href="#6" class="md-nav__link">
     <span class="md-ellipsis">
-      6. Finalize 并检查环境
+      6. 锁定资料并检查环境
     </span>
   </a>
   
@@ -503,9 +503,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_1" class="md-nav__link">
+  <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      完成检查
+      确认本次运行
     </span>
   </a>
   
@@ -2186,18 +2186,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-data-plan" class="md-nav__link">
+  <a href="#5" class="md-nav__link">
     <span class="md-ellipsis">
-      5. 校验项目并生成 data-plan
+      5. 校验项目并生成资料计划
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-finalize" class="md-nav__link">
+  <a href="#6" class="md-nav__link">
     <span class="md-ellipsis">
-      6. Finalize 并检查环境
+      6. 锁定资料并检查环境
     </span>
   </a>
   
@@ -2222,9 +2222,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_1" class="md-nav__link">
+  <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      完成检查
+      确认本次运行
     </span>
   </a>
   
@@ -2249,16 +2249,17 @@
   
 
 
-<h1 id="domain-fill">十五分钟 domain-fill 快速入门<a class="headerlink" href="#domain-fill" title="Permanent link">&para;</a></h1>
-<p>本流程使用 CFSR 全球压力层资料运行一个小型水汽追踪案例。Trajecta 在研究区域内
+<h1 id="_1">十五分钟区域填充快速入门<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<p>本流程使用 CFSR 全球气压层资料运行一个小型水汽追踪案例。Trajecta 在研究区域内
 生成 1,000 个气团粒子，向前积分十分钟，并在起止时刻保存粒子状态。后续步骤会完成
-项目校验、资料锁定、任务运行和结果读取。大型研究使用相同的 Case、RunProfile、
-DatasetLock、任务队列和结果目录结构。</p>
-<p>四帧演示资料约 22 MiB。使用已经构建好的发布包时，从解压到完成 full verify 通常可在
+项目校验、资料锁定、任务运行和结果读取。将案例扩大到正式研究规模时，仍沿用相同的案例、
+运行配置、资料锁、任务队列和结果目录结构。</p>
+<p>四个时次的演示资料约 22 MiB。使用已经构建好的发布包时，从解压到完成完整验证通常可在
 十五分钟内完成。第一次从源码构建会花费更多时间，主要耗时来自 Cargo 编译依赖。</p>
 <h2 id="1">1. 获得可执行文件<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <p>可以从 <a href="https://github.com/origin652/trajecta/releases">GitHub Releases</a> 下载对应平台的
-发布包，也可以直接从源码构建。下面的依赖表适用于本页使用的纯 Rust reader 构建。</p>
+发布包，也可以直接从源码构建。下面的依赖表说明纯 Rust 读取器的构建条件，以及正式
+发布包携带的原生库版本。</p>
 <table>
 <thead>
 <tr>
@@ -2273,23 +2274,23 @@ DatasetLock、任务队列和结果目录结构。</p>
 </tr>
 <tr>
 <td>Windows 编译工具</td>
-<td>64 位 MSVC C/C++ Build Tools</td>
+<td>与 Rust 主机目标一致的 64 位链接器；正式原生构建使用 MSYS2 UCRT64 GNU 工具链</td>
 </tr>
 <tr>
 <td>Ubuntu 编译工具</td>
-<td>常规 C/C++ build toolchain</td>
+<td>与 <code>x86_64-unknown-linux-gnu</code> 匹配的 C/C++ 构建工具链</td>
 </tr>
 <tr>
 <td>ecCodes</td>
-<td>本案例选择 Rust reader；发布包内的 native reader 使用 <code>2.47.0</code></td>
+<td>纯 Rust 构建无需安装；Windows 发布包为 <code>2.47.0</code>，Ubuntu 发布包为 <code>2.34.1</code></td>
 </tr>
 <tr>
 <td>netCDF-C</td>
-<td>本案例选择 Rust reader；发布包内的 native reader 使用 <code>4.9.3</code></td>
+<td>纯 Rust 构建无需安装；Windows 发布包为 <code>4.9.3</code>，Ubuntu 发布包为 <code>4.9.2</code></td>
 </tr>
 <tr>
 <td>HDF5</td>
-<td>本案例选择 Rust reader；发布包内的 native reader 使用 <code>1.14.6</code></td>
+<td>纯 Rust 构建无需安装；Windows 发布包为 <code>1.14.6</code>，Ubuntu 发布包为 <code>1.10.10</code></td>
 </tr>
 <tr>
 <td>Python</td>
@@ -2297,7 +2298,7 @@ DatasetLock、任务队列和结果目录结构。</p>
 </tr>
 </tbody>
 </table>
-<p>从源码构建 Release 二进制：</p>
+<p>从源码构建发布版可执行文件：</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Windows PowerShell</label><label for="__tabbed_1_2">Ubuntu 24.04</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
@@ -2378,7 +2379,7 @@ DatasetLock、任务队列和结果目录结构。</p>
 <h2 id="2">2. 下载并校验资料<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
 <p>下载
 <a href="https://github.com/origin652/trajecta/releases/download/v0.1.0-alpha.1/trajecta-demo-cfsr-20090101-v1.zip"><code>trajecta-demo-cfsr-20090101-v1.zip</code></a>。
-冻结的归档 SHA-256 为：</p>
+该演示资料归档的 SHA-256 为：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cd2c38083130c014daac4b4fcde0680d3f3d6bc2df43daf22c8cd015e95919f8
 </code></pre></div>
 <p>校验归档后解压，并将四个文件复制到示例项目的数据目录。</p>
@@ -2400,12 +2401,12 @@ DatasetLock、任务队列和结果目录结构。</p>
 </div>
 </div>
 </div>
-<p>各文件身份见<a href="../demo-data/">演示资料</a>。</p>
+<p>各文件的名称、大小和 SHA-256 见<a href="../demo-data/">演示资料</a>。</p>
 <p>解压后的资料包含 2009 年 1 月 1 日 00、06、12 和 18 UTC 四个时次。示例只积分
-06:00 至 06:10 这十分钟，四帧文件共同构成该 dataset profile 使用的时间范围。</p>
+06:00 至 06:10 这十分钟。四个时次的文件共同覆盖该数据集配置所需的时间范围。</p>
 <h2 id="3">3. 了解示例项目<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
-<p>示例位于 <code>examples/domain-fill-cfsr</code>。项目索引中包含一个名为 <code>moisture</code> 的 Case，
-以及一个名为 <code>product</code> 的 RunProfile。</p>
+<p>示例位于 <code>examples/domain-fill-cfsr</code>。项目索引包含名为 <code>moisture</code> 的案例，以及名为
+<code>product</code> 的运行配置。前者规定科学问题，后者补充本机路径和执行资源。</p>
 <table>
 <thead>
 <tr>
@@ -2423,7 +2424,7 @@ DatasetLock、任务队列和结果目录结构。</p>
 <td>向前</td>
 </tr>
 <tr>
-<td>粒子总体</td>
+<td>粒子群</td>
 <td><code>domain_fill_air_mass</code>，1,000 个粒子</td>
 </tr>
 <tr>
@@ -2448,9 +2449,9 @@ DatasetLock、任务队列和结果目录结构。</p>
 </tr>
 </tbody>
 </table>
-<p>模拟时段、粒子总体和数值设置位于 <code>cases/moisture.yaml</code>。本机路径及资源需求位于
+<p>模拟时段、粒子群和数值设置位于 <code>cases/moisture.yaml</code>。本机路径及资源需求位于
 <code>profiles/product.yaml</code>。项目索引把逻辑数据集 <code>cfsr</code> 绑定到
-<code>cfsr-pgbl-pressure-v0</code>，运行时再通过 DatasetLock 确定实际使用的四个文件。</p>
+<code>cfsr-pgbl-pressure-v0</code>，运行时再通过资料锁确定实际使用的四个源文件。</p>
 <h2 id="4">4. 创建本机配置<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
 <p>以下命令均在安装包根目录运行。</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>trajecta --config quickstart.toml config init
@@ -2459,19 +2460,19 @@ DatasetLock、任务队列和结果目录结构。</p>
 <a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>trajecta --config quickstart.toml config set resources.memory_pool_mib 1536
 <a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>trajecta --config quickstart.toml config validate
 </code></pre></div>
-<p><code>cpu_slots</code> 是本机可供调度器分配的 CPU 槽位。<code>memory_pool_mib</code> 设置 Trajecta worker
-可使用的内存池，<code>memory_reserve_mib</code> 为操作系统、daemon 和同机程序预留空间。示例
-Profile 申请一个 worker 线程和 1 GiB 内存，上述配置可同时接纳一个示例任务。</p>
-<p><code>quickstart.toml</code> 是本机配置，可以供同一台机器上的多个项目复用。Case 和 Profile
+<p><code>cpu_slots</code> 是本机可供调度器分配的 CPU 槽位。<code>memory_pool_mib</code> 设置 Trajecta 可纳入
+调度的内存池，<code>memory_reserve_mib</code> 为操作系统、守护进程和同机程序预留空间。示例
+运行配置申请一个工作线程和 1 GiB 内存，因此上述资源池可以接纳一个示例任务。</p>
+<p><code>quickstart.toml</code> 是本机配置，可以供同一台机器上的多个项目复用。案例和运行配置
 仍保存在各自的项目目录中。</p>
-<h2 id="5-data-plan">5. 校验项目并生成 data-plan<a class="headerlink" href="#5-data-plan" title="Permanent link">&para;</a></h2>
+<h2 id="5">5. 校验项目并生成资料计划<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>trajecta --project examples/domain-fill-cfsr project validate
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>trajecta --format json --project examples/domain-fill-cfsr project data-plan --output data-plan.json
 <a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>python tools/fetch_trajecta_data.py --project examples/domain-fill-cfsr --plan data-plan.json
 </code></pre></div>
 <p>下载助手默认展示资料请求和目标路径。本例中，四帧文件复制完成后均显示为已存在。
-DatasetLock 在下一步 finalization 时生成。</p>
-<p>data-plan 中的这项需求应包含以下主要字段：</p>
+资料锁会在下一步执行 <code>project finalize</code> 时生成。</p>
+<p>资料计划（<code>data-plan</code>）中与本例对应的需求会包含以下主要字段：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">{</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">&quot;case_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;moisture&quot;</span><span class="p">,</span>
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">&quot;profile_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;product&quot;</span><span class="p">,</span>
@@ -2486,38 +2487,39 @@ DatasetLock 在下一步 finalization 时生成。</p>
 <a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;partial&quot;</span>
 <a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="p">}</span>
 </code></pre></div>
-<p><code>partial</code> 表示项目文档已经解析完成，资料 lock 还在等待 finalization。下载助手读取
-data-plan 后会逐一显示目标文件及其本地状态。</p>
-<h2 id="6-finalize">6. Finalize 并检查环境<a class="headerlink" href="#6-finalize" title="Permanent link">&para;</a></h2>
+<p><code>partial</code> 表示项目文档已经解析完成，但资料锁尚未创建。下载助手读取资料计划后，
+会逐一显示目标文件及其本地状态。</p>
+<h2 id="6">6. 锁定资料并检查环境<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>trajecta --config quickstart.toml --project examples/domain-fill-cfsr project finalize
 <a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>trajecta --config quickstart.toml --project examples/domain-fill-cfsr doctor --deep
 </code></pre></div>
-<p><code>project finalize</code> 读取本地文件，为 <code>examples/domain-fill-cfsr/locks/cfsr.lock.json</code>
-写入文件 SHA-256、有效时次、网格签名、压力层签名、dataset profile 和读取能力。
-Case、Profile 与资料内容由此绑定为一次可运行的项目配置。</p>
-<p><code>doctor --deep</code> 检查所选本机配置、项目资料、DatasetLock 和结果文件系统，并执行一次
-SQLite WAL 创建与 checkpoint 循环。命令结束时会按阶段列出检查结果；全部通过后即可
-提交任务。</p>
+<p>项目定稿命令 <code>project finalize</code> 读取本地文件，为
+<code>examples/domain-fill-cfsr/locks/cfsr.lock.json</code>
+写入文件 SHA-256、有效时次、网格签名和气压层签名，同时记录内置资料配置及其读取能力。
+案例、运行配置与资料内容由此绑定为一次可运行的项目配置。</p>
+<p><code>doctor --deep</code> 检查所选本机配置、项目资料、资料锁和结果文件系统。深度检查还会实际创建
+SQLite 数据库，写入 WAL，运行完整性检查，截断检查点并清理临时文件。命令结束时会按阶段
+列出检查结果；全部通过后即可提交任务。</p>
 <h2 id="7">7. 前台运行<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>trajecta --config quickstart.toml --project examples/domain-fill-cfsr run --profile product
 </code></pre></div>
 <p>命令默认前台等待，终端会持续显示任务状态。输出中的 <code>job_series_id</code> 标识整个任务，
-<code>run_id</code> 标识本次 attempt，<code>output_directory</code> 给出结果目录。任务接收完成后，本地 daemon
-负责调度，worker 执行数值计算并写入结果。</p>
+<code>run_id</code> 标识本次执行轮次，<code>output_directory</code> 给出结果目录。任务被接收后，本地守护进程
+负责调度，工作进程执行数值计算并写入结果。</p>
 <p>成功运行的结果路径采用以下结构：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>examples/domain-fill-cfsr/runs/domain-fill-cfsr/RUN_ID/
 </code></pre></div>
 <p>需要让终端在任务接收后立即返回时，可以在后续项目中使用 <code>--detach</code>。后台任务可通过
 <code>job events JOB_ID --follow</code> 连续查看事件，也可通过 <code>job wait JOB_ID</code> 等待终态。</p>
 <h2 id="8">8. 验证并读取结果<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
-<p>将 <code>RESULT</code> 替换为运行目录或 job-series 身份。</p>
+<p>将 <code>RESULT</code> 替换为结果目录、任务系列 ID 或运行 ID。</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>trajecta --config quickstart.toml result verify RESULT --full
 <a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>trajecta --config quickstart.toml result inspect RESULT
 <a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>trajecta --config quickstart.toml result trajectory RESULT --particle-id 0
 <a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>trajecta --config quickstart.toml run report --result RESULT
 </code></pre></div>
-<p>Full verify 成功后，结果状态为 <code>complete</code>。<code>result inspect</code> 会汇总 1,000 个粒子、
-2 个输出时次、2,000 条粒子状态记录和异常终止计数。每次运行会产生新的 run ID。</p>
+<p>完整验证成功后，结果状态为 <code>complete</code>。<code>result inspect</code> 会汇总 1,000 个粒子、
+2 个输出时次、2,000 条粒子状态记录和异常终止计数。每次运行会产生新的运行 ID。</p>
 <p>结果目录中的主要文件如下：</p>
 <table>
 <thead>
@@ -2529,7 +2531,7 @@ SQLite WAL 创建与 checkpoint 循环。命令结束时会按阶段列出检查
 <tbody>
 <tr>
 <td><code>run-manifest.json</code></td>
-<td>运行状态、输入、数值设置、质量统计和文件身份</td>
+<td>运行状态、输入、数值设置、质量统计和文件散列</td>
 </tr>
 <tr>
 <td><code>particles.sqlite</code></td>
@@ -2541,15 +2543,15 @@ SQLite WAL 创建与 checkpoint 循环。命令结束时会按阶段列出检查
 </tr>
 <tr>
 <td><code>resolved-case.json</code></td>
-<td>worker 实际执行的 Case</td>
+<td>工作进程实际执行的案例文档</td>
 </tr>
 <tr>
 <td><code>resolved-run-profile.json</code></td>
-<td>本次运行使用的本机绑定</td>
+<td>本次运行实际采用的运行配置</td>
 </tr>
 <tr>
 <td><code>provenance-bundle.json</code></td>
-<td>输出记录关联的气象记录与变换过程</td>
+<td>与输出记录关联的气象来源及变换过程</td>
 </tr>
 <tr>
 <td><code>run-report.md</code></td>
@@ -2560,17 +2562,17 @@ SQLite WAL 创建与 checkpoint 循环。命令结束时会按阶段列出检查
 <p><code>result trajectory</code> 会输出粒子 0 在起止时刻的两条记录。经纬度、气压、高度和时间展示
 了该粒子在十分钟内的移动。读取更多粒子时，可以选择 JSONL 格式并把输出重定向到分析
 文件。</p>
-<h2 id="_1">完成检查<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<h2 id="_2">确认本次运行<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Manifest 状态为 <code>complete</code>。</li>
+<li>运行清单中的状态为 <code>complete</code>。</li>
 <li>异常粒子数为零。</li>
-<li>Full verify 成功。</li>
+<li><code>result verify --full</code> 成功。</li>
 <li><code>particles.sqlite</code> 通过完整性与行数检查。</li>
-<li><code>provenance-bundle.json</code> 与 manifest 身份一致。</li>
+<li><code>provenance-bundle.json</code> 中记录的运行 ID 与运行清单一致。</li>
 </ul>
 <p>任一项目失败时，请保留结果目录并查阅<a href="../../operations/troubleshooting/">故障索引</a>。</p>
 <p>至此，一个项目已经完成从配置、资料锁定和任务执行到结果读取的完整流程。下一步可进入
-<a href="../../tutorials/domain-fill/">domain-fill 水汽追踪教程</a>，延长模拟时段并调整粒子数量与
+<a href="../../tutorials/domain-fill/">区域填充水汽追踪教程</a>，延长模拟时段并调整粒子数量与
 输出间隔。</p>
 
 

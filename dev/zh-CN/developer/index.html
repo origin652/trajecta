@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Trajecta workspace 的目录职责、依赖方向、修改入口和贡献者接口。">
+        <meta name="description" content="Trajecta 工作区的目录职责、依赖方向、修改入口和贡献者接口。">
       
       
       
@@ -1799,7 +1799,7 @@
         <li class="md-nav__item">
   <a href="#crate" class="md-nav__link">
     <span class="md-ellipsis">
-      跨 crate 的合同
+      跨 crate 的数据约定
     </span>
   </a>
   
@@ -2143,7 +2143,7 @@
         <li class="md-nav__item">
   <a href="#crate" class="md-nav__link">
     <span class="md-ellipsis">
-      跨 crate 的合同
+      跨 crate 的数据约定
     </span>
   </a>
   
@@ -2178,10 +2178,10 @@
 
 
 <h1 id="_1">开发架构<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>Trajecta 的 Rust workspace 包含五个产品 crate。目录划分遵循一次模拟的处理顺序：先解析文档，
+<p>Trajecta 的 Rust 工作区包含五个主要 crate。目录划分遵循一次模拟的处理顺序：先解析文档，
 再准备气象资料，随后推进粒子并写出结果，任务系统负责调度，命令行负责呈现。沿着这条链路定位
 修改，可以较快找到规则的归属位置。</p>
-<p>本节面向参与 Rust 实现、测试设施、打包工具或文档维护的贡献者。已经承诺给使用者的产品接口
+<p>本节面向参与 Rust 实现、测试设施、打包工具或文档维护的贡献者。已经提供给使用者的公开接口
 集中列在<a href="../reference/">参考手册</a>。</p>
 <h2 id="_2">仓库目录<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <table>
@@ -2195,33 +2195,33 @@
 <tbody>
 <tr>
 <td><code>crates/trajecta-case</code></td>
-<td>Case 与 RunProfile 文档、单位、本地引用、诊断和 DatasetLock 类型</td>
+<td>案例与运行配置文档、单位、本地引用、诊断和资料锁类型</td>
 <td>新增可验证字段、引用规则或文档诊断</td>
 </tr>
 <tr>
 <td><code>crates/trajecta-met</code></td>
-<td>Dataset Profile、源文件读取、原生网格、垂直坐标、字段推导、插值和查询准备</td>
+<td>数据集运行配置、源文件读取、原生网格、垂直坐标、字段推导、插值和查询准备</td>
 <td>新读取器、推导字段、垂直坐标规则或查询优化</td>
 </tr>
 <tr>
 <td><code>crates/trajecta-core</code></td>
-<td>模拟时钟、粒子状态、RK2 积分、边界、population、输出、manifest 和结果验证</td>
+<td>模拟时钟、粒子状态、RK2 积分、边界、粒子群、输出、运行清单和结果验证</td>
 <td>数值规则、生命周期、输出记录或科学检查</td>
 </tr>
 <tr>
 <td><code>crates/trajecta-job</code></td>
-<td>持久化本地 catalog、调度器、attempt、事件历史、IPC、daemon 与 worker 控制</td>
+<td>持久化本地任务数据库、调度器、执行轮次、事件历史、IPC、守护进程与工作进程控制</td>
 <td>队列转换、恢复规则、资源决策或任务事件</td>
 </tr>
 <tr>
 <td><code>crates/trajecta-cli</code></td>
-<td>命令解析、项目组装、调用分发、机器输出 envelope 和结果视图</td>
-<td>新命令、渲染器、项目操作或退出码映射</td>
+<td>命令解析、项目组装、调用分发、机器可读响应和结果视图</td>
+<td>新命令、输出格式、项目操作或退出码映射</td>
 </tr>
 <tr>
 <td><code>testdata</code></td>
-<td>公开 schema、冻结合同、小型 fixture 和验证输入</td>
-<td>与 schema 一致的示例或带版本的合同 fixture</td>
+<td>公开结构定义、冻结的接口约定、小型测试资料和验证输入</td>
+<td>与结构定义一致的示例或带版本的约定样例</td>
 </tr>
 <tr>
 <td><code>examples</code></td>
@@ -2240,12 +2240,12 @@
 </tr>
 <tr>
 <td><code>docs/engineering</code></td>
-<td>计划、Prompt、执行报告和历史设计资料</td>
+<td>计划、提示词、执行报告和历史设计资料</td>
 <td>工程记录；不会进入公开站点</td>
 </tr>
 </tbody>
 </table>
-<p>Workspace 的依赖方向如下：</p>
+<p>工作区的依赖方向如下：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta-case
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    └── trajecta-met
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>            └── trajecta-core
@@ -2255,25 +2255,25 @@
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>trajecta-core 还会直接使用 trajecta-case 的文档类型。
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>trajecta-job 会使用 trajecta-case 中已经验证的输入类型。
 </code></pre></div>
-<p>底层 crate 不会反向调用 CLI。数值执行也不依赖 daemon，因此直接集成测试和 daemon 启动的
-worker 可以共用同一条 <code>trajecta-core</code> 执行路径。</p>
+<p>底层 crate 不会反向调用 CLI。数值执行也不依赖守护进程，因此直接集成测试和守护进程启动的
+工作进程可以共用同一条 <code>trajecta-core</code> 执行路径。</p>
 <h2 id="_3">从命令到结果<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p>项目运行按以下顺序经过 workspace：</p>
+<p>项目运行按以下顺序经过工作区：</p>
 <ol>
-<li><code>trajecta-cli</code> 查找 <code>trajecta-project.yaml</code>，选择具名 Profile，并在项目根目录内解析相对路径。</li>
-<li><code>trajecta-case</code> 解析 Case 和 RunProfile。解析过程会拒绝未知字段，展开组件引用，规范化单位，
+<li><code>trajecta-cli</code> 查找 <code>trajecta-project.yaml</code>，按名称选择运行配置，并在项目根目录内解析相对路径。</li>
+<li><code>trajecta-case</code> 解析案例和运行配置。解析过程会拒绝未知字段，展开组件引用，规范化单位，
    最后返回顺序稳定的诊断。</li>
-<li><code>project finalize</code> 将解析后的文档绑定到 DatasetLock。Lock 记录本次运行使用的文件、哈希、
-   覆盖范围、能力集合和资料集身份。</li>
-<li><code>trajecta-job</code> 把请求写入本地 catalog。调度器预留 CPU slot 与内存，分配 attempt 身份，
-   然后启动 worker。</li>
-<li>Worker 调用 <code>trajecta-met</code> 建立锁定资料的索引，生成 canonical field，选择所需 frame window，
+<li><code>project finalize</code> 将解析后的文档绑定到资料锁。资料锁记录本次运行使用的文件及其散列，
+   同时保存时空覆盖范围、能力集合和资料集标识。</li>
+<li><code>trajecta-job</code> 把请求写入本地任务数据库。调度器预留 CPU 槽位与内存，分配执行轮次 ID，
+   然后启动工作进程。</li>
+<li>工作进程调用 <code>trajecta-met</code> 建立锁定资料的索引，生成规范字段，选择所需的资料帧窗口，
    并准备查询结构。</li>
-<li><code>trajecta-core</code> 创建 population，按照带符号的 macro step 推进。边界处理、粒子出生、终止和
+<li><code>trajecta-core</code> 创建粒子群，按照带符号的宏步推进。边界处理、粒子出生、终止和
    定时输出遵循稳定的生命周期顺序。</li>
-<li>输出事务关闭 SQLite，写入 provenance，并用终态 manifest 替换 running manifest。Job catalog
+<li>输出事务关闭 SQLite，写入溯源记录，并用终态运行清单替换运行中清单。任务数据库
    记录相同的终态，同时追加最后一条事件。</li>
-<li>结果命令读取公开 manifest 和 SQLite 文件，不会再次启动数值计算。</li>
+<li>结果命令读取公开运行清单和 SQLite 文件，不会再次启动数值计算。</li>
 </ol>
 <p><a href="science-path/">气象资料与数值路径</a>详细展开第 3 至第 6 步。<a href="runtime/">输出与运行时</a>
 说明任务入队、执行和终态恢复。</p>
@@ -2288,14 +2288,14 @@ worker 可以共用同一条 <code>trajecta-core</code> 执行路径。</p>
 </thead>
 <tbody>
 <tr>
-<td>增加 Case 字段</td>
-<td><code>trajecta-case</code> 的 model 与 schema</td>
-<td>展开逻辑、示例、自动生成的 schema 参考页</td>
+<td>增加案例字段</td>
+<td><code>trajecta-case</code> 的模型与结构定义</td>
+<td>展开逻辑、示例、自动生成的结构定义参考页</td>
 </tr>
 <tr>
-<td>增加资料家族</td>
-<td><code>trajecta-met</code> 的 Profile、inventory 与 reader</td>
-<td>Lock capability、真实 fixture、软件包矩阵</td>
+<td>增加资料系列</td>
+<td><code>trajecta-met</code> 的运行配置、清单与读取器</td>
+<td>资料锁能力要求、真实固定测试资料、软件包矩阵</td>
 </tr>
 <tr>
 <td>修改插值</td>
@@ -2305,102 +2305,102 @@ worker 可以共用同一条 <code>trajecta-core</code> 执行路径。</p>
 <tr>
 <td>修改粒子运动</td>
 <td><code>trajecta-core/integrator</code></td>
-<td>正反向 replay、边界、输出身份</td>
+<td>正反向回放、边界、输出摘要</td>
 </tr>
 <tr>
-<td>修改 population</td>
+<td>修改粒子群</td>
 <td><code>trajecta-core/population</code>，气象推导放在 <code>trajecta-met</code></td>
 <td>质量账本、出生、稳定 ID、教程</td>
 </tr>
 <tr>
 <td>增加结果字段</td>
-<td><code>trajecta-core/output</code> 与 manifest</td>
-<td>SQLite schema、验证、result inspect、参考页</td>
+<td><code>trajecta-core/output</code> 与运行清单</td>
+<td>SQLite 结构定义、验证、结果检查、参考页</td>
 </tr>
 <tr>
 <td>修改队列行为</td>
 <td><code>trajecta-job</code></td>
-<td>Catalog 事务、IPC、CLI 事件流、恢复测试</td>
+<td>任务数据库事务、IPC、CLI 事件流、恢复测试</td>
 </tr>
 <tr>
 <td>增加命令</td>
 <td><code>trajecta-cli</code></td>
-<td>CLI 合同、JSON/JSONL envelope、退出码、自动参考页</td>
+<td>CLI 约定、JSON/JSONL 响应格式、退出码、自动参考页</td>
 </tr>
 <tr>
 <td>修改软件包内容</td>
 <td><code>tools/m5_a4_package.py</code></td>
-<td>Build manifest、SBOM、全新解压、两个平台</td>
+<td>构建清单、SBOM、全新解压测试、两个平台</td>
 </tr>
 <tr>
 <td>修改公开文档</td>
 <td><code>docs/user/en</code> 与 <code>docs/user/zh-CN</code></td>
-<td>严格构建、链接、双语结构、dev/release SEO</td>
+<td>严格构建、链接、双语结构，以及开发预览与发布站点的 SEO</td>
 </tr>
 </tbody>
 </table>
-<p>一项功能可能跨过表中的多行。新规则应放在拥有该含义的层中，后续 adapter 直接调用它，避免在
-命令行、worker 或测试工具里另写一份实现。</p>
-<h2 id="crate">跨 crate 的合同<a class="headerlink" href="#crate" title="Permanent link">&para;</a></h2>
-<p>下列对象在多个层之间传递，审查时需要同时查看生产方和使用方：</p>
+<p>一项功能可能跨过表中的多行。新规则应放在拥有该含义的层中，后续适配层直接调用它，避免在
+命令行、工作进程或测试工具里另写一份实现。</p>
+<h2 id="crate">跨 crate 的数据约定<a class="headerlink" href="#crate" title="Permanent link">&para;</a></h2>
+<p>下列对象会在多个层之间传递。审查修改时，需要同时查看生成位置和读取位置：</p>
 <table>
 <thead>
 <tr>
-<th>合同</th>
-<th>生产方</th>
-<th>主要使用方</th>
+<th>数据或接口</th>
+<th>生成位置</th>
+<th>主要读取位置</th>
 <th>兼容性重点</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>已解析的 Case 与 RunProfile</td>
+<td>已解析的案例与运行配置</td>
 <td><code>trajecta-case</code></td>
-<td>CLI、core runner</td>
+<td>CLI、核心运行器</td>
 <td>字段含义、默认值、规范化单位</td>
 </tr>
 <tr>
-<td>DatasetLock</td>
-<td>项目 finalize</td>
-<td>met loader、manifest builder</td>
-<td>文件身份、时空覆盖、capability</td>
+<td>资料锁</td>
+<td>项目定稿</td>
+<td>气象资料加载器、运行清单构建器</td>
+<td>文件标识、时空覆盖、能力要求</td>
 </tr>
 <tr>
-<td>Prepared query 与 typed sample status</td>
+<td>已准备查询与类型化样本状态</td>
 <td><code>trajecta-met</code></td>
 <td>积分器、边界采样器、输出</td>
-<td>Execute 阶段无隐式文件 I/O；无效状态明确可见</td>
+<td>执行阶段无隐式文件 I/O；无效状态明确可见</td>
 </tr>
 <tr>
-<td>Run manifest</td>
+<td>运行清单</td>
 <td><code>trajecta-core</code></td>
-<td>任务恢复、verify、结果命令</td>
-<td>生命周期、输入身份、行数、provenance</td>
+<td>任务恢复、验证、结果命令</td>
+<td>生命周期、输入散列、行数、溯源记录</td>
 </tr>
 <tr>
-<td>Job record 与 event</td>
+<td>任务记录与事件</td>
 <td><code>trajecta-job</code></td>
-<td>CLI status、wait、events、history</td>
-<td>持久化顺序、attempt 身份、终态语义</td>
+<td>CLI 状态、等待、事件与历史命令</td>
+<td>持久化顺序、执行轮次 ID、终态含义</td>
 </tr>
 <tr>
-<td>CLI envelope</td>
+<td>CLI 机器响应</td>
 <td><code>trajecta-cli</code></td>
 <td>Shell 脚本、AI 工具、CI</td>
-<td>完整命令路径、诊断结构、stdout 纪律</td>
+<td>完整命令路径、诊断结构、标准输出内容</td>
 </tr>
 </tbody>
 </table>
-<p><code>testdata</code> 中的公开 schema 描述磁盘格式和机器输出。Rust 类型是 workspace 内使用的编译期对应物。
-Alpha 阶段仍可能随着产品合同调整公开 Rust item，具体范围见 <a href="api/">Rust API</a>。</p>
+<p><code>testdata</code> 中的公开结构定义描述磁盘格式和机器输出。Rust 类型是工作区内使用的编译期对应物。
+Alpha 阶段仍可能随着公开格式调整 Rust 项，具体范围见 <a href="api/">Rust API</a>。</p>
 <h2 id="_5">常用贡献流程<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <p>多数修改可以沿用以下工作顺序：</p>
 <ol>
-<li>阅读目标 crate 的 <code>src/lib.rs</code> 顶部合同，以及离修改位置最近的 module 文档。</li>
-<li>编辑期间持续运行范围最小的单元测试或集成测试。</li>
-<li>检查受到影响的公开格式，包括 schema、example、diagnostic、CLI envelope、manifest 和 SQLite row。</li>
-<li>运行<a href="testing/">测试与 fixture</a>列出的格式化、lint、workspace test 和文档门禁。</li>
-<li>修改涉及 reader、数值路径、任务恢复或原生库时，再运行对应的真实资料或软件包门禁。</li>
+<li>阅读目标 crate 的 <code>src/lib.rs</code> 顶部说明，以及离修改位置最近的模块文档。</li>
+<li>编辑期间持续运行与改动最接近的单元测试或集成测试。</li>
+<li>检查受到影响的公开格式，包括结构定义、示例、诊断、CLI 机器响应、运行清单和 SQLite 行。</li>
+<li>运行<a href="testing/">测试与固定测试资料</a>列出的格式化、静态检查、工作区测试和文档检查。</li>
+<li>修改涉及读取器、数值路径、任务恢复或原生库时，再运行对应的真实资料或软件包门禁。</li>
 <li>使用者可见行为发生变化时，同步更新两个语言目录。</li>
 </ol>
 <p><code>0.1.0-alpha.1</code> 尚未提供动态插件加载。现有 crate 与 trait 边界可以支持后续设计，但当前不会

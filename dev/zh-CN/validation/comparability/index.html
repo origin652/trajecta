@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="查看 Trajecta 与 FLEXPART 的输入、coordinate、output、ensemble measure 与 runtime component 如何建立共同对比边界。">
+        <meta name="description" content="查看 Trajecta 与 FLEXPART 的输入、坐标、输出、粒子群统计和运行时间分别采用什么比较口径。">
       
       
       
@@ -1396,7 +1396,7 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      分类名称
+      分类含义
     </span>
   </a>
   
@@ -1405,16 +1405,7 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      矩阵
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#value" class="md-nav__link">
-    <span class="md-ellipsis">
-      气象 value 对齐
+      对照矩阵
     </span>
   </a>
   
@@ -1423,34 +1414,7 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      时间对齐
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#coordinate" class="md-nav__link">
-    <span class="md-ellipsis">
-      Coordinate 对齐
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#individual-particle-id" class="md-nav__link">
-    <span class="md-ellipsis">
-      Individual particle ID 未配对的原因
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#runtime" class="md-nav__link">
-    <span class="md-ellipsis">
-      Runtime 可比较性
+      气象值对齐
     </span>
   </a>
   
@@ -1459,7 +1423,43 @@
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      扩展矩阵
+      时间对齐
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      坐标对齐
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      为何不配对单个粒子
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行时间的可比较范围
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      建立新的比较矩阵
     </span>
   </a>
   
@@ -2143,7 +2143,7 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      分类名称
+      分类含义
     </span>
   </a>
   
@@ -2152,16 +2152,7 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      矩阵
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#value" class="md-nav__link">
-    <span class="md-ellipsis">
-      气象 value 对齐
+      对照矩阵
     </span>
   </a>
   
@@ -2170,34 +2161,7 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      时间对齐
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#coordinate" class="md-nav__link">
-    <span class="md-ellipsis">
-      Coordinate 对齐
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#individual-particle-id" class="md-nav__link">
-    <span class="md-ellipsis">
-      Individual particle ID 未配对的原因
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#runtime" class="md-nav__link">
-    <span class="md-ellipsis">
-      Runtime 可比较性
+      气象值对齐
     </span>
   </a>
   
@@ -2206,7 +2170,43 @@
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      扩展矩阵
+      时间对齐
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      坐标对齐
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      为何不配对单个粒子
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      运行时间的可比较范围
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      建立新的比较矩阵
     </span>
   </a>
   
@@ -2232,154 +2232,151 @@
 
 
 <h1 id="flexpart">FLEXPART 可比较性矩阵<a class="headerlink" href="#flexpart" title="Permanent link">&para;</a></h1>
-<p>轨迹对比先要确定每个 field 代表的物理量。两个产品都描述 atmospheric transport 时，file
-format、variable name、vertical convention、output cadence 和 particle sampling 仍可能不同。
-下表记录发布的一小时 Case 所采用的关系。</p>
-<h2 id="_1">分类名称<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>轨迹模型比较需要先对齐每个字段表示的物理量。即使两套程序都描述大气输送，文件格式、变量名、
+垂直坐标、输出间隔和粒子抽样仍可能不同。下表记录当前一小时案例采用的关系。</p>
+<h2 id="_1">分类含义<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>分类</th>
-<th>在本次对比中的含义</th>
+<th>本次比较中的含义</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>exact</code></td>
-<td>两侧选择相同 source quantity 或 contract value，并直接检查相等性</td>
+<td>两侧选择同一源物理量或同一约定值，可直接检查相等</td>
 </tr>
 <tr>
 <td><code>aligned</code></td>
-<td>经过已声明 conversion 或 packing tolerance 后，value 具有相同 unit 与 physical interpretation</td>
+<td>经过声明的单位转换或打包容差后，单位和物理含义一致</td>
 </tr>
 <tr>
 <td><code>aggregate-only</code></td>
-<td>对比 particle ensemble 的 statistic，不配对 individual record</td>
+<td>比较粒子群统计，不逐个配对粒子记录</td>
 </tr>
 <tr>
 <td><code>not-comparable</code></td>
-<td>本 matrix 中的产品没有共同 quantity 或 cost boundary</td>
+<td>当前矩阵中没有共同物理量或成本边界</td>
 </tr>
 </tbody>
 </table>
-<p>分类逐行适用。同一个 run 可以同时包含 exact input time、aligned height、aggregate-only
-particle statistic 和 implementation-specific output work。</p>
-<h2 id="_2">矩阵<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>分类按行使用。同一次运行可以同时包含完全一致的输入时刻、经过换算对齐的高度、只做集合统计的
+粒子位置，以及各自特有的输出开销。</p>
+<h2 id="_2">对照矩阵<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>维度</th>
 <th>分类</th>
-<th>使用的对齐方式</th>
+<th>对齐方式</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Official meteorological source file</td>
+<td>官方气象源文件</td>
 <td><code>exact</code></td>
-<td>两条 staging path 从同一组 frozen source byte 开始</td>
+<td>两条资料准备路径从同一组固定源字节开始</td>
 </tr>
 <tr>
-<td>Trajecta prepared meteorology</td>
+<td>Trajecta 准备后气象资料</td>
 <td><code>exact</code></td>
-<td>Prepared array 与 source array 比较；derived surface pressure 使用 bounded round-off</td>
+<td>准备后数组与源数组直接比较；地表气压派生使用有限舍入容差</td>
 </tr>
 <tr>
-<td>FLEXPART staged GRIB value</td>
+<td>FLEXPART 准备后 GRIB 值</td>
 <td><code>aligned</code></td>
-<td>每个 common field 保持在 source value 的 ecCodes packing error 内</td>
+<td>共同字段与源值之差位于对应 ecCodes 打包误差内</td>
 </tr>
 <tr>
-<td>Valid time</td>
+<td>有效时次</td>
 <td><code>exact</code></td>
-<td>固定四个 source frame 及其 UTC instant</td>
+<td>固定四个源资料时次及其 UTC 时刻</td>
 </tr>
 <tr>
-<td>Hybrid vertical definition</td>
+<td>混合垂直坐标</td>
 <td><code>aligned</code></td>
-<td>对齐 model level、half-level coefficient、pressure interpretation 与 unit</td>
+<td>对齐模式层、半层系数、气压解释和单位</td>
 </tr>
 <tr>
-<td>Wind、temperature、humidity 与共同 surface field</td>
+<td>风、气温、湿度和共同地表字段</td>
 <td><code>aligned</code></td>
-<td>Staging 后的 common physical field 使用相同 quantity 与 unit</td>
+<td>准备后采用相同物理量和单位</td>
 </tr>
 <tr>
-<td>Output instant</td>
+<td>输出时刻</td>
 <td><code>exact</code></td>
-<td>两侧 product 都包含 20、40 与 60 分钟 state</td>
+<td>两侧都包含 20、40 和 60 分钟状态</td>
 </tr>
 <tr>
-<td>Particle count</td>
+<td>粒子数</td>
 <td><code>exact</code></td>
-<td>每档 population 含选定的 10,000 或 50,000 个粒子</td>
+<td>两侧分别使用 10,000 或 50,000 个粒子</td>
 </tr>
 <tr>
-<td>Released mass contract</td>
+<td>释放质量约定</td>
 <td><code>exact</code></td>
-<td>共同 Case 使用相等 total released mass 与 population size</td>
+<td>共同案例采用相同总释放质量和粒子数量</td>
 </tr>
 <tr>
-<td>Longitude 与 latitude</td>
+<td>经度与纬度</td>
 <td><code>aligned</code></td>
-<td>Geographic degree 转入共同 spherical metric calculation</td>
+<td>地理坐标统一转换到球面统计</td>
 </tr>
 <tr>
-<td>Height</td>
+<td>高度</td>
 <td><code>aligned</code></td>
-<td>两侧以 metre above sea level 进入 ensemble metric</td>
+<td>粒子群统计统一使用海拔米</td>
 </tr>
 <tr>
-<td>Ensemble centroid</td>
+<td>粒子群质心</td>
 <td><code>aggregate-only</code></td>
-<td>计算 spherical ensemble mean 之间的 great-circle separation</td>
+<td>计算两个球面平均质心之间的大圆距离</td>
 </tr>
 <tr>
-<td>Horizontal dispersion</td>
+<td>水平离散度</td>
 <td><code>aggregate-only</code></td>
-<td>以 ratio 对比粒子到各自 ensemble centroid 的 RMS great-circle distance</td>
+<td>比较粒子到本方质心的大圆距离均方根比值</td>
 </tr>
 <tr>
-<td>Spatial occupancy</td>
+<td>空间占据范围</td>
 <td><code>aggregate-only</code></td>
-<td>以 ratio 对比共同 0.1° × 0.1° × 250 m audit grid 中的 distinct cell</td>
+<td>比较共同 0.1° × 0.1° × 250 m 诊断网格中的非空单元数比值</td>
 </tr>
 <tr>
-<td>Individual particle trajectory</td>
+<td>单个粒子轨迹</td>
 <td><code>not-comparable</code></td>
-<td>Random source sampling 与 integrator 不会产生共同 particle-ID assignment</td>
+<td>随机抽样与积分器没有共同粒子 ID 配对</td>
 </tr>
 <tr>
-<td>SQLite 与 provenance work</td>
+<td>SQLite 和溯源写入</td>
 <td><code>not-comparable</code></td>
-<td>本 matrix 中的 FLEXPART product 没有对应 indexed history 与 provenance product</td>
+<td>当前 FLEXPART 产品没有对应的索引历史与字段溯源产品</td>
 </tr>
 <tr>
-<td>Particle NetCDF layout</td>
+<td>粒子 NetCDF 布局</td>
 <td><code>not-comparable</code></td>
-<td>Trajecta default product 为 SQLite，schema 与 lifecycle 不同</td>
+<td>Trajecta 默认产品采用 SQLite，结构与生命周期不同</td>
 </tr>
 </tbody>
 </table>
-<h2 id="value">气象 value 对齐<a class="headerlink" href="#value" title="Permanent link">&para;</a></h2>
-<p>气象 conversion 有两条路径：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>official source → Trajecta-ready NetCDF → Trajecta reader
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>official source → staged GRIB → FLEXPART reader
+<h2 id="_3">气象值对齐<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>气象资料有两条准备路径：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>官方源资料 → Trajecta 可用 NetCDF → Trajecta 读取器
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>官方源资料 → 准备后 GRIB → FLEXPART 读取器
 </code></pre></div>
-<p>Trajecta-ready exact check 包括 coordinate axis、valid time、hybrid coefficient 与所需四维
-field。FLEXPART staged value 从 GRIB 重新读取，并与共同 source quantity 比较。该路径使用
-GRIB packing error 作为每条 message 的 tolerance。</p>
-<p>Wet deposition 与 convection 已关闭。两个 zero precipitation message 用于满足所选
-FLEXPART input structure。Trajecta surface-flux field 位于共同 advection quantity set 之外，
-其存在不会给本 Case 增加 cross-model metric。</p>
-<h2 id="_3">时间对齐<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p>模拟从 2018-12-01 03:00 UTC 开始。两侧 product 在以下时刻读取：</p>
+<p>Trajecta 路径直接检查坐标轴、有效时次、混合坐标系数和所需四维字段。FLEXPART 路径会把准备后
+GRIB 再次读出，与共同源物理量比较；每条 GRIB 消息的 ecCodes 打包误差作为该路径的容差。</p>
+<p>案例保留两条零降水消息以满足所选 FLEXPART 输入结构，湿沉降和对流在比较中关闭。Trajecta
+资料中的地表通量位于共同平流物理量集合之外，因此不进入跨模型统计。</p>
+<h2 id="_4">时间对齐<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>模拟从 2018 年 12 月 1 日 03:00 UTC 开始。两侧在以下时刻读取：</p>
 <table>
 <thead>
 <tr>
-<th style="text-align: right;">经过时间</th>
-<th>UTC instant</th>
-<th style="text-align: right;">Unix time</th>
+<th style="text-align: right;">已经过时间</th>
+<th>UTC 时刻</th>
+<th style="text-align: right;">Unix 时间</th>
 </tr>
 </thead>
 <tbody>
@@ -2400,38 +2397,33 @@ FLEXPART input structure。Trajecta surface-flux field 位于共同 advection qu
 </tr>
 </tbody>
 </table>
-<p>程序可以在 600 秒 transport step 内部的其他时点执行计算。对比只读取这些共同 physical
-output state。</p>
-<h2 id="coordinate">Coordinate 对齐<a class="headerlink" href="#coordinate" title="Permanent link">&para;</a></h2>
-<p>Longitude 与 latitude 进入 spherical mean 和 great-circle distance calculation。Height 以
-metre above sea level 进入计算。取 vertical mean 前，FLEXPART stored particle height 会与
-terrain field 相加；Trajecta 已按该 convention 存储 <code>height_asl_m</code>。</p>
-<p>Occupancy grid 是本次对比使用的 diagnostic binning scheme，不会替代任一程序的
-computational grid，也不会改变 trajectory。</p>
-<h2 id="individual-particle-id">Individual particle ID 未配对的原因<a class="headerlink" href="#individual-particle-id" title="Permanent link">&para;</a></h2>
-<p>两个程序初始化相同 population count 与 total mass，但 random generator 和 source-sampling
-order 各自不同。随后，integrator 会通过独立 numerical implementation 推进这些 sample。
-因此，numeric particle ID 只标识自己 product 内的 record。</p>
-<p>不使用 ID 对应关系后，ensemble centroid、dispersion、vertical mean、transport distance 与
-occupancy 仍可计算。这些指标描述共同输出时刻的 population 位置与展开程度。</p>
-<h2 id="runtime">Runtime 可比较性<a class="headerlink" href="#runtime" title="Permanent link">&para;</a></h2>
-<p><a href="../performance/">性能方法</a>提供 transport-oriented boundary 和 complete-product boundary。
-Equivalent-core ratio 对比共同 transport 问题。Complete-product time 则显示各程序所选
-default output 的实际运行成本，并保留 product 差异。</p>
-<p>SQLite 与 provenance time 在本 matrix 中没有匹配的 FLEXPART component。因此，complete-
-product column 用于描述，不计算 equivalence ratio。</p>
-<h2 id="_4">扩展矩阵<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<p>研究改变以下条件时，可以建立新的 comparison contract：</p>
+<p>两个程序可以在 600 秒输送步内部采用不同计算顺序，比较只读取上述共同物理状态。</p>
+<h2 id="_5">坐标对齐<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p>经纬度进入球面平均和大圆距离计算。高度统一使用海拔米。FLEXPART 输出中的粒子相对高度会先
+加上地形高度，Trajecta 则直接读取 <code>height_asl_m</code>。</p>
+<p>占据单元网格只用于本次诊断统计，不会替换任一程序的计算网格，也不会改变轨迹。</p>
+<h2 id="_6">为何不配对单个粒子<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>两侧采用相同粒子总数和释放总质量，但随机数生成器和源区抽样顺序不同，积分也由两套数值实现
+完成。某个数值粒子 ID 只标识各自产品内部的一条记录。</p>
+<p>去除 ID 配对后，粒子群质心、水平离散度、垂直平均、输送距离和空间占据仍有明确含义。这些
+统计描述共同物理时刻上粒子群的位置与扩展范围。</p>
+<h2 id="_7">运行时间的可比较范围<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<p><a href="../performance/">性能测量方法</a>分别给出输送计算和完整运行流程的计时范围。等效核心比值用于比较共同
+输送工作；完整产品时间则展示各程序选定输出产品的实际等待时间。</p>
+<p>SQLite 与溯源写入在当前矩阵中没有匹配的 FLEXPART 组件，因此完整产品列并列展示，不计算等价
+比值。</p>
+<h2 id="_8">建立新的比较矩阵<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<p>以下条件变化后，应建立新的比较约定：</p>
 <ul>
-<li>Simulation duration 或 transport step；</li>
-<li>Meteorological family、resolution 或 vertical coordinate；</li>
-<li>Release geometry 与 particle sampling；</li>
-<li>Turbulence、convection、chemistry 或 deposition setting；</li>
-<li>Output cadence 或 product format；</li>
-<li>Worker count、CPU allocation 或 host platform。</li>
+<li>模拟时长或输送步长；</li>
+<li>气象资料系列、分辨率或垂直坐标；</li>
+<li>释放几何和粒子抽样；</li>
+<li>湍流、对流、化学或沉降设置；</li>
+<li>输出间隔或结果格式；</li>
+<li>工作线程、CPU 配额或主机平台。</li>
 </ul>
-<p>新 contract 可以沿用这些分类，同时为自身 workload 声明准确 field、conversion、time、
-metric 与 timing boundary。当前 matrix 的 raw value 位于<a href="../data/">数据与图表页</a>。</p>
+<p>新矩阵可以沿用上述分类，同时为实际负载明确字段、转换、时刻、统计量和计时边界。当前矩阵的
+原始值见<a href="../data/">数据与图表</a>。</p>
 
 
 

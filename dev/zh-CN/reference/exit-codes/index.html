@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="解释 Trajecta 成功命令、usage error、foreground 与 detached run、wait、inspect 和 verify 的 shell status。">
+        <meta name="description" content="解读 Trajecta 命令成功、用法错误、前后台运行、等待、结果检查和验证的命令行状态。">
       
       
       
@@ -24,7 +24,7 @@
     
     
       
-        <title>Process exit code - Trajecta</title>
+        <title>进程退出码 - Trajecta</title>
       
     
     
@@ -81,7 +81,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#process-exit-code" class="md-skip">
+        <a href="#_1" class="md-skip">
           跳转至
         </a>
       
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Process exit code
+              进程退出码
             
           </span>
         </div>
@@ -1628,46 +1628,46 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#command-success-run-success" class="md-nav__link">
+  <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      Command success 与 run success
+      命令成功与运行成功
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#parsing-application-error" class="md-nav__link">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      Parsing 与 application error
+      解析错误与应用错误
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#run-submission" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      Run submission
+      提交运行
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Run submission">
+    <nav class="md-nav" aria-label="提交运行">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#foreground" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      Foreground
+      前台
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#detached" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
-      Detached
+      后台
     </span>
   </a>
   
@@ -1679,18 +1679,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#event-stream" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
-      Event 与 stream
+      事件与数据流
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#result-command" class="md-nav__link">
+  <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
-      Result command
+      结果命令
     </span>
   </a>
   
@@ -2147,46 +2147,46 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#command-success-run-success" class="md-nav__link">
+  <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      Command success 与 run success
+      命令成功与运行成功
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#parsing-application-error" class="md-nav__link">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      Parsing 与 application error
+      解析错误与应用错误
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#run-submission" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      Run submission
+      提交运行
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Run submission">
+    <nav class="md-nav" aria-label="提交运行">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#foreground" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      Foreground
+      前台
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#detached" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
-      Detached
+      后台
     </span>
   </a>
   
@@ -2198,18 +2198,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#event-stream" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
-      Event 与 stream
+      事件与数据流
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#result-command" class="md-nav__link">
+  <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
-      Result command
+      结果命令
     </span>
   </a>
   
@@ -2243,70 +2243,69 @@
   
 
 
-<h1 id="process-exit-code">Process exit code<a class="headerlink" href="#process-exit-code" title="Permanent link">&para;</a></h1>
-<p>Trajecta 使用三个 product-level process exit code：</p>
+<h1 id="_1">进程退出码<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<p>Trajecta 使用三个产品级退出码：</p>
 <table>
 <thead>
 <tr>
-<th style="text-align: right;">Code</th>
-<th>Shell 含义</th>
+<th style="text-align: right;">退出码</th>
+<th>Shell 中的含义</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td style="text-align: right;"><code>0</code></td>
-<td>Command 完成所请求的 operation</td>
+<td>命令完成了所请求的操作</td>
 </tr>
 <tr>
 <td style="text-align: right;"><code>1</code></td>
-<td>已解析命令遇到 application、validation、runtime 或 non-successful terminal-run condition</td>
+<td>命令已经解析，但遇到应用、校验、运行时错误，或运行进入非成功终态</td>
 </tr>
 <tr>
 <td style="text-align: right;"><code>2</code></td>
-<td>Command-line syntax、option placement 或 argument value 在 parsing 期间失败</td>
+<td>命令语法、参数位置或参数值在解析阶段无效</td>
 </tr>
 </tbody>
 </table>
-<p>Operating-system loader error、process signal 和 forced termination 可能在 CLI 返回 product
-status 前产生其他 platform value。</p>
-<h2 id="command-success-run-success">Command success 与 run success<a class="headerlink" href="#command-success-run-success" title="Permanent link">&para;</a></h2>
-<p>Machine output 将 command operation 和 scientific run 分开表示：</p>
+<p>操作系统加载错误、进程信号和强制终止可能在 CLI 返回产品状态前产生其他平台退出值。</p>
+<h2 id="_2">命令成功与运行成功<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>机器输出分别表示命令操作和科学运行：</p>
 <table>
 <thead>
 <tr>
-<th>Field</th>
+<th>字段</th>
 <th>含义</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>ok</code></td>
-<td>CLI operation 生成了所请求的 response</td>
+<td>CLI 成功产生了该命令请求的响应</td>
 </tr>
 <tr>
 <td><code>run_success</code></td>
-<td>Command 报告 run lifecycle 时，selected attempt 是否为 <code>complete</code> success state</td>
+<td>涉及运行生命周期时，所选执行轮次是否处于 <code>complete</code></td>
 </tr>
 </tbody>
 </table>
-<p>例如，<code>result inspect</code> 可以成功读取 interrupted result。此时 process exit 为 <code>0</code>，<code>ok</code> 为
-true，<code>run_success</code> 为 false。需要 completed scientific run 的 automation 可以同时检查两个值。</p>
-<h2 id="parsing-application-error">Parsing 与 application error<a class="headerlink" href="#parsing-application-error" title="Permanent link">&para;</a></h2>
-<p>Human mode 中，usage text 写入 stderr，process exit 为 <code>2</code>。Application error 返回 <code>1</code>。
-Help 写入 stdout，并返回 <code>0</code>。</p>
-<p>JSON 或 JSONL mode 中，parse failure 与 application failure 通过 stdout 的 structured envelope
-或 diagnostic stream item 返回。Usage error 保留 exit <code>2</code>，已经解析的 application failure
-返回 <code>1</code>。Structured application response 不会在 stderr 重复 diagnostic。</p>
-<h2 id="run-submission">Run submission<a class="headerlink" href="#run-submission" title="Permanent link">&para;</a></h2>
-<h3 id="foreground">Foreground<a class="headerlink" href="#foreground" title="Permanent link">&para;</a></h3>
+<p>例如，<code>result inspect</code> 可以成功读取一个 <code>interrupted</code> 结果。此时进程退出码为 <code>0</code>，<code>ok</code> 为
+<code>true</code>，<code>run_success</code> 为 <code>false</code>。只接受完整科学运行的自动化流程应同时检查两项。</p>
+<h2 id="_3">解析错误与应用错误<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>人类可读模式中，用法信息写入标准错误并退出 <code>2</code>；应用错误退出 <code>1</code>；帮助写入标准输出并退出
+<code>0</code>。</p>
+<p>JSON 或 JSONL 模式中，解析错误与应用错误通过标准输出返回结构化响应或诊断流项目。用法错误
+仍保留退出码 <code>2</code>，解析成功后的应用错误返回 <code>1</code>。结构化应用响应不会再把同一诊断写到标准
+错误。</p>
+<h2 id="_4">提交运行<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h3 id="_5">前台<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project PROJECT run --profile PROFILE
 </code></pre></div>
-<p>命令先等待 durable admission，再跟随 current attempt 到终态：</p>
+<p>命令先等待任务写入持久队列，再跟踪当前执行轮次到终态：</p>
 <table>
 <thead>
 <tr>
-<th>Terminal state</th>
-<th style="text-align: right;">Exit code</th>
+<th>终态</th>
+<th style="text-align: right;">退出码</th>
 <th><code>run_success</code></th>
 </tr>
 </thead>
@@ -2338,57 +2337,55 @@ Help 写入 stdout，并返回 <code>0</code>。</p>
 </tr>
 </tbody>
 </table>
-<p>Admission 之后关闭终端，只会断开该 foreground client。Daemon 继续持有 accepted attempt，
-可以通过 <code>job status</code> 或 <code>job wait</code> 重新连接。</p>
-<h3 id="detached">Detached<a class="headerlink" href="#detached" title="Permanent link">&para;</a></h3>
+<p>任务准入后关闭终端，只会断开该前台客户端。守护进程继续管理执行轮次，可通过 <code>job status</code> 或
+<code>job wait</code> 重新连接。</p>
+<h3 id="_6">后台<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta --project PROJECT run --profile PROFILE --detach
 </code></pre></div>
-<p>Exit <code>0</code> 表示 queue 已经持久化接收 receipt。Worker 此时可能仍为 queued，也可能随后失败。
-后续状态通过以下命令读取：</p>
+<p>退出 <code>0</code> 表示队列已经持久接受回执。工作进程可能仍在排队，也可能稍后失败。后续状态通过：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta job wait JOB_ID
 </code></pre></div>
-<p><code>job wait</code> 与 foreground run 使用同一 terminal-state exit table。</p>
-<h2 id="event-stream">Event 与 stream<a class="headerlink" href="#event-stream" title="Permanent link">&para;</a></h2>
-<p>One-shot <code>job events</code> request 在成功读取当前 batch 后返回 <code>0</code>。跟随单个 job 时，最终 JSONL
-summary 包含 <code>run_success</code>，process exit 跟随 selected attempt terminal state。Stream-wide
-read 或 encoding error 返回 <code>1</code>；stream 已经开始时，summary 前会先出现 diagnostic item。</p>
-<p>Meteorological probe 与 replay command 使用自己的 native stream processing，reader 或 stream
-failure 返回 <code>1</code>。Machine envelope mode 要求 native meteorological record 写入
-<code>--output FILE</code>。</p>
-<h2 id="result-command">Result command<a class="headerlink" href="#result-command" title="Permanent link">&para;</a></h2>
+<p><code>job wait</code> 采用与前台运行相同的终态退出码表。</p>
+<h2 id="_7">事件与数据流<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<p>单次 <code>job events</code> 成功读取所请求批次后退出 <code>0</code>。跟踪一个任务时，最后一条 JSONL 汇总包含
+<code>run_success</code>，进程退出码跟随所选执行轮次的终态。数据流读取或编码错误返回 <code>1</code>；如果输出已经
+开始，会先写一条诊断项目，再写汇总。</p>
+<p>气象探测和重放命令使用自己的原生数据流处理。读取器或数据流失败返回 <code>1</code>。机器可读模式要求
+原生气象记录写到 <code>--output FILE</code>。</p>
+<h2 id="_8">结果命令<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Command</th>
-<th>Exit <code>0</code> 的含义</th>
-<th>附加 lifecycle field</th>
+<th>命令</th>
+<th>退出 <code>0</code> 表示</th>
+<th>运行状态字段</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>result inspect</code></td>
-<td>Manifest 与 available artifact 已读取；SQLite partial inspection 可以带 warning 返回</td>
-<td><code>run_success</code> 报告 manifest lifecycle</td>
+<td>已读取运行清单和可用产物；SQLite 不可用时可能返回带警告的部分结果</td>
+<td><code>run_success</code> 反映清单生命周期</td>
 </tr>
 <tr>
 <td><code>result verify</code></td>
-<td>Selected quick 或 full verification operation 成功完成</td>
-<td><code>run_success</code> 报告 verified run 是否为 <code>complete</code></td>
+<td>所选快速或完整验证成功完成</td>
+<td><code>run_success</code> 表示被验证运行是否为 <code>complete</code></td>
 </tr>
 <tr>
 <td><code>result trajectory</code></td>
-<td>全部 requested particle ID 已校验，selected record 已写出</td>
-<td>Header 与 summary 包含 run lifecycle</td>
+<td>所有请求粒子 ID 均有效，记录已经写出</td>
+<td>流头和汇总包含运行生命周期</td>
 </tr>
 <tr>
 <td><code>run report</code></td>
 <td><code>RESULT/run-report.md</code> 已写入或刷新</td>
-<td>Report body 包含 run lifecycle</td>
+<td>报告正文包含运行生命周期</td>
 </tr>
 </tbody>
 </table>
-<p>Structurally valid 的 cancelled 或 failed run 可以完成 selected verification check，此时
-<code>result verify</code> 返回 <code>0</code>。Workflow 需要 <code>complete</code> 时，可继续读取 <code>run_success</code>。</p>
+<p><code>result verify</code> 可以成功验证某个结构完整的取消或失败终态，此时退出码可能为 <code>0</code>。下游需要
+<code>complete</code> 时继续检查 <code>run_success</code>。</p>
 <h2 id="shell">Shell 示例<a class="headerlink" href="#shell" title="Permanent link">&para;</a></h2>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Windows PowerShell</label><label for="__tabbed_1_2">Ubuntu 24.04</label></div>
 <div class="tabbed-content">
@@ -2409,8 +2406,8 @@ failure 返回 <code>1</code>。Machine envelope mode 要求 native meteorologic
 </div>
 </div>
 </div>
-<p>Machine output 可以先解析完整 JSON response，再根据具体流程转换为 Boolean shell status。
-<a href="../schemas/">Schema 参考</a>给出准确 envelope 与 stream shape。</p>
+<p>处理机器输出时，先解析完整 JSON 响应，再根据流程需要转换成 Shell 布尔状态。
+<a href="../schemas/">结构定义参考</a>列出完整的 JSON 响应与数据流结构。</p>
 
 
 

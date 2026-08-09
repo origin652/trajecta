@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Trajecta 软件、schema、资料 asset、文档快照和 alpha 兼容性的版本规则。">
+        <meta name="description" content="Trajecta 软件、schema、演示资料、文档快照和 Alpha 兼容性的版本规则。">
       
       
       
@@ -2013,18 +2013,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#channel" class="md-nav__link">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      发布 channel
+      文档发布渠道
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#release" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      Release 内容
+      发布内容
     </span>
   </a>
   
@@ -2040,7 +2040,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       文档修订
     </span>
@@ -2049,7 +2049,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       阅读版本页
     </span>
@@ -2132,18 +2132,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#channel" class="md-nav__link">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      发布 channel
+      文档发布渠道
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#release" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      Release 内容
+      发布内容
     </span>
   </a>
   
@@ -2159,7 +2159,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       文档修订
     </span>
@@ -2168,7 +2168,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       阅读版本页
     </span>
@@ -2196,10 +2196,10 @@
 
 
 <h1 id="_1">发布策略<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>Trajecta 发布记录将一个软件版本与对应 package、公开格式、文档和已知限制关联。当前处于 alpha
-阶段，因此每个版本页还会区分适合 automation 的产品接口，以及仍可能调整的部分。</p>
+<p>Trajecta 的每条发布记录都把软件版本与对应的软件包、公开格式、文档和已知限制放在一起。
+当前仍处于 Alpha 阶段，版本页会注明哪些接口可以供自动化程序使用，哪些贡献者接口仍可能调整。</p>
 <h2 id="_2">版本标识<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>一个项目中会同时出现多种 identifier，它们分别在不同条件下更新：</p>
+<p>一个项目中会同时出现多种版本标识，它们各有独立的更新条件：</p>
 <table>
 <thead>
 <tr>
@@ -2212,112 +2212,111 @@
 <tr>
 <td>软件版本</td>
 <td><code>0.1.0-alpha.1</code></td>
-<td>准备新的 executable release</td>
+<td>准备新的可执行文件发布</td>
 </tr>
 <tr>
 <td>Git tag</td>
 <td><code>v0.1.0-alpha.1</code></td>
-<td>选定该软件 release 的 source commit</td>
+<td>选定该软件发布的来源提交</td>
 </tr>
 <tr>
 <td>文档 schema</td>
 <td><code>trajecta.config/v1</code></td>
-<td>对应 disk 或 stream format 需要新合同</td>
+<td>对应磁盘格式或数据流格式需要新约定</td>
 </tr>
 <tr>
-<td>SQLite user version</td>
+<td>SQLite user 版本</td>
 <td><code>1</code></td>
-<td>Result database schema 发生不兼容修改</td>
+<td>结果数据库 schema 发生不兼容修改</td>
 </tr>
 <tr>
-<td>DatasetLock schema</td>
-<td>Lock 内的版本字段</td>
-<td>Dataset identity 或 lock semantics 改变</td>
+<td>资料锁 schema</td>
+<td>资料锁内的版本字段</td>
+<td>资料集标识或资料锁含义改变</td>
 </tr>
 <tr>
-<td>演示资料 asset</td>
+<td>演示资料资源文件</td>
 <td><code>trajecta-demo-cfsr-20090101-v1</code></td>
-<td>Sample file set、metadata 或 packaging contract 改变</td>
+<td>样本文件集合、元数据或打包约定改变</td>
 </tr>
 <tr>
 <td>文档版本</td>
 <td><code>0.1.0-alpha.1</code> 或 <code>dev</code></td>
-<td>发布软件 snapshot，或者已接收文档继续更新</td>
+<td>发布软件快照，或者已接收文档继续更新</td>
 </tr>
 </tbody>
 </table>
-<p>软件 release 不会自动增加全部 schema。Automation 在读取 command-specific field 前，应先查看
-对应格式自己的 <code>schema_version</code>。</p>
-<h2 id="channel">发布 channel<a class="headerlink" href="#channel" title="Permanent link">&para;</a></h2>
+<p>软件发布不会自动递增所有 schema。自动化程序在读取某条命令的专用字段前，应先查看对应格式
+自己的 <code>schema_version</code>。</p>
+<h2 id="_3">文档发布渠道<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Channel</th>
+<th>渠道</th>
 <th>URL 行为</th>
 <th>内容</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>具名 release</td>
-<td>不可变 version path；当前默认版本为 <code>0.1.0-alpha.1</code></td>
+<td>版本快照</td>
+<td>使用不可变的版本路径；当前默认版本为 <code>0.1.0-alpha.1</code></td>
 <td>与已发布软件版本对应的手册</td>
 </tr>
 <tr>
-<td><code>latest</code> alias</td>
-<td>指向当前具名 release</td>
-<td>稳定文档入口</td>
+<td><code>latest</code> 别名</td>
+<td>指向当前版本快照</td>
+<td>日常访问的稳定入口</td>
 </tr>
 <tr>
 <td><code>dev</code></td>
-<td>可变 <code>/dev/</code> path，并设置 search-engine <code>noindex</code></td>
-<td>最新 snapshot 之后已经接收的文档修改</td>
+<td>可变的 <code>/dev/</code> 路径，并设置搜索引擎 <code>noindex</code></td>
+<td>最新发布快照之后已经合入的文档修改</td>
 </tr>
 </tbody>
 </table>
-<p>普通文档修订更新 <code>dev</code>。Release event 会在相同版本的 source、package 和 documentation gate 通过后
-建立具名 snapshot。</p>
-<h2 id="release">Release 内容<a class="headerlink" href="#release" title="Permanent link">&para;</a></h2>
-<p>完整 release entry 提供：</p>
+<p>普通文档修订更新 <code>dev</code>。发布新软件版本时，源码、软件包和文档通过同一轮检查后，
+再建立不可变的版本快照。</p>
+<h2 id="_4">发布内容<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>完整发布条目提供：</p>
 <ul>
-<li>Windows x86_64 与 Ubuntu 24.04 x86_64 产品 archive；</li>
-<li>每个 archive 相邻的 SHA-256 文件；</li>
-<li>单独下载的演示资料与 checksum；</li>
-<li>说明主要工作流和已知限制的 release note；</li>
+<li>Windows x86_64 与 Ubuntu 24.04 x86_64 发行包；</li>
+<li>每个归档包相邻的 SHA-256 文件；</li>
+<li>单独下载的演示资料与校验和；</li>
+<li>说明主要工作流和已知限制的发布说明；</li>
 <li>带版本的双语手册；</li>
-<li>软件包内部的 build manifest、SBOM 和 license inventory；</li>
-<li>通过手册 Validation 章节发布的验证 data 与 chart。</li>
+<li>软件包内部的构建清单、软件物料清单（SBOM）和许可证清单；</li>
+<li>通过手册验证章节发布的验证资料与图表。</li>
 </ul>
-<p>Archive name、native component version 和 reader support matrix 见
-<a href="../reference/platforms/">平台与 reader 矩阵</a>。</p>
+<p>归档包名称、原生组件版本和读取器支持矩阵见
+<a href="../reference/platforms/">平台与读取器矩阵</a>。</p>
 <h2 id="alpha">Alpha 系列兼容性<a class="headerlink" href="#alpha" title="Permanent link">&para;</a></h2>
-<p>CLI、公开配置、schema、machine envelope 和 result artifact 构成产品边界。修改这些 surface 时，
-会同时更新 example、validation 和 release note。</p>
-<p>稳定 1.0 合同建立前，alpha release 可能调整 default、field 或 behavior。需要重复运行或审计的项目
+<p>CLI、公开配置、schema、机器输出结构和结果文件共同组成面向用户的接口。修改这些内容时，
+示例、验证程序和发布说明也会随之更新。</p>
+<p>稳定 1.0 接口建立前，Alpha 发布可能调整默认值、字段或行为。需要复现或长期保留的项目
 可以保留以下内容：</p>
 <ul>
-<li>Product archive 或其精确 checksum；</li>
-<li>Resolved Case 与 RunProfile document；</li>
-<li>DatasetLock 与 source file hash；</li>
-<li>Terminal run manifest 与 provenance bundle；</li>
-<li>本次运行使用的 release documentation snapshot。</li>
+<li>发行包或其 SHA-256；</li>
+<li>解析后的案例与运行配置文档；</li>
+<li>资料锁与源文件散列；</li>
+<li>终态运行清单与溯源信息文件；</li>
+<li>本次运行使用的发布文档快照。</li>
 </ul>
-<p>Public Rust module 在 alpha 期间属于贡献者接口，源码兼容范围见 <a href="../developer/api/">Rust API</a>。</p>
-<h2 id="_3">文档修订<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p>不可变 snapshot 保存 release 随附的原始手册。小型澄清先进入 <code>dev</code>。修订如果涉及命令、格式、
-科学解释或安全操作，release note 会记录范围，并在下一份 snapshot 发布前链接到修订后的 dev
-page。</p>
-<p>Raw validation file 与 package checksum 保持原始 identity。只调整呈现方式时，chart 从同一份
-冻结 input 重新生成。</p>
-<h2 id="_4">阅读版本页<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<p>每个具名页面采用相同顺序：</p>
+<p>公开 Rust 模块在 Alpha 期间属于贡献者接口，源码兼容范围见 <a href="../developer/api/">Rust API</a>。</p>
+<h2 id="_5">文档修订<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p>不可变快照保存发布时随附的手册。小型澄清先进入 <code>dev</code>。修订若涉及命令、格式、科学解释或
+安全操作，发布说明会记录影响范围，并在下一份快照发布前链接到修订后的 <code>dev</code> 页面。</p>
+<p>原始验证文件与软件包校验和保持原有内容散列。只调整呈现方式时，图表从同一份
+冻结输入重新生成。</p>
+<h2 id="_6">阅读版本页<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>每个版本页面采用相同顺序：</p>
 <ol>
-<li>Release status 与支持 package；</li>
-<li>科学工作流与资料家族；</li>
-<li>Runtime 与 result capability；</li>
-<li>文档与 demonstration data；</li>
-<li>Compatibility note 与 known limit；</li>
-<li>Installation、quickstart 和精确 reference link。</li>
+<li>发布状态与支持软件包；</li>
+<li>科学工作流与资料系列；</li>
+<li>运行时与结果功能；</li>
+<li>文档与演示资料；</li>
+<li>兼容性说明与已知限制；</li>
+<li>安装、快速入门和参考链接。</li>
 </ol>
 <p>首个发布条目为 <a href="0.1.0-alpha.1/">0.1.0-alpha.1</a>。</p>
 

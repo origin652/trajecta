@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="逐项选择、查看、修改和校验 Trajecta 的本机配置与项目配置。">
+        <meta name="description" content="逐项选择、查看、修改并校验 Trajecta 的本机配置和项目配置。">
       
       
       
@@ -24,7 +24,7 @@
     
     
       
-        <title>渐进配置 Trajecta - Trajecta</title>
+        <title>渐进配置 - Trajecta</title>
       
     
     
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              渐进配置 Trajecta
+              渐进配置
             
           </span>
         </div>
@@ -790,25 +790,7 @@
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      添加执行模板
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#selector" class="md-nav__link">
-    <span class="md-ellipsis">
-      通过 selector 编辑项目
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#draft" class="md-nav__link">
-    <span class="md-ellipsis">
-      逐步完成 draft
+      添加运行模板
     </span>
   </a>
   
@@ -817,7 +799,7 @@
         <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
-      检查完整本机环境
+      按字段编辑项目索引
     </span>
   </a>
   
@@ -826,7 +808,25 @@
         <li class="md-nav__item">
   <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
-      查看编辑失败原因
+      保留草稿状态
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      检查整套本机环境
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      保存诊断信息
     </span>
   </a>
   
@@ -2170,25 +2170,7 @@
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      添加执行模板
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#selector" class="md-nav__link">
-    <span class="md-ellipsis">
-      通过 selector 编辑项目
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#draft" class="md-nav__link">
-    <span class="md-ellipsis">
-      逐步完成 draft
+      添加运行模板
     </span>
   </a>
   
@@ -2197,7 +2179,7 @@
         <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
-      检查完整本机环境
+      按字段编辑项目索引
     </span>
   </a>
   
@@ -2206,7 +2188,25 @@
         <li class="md-nav__item">
   <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
-      查看编辑失败原因
+      保留草稿状态
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      检查整套本机环境
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      保存诊断信息
     </span>
   </a>
   
@@ -2232,25 +2232,25 @@
 
 
 <h1 id="_1">渐进配置<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>Trajecta 将本机设置和科研运行文档分开保存。本机配置管理 local daemon、共享 CPU 与内存
-池、监测间隔，以及可选的执行模板。项目配置连接具名 Case、RunProfile、资料和 lock。</p>
-<p>两层配置都支持小范围的校验式修改。这种方式适合分几次完成项目设置，也方便通过机器可读
-输出逐项审阅。</p>
+<p>Trajecta 把本机运行环境与科学项目分开配置。本机配置管理守护进程、共享 CPU 与内存资源池、
+状态采样频率和可选运行模板。项目配置把带名称的案例、运行配置、逻辑资料和资料锁连接起来。</p>
+<p>两层配置都支持按字段修改。每次修改都会先构造并校验完整文档，通过后再替换原文件。项目需要
+分几次完成，或需要由人和自动化工具轮流审阅时，可以逐项填写，无需一次生成整份 JSON 或 YAML。</p>
 <h2 id="_2">选择本机配置文件<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>同一用户账户下有多套安装时，可在编辑前查询实际路径：</p>
+<p>同一账户下有多套运行环境时，编辑前先查看当前选择：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta config path
 </code></pre></div>
-<p>配置路径按以下顺序选择：</p>
+<p>配置路径按以下优先级确定：</p>
 <ol>
-<li>当前命令中的 <code>--config FILE</code>；</li>
-<li><code>TRAJECTA_CONFIG</code> 环境变量；</li>
-<li>平台默认位置。</li>
+<li>当前命令的全局参数 <code>--config FILE</code>；</li>
+<li>环境变量 <code>TRAJECTA_CONFIG</code>；</li>
+<li>平台默认路径。</li>
 </ol>
 <table>
 <thead>
 <tr>
 <th>平台</th>
-<th>默认位置</th>
+<th>默认路径</th>
 </tr>
 </thead>
 <tbody>
@@ -2259,41 +2259,39 @@
 <td><code>%APPDATA%\Trajecta\config.toml</code></td>
 </tr>
 <tr>
-<td>Ubuntu 24.04 及其他受支持 Linux 系统</td>
+<td>Ubuntu 24.04 及其他受支持 Linux</td>
 <td><code>${XDG_CONFIG_HOME:-$HOME/.config}/trajecta/config.toml</code></td>
 </tr>
 </tbody>
 </table>
-<p>独立基准测试或第二套本机资源池可以使用显式路径：</p>
+<p>独立性能测试或第二套本机资源池可以使用显式路径：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trajecta --config configs/workstation.toml config path
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>trajecta --config configs/workstation.toml config validate
 </code></pre></div>
-<p>所选配置也决定 local daemon endpoint 和任务 catalog。因此，指向不同配置文件的命令会
-看到不同的本机队列。</p>
+<p>所选配置还决定守护进程端点和任务数据库。两个终端若指向不同配置，即使位于同一台计算机，
+也会看到不同的任务队列。</p>
 <h2 id="_3">创建并查看配置<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p><code>config init</code> 根据当前平台创建起始文件。目标文件已经存在时，原文件保持不变。</p>
+<p><code>config init</code> 根据当前平台和硬件创建初始文件。目标文件已经存在时不会覆盖：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta config init
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>trajecta config list
 </code></pre></div>
-<p><code>config list</code> 按稳定的 dotted-key 顺序列出叶子值。读取单项值时使用 <code>config get</code>：</p>
+<p><code>config list</code> 按稳定的点分字段顺序显示所有叶子值。读取单个值可使用：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta config get resources.cpu_slots
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>trajecta config get resources.memory_pool_mib
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>trajecta config get default_reader_backend
 </code></pre></div>
-<p>脚本可以把全局输出选项放在命令名之前：</p>
+<p>脚本读取时，把全局输出格式放在子命令之前：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta --format json config get resources.memory_pool_mib
 </code></pre></div>
 <h2 id="_4">修改带类型的值<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<p><code>config set</code> 接收 dotted key 和 JSON 值。无法解析为 JSON 的普通文本按字符串处理。</p>
+<p><code>config set</code> 接受点分字段和一个 JSON 值。无法解析为 JSON 的普通文本会按字符串处理：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta config set resources.cpu_slots 8
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>trajecta config set resources.memory_pool_mib 16384
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>trajecta config set resources.memory_reserve_mib 2048
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>trajecta config set default_reader_backend &#39;&quot;rust&quot;&#39;
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>trajecta config validate
 </code></pre></div>
-<p>Trajecta 会先解析并检查更新后的完整文档，随后替换旧文件。编辑被拒绝时，旧文件的字节内容
-不变。</p>
-<p>资源字段各自表达以下含义：</p>
+<p>资源字段的用途如下：</p>
 <table>
 <thead>
 <tr>
@@ -2304,77 +2302,116 @@
 <tbody>
 <tr>
 <td><code>resources.cpu_slots</code></td>
-<td>所有已接收任务共享的 scheduler CPU 容量</td>
+<td>所有已准入任务共享的 CPU 槽位总数</td>
 </tr>
 <tr>
 <td><code>resources.memory_pool_mib</code></td>
-<td>本机 scheduler 纳入分配的内存总量</td>
+<td>本地调度器用于任务准入的内存总量</td>
 </tr>
 <tr>
 <td><code>resources.memory_reserve_mib</code></td>
-<td>留给操作系统和其他进程、不进入调度池的内存</td>
+<td>留给操作系统和其他程序、不进入调度池的内存</td>
 </tr>
 </tbody>
 </table>
-<p>Reserve 小于 pool。增加容量时可先调高 pool；缩小容量时先调低 reserve。完成一组修改后
-运行 <code>config validate</code>。</p>
-<h2 id="_5">添加执行模板<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
-<p>具名 Profile 模板可以通过一个结构化值创建：</p>
+<p><code>memory_reserve_mib</code> 必须小于 <code>memory_pool_mib</code>。需要同时调整两者时：</p>
+<ul>
+<li>扩大资源池，先增大 <code>memory_pool_mib</code>；</li>
+<li>缩小资源池，先降低 <code>memory_reserve_mib</code>；</li>
+<li>全部修改完成后运行 <code>config validate</code>。</li>
+</ul>
+<p>修改值未通过校验时，原配置文件的字节内容保持不变。</p>
+<h2 id="_5">添加运行模板<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p>可以用一个结构化值创建带名称的运行模板：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>trajecta config set profile_templates.workstation &#39;{&quot;execution&quot;:{&quot;worker_threads&quot;:4,&quot;memory_budget_bytes&quot;:2147483648,&quot;executor&quot;:&quot;local&quot;,&quot;meteorology_reader&quot;:&quot;rust&quot;}}&#39;
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>trajecta config get profile_templates.workstation
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>trajecta config validate
 </code></pre></div>
-<p>模板的 worker 数量位于 <code>resources.cpu_slots</code> 范围内，内存预算以字节表示。删除整个模板时
-使用模板名：</p>
+<p>模板中的工作线程数要落在 <code>resources.cpu_slots</code> 范围内，内存预算以字节表示。按名称移除模板：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>trajecta config unset profile_templates.workstation
 </code></pre></div>
-<p><code>config unset</code> 只用于可选 Profile 模板，配置中的固定字段保留在文档内。</p>
-<h2 id="selector">通过 selector 编辑项目<a class="headerlink" href="#selector" title="Permanent link">&para;</a></h2>
-<p>先查看项目的派生状态和完整索引：</p>
+<p><code>config unset</code> 只用于可选模板字段，必需配置字段不能移除。</p>
+<div class="admonition tip">
+<p class="admonition-title">模板只保存本机执行设置</p>
+<p>模拟时段、区域和粒子群仍写在案例中。模板适合复用线程、内存和读取器选择。</p>
+</div>
+<h2 id="_6">按字段编辑项目索引<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>先查看项目当前状态和完整索引：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>trajecta --project PROJECT project status
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>trajecta --project PROJECT project show
 </code></pre></div>
-<p><code>project get</code>、<code>project set</code> 与 <code>project unset</code> 操作项目索引中的 selector。选择 selector 前
-可以先读取当前文档：</p>
+<p><code>project get</code>、<code>project set</code> 和 <code>project unset</code> 使用项目索引中的选择器。修改前可先读取目标：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>trajecta --project PROJECT project get index
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>trajecta --project PROJECT project get profile.quickstart
 </code></pre></div>
-<p>值可以是 JSON 或 YAML 的标量与结构。命令在项目根目录内解析各条相对路径，校验更新后的
-索引，再原子替换文件。</p>
+<p>值可以使用 JSON，也可以是 YAML 标量或结构。命令会完成以下步骤：</p>
+<ol>
+<li>在内存中应用修改；</li>
+<li>将项目相对路径解析到项目根目录内；</li>
+<li>校验完整项目索引；</li>
+<li>通过同目录临时文件原子替换原文件。</li>
+</ol>
+<p>例如，为运行配置指定本机模板：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>trajecta --project PROJECT project set profile.quickstart.template workstation
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>trajecta --project PROJECT project validate
 </code></pre></div>
-<p>绝对路径、<code>../data</code> 形式的父级穿越、重复名称，以及解析到项目根目录之外的路径都会被
-拒绝。将资料根目录放在项目树内，项目在 Windows 和 Linux 之间移动时更容易保持一致。</p>
-<h2 id="draft">逐步完成 draft<a class="headerlink" href="#draft" title="Permanent link">&para;</a></h2>
-<p>Profile 的必填字段尚未录入完整时，可以保留 draft 状态。Draft 表示可识别的内容仍有缺项。
-未知字段、类型错误和格式损坏的 Case 或 RunProfile 会以 error 返回。</p>
-<p>编辑期间可以反复执行：</p>
+<p>绝对路径、<code>../data</code> 这类访问上级目录的写法、重复名称，以及最终指向项目根目录外的路径都会被拒绝。
+资料目录放在项目根目录内，项目在 Windows 与 Ubuntu 之间移动时更容易保持路径有效。</p>
+<h2 id="_7">保留草稿状态<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<p>运行配置必填项尚未填写完整时，项目可以保持 <code>draft</code>。这一状态表示文档结构可识别，但还不能
+解析成完整运行请求。未知字段、错误类型、畸形 YAML，以及案例或运行配置中的语义错误会报告为
+<code>error</code>，不会被归入草稿。</p>
+<p>编辑期间可重复执行：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>trajecta --project PROJECT project status
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>trajecta --project PROJECT project show
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>trajecta --project PROJECT project validate
 </code></pre></div>
-<p>文档完整后，项目从 <code>draft</code> 进入 <code>configured</code>。<code>project finalize</code> 检查所选气象资料和
-DatasetLock 后，项目进入 <code>finalized</code>。</p>
-<h2 id="_6">检查完整本机环境<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
-<p>配置校验读取所选 TOML 文件。项目校验读取索引和当前已有文档。Doctor 将这些内容与本机
-运行环境合在一起检查：</p>
+<p>文档齐全后，状态进入 <code>configured</code>。气象文件和资料锁通过 <code>project finalize</code> 检查后，状态进入
+<code>finalized</code>。</p>
+<h2 id="_8">检查整套本机环境<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<p>各命令检查的范围不同：</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>检查范围</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>config validate</code></td>
+<td>当前选择的 TOML 本机配置</td>
+</tr>
+<tr>
+<td><code>project validate</code></td>
+<td>项目索引及目前存在的案例、运行配置文档</td>
+</tr>
+<tr>
+<td><code>doctor</code></td>
+<td>本机配置、项目状态和基础运行条件</td>
+</tr>
+<tr>
+<td><code>doctor --deep</code></td>
+<td>再检查资料目录、现有资料锁、气象文件和 SQLite/WAL 文件系统</td>
+</tr>
+</tbody>
+</table>
+<p>常用顺序如下：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>trajecta config validate
 <a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>trajecta --project PROJECT project validate
 <a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>trajecta --project PROJECT doctor
 <a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>trajecta --project PROJECT doctor --deep
 </code></pre></div>
-<p>Deep doctor 会在相应内容存在时打开已配置的资料根目录与 lock。它还会创建临时 SQLite
-数据库，依次测试 WAL 模式、integrity check 和 checkpoint，最后清理临时文件。移动项目、
-更换存储位置或调整本机配置后，可以用这条命令检查运行环境。</p>
-<h2 id="_7">查看编辑失败原因<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
-<p>需要保存稳定的诊断记录时，以 JSON 模式重复只读校验：</p>
+<p>深度检查会创建临时 SQLite 数据库，启用 WAL，写入并读取数据，运行完整性检查，将 WAL 检查点
+回主库，最后删除临时文件。移动项目、调整存储位置或更改本机资源配置后，适合再运行一次。</p>
+<h2 id="_9">保存诊断信息<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
+<p>需要把错误交给脚本或问题记录时，可用 JSON 方式重复只读检查：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>trajecta --format json config validate
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>trajecta --format json --project PROJECT project validate
 <a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>trajecta --format json --project PROJECT doctor --deep
 </code></pre></div>
-<p>输出中的命令路径和 diagnostic code 可以放入 issue 或运行日志。修正所选文件后，重新运行
-同一条校验命令，再继续 finalize 或提交任务。</p>
+<p>输出包含完整命令路径和稳定诊断码。根据诊断修改相应文件后，再运行同一条校验命令。项目通过
+校验并完成项目定稿后，再提交较长任务。</p>
 
 
 

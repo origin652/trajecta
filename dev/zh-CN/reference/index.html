@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="查找 Trajecta 0.1.0-alpha.1 的命令和配置字段，以及项目文档、schema、diagnostic、结果与支持平台。">
+        <meta name="description" content="查阅 Trajecta 0.1.0-alpha.1 的命令、配置字段、项目文档、结构定义、诊断码、结果和支持平台。">
       
       
       
@@ -24,7 +24,7 @@
     
     
       
-        <title>Trajecta 产品参考 - Trajecta</title>
+        <title>Trajecta 参考手册 - Trajecta</title>
       
     
     
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Trajecta 产品参考
+              Trajecta 参考手册
             
           </span>
         </div>
@@ -1501,7 +1501,7 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      稳定性模型
+      版本与格式稳定性
     </span>
   </a>
   
@@ -1510,7 +1510,7 @@
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      自动生成参考
+      自动生成的参考页面
     </span>
   </a>
   
@@ -2116,7 +2116,7 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      稳定性模型
+      版本与格式稳定性
     </span>
   </a>
   
@@ -2125,7 +2125,7 @@
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      自动生成参考
+      自动生成的参考页面
     </span>
   </a>
   
@@ -2159,91 +2159,89 @@
   
 
 
-<h1 id="_1">产品参考<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>本参考描述 Trajecta <code>0.1.0-alpha.1</code> 的公开 product surface。Command synopsis 与 field name
-可以从这里查询。Schema、process status 和 diagnostic code 也有独立页面，result table 与
-supported platform 则位于各自的专题参考。</p>
-<p>完整工作流可以从<a href="../getting-started/">入门</a>开始，也可以在<a href="../how-to/">操作指南</a>
-中选择任务。本区以查找表和准确合同为主，教程则保留完整操作顺序。</p>
+<h1 id="_1">参考手册<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<p>本章集中列出 Trajecta <code>0.1.0-alpha.1</code> 可供用户使用的命令、字段和文件格式，也收录进程状态、
+诊断码、结果表以及支持平台。需要确认某个参数或机器输出字段时，可以直接从本章查找。</p>
+<p>第一次运行请先阅读<a href="../getting-started/">开始使用</a>。需要完成某个具体任务时，可从
+<a href="../how-to/">操作指南</a>选择相应流程。参考章节以便于快速查找的说明和表格为主。</p>
 <h2 id="_2">公开接口<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>接口</th>
 <th>格式</th>
-<th>参考</th>
+<th>参考页面</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Command-line interface</td>
-<td>Human text、JSON envelope 或 JSONL stream</td>
+<td>命令行</td>
+<td>人类可读文本、JSON 响应或 JSONL 数据流</td>
 <td><a href="cli/">CLI 命令树</a></td>
 </tr>
 <tr>
-<td>机器配置</td>
+<td>本机配置</td>
 <td>TOML</td>
-<td><a href="configuration/">配置字段</a></td>
+<td><a href="configuration/">本机配置字段</a></td>
 </tr>
 <tr>
-<td>Project index</td>
+<td>项目索引</td>
 <td>YAML</td>
 <td><a href="documents/">项目文档模型</a></td>
 </tr>
 <tr>
-<td>Case 与 RunProfile</td>
-<td>YAML 或 JSON document contract</td>
-<td><a href="documents/">Case 与 Profile 字段</a></td>
+<td>案例与运行配置</td>
+<td>YAML 或 JSON 文档</td>
+<td><a href="documents/">案例与运行配置字段</a></td>
 </tr>
 <tr>
-<td>DatasetLock 与 data plan</td>
+<td>资料锁与资料计划</td>
 <td>JSON</td>
-<td><a href="documents/">项目文档</a>和 <a href="schemas/">schema</a></td>
+<td><a href="documents/">项目文档</a>和<a href="schemas/">结构定义</a></td>
 </tr>
 <tr>
-<td>Job 与 result machine output</td>
-<td>Versioned JSON 或 JSONL</td>
-<td><a href="schemas/">Schema</a></td>
+<td>任务与结果机器输出</td>
+<td>带版本的 JSON 或 JSONL</td>
+<td><a href="schemas/">结构定义</a></td>
 </tr>
 <tr>
-<td>Run product</td>
-<td>JSON manifest、SQLite、provenance bundle 和 optional report</td>
+<td>运行结果</td>
+<td>JSON 清单、SQLite、溯源信息和可选报告</td>
 <td><a href="results-sqlite/">结果与 SQLite</a></td>
 </tr>
 <tr>
-<td>Diagnostic</td>
-<td>Namespaced code 与 contextual field</td>
-<td><a href="diagnostics/">Diagnostic 索引</a></td>
+<td>诊断</td>
+<td>带命名空间的代码和上下文字段</td>
+<td><a href="diagnostics/">诊断码索引</a></td>
 </tr>
 <tr>
-<td>Shell status</td>
-<td>Process exit code</td>
-<td><a href="exit-codes/">Exit code</a></td>
+<td>命令状态</td>
+<td>进程退出码</td>
+<td><a href="exit-codes/">退出码</a></td>
 </tr>
 <tr>
-<td>Distribution</td>
-<td>Windows 或 Ubuntu release archive</td>
+<td>发行包</td>
+<td>Windows 或 Ubuntu 压缩包</td>
 <td><a href="platforms/">平台矩阵</a></td>
 </tr>
 </tbody>
 </table>
-<h2 id="_3">稳定性模型<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p>Software release 与 data format 各有自己的 identity。Executable 使用 semantic prerelease
-version <code>0.1.0-alpha.1</code>。Machine document 与 stream 携带 <code>trajecta.config/v1</code> 或
-<code>trajecta.cli-stream-item/v1</code> 一类值。Format contract 发生变化时才更新 schema version；
-普通文档或实现更新不会创建新的 schema identifier。</p>
-<p>用户与 automation 使用的稳定 integration surface 包括：</p>
+<h2 id="_3">版本与格式稳定性<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>软件版本与数据格式分别编号。可执行文件使用语义化预发布版本 <code>0.1.0-alpha.1</code>；本机文档和
+数据流则携带 <code>trajecta.config/v1</code>、<code>trajecta.cli-stream-item/v1</code> 等 <code>schema_version</code>。
+只有格式约定发生变化时才增加结构版本，普通实现或文档更新不会自动创建新标识。</p>
+<p>用户和自动化使用的公开接口包括：</p>
 <ul>
-<li>Command path 与已经记录的 option meaning。</li>
-<li>Machine output envelope 与 stream record。</li>
-<li>Configuration、Project、Case、RunProfile 与 lock document。</li>
-<li>Run manifest、SQLite schema、provenance bundle 与 result-directory layout。</li>
-<li>Diagnostic code 与 process exit code。</li>
+<li>命令路径及已记录的参数含义。</li>
+<li>JSON 响应格式和 JSONL 流记录。</li>
+<li>本机配置、项目、案例、运行配置与资料锁。</li>
+<li>运行清单、SQLite 结构、溯源信息和结果目录布局。</li>
+<li>诊断码与进程退出码。</li>
 </ul>
-<p>Rust crate API 面向 workspace contributor，在 alpha series 中可以重新组织，同时保持 public
-CLI 与 disk contract。Crate 文档入口位于 <a href="../developer/api/">Rust API 页面</a>。</p>
-<h2 id="_4">自动生成参考<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<p>三类参考从实现重新生成：</p>
+<p>Rust crate API 面向工作区贡献者，Alpha 阶段可能调整内部组织，而公开 CLI 与磁盘约定可以保持
+不变。<a href="../developer/api/">Rust API</a>提供相应入口。</p>
+<h2 id="_4">自动生成的参考页面<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>以下三页从实现重新生成：</p>
 <table>
 <thead>
 <tr>
@@ -2254,24 +2252,22 @@ CLI 与 disk contract。Crate 文档入口位于 <a href="../developer/api/">Rus
 <tbody>
 <tr>
 <td>CLI 命令树</td>
-<td>当前 binary <code>--help</code> 与 <code>M5_CLI_CONTRACT.v1.json</code></td>
+<td>当前二进制 <code>--help</code> 和 <code>M5_CLI_CONTRACT.v1.json</code></td>
 </tr>
 <tr>
-<td>JSON 与 JSONL schema</td>
-<td><code>testdata/</code> 中的 public schema 与 example file</td>
+<td>JSON 与 JSONL 结构</td>
+<td><code>testdata/</code> 下的公开结构定义和示例</td>
 </tr>
 <tr>
-<td>Diagnostic code</td>
-<td>Production CLI 与 job source 中带 namespace 的 diagnostic string</td>
+<td>诊断码</td>
+<td>生产 CLI 与任务源码中的带命名空间诊断字符串</td>
 </tr>
 </tbody>
 </table>
-<p>文档 validation 会检查这些生成页。Command、schema 或 diagnostic 发生变化时，对应 reference
-update 会与实现一起提交。</p>
+<p>文档校验会检查生成结果。命令、结构或诊断发生变化时，需要在同一修改中更新相应参考页。</p>
 <h2 id="alpha">Alpha 范围<a class="headerlink" href="#alpha" title="Permanent link">&para;</a></h2>
-<p>当前 package platform、local-daemon behavior、dry-run pruning、result interface 与 future
-extension point 汇总在 <a href="alpha/">Alpha 限制</a>。M5.1 期间 software version 保持
-<code>0.1.0-alpha.1</code>。</p>
+<p>当前平台、本地守护进程、只读清理计划、结果接口和未来扩展入口集中列在
+<a href="alpha/">Alpha 范围</a>。当前软件版本为 <code>0.1.0-alpha.1</code>。</p>
 
 
 

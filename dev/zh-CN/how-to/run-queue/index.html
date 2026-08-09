@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="提交前台与后台任务，理解资源接收过程，查看队列状态并等待运行结束。">
+        <meta name="description" content="以前台或后台方式提交 Trajecta 任务，了解资源准入，查看队列状态并等待运行结束。">
       
       
       
@@ -24,7 +24,7 @@
     
     
       
-        <title>前台运行 Trajecta 或提交本地队列 - Trajecta</title>
+        <title>前台运行与任务队列 - Trajecta</title>
       
     
     
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              前台运行 Trajecta 或提交本地队列
+              前台运行与任务队列
             
           </span>
         </div>
@@ -809,7 +809,7 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      准备提交
+      提交前检查
     </span>
   </a>
   
@@ -818,7 +818,7 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      在前台运行
+      前台运行
     </span>
   </a>
   
@@ -827,16 +827,7 @@
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      提交后立即返回
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#local-daemon" class="md-nav__link">
-    <span class="md-ellipsis">
-      Local daemon 的选择方式
+      后台提交
     </span>
   </a>
   
@@ -845,7 +836,7 @@
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      理解资源接收
+      守护进程与本机配置
     </span>
   </a>
   
@@ -854,7 +845,7 @@
         <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
-      查看队列状态
+      资源准入
     </span>
   </a>
   
@@ -863,16 +854,7 @@
         <li class="md-nav__item">
   <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
-      从另一个终端等待
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#profile" class="md-nav__link">
-    <span class="md-ellipsis">
-      运行多个 Profile
+      查看队列状态
     </span>
   </a>
   
@@ -881,7 +863,25 @@
         <li class="md-nav__item">
   <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
-      在脚本中保存提交输出
+      从另一个终端等待
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      提交多个运行配置
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      脚本中保存提交结果
     </span>
   </a>
   
@@ -2152,7 +2152,7 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      准备提交
+      提交前检查
     </span>
   </a>
   
@@ -2161,7 +2161,7 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      在前台运行
+      前台运行
     </span>
   </a>
   
@@ -2170,16 +2170,7 @@
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      提交后立即返回
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#local-daemon" class="md-nav__link">
-    <span class="md-ellipsis">
-      Local daemon 的选择方式
+      后台提交
     </span>
   </a>
   
@@ -2188,7 +2179,7 @@
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      理解资源接收
+      守护进程与本机配置
     </span>
   </a>
   
@@ -2197,7 +2188,7 @@
         <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
-      查看队列状态
+      资源准入
     </span>
   </a>
   
@@ -2206,16 +2197,7 @@
         <li class="md-nav__item">
   <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
-      从另一个终端等待
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#profile" class="md-nav__link">
-    <span class="md-ellipsis">
-      运行多个 Profile
+      查看队列状态
     </span>
   </a>
   
@@ -2224,7 +2206,25 @@
         <li class="md-nav__item">
   <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
-      在脚本中保存提交输出
+      从另一个终端等待
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      提交多个运行配置
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      脚本中保存提交结果
     </span>
   </a>
   
@@ -2250,15 +2250,15 @@
 
 
 <h1 id="_1">前台运行与任务队列<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>所有正式运行都进入同一个持久化本地队列。前台模式让提交命令一直等待，直到 attempt 进入
-终态。后台模式在队列接收任务后返回 receipt。两种模式使用相同的数值 worker 和结果目录
-结构。</p>
-<h2 id="_2">准备提交<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>项目模式下，先确认所选 Profile 位于 finalized 项目中：</p>
+<p>所有正式运行都会进入同一个持久化本地队列。前台模式让提交命令一直等待，直到当前执行轮次到达
+终态；后台模式在队列接受任务后立即返回回执。两种模式使用相同的工作进程、数值引擎和结果
+目录，区别只在提交端是否继续等待。</p>
+<h2 id="_2">提交前检查<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>使用项目模式时，先确认运行配置所属项目已经定稿：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project PROJECT project status
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --project PROJECT doctor --deep
 </code></pre></div>
-<p><code>run</code> 可以接收项目与 Profile 的组合，也可以接收显式 Case 和 RunProfile 路径。</p>
+<p><code>run</code> 可以接受项目及其中登记的运行配置，也可以直接接受案例和运行配置文件：</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">项目模式</label><label for="__tabbed_1_2">直接文档模式</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
@@ -2271,24 +2271,29 @@
 </div>
 </div>
 </div>
-<p>项目模式适合重复运行，项目索引会固定 Profile 所选的 Case、资料映射、lock 和输出位置。
-直接文档模式使用同一套队列生命周期，输入来自一对明确的文档。</p>
-<h2 id="_3">在前台运行<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>经常重复运行同一研究时，项目模式更方便。项目索引会固定运行配置选择的案例、资料映射、资料锁
+和结果目录。直接文档模式仍使用同一任务生命周期，只是每次显式指定文档组合。</p>
+<h2 id="_3">前台运行<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <p>默认行为是前台等待：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta --project PROJECT run --profile PROFILE
 </code></pre></div>
-<p>任务持久化接收后，命令输出 receipt，并跟随任务直到结束。只有 <code>complete</code> 终态返回退出码
-<code>0</code>。运行失败、取消、中断或含粒子异常的终态返回 <code>1</code>。</p>
-<p>关闭终端会断开前台 client，已经接收的 attempt 继续由 daemon 托管。使用 receipt 中的
-job series ID 重新连接：</p>
+<p>任务持久写入队列后，命令先显示回执，然后持续跟踪当前执行轮次。只有终态为 <code>complete</code> 时，
+命令退出码才是 <code>0</code>。<code>failed</code>、<code>cancelled</code>、<code>interrupted</code> 或
+<code>completed_with_particle_errors</code> 返回退出码 <code>1</code>。</p>
+<p>关闭终端只会断开前台客户端。已经被队列接受的任务继续由守护进程管理。使用回执中的任务系列
+ID 可以从另一个终端重新连接：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta job status JOB_ID
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>trajecta job wait JOB_ID
 </code></pre></div>
-<h2 id="_4">提交后立即返回<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<p>终端需要在接收后立即返回时加入 <code>--detach</code>：</p>
+<div class="admonition tip">
+<p class="admonition-title">关闭前台终端不会取消任务</p>
+<p>需要停止计算时，请使用 <code>job cancel</code>。直接关闭提交终端后，工作进程仍会继续运行。</p>
+</div>
+<h2 id="_4">后台提交<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>加入 <code>--detach</code> 后，命令会在任务写入持久队列后返回：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta --format json --project PROJECT run --profile PROFILE --detach
 </code></pre></div>
-<p>Receipt 中有三个常用身份字段：</p>
+<p>回执包含三个主要标识：</p>
 <table>
 <thead>
 <tr>
@@ -2299,52 +2304,50 @@ job series ID 重新连接：</p>
 <tbody>
 <tr>
 <td><code>job_series_id</code></td>
-<td>逻辑任务及后续 rerun 共用的稳定身份</td>
+<td>逻辑任务的稳定 ID，后续重跑仍属于同一系列</td>
 </tr>
 <tr>
 <td><code>run_id</code></td>
-<td>当前这个 attempt 的身份</td>
+<td>当前这一执行轮次的唯一 ID</td>
 </tr>
 <tr>
 <td><code>attempt</code></td>
-<td>series 内从 1 开始的 attempt 序号</td>
+<td>该任务系列内从 1 开始的执行轮次编号</td>
 </tr>
 </tbody>
 </table>
-<p>自动化流程适合保存完整 receipt。日常 <code>job</code> 命令通常使用 <code>job_series_id</code>；结果命令可以解析
-job series ID、run ID 或结果目录路径。</p>
-<div class="admonition tip">
-<p class="admonition-title">两个任务身份都保留</p>
-<p>跟踪和 rerun 使用 series ID。脚本需要锁定某次 attempt 时，再使用 run ID。</p>
-</div>
-<h2 id="local-daemon">Local daemon 的选择方式<a class="headerlink" href="#local-daemon" title="Permanent link">&para;</a></h2>
-<p>本机配置决定 daemon endpoint 及其 SQLite 任务 catalog。运行类命令首次发现 endpoint 无法
-连接时，会自动启动 local daemon。Windows 使用本机 named pipe，Linux 使用本机 Unix
-socket，不在网络接口上监听。</p>
-<p>Daemon 空闲达到 <code>daemon.idle_shutdown_seconds</code> 后退出。后续命令可以再次启动它，并读取同一
-份持久化 catalog。将该值设为 <code>0</code> 时，daemon 会保持运行，直到操作系统停止进程。</p>
-<p>需要读取同一 catalog 的 run、job 和 result 命令选择同一份本机配置：</p>
+<p>自动化程序适合保存完整回执。日常查询和重跑一般使用 <code>job_series_id</code>；结果命令还可以接受
+<code>run_id</code> 或具体结果目录。</p>
+<h2 id="_5">守护进程与本机配置<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p>本机配置决定守护进程端点和 SQLite 任务数据库。首个运行时命令发现端点不可用时，会自动启动
+本地守护进程。Windows 使用本机具名管道，Linux 使用 Unix 域套接字，端点不会监听网络接口。</p>
+<p>队列空闲达到 <code>daemon.idle_shutdown_seconds</code> 后，守护进程可以自行退出。后续命令会重新启动
+它，并打开原有任务数据库。将该值设为 <code>0</code>，守护进程会持续运行到操作系统停止它。</p>
+<p>凡是通过任务数据库查询 <code>run</code>、<code>job</code> 或 <code>result</code>，都应选择同一份本机配置：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>trajecta --config configs/workstation.toml job list
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>trajecta --config configs/workstation.toml job status JOB_ID
 </code></pre></div>
-<h2 id="_5">理解资源接收<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
-<p>所选 RunProfile 提供 <code>worker_threads</code> 和 <code>memory_budget_bytes</code>。提交时，Trajecta 将其转换为
-scheduler request：</p>
+<p>若查询不到刚提交的任务，先比较两个终端的 <code>trajecta config path</code> 输出。</p>
+<h2 id="_6">资源准入<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>运行配置中的 <code>worker_threads</code> 和 <code>memory_budget_bytes</code> 会转换为调度请求：</p>
 <ul>
-<li>CPU slot 数量等于 worker thread 数量；</li>
-<li>内存请求由字节预算向上取整到 MiB；</li>
-<li>所有活动 attempt 共享本机配置中的 CPU 和可调度内存池。</li>
+<li>CPU 槽位数等于工作线程数；</li>
+<li>内存预算按 MiB 向上取整；</li>
+<li>所有活跃执行轮次共享本机配置中的 CPU 和可调度内存池。</li>
 </ul>
-<p>可调度内存等于 <code>resources.memory_pool_mib</code> 减去 <code>resources.memory_reserve_mib</code>。CPU 和内存
-同时可用后，任务才能离开 <code>queued</code>。在资源允许接收的任务之间，队列按 FIFO 顺序推进。</p>
-<p>操作系统当前可用内存低于 reserve 时，daemon 暂停新的 dispatch，并记录外部内存压力
-warning。正在运行的 worker 保留已有资源预留。</p>
-<h2 id="_6">查看队列状态<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
-<p>列出日常可见的 job series 及其最新 attempt：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>trajecta job list
+<p>可调度内存按下式计算：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>resources.memory_pool_mib - resources.memory_reserve_mib
 </code></pre></div>
-<p>当前命令最多返回 1,000 项。查看指定 series 时使用：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>trajecta --format json job status JOB_ID
+<p>CPU 和内存同时有足够余量时，任务才能从 <code>queued</code> 进入 <code>starting</code>。暂时无法准入的任务会留在
+持久队列中。调度器以先入先出为基础，并允许能填补空闲资源的小任务有限度地先启动。</p>
+<p>当操作系统当前可用内存低于预留量时，守护进程会暂停派发新任务，并记录外部内存压力警告。
+已经运行的工作进程保持其资源预留，待主机内存恢复后，排队任务会继续准入。</p>
+<h2 id="_7">查看队列状态<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<p>列出每个可见任务系列的最新执行轮次：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>trajecta job list
+</code></pre></div>
+<p>当前命令最多返回 1,000 项。查看指定任务：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>trajecta --format json job status JOB_ID
 </code></pre></div>
 <p>常用字段如下：</p>
 <table>
@@ -2361,53 +2364,52 @@ warning。正在运行的 worker 保留已有资源预留。</p>
 </tr>
 <tr>
 <td><code>queue_position</code></td>
-<td>attempt 仍在队列中</td>
+<td>任务仍在队列中时</td>
 </tr>
 <tr>
 <td><code>started_at</code></td>
-<td>worker 开始启动后</td>
+<td>工作进程开始启动后</td>
 </tr>
 <tr>
 <td><code>finished_at</code></td>
-<td>进入终态后</td>
+<td>到达终态后</td>
 </tr>
 <tr>
 <td><code>output_directory</code></td>
-<td>attempt 目录完成分配后</td>
+<td>执行轮次目录分配完成后</td>
 </tr>
 <tr>
 <td><code>resources</code></td>
-<td>始终存在，记录本次接收的资源请求</td>
+<td>始终存在，记录本次准入请求</td>
 </tr>
 </tbody>
 </table>
 <p>常规状态顺序为：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>queued → starting → running → complete
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>queued → starting → running → complete
 </code></pre></div>
-<p>取消和运行故障会形成其他终态路径。<a href="../../operations/">运维手册</a>说明各状态，以及 daemon
-或 worker 中断后的恢复行为。</p>
-<h2 id="_7">从另一个终端等待<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
-<p><code>job wait</code> 连接到已有 series，并在当前 attempt 进入终态时退出：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>trajecta job wait JOB_ID
+<p>取消、异常粒子和运行错误会进入其他终态。<a href="../../operations/">运维手册</a>列出了完整状态及
+守护进程或工作进程中断后的处理方式。</p>
+<h2 id="_8">从另一个终端等待<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<p><code>job wait</code> 会连接到现有任务系列，在当前执行轮次进入终态后退出：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>trajecta job wait JOB_ID
 </code></pre></div>
-<p>它可用于 detached 提交，也可用于重新连接一台机器。需要持续进度时，可读取
-<a href="../events/"><code>job events</code></a>。</p>
-<h2 id="profile">运行多个 Profile<a class="headerlink" href="#profile" title="Permanent link">&para;</a></h2>
-<p>逐个使用 <code>--detach</code> 提交：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>trajecta --project PROJECT run --profile forward-wet-season --detach
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>trajecta --project PROJECT run --profile backward-wet-season --detach
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>trajecta --project PROJECT run --profile sensitivity-low-mixing --detach
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>trajecta job list
+<p>它适合后台提交后等待结果，也适合重新连接到仍在运行的任务。需要持续读取进度和资源状态时，
+使用<a href="../events/">任务事件</a>。</p>
+<h2 id="_9">提交多个运行配置<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
+<p>每个运行配置单独使用 <code>--detach</code> 提交：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>trajecta --project PROJECT run --profile forward-wet-season --detach
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>trajecta --project PROJECT run --profile backward-wet-season --detach
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>trajecta --project PROJECT run --profile sensitivity-low-mixing --detach
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>trajecta job list
 </code></pre></div>
-<p>Daemon 会在共享资源池范围内接收多个 worker，其余 attempt 保持持久化 <code>queued</code>。已经完成
-的 attempt 是 catalog 中的终态记录；daemon 重启不会再次提交或 dispatch 它们。</p>
-<h2 id="_8">在脚本中保存提交输出<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
-<p>一次请求和一次响应可以使用 JSON：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>trajecta --format json --project PROJECT run --profile PROFILE --detach
+<p>守护进程会启动资源池能够容纳的工作进程，其余执行轮次保持 <code>queued</code>。已经完成的执行轮次是
+任务数据库中的终态记录。守护进程重启后不会再次提交或运行它们。</p>
+<h2 id="_10">脚本中保存提交结果<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h2>
+<p>一个请求对应一个响应时，使用 JSON：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>trajecta --format json --project PROJECT run --profile PROFILE --detach
 </code></pre></div>
-<p>Envelope 包含 <code>ok</code>、完整命令路径、位于 <code>data</code> 中的 receipt，以及可能出现的 diagnostics。
-机器模式的应用响应作为一个 stdout envelope 输出。Usage error 保留退出码 <code>2</code>，运行或产品
-错误使用退出码 <code>1</code>。</p>
+<p>响应对象包含 <code>ok</code>、完整命令路径、<code>data</code> 中的提交回执，以及存在时的诊断。机器模式下，应用
+响应作为单个 JSON 写入标准输出。命令用法错误保留退出码 <code>2</code>，运行或产品错误使用退出码 <code>1</code>。</p>
 
 
 

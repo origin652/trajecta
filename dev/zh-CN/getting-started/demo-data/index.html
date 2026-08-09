@@ -2232,10 +2232,10 @@
 
 
 <h1 id="cfsr">CFSR 演示资料<a class="headerlink" href="#cfsr" title="Permanent link">&para;</a></h1>
-<p>Trajecta 的第一个项目使用 Climate Forecast System Reanalysis 的一个小型资料片段。资产
-包含 2009 年 1 月 1 日的四帧全球压力层分析，每六小时一帧，总量约 22 MiB，普通工作站
-即可方便地完成首次运行。</p>
-<p>资料作为独立 release asset 发布，与 Windows 和 Ubuntu 安装包分开。下载一次后，两种
+<p>Trajecta 的第一个项目使用气候预报系统再分析资料（Climate Forecast System Reanalysis，
+CFSR）的一个小型片段。资料包包含 2009 年 1 月 1 日四个时次的全球气压层分析，时间
+间隔为六小时，总量约 22 MiB，普通工作站即可完成首次运行。</p>
+<p>演示资料作为独立发布资源提供，与 Windows 和 Ubuntu 安装包分开。下载一次后，两种
 平台包均可使用，程序更新时也可继续保留这份资料。</p>
 <h2 id="_1">归档内容<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <p>下载
@@ -2282,12 +2282,12 @@
 </code></pre></div>
 <p><code>MANIFEST.json</code> 以机器可读形式重复记录文件名、字节数、散列、来源地址和有效时次。</p>
 <h2 id="_2">为什么示例使用四帧<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>内置 <code>cfsr-pgbl-pressure-v0</code> dataset profile 描述六小时间隔的资料。轨迹每次采样时，
+<p>内置资料配置 <code>cfsr-pgbl-pressure-v0</code> 描述六小时间隔的资料。轨迹每次采样时，
 Trajecta 会选择包围该时刻的两帧，并在时间方向插值得到气象字段。快速入门从 06:00
 运行至 06:10 UTC，因此采样时刻位于 06 UTC 分析场及其后一帧附近。</p>
-<p>演示项目会锁定完整的四帧资产。这组文件覆盖一整天的源分析场，后续教程扩展 Case 时
-还有可用余量。DatasetLock 记录四个文件的身份，查询引擎则按每次采样时间选择所需的
-时间括号。</p>
+<p>演示项目会锁定完整的四帧资产。这组文件覆盖一整天的源分析场，后续教程扩展案例时
+还有可用余量。资料锁记录四个文件的路径和 SHA-256，查询引擎则按每次采样时间选择所需的
+前后时次。</p>
 <h2 id="_3">下载并校验<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <p>ZIP 下载完成后计算散列并解压：</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Windows PowerShell</label><label for="__tabbed_1_2">Ubuntu 24.04</label></div>
@@ -2327,7 +2327,7 @@ Trajecta 会选择包围该时刻的两帧，并在时间方向插值得到气�
 </div>
 </div>
 </div>
-<p>Release 教程使用另一个项目目录。可以修改其 Profile 中的 <code>data_roots.met</code>，让两个项目
+<p>释放型粒子教程使用另一个项目目录。可以修改其运行配置中的 <code>data_roots.met</code>，让两个项目
 指向同一物理资料目录；也可以复制一份文件，得到完全独立的教程目录。</p>
 <h2 id="trajecta">使用 Trajecta 检查单帧<a class="headerlink" href="#trajecta" title="Permanent link">&para;</a></h2>
 <p><code>data inspect</code> 只读取源资料元数据，不会启动粒子运行：</p>
@@ -2347,7 +2347,7 @@ Trajecta 会选择包围该时刻的两帧，并在时间方向插值得到气�
 <td>GRIB2</td>
 </tr>
 <tr>
-<td>Dataset family</td>
+<td>资料系列</td>
 <td><code>cfsr_pgbl_pressure</code></td>
 </tr>
 <tr>
@@ -2356,21 +2356,21 @@ Trajecta 会选择包围该时刻的两帧，并在时间方向插值得到气�
 </tr>
 <tr>
 <td>垂直坐标</td>
-<td>37 个压力层</td>
+<td>37 个气压层</td>
 </tr>
 <tr>
 <td>气压范围</td>
 <td>1 至 1,000 hPa</td>
 </tr>
 <tr>
-<td>Profile 帧间隔</td>
+<td>资料时间间隔</td>
 <td>21,600 秒</td>
 </tr>
 </tbody>
 </table>
-<p>项目 finalize 时，命令返回的网格签名和层次签名会进入 DatasetLock。</p>
+<p>执行 <code>project finalize</code> 时，程序会把网格签名和层次签名写入资料锁。</p>
 <h2 id="_5">示例读取的字段<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
-<p>CFSR 源文件包含许多消息。Dataset profile 选择 Trajecta 使用的字段，并将源单位和层次
+<p>CFSR 源文件包含许多 GRIB 消息。内置资料配置选择 Trajecta 使用的字段，并将源单位和层次
 类型映射到统一字段模型。</p>
 <table>
 <thead>
@@ -2393,19 +2393,19 @@ Trajecta 会选择包围该时刻的两帧，并在时间方向插值得到气�
 <td>10 m 风、2 m 气温、2 m 比湿、粗糙度、边界层高度、热通量和摩擦速度</td>
 </tr>
 <tr>
-<td>Domain-fill 初始化</td>
+<td>区域填充初始化</td>
 <td>风场、气温、比湿、位势高度、地表气压和地形</td>
 </tr>
 </tbody>
 </table>
-<p>快速入门会使用 domain-fill 初始化与输送字段。近地面和边界层字段也保留在同一 profile
-中，较长的案例可以直接使用相应物理过程。工作流请求 diagnostics capability 时，
-potential vorticity 会从压力层字段派生。</p>
+<p>快速入门会使用区域填充初始化与输送字段。近地面和边界层字段也保留在同一内置资料配置
+中，较长的案例可以直接使用相应物理过程。工作流请求诊断能力时，位涡会从气压层字段
+派生。</p>
 <h2 id="_6">来源与引用<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <p>四个文件均按源字节取自
 <a href="https://www.ncei.noaa.gov/data/climate-forecast-system/access/reanalysis/6-hourly-low-resolution/2009/200901/20090101/">NOAA NCEI CFSR 六小时低分辨率目录</a>。
 <a href="https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C00765">CFSR 元数据记录</a>
-介绍低分辨率 GRBLOW collection 及其使用条件；NOAA 的
+介绍低分辨率 GRBLOW 数据集及其使用条件；NOAA 的
 <a href="https://www.noaa.gov/information-technology/open-data-dissemination">开放数据页面</a>
 给出更广泛的访问政策。上述来源页面于 2026 年 8 月 2 日核查。</p>
 <p>使用这些文件开展科研工作时，可引用：</p>
@@ -2414,12 +2414,13 @@ potential vorticity 会从压力层字段派生。</p>
 <p>资产内的来源说明把数据集名称、提供机构、源地址、引用和访问日期与四个原始文件一同
 保存。</p>
 <h2 id="_7">在其他项目中使用<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
-<p>RunProfile 可以把逻辑数据集绑定到任何含有这些文件的本地目录。绑定内容包括资料根、
-reader 和 DatasetLock 路径；Case 仍只引用逻辑数据集名称。多个项目因此可以共享同一
-只读资料集合，同时各自维护 lock 与结果目录。</p>
-<p>使用其他日期或更长时段时，先生成项目 data-plan，再把它传给
-<code>tools/fetch_trajecta_data.py</code>。助手根据 Case coverage 整理 provider 请求和本地目标路径。
-所需帧到位后，<code>project finalize</code> 会检查文件并创建运行使用的 lock。</p>
+<p>运行配置可以把逻辑数据集绑定到任何含有这些文件的本地目录。绑定内容包括资料根目录、
+读取器和资料锁路径；案例仍只引用逻辑数据集名称。多个项目因此可以共享同一套只读
+资料，同时各自维护资料锁与结果目录。</p>
+<p>使用其他日期或更长时段时，先生成项目的资料计划（<code>data-plan</code>），再把它传给
+<code>tools/fetch_trajecta_data.py</code>。辅助工具会根据案例的时空覆盖范围整理向数据服务方发出的
+请求和本地目标路径。所需时次文件到位后，<code>project finalize</code> 会检查文件并创建运行使用的
+资料锁。</p>
 
 
 
