@@ -25,7 +25,7 @@ data and environment needed for broader claims.
 | Runtime contracts | `trajecta-cli/tests/m5_a2_runtime_contracts.rs` | Can the production daemon and worker complete, cancel, and retain an attempt? |
 | Product package | `tools/m5_a4_package.py` and `tools/run_m5_a4_product_matrix.py` | Does a clean extracted archive run its bundled binary and native libraries? |
 | Validation and performance | Frozen M4/M5 runners and publication assets | Do scientific metrics, identities, resource gates, and timing rules still pass? |
-| Documentation | M5.1 generators, validators, MkDocs, quickstarts | Do examples, bilingual pages, references, links, and published metadata agree with the product? |
+| Documentation | Reference generators, validators, MkDocs, quickstarts | Do examples, bilingual pages, references, links, and published metadata agree with the product? |
 
 Passing a wider layer normally includes its narrower prerequisites, but it does
 not make every narrower test redundant. Unit failures are much faster to locate

@@ -1,71 +1,82 @@
 ---
-title: Domain-fill 水汽追踪教程
-description: 使用 CFSR 构建、运行并解读一个面向拉格朗日水汽追踪的 domain-fill 气团项目。
+title: 区域填充水汽追踪教程
+description: 使用 CFSR 资料建立区域填充粒子群，运行一个小型拉格朗日水汽追踪案例，并读取质量和生命周期结果。
 ---
 
-# Domain-fill 水汽追踪教程
+# 区域填充水汽追踪教程
 
-Domain filling 使用等干空气载体质量的粒子表示气象域中的大气。大气柱中质量较大的部分
-会获得更多粒子，地理采样仍与源网格和垂直坐标相连。得到的粒子历史构成拉格朗日水汽
-追踪使用的气团基础。
+区域填充用一组携带等量干空气质量的粒子表示计算区域内的大气。初始粒子的空间分布由气象快照
+中的空气质量决定：空气柱质量较大的位置会得到更多粒子，每个粒子代表的干空气质量保持一致。
+粒子随三维风场运动后，其位置和携带的水汽状态可以用于分析水汽来源、去向与停留过程。
 
-本教程沿用十五分钟快速入门的项目，并进一步阅读 population、质量账本、输出计划和
-结果表。Case 在全球 CFSR 压力层资料上运行 1,000 个粒子，时段为 2009 年 1 月 1 日
-06:00 至 06:10 UTC。
+本教程在全球 CFSR 气压层资料上生成 1,000 个粒子，从 2009 年 1 月 1 日 06:00 UTC 正向积分
+十分钟。案例沿用快速入门中的示例项目，并进一步说明粒子群生成、质量账本、输出事件和结果表。
 
-## Case 表示的内容
+## 这次计算表示什么
 
-初始时刻，Trajecta 根据气压、气温、比湿、格点面积、地形和可用垂直层构造干空气
-snapshot。Snapshot 被划分为 1,000 个等质量 stratum，再按照 Case seed 从每个 stratum
-抽取一个粒子，因此每个粒子携带相同的干空气质量。
+在初始时刻，Trajecta 根据每个网格单元的气压、气温、比湿、格点面积、地形和有效气压层，计算
+区域内的干空气质量。随后将总质量划分成 1,000 个相等的质量区间，并按案例中的随机种子在每个
+区间内抽取一个粒子。
 
-这一构造带来两个直接结果。粒子计数同时具有质量加权含义；固定粒子数可以控制计算量，
-每粒子载体质量则随所选气象域的总干空气质量变化。
+这种抽样方式有两项重要性质：
 
-积分期间，粒子沿三维风场移动。穿越地表时应用反射规则，越过可用模式顶时终止，经度
-则在全球网格两端衔接。每个 macro step 都会写入质量账本，使活动质量、边界交换、终止
-质量和初始域中的 residual 保持关联。
+- 每个初始粒子的 `dry_air_mass_kg` 相同；
+- 粒子在空间上的密度随干空气质量分布变化。
 
-## 阅读项目
+因此，对粒子做计数或加权汇总时，可以保持明确的质量含义。粒子总数决定采样分辨率，单粒子的
+载体质量则由区域内总干空气质量除以粒子数得到。
 
-项目索引把 Case 命名为 `moisture`，Profile 命名为 `product`。Profile 将逻辑数据集
-`cfsr` 绑定到 `data/`，选择 Rust reader，把结果写入 `runs/`，并申请一个 worker
-线程和 1 GiB 内存。
+积分期间，粒子由三维风场输送。到达地表时应用反射规则，越过资料可表示的模式顶时终止。全球
+网格在经度方向周期衔接，粒子穿过 180° 经线后从另一侧继续。每个数值宏步都会更新质量账本，
+记录仍然活跃的质量、边界交换、正常终止、异常终止和未分配余量。
 
-下面直接引入可执行示例中的科学 Case：
+## 阅读案例配置
+
+项目把案例命名为 `moisture`，把运行配置命名为 `product`。运行配置将逻辑资料 `cfsr` 绑定到
+`data/`，使用纯 Rust 读取器，把结果写入 `runs/`，并为工作进程申请一个线程和 1 GiB 内存。
+
+以下内容直接来自示例案例：
 
 --8<-- "examples/domain-fill-cfsr/cases/moisture.yaml"
 
-各部分可以转换成以下研究描述：
+配置可以按下表理解：
 
-| Case 部分 | 本教程中的含义 |
-|---|---|
-| `time` | 从 06:00 UTC 开始的十分钟正向区间 |
-| `meteorology.domains` | 一个全球 CFSR 域，带一格插值 halo |
-| `particle_population` | 恰好 1,000 个干空气 domain-fill 粒子 |
-| `numerics.time_step` | 两个 300 秒轨迹步 |
-| `numerics.integrator` | 球面二阶 Runge–Kutta 积分 |
-| `boundaries.policies` | 地表反射、模式顶终止和经度周期 |
-| `random_seed` | 稳定的 population 与随机采样键 |
-| `outputs` | 两个物理端点的粒子状态，写入 SQLite |
+| 配置部分 | 本例含义 |
+| --- | --- |
+| `time` | 从 06:00 UTC 开始，向未来积分十分钟 |
+| `meteorology.domains` | 使用全球 CFSR 区域，并预留一格水平插值边缘 |
+| `particle_population` | 按干空气质量生成 1,000 个区域填充粒子 |
+| `numerics.time_step` | 每步 300 秒，共推进两个数值步 |
+| `numerics.integrator` | 使用球面二阶 Runge–Kutta 积分器 |
+| `boundaries.policies` | 地表反射、模式顶终止、经度周期衔接 |
+| `random_seed` | 固定粒子抽样和随机键 |
+| `outputs` | 在时段起点和终点写入粒子状态 |
 
-Case 中没有操作系统路径。数据集名称 `cfsr` 通过项目索引和本地 Profile 解析。
+案例文件只描述科学问题，不包含本机绝对路径。逻辑资料名称 `cfsr` 由项目索引和运行配置共同
+解析到本地文件。
 
-## 准备资料并 finalize
+## 准备资料
 
-按照[演示资料页](../getting-started/demo-data.md)的说明，将四帧文件放入
-`examples/domain-fill-cfsr/data/`。随后检查项目状态并写出 data-plan：
+按照[演示资料](../getting-started/demo-data.md)页面下载四个 CFSR 文件，并放入
+`examples/domain-fill-cfsr/data/`。然后校验项目并生成资料计划：
 
 ```text
 trajecta --project examples/domain-fill-cfsr project validate
 trajecta --project examples/domain-fill-cfsr project data-plan --output data-plan.json
 ```
 
-Requirement 应选择 `cfsr-pgbl-pressure-v0`、reader `rust`，并包含 `transport`、
-`near_surface_transport` 与 `domain_fill` capability。物理 coverage 为 06:00–06:10 UTC；
-资料助手会把区间扩展为四个六小时 acquisition anchor。
+计划应选择 `cfsr-pgbl-pressure-v0` 和 `rust` 读取器。区域填充还需要以下资料能力：
 
-预览本地资料状态并创建 lock：
+| 能力 | 用途 |
+| --- | --- |
+| `transport` | 提供三维轨迹积分所需字段 |
+| `near_surface_transport` | 处理近地层运动和地表反射 |
+| `domain_fill` | 计算干空气质量并生成区域填充粒子 |
+
+案例的物理时段只有 06:00–06:10 UTC。CFSR 每六小时一帧，时间插值还需要相邻帧，因此下载计划
+包含 00、06、12 和 18 UTC。
+
+先预览本地资料状态，再完成项目定稿：
 
 ```text
 python tools/fetch_trajecta_data.py --project examples/domain-fill-cfsr --plan data-plan.json
@@ -73,22 +84,27 @@ trajecta --project examples/domain-fill-cfsr project finalize
 trajecta --project examples/domain-fill-cfsr doctor --deep
 ```
 
-Finalization 写入 `locks/cfsr.lock.json`，其中包含四个源文件散列、有效时次、网格签名、
-压力层签名、所选 profile 和 capability。Deep doctor 随后打开 locked data，并在启动
-worker 前检查结果文件系统。
+`project finalize` 会创建 `locks/cfsr.lock.json`。资料锁记录四个源文件的 SHA-256、有效时次、
+网格签名、气压层签名、内置资料配置和能力集合。`doctor --deep` 随后检查已经锁定的资料，并
+验证结果目录能否完成 SQLite 创建、WAL 写入、完整性检查和收尾。
 
-## 运行 Profile
+!!! tip "修改案例后重新生成资料计划"
 
-以前台方式提交默认 `product` Profile：
+    时间、区域、粒子群或资料映射发生变化后，旧计划中的 `project_sha256` 会失效。先重新运行
+    `project data-plan`，再准备资料并重新定稿。
+
+## 运行案例
+
+以前台方式运行 `product`：
 
 ```text
 trajecta --project examples/domain-fill-cfsr run --profile product
 ```
 
-终端会显示队列状态变化和最终结果位置。后续命令用 `RESULT` 代表该路径。这个小型 Case
-通常在数秒内完成；操作系统首次读取 GRIB2 文件时可能稍长。
+前台命令会持续显示任务状态，并在结束时给出结果目录。下文用 `RESULT` 表示该路径。这个十分钟
+小案例通常很快完成；操作系统第一次读取 GRIB2 文件时，运行时间可能略长。
 
-Worker 到达终态后生成可读报告：
+计算结束后依次运行：
 
 ```text
 trajecta result verify RESULT --full
@@ -96,86 +112,86 @@ trajecta result inspect RESULT
 trajecta run report --result RESULT
 ```
 
-示例时段包含两个 scheduled output event。没有提前终止时，1,000 个粒子会在
-`particle_state` 中形成 2,000 行。Inspection summary 还会显示 population origin、
-活动与终止数量、质量合计、reader、结果文件和字段质量类别。
+端点输出包含两个计划事件。若全部 1,000 个粒子都存活到终点，`particle_state` 会有 2,000 行。
+出现正常终止时，后一个事件的状态行会相应减少。`result inspect` 会给出实际粒子数、状态行数、
+终止原因、读取器和结果文件清单。
 
-## 读取 population
+## 读取粒子和状态
 
-### 先看汇总
+### 粒子数与状态行数
 
-`result inspect` 分开统计粒子数与状态行数。一个粒子只在 `particle` 表中创建一次，存活
-期间则可在每个 scheduled output event 写入一条状态。Domain-fill 初始粒子的
-`origin_kind` 为 `domain_initial`。较长的有限域运行还可能包含从 inflow boundary 出生的
-粒子。
+一个粒子只在 `particle` 表中登记一次。它每参加一次计划输出，就在 `particle_state` 中写入
+一条状态。区域填充初始粒子的 `origin_kind` 为 `domain_initial`。有限区域的长时段案例还可能
+从流入边界生成新粒子，这类粒子会记录自己的边界来源。
 
-终止计数区分正常 lifecycle outcome 与异常执行结果。全球教程网格会衔接经度边界；模式
-顶终止或 population outflow 仍可能形成正常终止。Invalid meteorology 和反射处理耗尽会
-进入 abnormal group，可作为失败运行的调查起点。
+终止统计分为正常生命周期结束和异常粒子错误。穿出有限区域、越过模式顶或按粒子群规则退出，
+都可能是正常终止。`invalid_meteorology` 等诊断表示某个粒子所需的气象状态无法有效计算，需要
+结合时间、位置和质量类别进一步检查。
 
-### 跟踪一个粒子
+### 查看单个粒子
 
-以 human format 读取粒子 0：
+读取粒子 0 的人类可读轨迹：
 
 ```text
 trajecta result trajectory RESULT --particle-id 0
 ```
 
-两条记录先给出 birth identity、物理时间和位置，再列出 integration offset 与 elapsed
-age。粒子状态和采样风位于后续字段，气压与气温各自带有质量信息。第二行的经纬度与高度
-显示两个数值步产生的位移。
+记录会显示粒子 ID、物理时刻、经纬度、高度、积分偏移和存活时长。气压、气温和采样风等字段
+也会随状态一起返回。对本例而言，起点和终点两行即可显示两个 300 秒积分步造成的位移。
 
-分析程序可以读取 JSONL stream：
+分析程序可以改用 JSONL：
 
 ```text
 trajecta --format jsonl result trajectory RESULT --particle-id 0
 ```
 
-Stream 先输出 header，随后每条状态对应一个 item，最后给出 summary。同一条命令可以
-重复提供 `--particle-id`，一次读取多个粒子。
+输出以一条流头开始，随后每条粒子状态各占一行，最后给出汇总。同一命令可以多次提供
+`--particle-id`，一次读取若干粒子。
 
-## 解读质量与 lifecycle
+## 质量账本与水汽信息
 
-每个 domain-fill 粒子都保存 `dry_air_mass_kg`。使用 target-count 的 Case 会给所有初始
-粒子分配相同载体值。其补偿求和加上 residual，等于气象 snapshot 计算得到的干空气质量。
+每个区域填充粒子都保存 `dry_air_mass_kg`。本例按固定粒子数生成初始群体，因此 1,000 个初始
+粒子拥有相同的干空气载体质量。浮点数逐项相加会产生微小舍入误差，生成器会在分配时补偿这部分
+余量。补偿后的粒子质量之和加上未分配余量，应与气象快照计算得到的区域干空气总质量一致。
 
-Manifest 中的质量账本沿 macro step 追踪该表示。较长运行中常用的量如下：
+质量账本沿数值宏步记录以下项目：
 
-| 量 | 含义 |
-|---|---|
-| Initial 或 incoming mass | 初始化或边界出生引入的干空气载体质量 |
-| Active mass | 仍由活动粒子表示的载体质量 |
-| Outgoing mass | 通过 domain-fill 边界过程离开的质量 |
-| Normal terminated mass | 因声明的物理 lifecycle rule 结束的载体质量 |
-| Abnormal terminated mass | 与粒子错误关联的载体质量 |
-| Residual mass | 采用 mass-per-particle 模式时，小于一个载体量子的干空气部分 |
+| 项目 | 含义 |
+| --- | --- |
+| 初始或流入质量 | 初始化或边界新生粒子带入的干空气质量 |
+| 活跃质量 | 当前仍由活动粒子表示的质量 |
+| 流出质量 | 通过区域边界离开的质量 |
+| 正常终止质量 | 按声明的物理生命周期规则结束的质量 |
+| 异常终止质量 | 与粒子计算错误相关的质量 |
+| 未分配余量 | 采用固定单粒子质量时，不足一个质量单位的剩余部分 |
 
-比湿参与干空气 snapshot 和气象查询。Particle-state product 提供轨迹与载体权重，后续
-水汽诊断可按源区、受体区或时间段组织这些粒子历史。
+比湿既参与初始干空气质量计算，也作为气象状态随轨迹采样。结果中的粒子位置、时间、载体质量和
+比湿可按源区、受体区或时间段重新组织，为后续水汽归因计算提供输入。
 
-## 扩展实验
+## 扩展案例
 
-### 延长物理时段
+### 延长时段
 
-修改 `cases/moisture.yaml` 中的 `time.end`，再运行 `project validate` 并重新生成
-data-plan。资料助手的 acquisition anchors 会随新区间移动。附加帧准备完成后，
-finalization 为扩展后的 Case 创建更新 lock。
+修改 `cases/moisture.yaml` 中的 `time.end`，重新执行 `project validate` 和
+`project data-plan`。资料计划会按新区间增加 CFSR 时次。新文件准备完成后，再执行
+`project finalize` 更新资料锁。
 
-多小时研究若只保留 endpoint output，只能看到起点和终点。需要中间位置时，可在 Case
-中选择 interval schedule。状态行数大致等于存活粒子数乘 scheduled event 数，因此输出
-cadence 会直接影响结果体积。
+长时段研究通常需要中间输出。端点计划只保留起点和终点；间隔计划可以保存演变过程。结果状态
+行数大致等于每个输出时刻仍然活跃的粒子数之和，因此输出频率会直接影响 SQLite 体积和写入量。
 
-### 增加 population 或调整分辨率
+### 增加粒子数量
 
-提高 `target_particle_count` 可以降低空间汇总中的采样噪声，单粒子的干空气载体质量会
-相应减小。Worker 内存、气象查询量和 SQLite 输出都会随 population 增长。
+提高 `target_particle_count` 可以细化区域质量抽样，并降低单个粒子的载体质量。计算量、气象
+查询次数、内存占用和结果行数都会随粒子数增加。正式扩大前，可以先用目标输出频率运行一个
+较小粒子群，估算结果目录所需空间。
 
-十分钟、1,000 粒子的项目适合作为本地 preflight。更换 worker threads、内存预算、
-reader 或 output root 时，可以新建 Profile。科学 Case 得以保留，执行环境也会清楚记录
-在结果中。
+**调整本机资源**
 
-## 后续步骤
+工作线程、内存预算、读取器和结果目录都属于运行配置。可以复制 `profiles/product.yaml` 创建
+另一个运行配置，在保留科学案例的同时比较执行环境。每次结果都会保存解析后的案例和运行配置，
+便于确认它实际采用的参数。
 
-[定时 release 教程](release.md)会用明确点源替换按质量加权的域初始化。
-[Air-mass 教程](air-mass.md)继续使用 domain filling，并转到有限的 ERA5 压力层区域，
-边界流出由此成为正常 lifecycle 的一部分。
+## 接下来
+
+[定时释放教程](release.md)从一个明确源项生成粒子，适合已知释放位置和质量的研究。
+[气团输送教程](air-mass.md)继续使用区域填充，并转向有限区域的 ERA5 气压层资料。

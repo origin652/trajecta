@@ -1,111 +1,123 @@
 ---
-title: ERA5 压力层 air-mass 教程
-description: 准备官方 ERA5 压力层资料，并使用 Trajecta 运行有限域干空气 population。
+title: ERA5 气压层气团教程
+description: 准备 ERA5 气压层资料，在有限区域内生成等干空气质量粒子，并读取边界流出和质量结果。
 ---
 
-# ERA5 压力层 air-mass 工作流
+# ERA5 气压层气团教程
 
-本教程保留 CFSR domain-fill 项目中的等干空气载体 population，并转到有限的 ERA5
-压力层网格。变化集中在三个方面：从尚未备齐资料的项目规划 provider request，将压力层
-与地表文件共同准备，以及解释有限水平边界上的正常粒子流出。
+本教程继续使用区域填充中的等干空气质量粒子，并把气象资料换成有限区域的 ERA5 气压层产品。
+与全球 CFSR 示例相比，这里新增三个实际环节：
 
-Case 覆盖 2018 年 12 月 1 日 06:00 至 06:10 UTC。随包资料助手采用北纬 53° 至 45°、
-东经 0° 至 10° 的教程区域。1,000 个粒子按该网格安全核心中的干空气质量初始化。
+1. 在气象资料尚未下载时，根据项目生成服务方请求；
+2. 将气压层变量和地表变量准备成一个可锁定的资料集合；
+3. 读取粒子穿出有限水平边界后的正常终止和质量流出。
 
-## 阅读项目绑定
+案例从 2018 年 12 月 1 日 06:00 UTC 正向积分至 06:10 UTC。资料助手采用北纬 45–53°、
+东经 0–10° 的教程区域。Trajecta 会在该网格的安全内部区域按干空气质量生成 1,000 个粒子。
 
-项目索引把逻辑数据集 `era5-pressure` 连接到公开 profile
+## 项目如何连接三个文件
+
+项目索引把逻辑资料 `era5-pressure` 映射到内置资料配置
 `era5-cf-pressure-netcdf-v0`：
 
 --8<-- "examples/air-mass-era5-pressure/trajecta-project.yaml"
 
-Case 选择有限域与干空气 population：
+案例选择有限区域和等干空气质量粒子群：
 
 --8<-- "examples/air-mass-era5-pressure/cases/air-mass.yaml"
 
-RunProfile 保存面向本机的路径和执行申请：
+运行配置保存本机路径和资源请求：
 
 --8<-- "examples/air-mass-era5-pressure/profiles/product.yaml"
 
-三份文件各自承担清楚的职责。Case 提供模拟时间与方向，同时声明 population、边界规则
-和输出。项目索引选择 dataset profile。Profile 指向 `data/`、
-`locks/era5-pressure.lock.json` 和 `runs/`，并申请一个使用 Rust reader、预算 1 GiB 的
-worker。
+三个文件各自承担一类信息：
 
-## 了解 ERA5 请求
+| 文件 | 保存内容 |
+| --- | --- |
+| 案例（`Case`） | 时段、方向、区域、粒子群、边界、数值方法和输出 |
+| 项目索引 | 案例与运行配置名称，以及逻辑资料到内置资料配置的映射 |
+| 运行配置（`RunProfile`） | `data/`、资料锁、`runs/`、读取器、线程和内存预算 |
 
-Pressure-level profile 的帧间隔为六小时。对于十分钟 Case，助手会规划 2018 年 12 月
-1 日 00、06、12 和 18 UTC。每个日期形成三组 provider request：
+`product` 使用纯 Rust 读取器，申请一个工作线程和 1 GiB 内存。资料锁写入
+`locks/era5-pressure.lock.json`。
 
-| 请求 | 变量与作用 |
-|---|---|
-| 压力层 | 气温、两个水平风分量、压力垂直速度、比湿和位势；包含 1 至 1,000 hPa 的 37 个层 |
-| 地表基础场 | 地表气压、位势、10 m 风、2 m 气温与露点、粗糙度、边界层高度和摩擦速度 |
+## ERA5 请求包含什么
+
+内置资料配置以六小时为一个锚点。对于十分钟案例，下载助手会规划
+2018 年 12 月 1 日 00、06、12 和 18 UTC。每个日期包含三组服务方请求：
+
+| 请求组 | 变量与用途 |
+| --- | --- |
+| 气压层 | 37 个气压层上的气温、两个水平风分量、压力垂直速度、比湿和位势 |
+| 地表基础 | 地表气压、位势、10 米风、2 米气温与露点、粗糙度、边界层高度和摩擦速度 |
 | 地表通量 | 瞬时感热通量和水汽通量 |
 
-Provider 文件先进入项目 data root 下的私有工作目录。准备阶段检查变量与坐标，添加
-Trajecta 识别的 dataset-family metadata，再把 ready NetCDF 提升到 `data/ready/`。
-准备后的文件可以由 Profile 选择 Rust 或 native NetCDF 路径读取。
+下载文件先保存在项目资料目录下的私有工作区。准备阶段检查变量、坐标和时次，写入 Trajecta
+识别的资料系列元数据，再将可以使用的 NetCDF 文件移入 `data/ready/`。准备后的文件可以由
+运行配置选择纯 Rust 或原生 NetCDF 读取路径。
 
-## 在资料到位前创建 plan
+## 先生成计划，稍后下载
 
-即使 `data/` 仍为空，项目也可以保持 configured 状态并通过文档校验：
+资料目录为空时，项目仍可完成文档校验并进入 `configured` 状态：
 
 ```text
 trajecta --project examples/air-mass-era5-pressure project validate
 trajecta --project examples/air-mass-era5-pressure project data-plan --output era5-plan.json
 ```
 
-Plan requirement 应包含：
+本例生成的要求应包含：
 
 | 字段 | 预期值 |
-|---|---|
-| Case/Profile | `air-mass` / `product` |
-| Dataset | `era5-pressure` |
-| Dataset profile | `era5-cf-pressure-netcdf-v0` |
-| Reader | `rust` |
-| Lock path | `locks/era5-pressure.lock.json` |
-| Data root | `data` |
-| Capabilities | `domain_fill`、`near_surface_transport`、`transport` |
-| Physical coverage | 2018-12-01 06:00–06:10 UTC |
+| --- | --- |
+| 案例 / 运行配置 | `air-mass` / `product` |
+| 逻辑资料 | `era5-pressure` |
+| 内置资料配置 | `era5-cf-pressure-netcdf-v0` |
+| 读取器 | `rust` |
+| 资料锁路径 | `locks/era5-pressure.lock.json` |
+| 资料目录 | `data` |
+| 能力 | `domain_fill`、`near_surface_transport`、`transport` |
+| 物理覆盖 | 2018-12-01 06:00–06:10 UTC |
 
-这种 staged state 适合先准备 Case，再提交资料请求。修改 Case 会改变 `project_sha256`；
-助手会把当前项目与输入 plan 比较，二者变化后需要重新生成 plan。
+资料计划包含 `project_sha256`。如果计划生成后又修改案例或运行配置，下载助手会发现摘要不一致，
+并要求重新生成计划。这样可以避免根据旧时段或旧区域继续下载。
 
-## 预览并获取资料
+## 预览和下载资料
 
-可以在 Python 环境中安装产品包列出的资料依赖：
+先为 Python 资料工具安装依赖：
 
 ```text
 python -m pip install -r requirements-data.txt
 ```
 
-先预览准确请求：
+不加 `--execute` 时，助手只显示将要发出的请求和目标文件：
 
 ```text
 python tools/fetch_trajecta_data.py --project examples/air-mass-era5-pressure --plan era5-plan.json
 ```
 
-JSON 输出先列出 north-west-south-east 顺序的区域和 acquisition anchors，随后给出
-provider dataset 与变量清单。每项请求还包含压力层、目标路径和当前文件状态。随包项目
-会显示内置教程区域 `[53, 0, 45, 10]`。
+JSON 预览先列出区域、资料锚点和服务方数据集名称，再给出变量、气压层、目标路径及现有文件
+状态。区域采用“北、西、南、东”顺序，本例为 `[53, 0, 45, 10]`。
 
-Climate Data Store client 从标准配置或环境读取账户凭据。助手输出和
-`TRAJECTA_FETCH_MANIFEST.json` 记录 request metadata 与文件散列，不包含凭据值。
+哥白尼气候数据存储（CDS）客户端从官方配置文件或环境变量读取账户凭据。请求预览和
+`TRAJECTA_FETCH_MANIFEST.json` 只保存请求参数及文件散列。
 
-启动下载与准备流程：
+确认预览后开始下载和准备：
 
 ```text
 python tools/fetch_trajecta_data.py --project examples/air-mass-era5-pressure --plan era5-plan.json --execute
 ```
 
-服务端可能需要一些时间准备请求。已经存在且内容相同的 target 会继续使用。下载和转换
-先保存在 `data/.trajecta-fetch/`，ready files 完成后再提升到正式位置。成功结束时，工作
-目录被清理，并写入 `data/TRAJECTA_FETCH_MANIFEST.json`。
+CDS 可能需要一段时间准备请求。匹配的已有目标会被复用；下载中的文件和中间转换结果保存在
+`data/.trajecta-fetch/`。全部文件通过检查后，助手将它们移入 `data/ready/`，清理工作目录，
+并写出 `data/TRAJECTA_FETCH_MANIFEST.json`。
 
-## Finalize 准备后的项目
+!!! tip "下载中断后可再次执行同一命令"
 
-检查一份 ready file，随后 finalize 并运行本地文件系统检查：
+    助手会检查已存在的匹配文件和临时下载，不必从头创建全部请求。
+
+## 完成项目定稿
+
+从助手输出中选择一个准备好的文件，先查看它的资料信息：
 
 ```text
 trajecta data inspect examples/air-mass-era5-pressure/data/ready/ERA5_READY_FILE.nc
@@ -113,22 +125,22 @@ trajecta --project examples/air-mass-era5-pressure project finalize
 trajecta --project examples/air-mass-era5-pressure doctor --deep
 ```
 
-将 `ERA5_READY_FILE.nc` 替换为资料助手返回的文件名。Data inspection 会报告 family
-marker、有效时次、网格、压力层和 source role。
+将 `ERA5_READY_FILE.nc` 换成实际文件名。`data inspect` 会报告资料系列标记、有效时次、网格、
+气压层和源角色。
 
-Finalization 把 ready set 作为一个逻辑数据集扫描。DatasetLock 记录每份 prepared file
-的内容散列与大小，并保存时间覆盖和网格签名。垂直签名、profile identity 与 capability
-也写入同一个 lock。项目状态随后从 `configured` 变为 `finalized`。
+项目定稿会把 `data/ready/` 下的相关文件视为一个逻辑资料集合。生成的资料锁记录每个文件的
+SHA-256、大小和时间覆盖，也记录网格签名、垂直签名、内置资料配置及能力。完成后，项目状态从
+`configured` 变为 `finalized`。
 
-## 运行有限域 Case
+## 运行有限区域案例
 
-以前台方式提交 Profile：
+以前台方式提交：
 
 ```text
 trajecta --project examples/air-mass-era5-pressure run --profile product
 ```
 
-完成后通过产品命令读取结果：
+完成后读取结果：
 
 ```text
 trajecta result verify RESULT --full
@@ -137,49 +149,46 @@ trajecta result trajectory RESULT --particle-id 0
 trajecta run report --result RESULT
 ```
 
-初始 output event 包含 1,000 个干空气粒子。最终数量取决于十分钟内是否有轨迹到达安全
-网格边界。与边界相交的粒子会在交点时刻获得 terminal state，并记录
-`domain_boundary` normal termination。
+初始输出事件包含 1,000 个干空气载体粒子。终点仍有多少粒子，取决于十分钟内是否有轨迹到达
+网格的安全边界。粒子与水平边界相交时，会在精确交点和时刻写入终止状态，终止原因为正常的
+`domain_boundary`。
 
-有限域运行的末端行数较少时，表示已经解析的边界流出。Inspect summary 会把该结果与
-invalid meteorology 等 particle error 分开。质量账本也会同时列出 outgoing mass、
-terminated carrier mass 和仍然活动的质量。
+因此，终点状态行少于 1,000 并不自动表示计算错误。`result inspect` 会把区域流出与
+`invalid_meteorology` 等异常粒子诊断分开。质量账本同时记录流出质量、正常终止质量和仍然
+活跃的载体质量。
 
-## 读取有限边界附近的运动
+## 阅读边界附近的运动
 
-选择一个粒子，比较两个 scheduled state 及可能存在的 terminal state：
+用 JSONL 读取一个粒子的计划状态和可能出现的终止状态：
 
 ```text
 trajecta --format jsonl result trajectory RESULT --particle-id 0
 ```
 
-`physical_time` 是实际气象时刻。这个正向 Case 的 `integration_offset_ns` 为正，
-`elapsed_age_ns` 表示出生后的经过时间。粒子若在两个 endpoint event 之间终止，最后一条
-记录会使用准确交点时间。
+`physical_time` 是实际气象时刻。正向案例中的 `integration_offset_ns` 为正，
+`elapsed_age_ns` 表示粒子自生成以来经历的时间。粒子若在两个端点事件之间穿出区域，最后一条
+记录会保留精确的相交时刻，不会推迟到下一次计划输出。
 
-采样风、气压和气温列还带有 validity 与 quality label。使用同一 locked input 比较
-Rust-reader Profile 和 native-reader Profile 时，可以同时读取这些字段。
+采样风、气压和气温字段带有有效性与质量标签。使用相同资料锁比较纯 Rust 和原生读取器时，
+这些标签可帮助定位某个字段或插值位置的差异。
 
-## 调整教程区域
+## 换成自己的区域
 
-当 Case 含 release geometry 时，通用助手可以由几何范围得到请求区域。当前 domain-fill
-Case 没有 source geometry，因此随包 ERA5 教程采用已记录的北纬 53–45°、东经 0–10°
-默认值。其他有限区域可以通过 provider utility 显式传入 north-west-south-east box：
+含释放几何的案例可以由助手推导下载范围。区域填充案例没有源几何，本教程使用内置的
+53–45° N、0–10° E 范围。准备其他有限区域时，可以直接使用底层 ERA5 气压层工具：
 
 ```text
 python tools/fetch_era5_pressure_cds.py --out-dir PROJECT_DATA_WORK --date YYYY-MM-DD --times 00:00 06:00 12:00 --area NORTH WEST SOUTH EAST
 ```
 
-随后在该 work root 上运行 `prepare_era5_pressure_anchors.py`，把 ready files 放入 Profile
-指定的 data root，再 finalize 项目。Prepared grid 定义 `limited_domain_terminate/v0`
-使用的气象域。
+然后对工作目录运行 `prepare_era5_pressure_anchors.py`，把准备好的文件放到运行配置所指向的
+资料目录，再执行 `project finalize`。准备后网格的安全内部范围就是
+`limited_domain_terminate/v0` 使用的计算区域。
 
-扩大空间范围时，需要同步考虑文件体积、内存预算和 query locality。延长时间以后重新生成
-project plan，确保 acquisition anchors 覆盖全部物理采样时刻。`horizontal_halo_cells`
-还要为网格边缘附近的插值 stencil 留出足够支撑。
+区域扩大后，文件体积和气象查询内存会增加。时段延长后，应重新生成资料计划，确保每个物理采样
+时刻都有相邻锚点。`horizontal_halo_cells` 还需在网格边缘为插值保留足够的邻近格点。
 
-## 后续步骤
+## 接下来
 
-[Ozone 教程](ozone.md)继续使用同一有限教程区域，并转到 137 个 hybrid 模式层、三小时
-anchors、反向执行和基于 potential vorticity 的 population。
-[资料家族对照](data-families.md)汇总这些源布局差异。
+[平流层臭氧教程](ozone.md)沿用相同有限区域，改用 137 个 ERA5 混合模式层、三小时时次和反向
+积分，并按位涡生成粒子群。[资料系列与轨迹方向](data-families.md)集中比较各类资料的结构。

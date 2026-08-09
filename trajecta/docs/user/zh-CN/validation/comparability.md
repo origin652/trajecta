@@ -1,115 +1,107 @@
 ---
 title: FLEXPART 可比较性矩阵
-description: 查看 Trajecta 与 FLEXPART 的输入、coordinate、output、ensemble measure 与 runtime component 如何建立共同对比边界。
+description: 查看 Trajecta 与 FLEXPART 的输入、坐标、输出、粒子群统计和运行时间分别采用什么比较口径。
 ---
 
 # FLEXPART 可比较性矩阵
 
-轨迹对比先要确定每个 field 代表的物理量。两个产品都描述 atmospheric transport 时，file
-format、variable name、vertical convention、output cadence 和 particle sampling 仍可能不同。
-下表记录发布的一小时 Case 所采用的关系。
+轨迹模型比较需要先对齐每个字段表示的物理量。即使两套程序都描述大气输送，文件格式、变量名、
+垂直坐标、输出间隔和粒子抽样仍可能不同。下表记录当前一小时案例采用的关系。
 
-## 分类名称
+## 分类含义
 
-| 分类 | 在本次对比中的含义 |
+| 分类 | 本次比较中的含义 |
 | --- | --- |
-| `exact` | 两侧选择相同 source quantity 或 contract value，并直接检查相等性 |
-| `aligned` | 经过已声明 conversion 或 packing tolerance 后，value 具有相同 unit 与 physical interpretation |
-| `aggregate-only` | 对比 particle ensemble 的 statistic，不配对 individual record |
-| `not-comparable` | 本 matrix 中的产品没有共同 quantity 或 cost boundary |
+| `exact` | 两侧选择同一源物理量或同一约定值，可直接检查相等 |
+| `aligned` | 经过声明的单位转换或打包容差后，单位和物理含义一致 |
+| `aggregate-only` | 比较粒子群统计，不逐个配对粒子记录 |
+| `not-comparable` | 当前矩阵中没有共同物理量或成本边界 |
 
-分类逐行适用。同一个 run 可以同时包含 exact input time、aligned height、aggregate-only
-particle statistic 和 implementation-specific output work。
+分类按行使用。同一次运行可以同时包含完全一致的输入时刻、经过换算对齐的高度、只做集合统计的
+粒子位置，以及各自特有的输出开销。
 
-## 矩阵
+## 对照矩阵
 
-| 维度 | 分类 | 使用的对齐方式 |
+| 维度 | 分类 | 对齐方式 |
 | --- | --- | --- |
-| Official meteorological source file | `exact` | 两条 staging path 从同一组 frozen source byte 开始 |
-| Trajecta prepared meteorology | `exact` | Prepared array 与 source array 比较；derived surface pressure 使用 bounded round-off |
-| FLEXPART staged GRIB value | `aligned` | 每个 common field 保持在 source value 的 ecCodes packing error 内 |
-| Valid time | `exact` | 固定四个 source frame 及其 UTC instant |
-| Hybrid vertical definition | `aligned` | 对齐 model level、half-level coefficient、pressure interpretation 与 unit |
-| Wind、temperature、humidity 与共同 surface field | `aligned` | Staging 后的 common physical field 使用相同 quantity 与 unit |
-| Output instant | `exact` | 两侧 product 都包含 20、40 与 60 分钟 state |
-| Particle count | `exact` | 每档 population 含选定的 10,000 或 50,000 个粒子 |
-| Released mass contract | `exact` | 共同 Case 使用相等 total released mass 与 population size |
-| Longitude 与 latitude | `aligned` | Geographic degree 转入共同 spherical metric calculation |
-| Height | `aligned` | 两侧以 metre above sea level 进入 ensemble metric |
-| Ensemble centroid | `aggregate-only` | 计算 spherical ensemble mean 之间的 great-circle separation |
-| Horizontal dispersion | `aggregate-only` | 以 ratio 对比粒子到各自 ensemble centroid 的 RMS great-circle distance |
-| Spatial occupancy | `aggregate-only` | 以 ratio 对比共同 0.1° × 0.1° × 250 m audit grid 中的 distinct cell |
-| Individual particle trajectory | `not-comparable` | Random source sampling 与 integrator 不会产生共同 particle-ID assignment |
-| SQLite 与 provenance work | `not-comparable` | 本 matrix 中的 FLEXPART product 没有对应 indexed history 与 provenance product |
-| Particle NetCDF layout | `not-comparable` | Trajecta default product 为 SQLite，schema 与 lifecycle 不同 |
+| 官方气象源文件 | `exact` | 两条资料准备路径从同一组固定源字节开始 |
+| Trajecta 准备后气象资料 | `exact` | 准备后数组与源数组直接比较；地表气压派生使用有限舍入容差 |
+| FLEXPART 准备后 GRIB 值 | `aligned` | 共同字段与源值之差位于对应 ecCodes 打包误差内 |
+| 有效时次 | `exact` | 固定四个源资料时次及其 UTC 时刻 |
+| 混合垂直坐标 | `aligned` | 对齐模式层、半层系数、气压解释和单位 |
+| 风、气温、湿度和共同地表字段 | `aligned` | 准备后采用相同物理量和单位 |
+| 输出时刻 | `exact` | 两侧都包含 20、40 和 60 分钟状态 |
+| 粒子数 | `exact` | 两侧分别使用 10,000 或 50,000 个粒子 |
+| 释放质量约定 | `exact` | 共同案例采用相同总释放质量和粒子数量 |
+| 经度与纬度 | `aligned` | 地理坐标统一转换到球面统计 |
+| 高度 | `aligned` | 粒子群统计统一使用海拔米 |
+| 粒子群质心 | `aggregate-only` | 计算两个球面平均质心之间的大圆距离 |
+| 水平离散度 | `aggregate-only` | 比较粒子到本方质心的大圆距离均方根比值 |
+| 空间占据范围 | `aggregate-only` | 比较共同 0.1° × 0.1° × 250 m 诊断网格中的非空单元数比值 |
+| 单个粒子轨迹 | `not-comparable` | 随机抽样与积分器没有共同粒子 ID 配对 |
+| SQLite 和溯源写入 | `not-comparable` | 当前 FLEXPART 产品没有对应的索引历史与字段溯源产品 |
+| 粒子 NetCDF 布局 | `not-comparable` | Trajecta 默认产品采用 SQLite，结构与生命周期不同 |
 
-## 气象 value 对齐
+## 气象值对齐
 
-气象 conversion 有两条路径：
+气象资料有两条准备路径：
 
 ```text
-official source → Trajecta-ready NetCDF → Trajecta reader
-official source → staged GRIB → FLEXPART reader
+官方源资料 → Trajecta 可用 NetCDF → Trajecta 读取器
+官方源资料 → 准备后 GRIB → FLEXPART 读取器
 ```
 
-Trajecta-ready exact check 包括 coordinate axis、valid time、hybrid coefficient 与所需四维
-field。FLEXPART staged value 从 GRIB 重新读取，并与共同 source quantity 比较。该路径使用
-GRIB packing error 作为每条 message 的 tolerance。
+Trajecta 路径直接检查坐标轴、有效时次、混合坐标系数和所需四维字段。FLEXPART 路径会把准备后
+GRIB 再次读出，与共同源物理量比较；每条 GRIB 消息的 ecCodes 打包误差作为该路径的容差。
 
-Wet deposition 与 convection 已关闭。两个 zero precipitation message 用于满足所选
-FLEXPART input structure。Trajecta surface-flux field 位于共同 advection quantity set 之外，
-其存在不会给本 Case 增加 cross-model metric。
+案例保留两条零降水消息以满足所选 FLEXPART 输入结构，湿沉降和对流在比较中关闭。Trajecta
+资料中的地表通量位于共同平流物理量集合之外，因此不进入跨模型统计。
 
 ## 时间对齐
 
-模拟从 2018-12-01 03:00 UTC 开始。两侧 product 在以下时刻读取：
+模拟从 2018 年 12 月 1 日 03:00 UTC 开始。两侧在以下时刻读取：
 
-| 经过时间 | UTC instant | Unix time |
+| 已经过时间 | UTC 时刻 | Unix 时间 |
 | ---: | --- | ---: |
 | 20 分钟 | 2018-12-01 03:20:00 UTC | 1543634400 |
 | 40 分钟 | 2018-12-01 03:40:00 UTC | 1543635600 |
 | 60 分钟 | 2018-12-01 04:00:00 UTC | 1543636800 |
 
-程序可以在 600 秒 transport step 内部的其他时点执行计算。对比只读取这些共同 physical
-output state。
+两个程序可以在 600 秒输送步内部采用不同计算顺序，比较只读取上述共同物理状态。
 
-## Coordinate 对齐
+## 坐标对齐
 
-Longitude 与 latitude 进入 spherical mean 和 great-circle distance calculation。Height 以
-metre above sea level 进入计算。取 vertical mean 前，FLEXPART stored particle height 会与
-terrain field 相加；Trajecta 已按该 convention 存储 `height_asl_m`。
+经纬度进入球面平均和大圆距离计算。高度统一使用海拔米。FLEXPART 输出中的粒子相对高度会先
+加上地形高度，Trajecta 则直接读取 `height_asl_m`。
 
-Occupancy grid 是本次对比使用的 diagnostic binning scheme，不会替代任一程序的
-computational grid，也不会改变 trajectory。
+占据单元网格只用于本次诊断统计，不会替换任一程序的计算网格，也不会改变轨迹。
 
-## Individual particle ID 未配对的原因
+## 为何不配对单个粒子
 
-两个程序初始化相同 population count 与 total mass，但 random generator 和 source-sampling
-order 各自不同。随后，integrator 会通过独立 numerical implementation 推进这些 sample。
-因此，numeric particle ID 只标识自己 product 内的 record。
+两侧采用相同粒子总数和释放总质量，但随机数生成器和源区抽样顺序不同，积分也由两套数值实现
+完成。某个数值粒子 ID 只标识各自产品内部的一条记录。
 
-不使用 ID 对应关系后，ensemble centroid、dispersion、vertical mean、transport distance 与
-occupancy 仍可计算。这些指标描述共同输出时刻的 population 位置与展开程度。
+去除 ID 配对后，粒子群质心、水平离散度、垂直平均、输送距离和空间占据仍有明确含义。这些
+统计描述共同物理时刻上粒子群的位置与扩展范围。
 
-## Runtime 可比较性
+## 运行时间的可比较范围
 
-[性能方法](performance.md)提供 transport-oriented boundary 和 complete-product boundary。
-Equivalent-core ratio 对比共同 transport 问题。Complete-product time 则显示各程序所选
-default output 的实际运行成本，并保留 product 差异。
+[性能测量方法](performance.md)分别给出输送计算和完整运行流程的计时范围。等效核心比值用于比较共同
+输送工作；完整产品时间则展示各程序选定输出产品的实际等待时间。
 
-SQLite 与 provenance time 在本 matrix 中没有匹配的 FLEXPART component。因此，complete-
-product column 用于描述，不计算 equivalence ratio。
+SQLite 与溯源写入在当前矩阵中没有匹配的 FLEXPART 组件，因此完整产品列并列展示，不计算等价
+比值。
 
-## 扩展矩阵
+## 建立新的比较矩阵
 
-研究改变以下条件时，可以建立新的 comparison contract：
+以下条件变化后，应建立新的比较约定：
 
-- Simulation duration 或 transport step；
-- Meteorological family、resolution 或 vertical coordinate；
-- Release geometry 与 particle sampling；
-- Turbulence、convection、chemistry 或 deposition setting；
-- Output cadence 或 product format；
-- Worker count、CPU allocation 或 host platform。
+- 模拟时长或输送步长；
+- 气象资料系列、分辨率或垂直坐标；
+- 释放几何和粒子抽样；
+- 湍流、对流、化学或沉降设置；
+- 输出间隔或结果格式；
+- 工作线程、CPU 配额或主机平台。
 
-新 contract 可以沿用这些分类，同时为自身 workload 声明准确 field、conversion、time、
-metric 与 timing boundary。当前 matrix 的 raw value 位于[数据与图表页](data.md)。
+新矩阵可以沿用上述分类，同时为实际负载明确字段、转换、时刻、统计量和计时边界。当前矩阵的
+原始值见[数据与图表](data.md)。

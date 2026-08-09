@@ -1,151 +1,148 @@
 ---
-title: 跟踪 Trajecta 任务事件
-description: 使用全局游标读取持久化队列事件，过滤单个任务，断线续读并消费 JSONL 流。
+title: 跟踪任务事件
+description: 使用全局游标读取持久化任务事件，筛选任务系列，安全续读，并处理 JSONL 状态流。
 ---
 
 # 跟踪任务事件
 
-Trajecta 将状态转换、进度、资源采样、warning、error 和 artifact 通知保存为 job event。多个
-reader 共享同一份持久化日志，读取操作不会消费事件。终端、监控进程和自动化 client 可以
-各自跟踪同一个队列。
+Trajecta 将状态变化、进度、资源采样、警告、错误和产物通知保存为任务事件。所有读取端共享同一
+份持久日志；读取一条事件不会删除它，也不会影响其他读取端。终端、监控程序和自动化脚本可以
+同时跟踪同一个队列。
 
-## 事件身份与顺序
+## 事件标识与顺序
 
-每条事件都有全局 `sequence`。首个 sequence 为 `1`，随后在整个 catalog 中递增，不会为
-不同 job 重新计数。`--since N` 返回全局 sequence 严格大于 `N` 的事件。
+每条事件都有全局 `sequence`。序号从 `1` 开始，在整个任务数据库中持续递增，不会因任务不同
+重新计数。`--since N` 返回全局序号严格大于 `N` 的事件。
 
-事件还包含以下身份和状态字段：
+事件还包含：
 
 | 字段 | 用途 |
 | --- | --- |
-| `job_series_id` | 标识跨 attempt 的逻辑任务 |
-| `run_id` | 标识发出事件的确切 attempt |
-| `attempt` | series 内从 1 开始的 attempt 序号 |
-| `emitted_at` | 事件持久化时的 UTC 时间 |
+| `job_series_id` | 标识跨执行轮次保持稳定的逻辑任务 |
+| `run_id` | 标识产生该事件的具体执行轮次 |
+| `attempt` | 任务系列内从 1 开始的执行轮次编号 |
+| `emitted_at` | 事件持久写入时的 UTC 时间 |
 | `kind` | 事件类别 |
-| `state` | 事件发生后观察到的持久化状态 |
+| `state` | 该事件之后观察到的持久状态 |
 
-进度、资源、diagnostic 和 artifact 字段只在对应类别需要时出现。
+进度、资源、诊断和产物字段只在对应事件类别中出现。
 
 ## 一次读取当前事件
 
-读取当前已有的全部事件：
+读取目前已有的全部事件：
 
 ```text
 trajecta job events --since 0
 ```
 
-在 `events` 后加入逻辑 job series ID，可以只读一个任务：
+把任务系列 ID 放在 `events` 后，只读取该任务：
 
 ```text
 trajecta job events JOB_ID --since 0
 ```
 
-一次请求最多读取 10,000 条事件。Catalog 较繁忙时，把当前返回的最后一个全局 sequence
-作为下一次游标。
+单次请求最多返回 10,000 条。队列事件很多时，记录最后一条事件的全局序号，作为下一次
+`--since` 游标。
 
-JSON 模式会把当前批次放在一个 CLI envelope 中：
+JSON 模式会把当前批次放在一个完整的 CLI 响应对象中：
 
 ```text
 trajecta --format json job events JOB_ID --since 120
 ```
 
-短时脚本可以读取一批、完成处理、保存游标，随后退出。
+这种方式适合短脚本：读取一批、完成处理、保存游标，然后退出。
 
 ## 持续跟踪一个任务
 
-加入 `--follow` 后，命令会继续轮询：
+加入 `--follow` 后持续轮询：
 
 ```text
 trajecta --format jsonl job events JOB_ID --since 0 --follow
 ```
 
-当前 attempt 进入终态，且截至该状态的持久化事件全部输出后，流结束。最后一条 JSONL
-记录的 `kind` 为 `"summary"`。只有任务状态为 `complete` 时，`summary.run_success` 才为
-true。
+当前执行轮次进入终态，并且对应的持久事件全部输出后，流会结束。最后一行的
+`kind` 为 `summary`。只有任务状态为 `complete` 时，`summary.run_success` 才为 `true`。
 
-Human 输出也可以持续跟踪：
+也可以使用人类可读格式：
 
 ```text
 trajecta job events JOB_ID --follow
 ```
 
-每行依次显示持久化事件 sequence、观察到的状态、事件类别，以及可选消息。
+每行依次显示全局事件序号、任务状态、事件类别和可选消息。
 
 ## 跟踪整个队列
 
-省略 job ID 后，命令接收所有 series 的事件：
+省略任务 ID 后，流会包含所有任务系列：
 
 ```text
 trajecta --format jsonl job events --since SEQUENCE --follow
 ```
 
-整个队列没有单一任务终态，因此该流会保持打开，直到 client 被停止或读取发生错误。它适合
-本机 dashboard、日志适配器和队列状态收集器。
+整个队列没有单一任务终态，因此该流会持续打开，直到客户端停止或发生读取错误。它可用于本机
+状态面板、日志转接程序或队列采集器。
 
-游标是全局值，所以跟踪整个队列只需保存一个数字。单任务 reader 保存的仍是最后一条事件
-中的全局 sequence。
+游标属于整个任务数据库，一个序号即可续读所有任务。即使只关心单个任务，读取者保存的仍是
+最后处理事件的全局序号。
 
-## 消费 JSONL 记录
+## 读取 JSONL
 
-每一行都是独立的 `trajecta.cli-stream-item/v1` JSON 对象。`kind` 决定 payload：
+每行都是独立的 `trajecta.cli-stream-item/v1` JSON 对象。外层 `kind` 决定内容：
 
-| `kind` | Payload |
+| `kind` | 内容 |
 | --- | --- |
-| `data` | `data` 字段中的 `trajecta.job-event/v1` 记录 |
-| `diagnostic` | `diagnostic` 字段中的结构化读取错误 |
-| `summary` | `summary` 字段中的流结束状态 |
+| `data` | `data` 中的一条 `trajecta.job-event/v1` 事件 |
+| `diagnostic` | `diagnostic` 中的结构化读取错误 |
+| `summary` | `summary` 中的流结束状态 |
 
-外层 stream-item 的 `sequence` 只统计当前 CLI 流的行。事件内部的 `data.sequence` 才是持久化
-全局游标，断线续读使用后者。
+外层流项目的 `sequence` 只对当前 CLI 流中的行计数。`data.sequence` 才是持久化全局游标，
+断线续读时应保存后者。
 
-一个简洁的处理循环可以按以下顺序实现：
+一个稳妥的处理循环可以按以下顺序实现：
 
-1. 读取一行并解析 stream item。
-2. `kind: "data"` 时处理 `data`，下游操作成功后保存 `data.sequence`。
-3. `kind: "diagnostic"` 时记录 diagnostic code 和 message。
-4. `kind: "summary"` 时关闭流，并读取 `summary.ok`；字段存在时一并读取
-   `summary.run_success`。
+1. 逐行读取并解析流项目。
+2. 遇到 `kind: "data"` 时，先处理 `data`；下游操作成功后再保存 `data.sequence`。
+3. 遇到 `kind: "diagnostic"` 时，记录诊断码和消息。
+4. 遇到 `kind: "summary"` 时，读取 `summary.ok` 和可选的 `summary.run_success`，然后关闭流。
 
-在下游操作成功后保存游标，可以在 client 崩溃后实现 at-least-once 交付。先保存游标对应
-at-most-once。实际顺序可根据下游操作的幂等性选择。
+在下游操作成功后保存游标，客户端崩溃重启时可能重复处理最后一条事件，但不会跳过尚未完成的
+操作。这种方式适合要求至少处理一次的状态同步。若下游操作天然幂等，重复事件通常更容易处理。
 
-## Client 中断后续读
+## 断线后续读
 
-假设最后一条完整处理的事件全局 sequence 为 `4281`：
+假设最后完整处理的事件序号为 `4281`：
 
 ```text
 trajecta --format jsonl job events JOB_ID --since 4281 --follow
 ```
 
-下一批从大于该数字的第一条匹配事件开始。使用更早的游标会重复读取持久化记录；使用更晚
-的游标会跳过中间记录。Trajecta 不为各 reader 单独维护游标。
+下一批从大于该序号的第一条匹配事件开始。使用更早游标会重复返回持久记录，使用过大的游标则会
+跳过记录。Trajecta 不替各读取者保存游标，监控程序应自行持久化。
 
 !!! tip "处理完成后再保存游标"
 
-    Client 崩溃后可能重复一条事件，但不会跳过尚未完成下游处理的事件。
+    客户端意外退出后，最多重复一小段事件；尚未完成的下游处理不会被游标越过。
 
 ## 事件类别
 
 | 类别 | 常见内容 |
 | --- | --- |
-| `state_transition` | 队列接收、worker 启动、running、取消或终态 |
-| `progress` | 已完成 macro-step、当前模拟时间、活动粒子数和终止计数 |
-| `resource` | Wall time，以及平台可提供的 CPU time 和 RSS 观测 |
-| `warning` | 外部内存压力等可恢复运行条件 |
-| `error` | Fatal 或 terminal diagnostic code 与消息 |
-| `artifact` | 可审计输出路径的创建或完成 |
+| `state_transition` | 队列准入、工作进程启动、开始运行、取消或终态 |
+| `progress` | 已完成宏步、当前模拟时刻、活动粒子数和终止数量 |
+| `resource` | 已运行时间，以及可用时的 CPU 时间和常驻内存采样 |
+| `warning` | 外部内存压力等可恢复情况 |
+| `error` | 导致失败或终态的诊断码与消息 |
+| `artifact` | 结果路径的创建或产物完成写入 |
 
-进度与资源事件以 `monitoring.sample_interval_ms` 为基础，并受运行时的有界发送节奏控制。它们
-适合状态展示和运维历史；结果数据保存在运行目录中。
+系统会尽量按照 `monitoring.sample_interval_ms` 指定的间隔发布进度和资源事件，同时限制过高的
+采样频率。这些事件适合状态展示和运维记录；完整粒子结果仍保存在执行轮次目录。
 
-## 将当前快照与事件配合使用
+## 同时读取当前快照
 
-事件记录持久化历史中的一个转换点。需要最新队列位置、结果路径或终态时间时，查询
-`job status`：
+事件记录某个时刻发生的变化。需要最新队列位置、结果路径或终态时间时，再查询当前快照：
 
 ```text
 trajecta --format json job status JOB_ID
 ```
 
-任务结束后，可以把状态中的 output directory 或 job ID 交给[结果命令](results.md)。
+任务进入终态后，可把快照中的结果目录或任务 ID 交给[结果命令](results.md)。

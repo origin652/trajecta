@@ -21,12 +21,12 @@ docs/
 └── engineering/
 ```
 
-两个语言目录使用完全相同的相对路径。`mkdocs.yml` 只维护一棵 navigation tree；国际化插件应用
-翻译后的 navigation label，并构建两个站点。
+两个语言目录使用完全相同的相对路径。`mkdocs.yml` 只维护一棵导航树；国际化插件负责应用
+翻译后的导航名称，并为两种语言构建页面。
 
-`docs/engineering` 保存计划、执行报告和历史 Prompt。该目录位于 `docs_dir` 外，不会进入导航、
-站内搜索或 sitemap。公开页面应链接到持续维护的产品参考资料，避免指向站点读者无法打开的
-engineering report。
+`docs/engineering` 保存计划、执行报告和历史提示词。该目录位于 `docs_dir` 之外，不会进入
+导航、站内搜索或 sitemap。公开页面应链接到持续维护的用户参考资料，不引用站点读者无法
+打开的工程报告。
 
 用户文档按任务组织：
 
@@ -38,7 +38,7 @@ engineering report。
 | 概念 | 产品对象和科学模型分别表示什么？ |
 | 运维 | 如何在真实主机上运行任务并处理异常？ |
 | 验证 | 科学可比性与性能采用什么测量方法？ |
-| 参考 | 当前有哪些准确命令、字段、格式、状态和限制？ |
+| 参考 | 当前有哪些可用命令、字段、格式、状态和限制？ |
 | 开发手册 | 如何构建、测试和发布实现？ |
 | 发布记录 | 指定软件版本有哪些变更？ |
 
@@ -46,7 +46,7 @@ engineering report。
 
 ## 页面结构
 
-每个 Markdown 页面以 front matter 开始：
+每个 Markdown 页面都以 YAML 元数据开头：
 
 ```yaml
 ---
@@ -55,105 +55,106 @@ description: 用一句话说明页面主题和有效范围。
 ---
 ```
 
-正文只有一个与 title 对应的一级标题。主要阅读路径使用二级标题，内部小节使用三级标题。标题
+正文只有一个与 `title` 对应的一级标题。主要阅读路径使用二级标题，内部小节使用三级标题。标题
 层级应连续。
 
 一页实用手册通常包含：
 
 1. 简短开头，说明读者能完成或理解什么；
 2. 确实影响操作的前提与范围；
-3. Procedure、model 或 table；
-4. Expected result 与下一条相关命令；
-5. 指向深入概念或精确参考内容的链接。
+3. 操作步骤、模型说明或参考表；
+4. 操作完成后的结果，以及可以继续执行的命令；
+5. 指向深入概念或详细参考内容的链接。
 
-篇幅服从主题。Diagnostic index 可以紧凑，build guide 与 recovery guide 则要覆盖一次真实操作
+篇幅服从主题。诊断索引可以紧凑，构建指南与恢复指南则要覆盖一次真实操作
 所需的细节。
 
 ## 双语编辑
 
-每个英文路径都要在 `zh-CN` 下建立或更新相同路径。Heading level sequence 保持一致，使链接和
-导航结构可对应。中文需要重新组合段落时，paragraph count 与 sentence order 可以不同。
+每个英文路径都要在 `zh-CN` 下建立或更新相同路径。标题层级和顺序保持一致，使链接与导航
+结构能够对应。中文可以根据阅读习惯重新组合段落，无需照搬英文的段落数量和句子顺序。
 
 产品术语采用一致写法：
 
 | 产品术语 | 中文处理 |
 | --- | --- |
-| Case、RunProfile、DatasetLock | 保留 type name，首次出现时用中文解释 |
-| Project、profile、attempt、worker | 与 CLI 或 disk field 对应时保留产品术语 |
-| Forward/backward trajectory | 使用正向/反向轨迹，command value 保留在 code 中 |
-| Domain filling | 首次写作 domain filling（区域填充），后续按页面语境选择用词 |
-| Diagnostic code、schema、manifest、provenance | Machine token 保持原样，中文说明它的作用 |
+| 案例（`Case`）、运行配置（`RunProfile`）、资料锁（`DatasetLock`） | 首次出现时同时给出中文名称与类型名，后文使用中文名称 |
+| 项目、执行轮次、工作进程 | 使用统一中文名称；命令值或字段值保留原文 |
+| `project finalize` | 首次出现时写作“项目定稿命令”，后文可用“项目定稿” |
+| identity | 按语境写作“标识”“内容散列”或具体的 ID，避免泛称“身份” |
+| 正向/反向轨迹 | 使用正向/反向轨迹，命令值保留在代码中 |
+| 区域填充（domain filling） | 首次出现时可以附带英文，后文使用“区域填充” |
+| 诊断码、schema、运行清单、溯源信息 | 机器标记保持原样，中文说明其作用 |
 
-Command name、option name、JSON key、schema ID、file name 和 diagnostic code 不翻译。中文句子
-在 literal token 周围解释效果。
+命令名称、选项名称、JSON 键、schema ID、文件名和诊断码不翻译，并统一放在反引号内。
+中文句子负责说明这些字面值的作用。
 
-正式 release 要求两种语言完整同步。Dev branch 可以在同一分支中短暂标记翻译更新，validator
-仍会要求 path 与 heading shape 齐全。
+正式发布要求两种语言完整同步。开发分支可以短暂标记翻译待更新，校验器仍会要求双语路径和
+标题结构齐全。
 
 ## 写作风格
 
-写作者以技术维护者的身份和有实际任务的读者交流。定义与条件直接说明，沿用程序中的术语，
+写作时采用技术维护者的视角，与正在完成具体任务的读者交流。定义与条件直接说明，沿用程序中的术语，
 给出命令，并描述可观察结果。
 
-### 英文
+### 英文页面
 
-- 使用具体主语，例如 “The daemon writes the event”。
-- 一个 paragraph 围绕一个 idea。
-- 多个 option 具有相同 field 时使用 table。
-- 不常见 abbreviation 在首次出现时展开。
-- 只有真正的合同或安全条件才使用 requirements language。
-- 不使用宣传性 adjective，也不写缺少测量依据的性能结论。
+- 使用具体主语，例如 “The daemon writes the event.”。
+- 每段集中说明一个主题。
+- 多个选项具有相同字段时使用表。
+- 不常见的缩写在首次出现时写出全称。
+- 只有格式约定或安全条件才使用强制性措辞。
+- 不使用宣传性形容词，也不写缺少测量依据的性能结论。
 
-### 中文
+### 中文页面
 
 - 采用科研软件手册的语气，保持普通句子节奏。
 - 先定义对象，再列出对它的操作。
-- 条件链较长时拆成 table 或短 list。
+- 条件链较长时拆成表或短列表。
 - 避免模板化转折和连续堆叠的并列符号。
-- Code token 使用 code formatting，周围文字应能直接阅读。
-- 描述当前行为时保持平实，不加入防御性免责声明，也不讨论 test 能证明到什么程度。
+- 命令、字段和文件名使用代码格式，周围文字应能独立成句。
+- 描述当前行为时保持平实，不加入防御性免责声明，也不讨论测试能证明到什么程度。
 
-用户页面说明软件如何工作。Acceptance history、内部 milestone ownership 和 review rhetoric 保存在
-engineering record 中。
+用户页面说明软件如何工作。验收历史、内部里程碑分工和审查过程保存在工程记录中。
 
 ## 命令与可执行示例
 
-记录命令前，先运行当前 binary 的 `--help`。Option order 应由实际 parser 接受；可行时使用同时
-适合两个正式平台的 path form。
+记录命令前，先运行当前可执行文件的 `--help`。选项顺序应当经过真实解析器确认；如果两个正式
+平台可以使用相同写法，示例优先采用项目相对路径。
 
-供复制的 command block 以产品 executable 开始：
+可直接复制的命令块以产品可执行文件开始：
 
 ```text
 trajecta --project examples/domain-fill-cfsr project validate
 ```
 
-同一 block 中不加入 shell prompt marker，这样可以直接复制到 PowerShell、Bash 或 automation
-file。只有语法确实不同的情况才另设平台 block，例如设置环境变量。
+命令块中不加入 Shell 提示符，以便直接复制到 PowerShell、Bash 或自动化脚本。只有语法确实
+不同的情况才按平台分别给出，例如设置环境变量。
 
-完整 tutorial project 位于 `examples`。其中的 Case、Profile 和 project index 是配置真源，通过
-snippets extension 引用：
+完整教程项目位于 `examples`。其中的案例、运行配置和项目索引是配置的唯一来源，文档通过
+MkDocs 的片段扩展引用原文件：
 
 ```text
 --8<-- "examples/domain-fill-cfsr/cases/moisture.yaml"
 ```
 
-文档 validator 只允许 user snippet 来自 `examples/`。修改 example 会同时改变教程输入和自动
-quickstart，避免遗留过期的手抄 YAML block。
+用户文档引用的配置片段只能来自 `examples/`。修改示例会同时改变教程输入和自动快速入门，
+从而避免文档中留下过期的手抄 YAML。
 
-Procedure 生成输出时，写明读者应看到的准确文件或 machine field。不要固定 runtime 生成的
-run ID、absolute home directory 或 timestamp。
+步骤会生成输出时，应写明读者将看到的文件、状态或机器字段。运行 ID、绝对用户目录和时间戳
+由运行时生成，不应写成固定值。
 
 ## 自动生成的参考页
 
-`tools/generate_m5_1_reference.py` 生成六个双语页面，覆盖 CLI tree、product schema 和 diagnostic
-index。输入包括：
+`tools/generate_m5_1_reference.py` 生成六个双语页面，覆盖 CLI 命令树、公开结构定义和诊断
+索引。输入包括：
 
-- 真实 binary 的 `trajecta --help`；
+- 真实可执行文件的 `trajecta --help`；
 - `testdata/M5_CLI_CONTRACT.v1.json`；
-- `testdata` 下的公开 JSON schema 与 example；
-- `trajecta-cli` 和 `trajecta-job` source 中的 diagnostic string literal。
+- `testdata` 下的公开 JSON Schema 与示例；
+- `trajecta-cli` 和 `trajecta-job` 源码中的诊断字符串常量。
 
-Generated page 带有以下 marker：
+生成页面带有以下标记：
 
 ```text
 <!-- Generated by tools/generate_m5_1_reference.py; do not edit. -->
@@ -161,7 +162,7 @@ Generated page 带有以下 marker：
 
 !!! tip "修改生成源"
 
-    调整 command contract、schema、diagnostic source 或 generator，再重新生成页面。
+    调整命令约定、schema、诊断来源或生成器，再重新生成页面。
 
 运行：
 
@@ -169,42 +170,42 @@ Generated page 带有以下 marker：
 python tools/generate_m5_1_reference.py --binary target/debug/trajecta-cli
 ```
 
-Windows 使用 `target/debug/trajecta-cli.exe`。CI 会运行 check mode：
+Windows 使用 `target/debug/trajecta-cli.exe`。CI 会运行检查模式：
 
 ```text
 python tools/generate_m5_1_reference.py \
   --binary target/debug/trajecta-cli --check
 ```
 
-Generator 中的 command-purpose table 提供简洁的用户说明。内容应描述命令用途和输出形式，不写
-milestone label 或代码 ownership。
+生成器中的命令用途表提供简洁的用户说明。内容只描述命令用途和输出形式，不写里程碑名称或
+代码分工。
 
-手写 reference introduction 用于解释语义、组合方式和风险，不重复 schema 已经列出的全部 field。
+手写参考页用于解释语义、组合方式和使用条件，无需重复 schema 已经列出的全部字段。
 
 ## 链接与来源
 
-手册内部页面和 asset 使用 relative link。Validator 会检查每个 target file。需要精确定位规则时，
-可以直接链接到 section。
+手册内部页面和资源文件使用相对链接，校验器会检查每个目标文件。需要精确定位规则时，可以
+直接链接到相应小节。
 
-科学陈述应就近链接权威来源，例如 data provider、peer-reviewed method 或 official format
-specification。当前手册无需另设 bibliography page。
+科学陈述应就近链接权威来源，例如资料服务方说明、经过同行评议的方法论文或官方格式规范。
+当前手册不另设文献目录页。
 
-External link 由带 retry 的 CI checker 验证。优先选择稳定的 provider 或 project URL，不使用带
-session 的 download link。
+外部链接由带重试机制的 CI 检查器验证。优先选择稳定的资料服务方或项目网址，不使用带临时
+会话参数的下载链接。
 
-对比模型的名称只出现在 Validation page。首页、教程和普通参考页使用 Trajecta 自己的术语说明
+对比模型的名称只出现在验证页面。首页、教程和普通参考页使用 Trajecta 自己的术语说明
 功能。
 
 ## 图片、图表与原始数据
 
-小型精确比较优先使用 Markdown table。关系通过视觉表达更清楚时，可以使用 static SVG 或 PNG。
-每张图片都要有准确 alt text，并在 Material light/dark palette 下保持可读。
+字段较少的精确比较优先使用 Markdown 表。图形能够更清楚地表达关系时，可以使用静态 SVG 或
+PNG。每张图片都要有清楚的替代文字，并在 Material 的浅色和深色配色下保持可读。
 
-Validation chart 位于两个 locale 的 `assets/validation` tree。Underlying JSON/CSV、publication
-manifest 和 chart-generation identity 与图片一同发布。两种语言使用相同的 chart 与 raw-data
-byte，caption 和分析段落在 Markdown 中翻译。
+验证图表位于两个语言目录的 `assets/validation` 树。用于绘图的 JSON 或 CSV、发布清单和
+图表生成脚本的版本和输入散列与图片一同发布。两种语言使用字节完全相同的图表及原始数据，图注和分析段落则
+在 Markdown 页面中分别编写。
 
-不要手工修改生成 chart 的 pixel。应从冻结 data 重建，再运行：
+生成的图表不应逐像素手工修改。修改绘图逻辑或文字后，应从冻结资料重建，再运行：
 
 ```text
 python tools/validate_m5_1_validation_assets.py
@@ -212,16 +213,16 @@ python tools/validate_m5_1_validation_assets.py
 
 ## 当前功能与后续接口
 
-只记录当前 binary 已经存在的命令和格式。Plugin page 可以解释预留的架构边界，同时需要明确
-loading 尚未实现。页面不提供 plugin manifest 或 configuration syntax。
+只记录当前可执行文件已经存在的命令和格式。插件页面可以解释预留的架构边界，同时需要明确
+插件加载尚未实现。该页面不提供虚构的插件清单或配置语法。
 
-`0.1.0-alpha.1` 没有通用 result export command。结果页使用 `result inspect`、`result verify`、
-`result trajectory`、`run report` 和高级 read-only SQLite schema。后续构想在接口和测试实现前
+`0.1.0-alpha.1` 没有通用结果导出命令。结果页使用 `result inspect`、`result verify`、
+`result trajectory`、`run report` 和高级只读 SQLite 结构。后续构想在接口和测试实现前
 保留在计划中。
 
 ## SEO 与版本 URL
 
-每个页面需要独立 title 与 description。MkDocs Material 生成 canonical link，双语插件生成
+每个页面需要独立的 `title` 和 `description`。MkDocs Material 生成规范链接，双语插件生成
 `hreflang="en"` 和 `hreflang="zh-CN"`。
 
 英文首页自然介绍以下检索主题：
@@ -232,13 +233,12 @@ loading 尚未实现。页面不提供 plugin manifest 或 configuration syntax�
 - Atmospheric trajectories；
 - Forward and backward trajectories。
 
-Release documentation 位于不可变 version path，并允许 crawler 收录。`dev` site 使用
-`noindex,nofollow`；root `robots.txt` 也会 disallow `/trajecta/dev/`。Generated sitemap 指向
-release URL。
+发布文档位于不可变版本路径，并允许搜索引擎收录。`dev` 站点使用 `noindex,nofollow`；根目录
+的 `robots.txt` 也会禁止抓取 `/trajecta/dev/`。生成的 sitemap 只指向发布版本网址。
 
 ## 本地文档检查
 
-先构建 CLI input，再运行 source check：
+先构建 CLI 输入，再检查文档源文件：
 
 ```text
 cargo build --locked --package trajecta-cli
@@ -248,7 +248,7 @@ python tools/validate_m5_1_docs.py --binary target/debug/trajecta-cli
 git diff --check
 ```
 
-构建并检查 release site：
+构建并检查发布站点：
 
 ```text
 mkdocs build --strict
@@ -256,7 +256,7 @@ python tools/validate_m5_1_docs.py \
   --binary target/debug/trajecta-cli --site-dir site
 ```
 
-随后构建 dev variant：
+随后构建开发版本站点：
 
 ```text
 mkdocs build --strict -f mkdocs.dev.yml -d site-dev
@@ -265,40 +265,40 @@ python tools/validate_m5_1_docs.py \
   --site-dir site-dev --expect-noindex
 ```
 
-Source validator 的主要检查如下：
+文档校验器的主要检查如下：
 
 | 检查 | 用途 |
 | --- | --- |
-| Language file 与 heading parity | 使 navigation 和 section link 保持对应 |
-| Navigation 等于 published Markdown set | 发现 orphan page 和 missing page |
-| Front matter | 提供页面 title 与 search description |
-| Local link 与 example snippet | 发现移动后的页面和过期 project copy |
-| Documented CLI path | 拒绝 frozen command tree 中不存在的命令 |
-| Generated reference drift | 同步 binary help、contract、schema 与 source diagnostic |
-| Style 与 terminology scope | 保持中文可读，并将 comparison term 限定在 Validation |
-| Built canonical、hreflang 与 noindex tag | 检查 release/dev publication behavior |
+| 双语文件与标题结构对应 | 使导航和小节链接保持一致 |
+| 导航覆盖全部公开 Markdown | 发现没有入口的页面和缺失页面 |
+| YAML 元数据 | 提供页面标题和搜索摘要 |
+| 本地链接与示例片段 | 发现页面移动后的旧链接和过期项目副本 |
+| 文档中的 CLI 路径 | 拒绝固定命令树中不存在的命令 |
+| 自动参考页漂移 | 同步可执行文件帮助、约定、schema 与源码诊断 |
+| 风格与术语范围 | 保持中文可读，并将对比对象名称限定在验证章节 |
+| 构建后的规范链接、`hreflang` 与 `noindex` | 检查发布站点和开发站点的索引行为 |
 
-使用 `mkdocs serve` 进行 visual review。先查看两种语言和窄屏、宽屏布局，再检查 code wrapping、
-table 与 admonition。最后确认 chart label 和 language/version switch。
+使用 `mkdocs serve` 进行目视检查。先查看两种语言在窄屏和宽屏下的布局，再检查代码换行、表格
+和提示框。最后确认图表文字、语言切换和版本切换。
 
 ## 增加或移动页面
 
-1. 根据读者问题选择 section。
-2. 在 `en` 与 `zh-CN` 下增加相同 relative file。
-3. 编写独立 front matter，并保持 heading level 对应。
-4. 在 `mkdocs.yml` 增加一条 navigation entry。
-5. 页面移动后更新 incoming link，不保留 orphan Markdown file。
-6. 命令与格式需要提供 executable example 或 source link。
-7. 运行 source validation、严格 release/dev build 和 visual review。
-8. 只有离线使用确有需要时，才把页面加入 packaged quickstart。
+1. 根据读者问题选择章节。
+2. 在 `en` 与 `zh-CN` 下增加相同的相对路径。
+3. 编写独立的 YAML 元数据，并保持标题层级对应。
+4. 在 `mkdocs.yml` 增加一条导航记录。
+5. 页面移动后更新所有指向旧位置的链接，不保留失去导航入口的 Markdown 文件。
+6. 命令与格式需要提供可执行文件示例或来源链接。
+7. 运行源文件验证、严格的发布与开发站点构建，并完成目视检查。
+8. 只有离线使用确有需要时，才把页面加入软件包内的快速入门。
 
-普通文档 commit 更新 `dev`。Publication workflow 在选定 version 与 release event 后创建 snapshot。
+普通文档提交更新 `dev`。发布工作流在选定版本与发布事件后创建快照。
 
-## Secret 与路径检查
+## 凭据与路径检查
 
-文档和 example 都是公开 source。Commit 前扫描 changed file，检查 API key、bearer token、private
-URL、local username、home-directory path 和 provider credential file。真实值改用 `<project>` 等
-placeholder，并说明 official credential channel。
+文档和示例都会进入公共仓库。提交前扫描改动文件，检查 API 密钥、Bearer 令牌、私有网址、
+本地用户名、用户目录路径和资料提供方凭据文件。示例使用 `<project>` 等占位符，并说明凭据
+应写入哪一种官方配置或环境变量。
 
-Generated site 与上传的 CI artifact 也需要相同检查。即使 Markdown 没有某个值，test 打印环境时，
-它仍可能进入 captured transcript 或 helper log。
+生成后的站点和上传的 CI 产物也需要同样检查。测试若打印进程环境，Markdown 中没有出现的值
+仍可能进入命令记录或辅助工具日志。

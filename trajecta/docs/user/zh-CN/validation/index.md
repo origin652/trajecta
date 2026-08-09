@@ -1,82 +1,76 @@
 ---
-title: Trajecta 如何开展验证
-description: 阅读 Trajecta 科学、确定性、产品、性能和 clean-package 验证结果，并重建发布图表。
+title: Trajecta 验证方法
+description: 了解 Trajecta 如何检查气象输入、数值结果、重复运行的一致性、性能和发布包，并从原始数据重建图表。
 ---
 
-# 验证总览
+# 验证概览
 
-Trajecta 的验证从气象输入一直跟随到最终结果目录。检查内容包括积分器接收的物理变量、
-粒子生命周期与质量核算、重复运行的一致性、SQLite 与 provenance product，以及 clean
-release package 中的实际运行。
+Trajecta 的验证从气象输入一直覆盖到最终结果目录。检查内容包括积分器接收的物理字段、粒子生命
+周期、质量账本、重复运行的一致性、SQLite 与溯源信息，以及从全新解压的发布包启动完整项目的过程。
 
-本章还发布一项与 FLEXPART 的受控对比。对比使用共同的短时间平流 Case，在已经声明的
-共同边界上计算科学集合指标与运行时间。图表旁提供原始 JSON 和 CSV，数值可以直接读取，
-也可以用于重新绘图。
+本章还提供一项与 FLEXPART 的受控比较。比较使用同一组气象来源和一小时平流案例，在共同物理
+时刻计算粒子群统计，并在明确的计时边界下记录性能。原始 JSON 与 CSV 和图表一起发布，表格
+中的数值可直接用于其他绘图或统计。
 
-## 验证层级
+## 验证层次
 
-| 层级 | 固定内容 | 检查内容 |
+| 层次 | 受控条件 | 检查内容 |
 | --- | --- | --- |
-| 输入身份 | Source file、content hash、dataset family 与 resolved coverage | Run 是否读取预期的不可变气象内容 |
-| 气象解释 | Variable name、unit、grid coordinate、time axis 与 vertical coordinate | 所需变量是否为有限值，并能按 dataset profile 完成查询和物理解释 |
-| 数值生命周期 | 初始 population、output schedule、termination class 与 mass rule | 每个事件是否覆盖全部粒子，mass ledger 是否闭合 |
-| 确定性 | Resolved input、worker setting 与 digest definition | 重复运行和已声明的 worker 对比是否保持规定 normalized identity |
-| 结果产品 | Manifest schema / SQLite row / WAL closeout / provenance / report / CLI reader | 完成目录能否作为一个 run product 读取并完整验证 |
-| 性能 | Host / CPU affinity / executable hash / workload / timing boundary / warm-up / repetition | 是否从同类 measurement 计算 median wall time、throughput、scaling 和 peak resident memory |
-| 发布包 | Package manifest、bundled native library、clean extraction 与 platform | Public command 能否脱离 source checkout 运行真实项目 |
+| 输入资料 | 源文件、内容散列、资料系列和解析后的覆盖范围 | 运行实际使用的气象内容与计划一致 |
+| 气象解释 | 变量、单位、网格坐标、时间轴和垂直坐标 | 必需字段可查询、数值有限，并符合所选资料配置 |
+| 数值生命周期 | 初始粒子群、输出计划、终止分类和质量规则 | 每个事件中的粒子都有一致归属，质量账本闭合 |
+| 重复运行的一致性 | 解析后的输入、工作线程设置和摘要算法 | 重复运行以及不同线程数的运行得到相同的规范化摘要 |
+| 结果产物 | 运行清单、SQLite、WAL 收尾、溯源、报告和结果读取器 | 完成后的目录可以作为一个整体检查和验证 |
+| 性能 | 主机、CPU 绑定、可执行文件散列、负载、计时范围、预热和重复次数 | 从相同测量口径计算中位时间、吞吐、扩展比和峰值内存 |
+| 发布包 | 包清单、原生库、全新解压目录和平台 | 归档中的命令行程序可以独立运行真实项目 |
 
-这些层级放在同一条验证链中。计时样本还要到达预期科学状态与产品状态，产品检查也要带有
-输入身份和 run identity，从而找到它所包含的科学计算。
+用于性能汇总的运行需要先完成案例规定的质量检查和结果完整性检查。汇总同时记录输入文件散列、
+运行 ID 和执行轮次，因此表格中的每项统计都能找到对应的计算。
 
 ## 验证范围
 
-Trajecta 使用几种各有侧重的验证范围。
+### 单元测试与约定测试
 
-### Unit 与 contract test
+各 crate 的测试覆盖文档解析、插值、粒子群更新和边界处理，也覆盖输出编码、任务调度、本地
+IPC 及结果读取器。schema 校验器使公开 JSON 结构及示例与实现保持同步。此类测试运行频繁，
+适合定位单项行为的回归。
 
-Crate test 覆盖 document parsing、interpolation 与 population update。其他测试处理 boundary、
-output encoding、job scheduling、local IPC 和 result reader。Schema validator 使公开 JSON shape 和 example
-与实现保持同步。这类测试运行频繁，出现 regression 时可以定位到较小行为。
+### 真实资料集成运行
 
-### 真实资料 integration run
+集成案例打开实际 CFSR 或 ERA5 文件，并经过生产读取器、数值路径、输出端和验证器。真实资料会
+带来合成数组中不易覆盖的情况，例如编码坐标、缺测值、垂直变换、跨文件时次和读取器选择。
 
-Integration case 会打开实际 CFSR 或 ERA5 文件，并驱动 production reader、数值路径、
-output sink 和 verifier。它们可以覆盖 synthetic array 中没有的 encoded coordinate、
-missing value、vertical transform、file boundary 与 reader selection。
+### 发布包测试矩阵
 
-### Product matrix
+测试矩阵使用打包后的 CLI 完成项目准备、守护进程提交、结果检查、验证、轨迹读取和报告生成。
+案例覆盖受支持的资料系列、粒子群、积分方向和读取器。Windows x86_64 与 Ubuntu 24.04 x86_64
+都会从全新目录解压发布包，再执行同一组项目、运行和结果命令。
 
-Product matrix 从 packaged CLI 开始，依次运行项目准备、daemon submission、result inspect、
-verification、trajectory reading 和 report generation。Case 覆盖已支持的 dataset family、
-population mode、方向与 reader 选择。Clean-package run 位于 Windows x86-64 和 Ubuntu
-24.04 x86-64。
+### 科学与性能比较
 
-### 科学与性能对比
+当前公开比较固定一个 ERA5 混合模式层案例，采用 10,000 和 50,000 两种粒子数，积分一小时，
+使用四线程 CPU 配额。科学统计在三个共同物理时刻计算，性能则分别记录输送计算与完整结果流程。
+详细方法见[科学验证](science.md)、[性能测量](performance.md)和
+[可比较性矩阵](comparability.md)。
 
-当前发布对比固定一个 ERA5 hybrid-level Case、两档粒子数、一小时输送和四线程 CPU
-allocation。三个物理输出时刻用于计算共同集合指标，运行时间则按两个边界分别报告。
-具体内容见[科学方法](science.md)、[性能方法](performance.md)与[可比较性矩阵](comparability.md)。
+## 如何阅读公开结果
 
-## 如何阅读结果
+每份汇总都会列出总状态和各项检查结果。阅读数值时还要结合页面给出的案例条件。粒子数、模拟
+时长和输出间隔决定计算规模；资料系列、读取器、主机及可执行文件散列说明运行环境。
 
-每个 formal aggregate 都有 top-level status 和一组 named check。`passed` 表示列出的检查在
-该 aggregate 固定合同下成功完成。Particle count 与 simulation duration 描述运行规模和时间。
-Output cadence 与 dataset 描述输入输出安排。Reader、host 和 executable identity 则定位执行环境。
+公开比较提供三种形式：
 
-发布对比提供三种形式：
-
-| 形式 | 适合的用途 |
+| 形式 | 适合用途 |
 | --- | --- |
-| 图表 | 快速查看 wall time、throughput、memory 与集合差异 |
-| CSV | 重新绘图、表格分析和检查各次 repetition |
-| JSON aggregate | 查看完整 contract、executable identity、measurement order、derived median、check 与 source artifact path |
+| 图表 | 快速查看运行时间、吞吐、内存和粒子群差异 |
+| CSV | 重新绘图、表格分析和查看每次重复测量 |
+| JSON 汇总 | 查看完整运行条件、可执行文件散列、测量顺序、中位数和源文件路径 |
 
-[冻结数据页](data.md)提供三者的链接和本地重建命令。
+[原始数据与图表](data.md)链接全部文件，并给出本地重建命令。
 
 ## 验证自己的结果
 
-Formal publication matrix 描述当前 release。其他机器生成的结果可以通过自己的产品验证流程
-检查：
+公开矩阵描述发行版本的运行条件。用户在其他计算机上生成结果后，可以直接运行：
 
 ```text
 trajecta result inspect RESULT
@@ -84,18 +78,16 @@ trajecta result verify RESULT --full
 trajecta run report --result RESULT
 ```
 
-`result inspect` 汇总 manifest、artifact inventory 和可取得的 SQLite count。Full verification
-检查 lifecycle coverage、finite value、mass accounting、SQLite consistency、provenance 和
-canonical output identity。生成的报告会将 run identity、input、resource、quality summary
-与 artifact list 写入 `RESULT/run-report.md`。
+`result inspect` 汇总运行清单、产物和可用 SQLite 数量。完整验证检查生命周期覆盖、有限值、质量
+账本、SQLite 一致性、溯源信息和规范化输出摘要。运行报告将运行 ID、输入、资源、质量摘要和产物
+列表写入 `RESULT/run-report.md`。
 
-研究使用新的 dataset、duration、domain 或 physical process 时，可以另外准备符合该用途的
-validation case。当前发布的一小时对比可作为所含 advection workflow 的参考点。更长积分和
-附加过程仍可沿用同一组织方式：固定输入，声明 metric，重复运行，并保留原始 measurement。
+研究更换资料、时段、区域或物理过程后，可以为实际用途建立对应的小型验证案例。当前一小时比较
+可作为平流工作流的参考；其他过程可以沿用固定输入、明确统计量、重复运行和保留原始测量的方式。
 
-## 发布材料
+## 本章内容
 
 - [科学验证方法](science.md)
 - [性能测量方法](performance.md)
 - [FLEXPART 可比较性矩阵](comparability.md)
-- [冻结 JSON、CSV 与图表](data.md)
+- [原始 JSON、CSV 与图表](data.md)

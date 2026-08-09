@@ -32,7 +32,7 @@ Then inspect the selected Profile:
 
 ```text
 trajecta --project PROJECT project show
-trajecta --project PROJECT project get profiles.PROFILE
+trajecta --project PROJECT project get profile.PROFILE
 ```
 
 `execution.memory_budget_bytes` is the request for one worker. Multiply it by

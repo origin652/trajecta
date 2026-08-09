@@ -203,7 +203,7 @@ not edited into a passing one.
 
 ## GitHub workflows
 
-M5.1 uses three workflows under `.github/workflows`:
+Documentation uses three workflows under `.github/workflows`:
 
 | Workflow | Trigger | Work |
 | --- | --- | --- |

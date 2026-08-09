@@ -1,16 +1,16 @@
 ---
-title: Provenance 与结果目录
-description: 了解 Trajecta 的 run manifest、SQLite 输出与 resolved input，以及 field provenance、digest 和 interrupted artifact。
+title: 溯源信息与结果目录
+description: 了解运行清单、SQLite 结果、解析后输入、字段溯源、内容摘要、运行报告和中断文件。
 ---
 
-# Provenance 与结果目录
+# 溯源信息与结果目录
 
-每个已接收的 attempt 都有独立结果目录。数值输出与输入身份、field lineage 一起保存在目录
-中，用于说明该结果的生成过程。项目后续修改不会作用于已经保存的 attempt。
+队列接受一次执行后，会为它创建独立的结果目录。数值输出、输入文件散列和气象字段的来源关系保存在
+同一目录中。之后修改项目不会改变已经生成的结果。
 
-## 目录布局
+## 目录结构
 
-完成的正式运行通常包含：
+一个完成的正式运行通常包含：
 
 ```text
 attempt-1/
@@ -20,153 +20,146 @@ attempt-1/
 ├── particles.sqlite
 ├── particles.sqlite-wal
 ├── provenance-bundle.json
-└── run-report.md                 # 运行 `run report` 后出现
+└── run-report.md                 # 执行 `run report` 后存在
 ```
 
-Interrupted attempt 还可能包含 worker log、部分数据库状态，或名称带有 `forensic-aborted` 的
-文件。Manifest status 和 artifact list 可以用于判断它到达了哪条终态路径。
+中断目录还可能包含工作进程日志、部分数据库状态，或名称中带
+`forensic-aborted` 的文件。运行清单状态和产物列表可以说明该执行轮次到达了哪个阶段。
 
-## Run manifest
+## 运行清单
 
-`run-manifest.json` 是目录索引。它以 `running` 状态创建，并在生命周期信息变化时原子替换。
-Terminal manifest 包含以下部分：
+`run-manifest.json` 是结果目录的索引。运行开始时状态为 `running`，生命周期变化时通过原子替换
+更新。终态清单包含：
 
-| 区域 | 内容 |
+| 部分 | 内容 |
 | --- | --- |
-| Identity | Job series、run ID 与 attempt；Case name；开始和结束时间 |
-| Software | Package 与 crate version，以及可用时的 source revision |
-| Inputs | Case 与 RunProfile；DatasetLock 与 dataset profile；dataset-content hash |
-| Execution | Worker 数与内存预算；executor 与 reader；wall time、peak RSS 和可提供的 I/O counter |
-| Numerical | Random seed 与 integrator；boundary policy 与 population；sink、tolerance registry 和 deterministic flag |
-| Geometry | Resolved release source identity 与 canonical geometry summary |
-| Outputs | Case 选择的 effective product 与 schedule |
-| SQLite | Schema version、journal setting、table row count 与相对路径 |
-| Provenance | Bundle path、exact 与 normalized digest，以及 record count |
-| Lifecycle | Status、termination summary、mass ledger 与可选 failure |
+| 运行标识 | 任务系列、运行 ID、执行轮次、案例名称、起止时间 |
+| 软件 | 软件包和 crate 版本，以及可用时的源码修订 |
+| 输入 | 案例、运行配置、资料锁、内置资料配置和资料内容摘要 |
+| 执行 | 工作线程、内存预算、执行器、读取器、运行时间、峰值常驻内存和可用 I/O 计数 |
+| 数值 | 随机种子、积分器、边界规则、粒子群、输出端、容差登记和确定性标记 |
+| 几何 | 解析后的释放源标识和规范化几何摘要 |
+| 输出 | 案例实际选择的产品和输出计划 |
+| SQLite | 结构版本、日志设置、各表行数和相对路径 |
+| 溯源 | 包路径、文件摘要、规范化摘要和记录数量 |
+| 生命周期 | 状态、终止汇总、质量账本和可选失败信息 |
 
-Manifest 声明的路径都相对于 attempt 目录。产品命令在打开前会检查路径范围。
+清单中声明的路径都以执行轮次目录为基准。结果命令在打开文件前会检查路径仍位于该目录内。
 
-## Resolved input document
+## 解析后的输入文档
 
-`resolved-case.json` 保存展开本地组件引用后的规范化 scientific Case。
-`resolved-run-profile.json` 保存 worker 实际使用的 execution 与 dataset binding。
+`resolved-case.json` 保存展开项目组件引用后的规范科学案例。
+`resolved-run-profile.json` 保存工作进程实际采用的执行设置和资料绑定。
 
-项目发生变化后，可以通过这两份文件回答当时的运行问题：
+当前项目以后发生变化时，这两份文件仍能回答：
 
-- Attempt 使用了哪个 direction 与 time step？
-- 当时选择的 population、seed 和 output schedule 是什么？
-- 逻辑 dataset 映射到哪个 lock 与 reader？
-- Attempt 请求了多少 worker 和内存？
+- 该执行轮次采用什么方向和积分步长？
+- 哪种粒子群、随机种子和输出计划生效？
+- 逻辑资料映射到哪份资料锁和读取器？
+- 工作进程申请了多少线程和内存？
 
-Manifest 保存两份文档的 SHA-256 identity。归档或共享结果时，将 resolved copy 与目录一并
-保留。
+运行清单保存两份文档的 SHA-256。归档或分享结果时，应将解析后文档与结果目录一起保留。
 
-## Particle-state SQLite 数据库
+## 粒子状态 SQLite
 
-`particles.sqlite` 是主要可查询结果。公开 schema 包含六张表：
+`particles.sqlite` 是主要可查询结果。公开结构包含六张表：
 
-| 表 | 作用 |
+| 表 | 用途 |
 | --- | --- |
-| `run` | 一条 run identity 和 terminal status |
-| `particle` | 稳定 particle identity 与 population；origin 与 birth；carrier mass 和 sensitivity weight |
-| `particle_mass` | 与粒子关联的 substance mass |
-| `output_event` | 按物理顺序排列的 output time 和 event kind |
-| `particle_state` | 各 sample 的粒子位置与所选气象量；quality 与 provenance pointer |
-| `termination` | 每个已终止粒子的一条 classified terminal reason |
+| `run` | 当前运行的 ID 和终态状态，一次运行一行 |
+| `particle` | 稳定粒子 ID、粒子群、来源、出生、载体质量和敏感度权重 |
+| `particle_mass` | 与粒子关联的携带物质质量 |
+| `output_event` | 按顺序登记物理输出时刻和事件类型 |
+| `particle_state` | 每个样本的粒子位置、选定气象状态、质量标记和溯源指针 |
+| `termination` | 每个已终止粒子的分类原因 |
 
-Compound key 包含 `run_id`，复制后的行仍可归入一个确切 attempt。产品流中的 particle state
-按稳定 particle ID 与 per-particle sample sequence 排序。
+组合主键包含 `run_id`，从多个结果复制出的行仍能追溯到各自执行轮次。结果数据流按稳定粒子 ID 和
+粒子内样本序号输出状态。
 
-Worker 活动期间，SQLite 使用 write-ahead logging。正常 terminal finalization 会 checkpoint 并
-truncate WAL。运行中 reader 可以使用 indexed high-water snapshot；归档和 full verification
-则在终态后进行。
+工作进程活跃时，SQLite 使用预写式日志（WAL）。正常终态收尾会把 WAL 检查点回主库并截断。
+运行期间，读取器可以通过已有索引读取高水位快照；归档和完整验证应等待终态。
 
-## Field-level provenance bundle
+## 字段级溯源信息包
 
-`provenance-bundle.json` 将 `particle_state` 中所选气象值连接到 source record。它覆盖五个已
-存储字段：
+`provenance-bundle.json` 把 `particle_state` 中选定气象值连接到源资料记录。当前覆盖五个字段：
 
-- Eastward wind；
-- Northward wind；
-- Geometric vertical velocity；
-- Air pressure；
-- Air temperature。
+- 东向风；
+- 北向风；
+- 几何垂直速度；
+- 空气气压；
+- 空气温度。
 
-每项不同的 field lineage 对应一条 content-addressed record：
+每条不同的字段来源链保存为内容寻址记录：
 
 | 部分 | 含义 |
 | --- | --- |
-| Field token | Canonical field name |
-| Quality | Source、derived、estimated 或其他声明 quality |
-| Sources | 按科研顺序排列的 locked source identity |
-| Transforms | Profile/query path 依次执行的 operation ID 与 parameter |
-| Fallback reason | 选择 fallback field path 时的可选说明 |
-| Profile SHA-256 | 确切 interpretation-profile identity |
+| 字段标记 | 规范字段名称 |
+| 质量 | 源值、派生值、估计值或其他声明类别 |
+| 来源 | 按实际使用顺序排列的锁定源资料记录 |
+| 变换 | 内置资料配置和查询路径执行的操作 ID 与参数 |
+| 替代原因 | 选择备用字段路径时的可选说明 |
+| 资料配置 SHA-256 | 当前资料解释规则的内容散列 |
 
-Bundle 根据 canonical JSON SHA-256 复用重复 record。第二个 dictionary 将五个可选 field slot
-组合为 content-addressed field set。最后，每个 `(particle_id, sample_sequence)` 指向一个
-field-set SHA-256。这样无需在每个 particle sample 中重复完整 source 与 transform chain。
+每条记录的规范 JSON SHA-256 作为字典键，重复来源链只保存一次。第二层字典把五个可选字段槽位
+组成内容寻址字段集。最后，每个 `(particle_id, sample_sequence)` 指向一个字段集 SHA-256。
+这一结构可以避免为每个粒子样本重复保存完整来源和变换链。
 
-Sample assignment order 与 SQLite particle-state order 一致。某个已存储气象值缺失时，对应
-field-set slot 为 null；SQLite validity 与 quality field 说明该 sample 状态。
+样本赋值顺序与 SQLite 粒子状态顺序一致。某个气象值缺失时，对应字段集槽位为 `null`；
+SQLite 中的有效性和质量字段说明该样本状态。
 
-## Exact-file 与 normalized digest
+## 几种内容摘要
 
-几类 hash 用于不同的比较：
+不同摘要用于不同比较：
 
-| Digest | 哪些变化会更新它 |
+| 摘要 | 发生哪些变化时会改变 |
 | --- | --- |
-| SQLite SHA-256 | Finalized database file 的任意字节变化 |
-| Canonical SQL digest | 规范化公开 table content 或 order 变化 |
-| Provenance-bundle SHA-256 | Final JSON bundle 的任意字节变化 |
-| Provenance content digest | Normalized record、field set 或 sample assignment 变化 |
-| Canonical output digest | Canonical SQL content 或 normalized provenance content 变化 |
+| SQLite SHA-256 | 最终数据库文件的任意字节变化 |
+| 规范 SQL 摘要 | 公开表的规范内容或顺序变化 |
+| 溯源信息文件 SHA-256 | 最终 JSON 文件的任意字节变化 |
+| 溯源内容摘要 | 规范记录、字段集或样本赋值变化 |
+| 规范输出摘要 | 规范 SQL 内容或规范溯源内容变化 |
 
-Manifest 将这些身份连接起来。Provenance block 包含 SQLite exact hash、canonical SQL hash、
-bundle hash、normalized provenance hash 和 canonical output hash。`result verify` 会从文件
-重新计算这些值。
+运行清单把这些摘要和 ID 连接起来。溯源部分包含 SQLite 文件散列、规范 SQL 摘要、溯源信息散列、
+规范溯源摘要和规范输出摘要。`result verify` 会从目录文件重新计算。
 
-Exact-file hash 适合传输检查。Normalized digest 适合比较容器字节因存储原因不同、内容仍
-等价的输出。
+传输结果时，文件 SHA-256 可用于检查字节是否一致。比较不同容器写法但内容等价的结果时，规范化
+摘要更合适。
 
-## Lifecycle 与 provenance 完成顺序
+## 终态收尾
 
-Formal provenance bundle 在 SQLite output 关闭后 finalize，因为它包含最终 SQLite SHA-256。
-`complete`、`completed_with_particle_errors` 和安全 `cancelled` 都会得到 terminal database
-与 formal bundle。
+正式溯源信息包在 SQLite 关闭后完成，因为包中包含最终 SQLite SHA-256。`complete`、
+`completed_with_particle_errors` 和安全 `cancelled` 结果也会保留终态数据库和完整的溯源信息文件。
 
-Output finalization 中途停止时，已部分构建的 bundle 会移动到唯一的 `forensic-aborted` 名称，
-不会占用 formal `provenance-bundle.json` 路径。`result inspect` 会列出这些文件，便于查看中断
-后保留下来的内容。
+若输出收尾中途停止，部分构建的包会移动到带唯一 `forensic-aborted` 名称的文件，不会占用正式
+`provenance-bundle.json` 路径。`result inspect` 会把这些中断文件列入产物清单。
 
-## 派生 run report
+## 运行报告
 
-`trajecta run report --result RESULT` 根据 `result inspect` 创建 `run-report.md`。报告在一份
-Markdown 中先整理 identity、lifecycle 和 input，再汇总 resource、particle count 与 quality。
-Mass accounting、verification state 和 artifact path 位于后续章节。
+`trajecta run report --result RESULT` 根据 `result inspect` 生成 `run-report.md`。报告汇总运行 ID
+与生命周期，也列出输入、资源和粒子数量。质量分类、质量账本、验证状态及产物路径分别列在
+后续各节。
 
-报告通过原子方式重新生成，并排除在 canonical output digest 之外。Full verification 或
-forget 操作可能更新 catalog view，此后可以刷新报告；数值结果身份保持不变。
+报告采用原子方式重新生成，并排除在规范输出摘要之外。完整验证或 `job forget` 改变任务数据库
+视图后，可以刷新报告，数值结果的规范化摘要不会因此改变。
 
-## 日常分析中的读取顺序
+## 日常读取顺序
 
-可以从简到繁读取：
+从概览到深入分析，可以按以下顺序：
 
-1. 用 `result inspect` 查看 lifecycle、count、identity 与 artifact path。
-2. 文件传输后用 `result verify` 检查 file 与 digest。
-3. 用 `result verify --full` 检查 row、lifecycle、quality、termination 与 mass。
-4. 用 `result trajectory` 读取 particle metadata 与 ordered state record。
-5. 专门分析再使用 read-only SQLite 和 provenance-bundle query。
+1. `result inspect`：查看生命周期、数量、运行 ID 和产物路径。
+2. `result verify`：在复制或传输后检查文件与摘要。
+3. `result verify --full`：检查行、生命周期、质量标记、终止和质量账本。
+4. `result trajectory`：读取粒子元数据和按顺序排列的状态。
+5. 只读查询 SQLite 与溯源信息包：完成专门分析。
 
-Trajectory stream 在各条 state 上带有 `provenance_id`。公开 provenance bundle 使用相同
-particle ID 与 sample sequence，把 state 连接到五字段 field set。
+轨迹流的每条状态都包含 `provenance_id`。溯源信息文件通过相同粒子 ID 和样本序号，将状态连接到
+五字段来源集合。
 
 ## 复制与保留结果
 
-Attempt 进入终态后，将整个目录作为一个单元复制。Manifest、resolved document 与 SQLite
-database 一起保留。存在时的 WAL entry，以及 provenance bundle、report 与 forensic file
-也放入同一份副本。目标
-位置先运行 quick verification，长期归档再运行 full verification。
+执行轮次到达终态后，将整个目录作为一个单元复制。归档时应将运行清单、解析后文档和 SQLite
+放在一起；若目录中还有 WAL、溯源信息文件、报告或中断文件，也应随同保存。到达目标位置后先运行
+快速验证，长期归档前再运行完整验证。
 
-分析输出适合放在用户选择的相邻目录。Attempt 目录由此保持稳定，图件、表格和未来的导出
-产品也可以使用各自的命名与保留策略。
+图件、统计表、NetCDF 和其他派生分析文件写入用户指定的相邻目录。这样可以保持原始结果目录稳定，
+并为派生文件单独设置命名和保留策略。

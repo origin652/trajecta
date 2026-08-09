@@ -1,102 +1,106 @@
 ---
-title: ERA5 hybrid ozone 教程
-description: 准备 ERA5 hybrid 模式层资料，并使用 Trajecta 运行反向平流层臭氧 population。
+title: ERA5 混合模式层臭氧教程
+description: 准备 ERA5 混合模式层资料，按 PV60 规则生成平流层臭氧粒子，并进行反向轨迹计算。
 ---
 
-# ERA5 hybrid ozone 工作流
+# ERA5 混合模式层臭氧教程
 
-Ozone 项目组合了前面教程分别介绍的三项能力：按干空气质量填充气象域，在粒子出生时
-分配 carried substance，以及从较晚的受体时刻反向积分到较早状态。气象资料使用 ERA5
-全部 137 个 hybrid 模式层。
+臭氧示例组合了三项能力：按干空气质量填充气象区域，在粒子生成时分配携带物质，并从受体时刻
+向更早时间反向积分。气象资料使用 ERA5 全部 137 个混合模式层。
 
-示例从 2018 年 12 月 1 日 06:00 UTC 开始，反向运行至 05:50 UTC。Trajecta 在 PV60
-规则选择的平流层范围内准确初始化 1,000 个粒子。资料助手沿用 pressure-level 教程的
-北纬 53–45°、东经 0–10° 区域。
+案例从 2018 年 12 月 1 日 06:00 UTC 反向积分至 05:50 UTC。初始粒子只从 PV60 规则选出的
+平流层区域生成，数量固定为 1,000。下载范围与气压层教程相同，为北纬 45–53°、东经 0–10°。
 
-## 阅读项目与 Profile
+## 项目与运行配置
 
-项目索引把逻辑数据集 `era5-hybrid` 映射到公开 profile
+项目索引把逻辑资料 `era5-hybrid` 映射到内置资料配置
 `era5-cds-hybrid137-v0`：
 
 --8<-- "examples/ozone-era5-hybrid/trajecta-project.yaml"
 
-面向本机的 Profile 选择 Rust reader 和本地路径：
+运行配置选择纯 Rust 读取器和本机目录：
 
 --8<-- "examples/ozone-era5-hybrid/profiles/product.yaml"
 
-Case 位于 `examples/ozone-era5-hybrid/cases/ozone.yaml`，主要设置如下：
+案例位于 `examples/ozone-era5-hybrid/cases/ozone.yaml`。主要设置如下：
 
-| Case 选择 | 教程值 |
-|---|---|
+| 案例设置 | 本例取值 |
+| --- | --- |
 | 物理起点 | 2018-12-01 06:00 UTC |
 | 物理终点 | 2018-12-01 05:50 UTC |
-| 方向 | 反向 |
-| Domain | 有限 ERA5 hybrid 网格 |
-| 初始 population | PV60 eligible mask 内的 1,000 个干空气载体 |
-| Carried substance | `ozone` |
-| 时间步长 | 300 秒 |
-| Boundaries | 地表反射、模式顶终止和有限域终止 |
-| 输出 | SQLite 中的两个物理端点 |
-| 随机种子 | 4203 |
+| 积分方向 | 反向 |
+| 区域 | 有限 ERA5 混合模式层网格 |
+| 初始粒子群 | PV60 有效区域内的 1,000 个干空气载体粒子 |
+| 携带物质 | `ozone` |
+| 数值步长 | 300 秒 |
+| 边界 | 地表反射、模式顶终止、有限区域终止 |
+| 输出 | 两个物理端点写入 SQLite |
+| 随机种子 | `4203` |
 
-RunProfile 申请一个 worker 线程和 1 GiB 内存。Lock 路径为
-`locks/era5-hybrid.lock.json`，prepared files 从 `data/` 下发现。
+`product` 申请一个工作线程和 1 GiB 内存。资料锁位于
+`locks/era5-hybrid.lock.json`，准备后的文件从 `data/` 下发现。
 
-## 理解 hybrid 坐标
+## 混合模式层如何表示气压
 
-ERA5 模式层会随大气和地形变化。层 `k` 上的气压由该层系数和本地地表气压重建，因此
-垂直坐标随水平位置与时间变化，单独的三维变量文件只是完整 anchor 的一部分。
+ERA5 模式层随地形和大气状态变化。第 `k` 层的气压由该层系数与当地地表气压共同重建，因此同一
+层编号在不同位置和时刻可能对应不同气压。仅有三维变量文件还不足以完成垂直坐标查询；每个时次
+还需要地表气压和官方混合坐标系数。
 
-准备流程会组合以下输入：
+准备流程组合以下输入：
 
 | 输入组 | 内容 |
-|---|---|
-| Hybrid 三维字段 | 模式层 1–137 上的气温、东西风、南北风、比湿和压力垂直速度 |
-| 地表气压输入 | 用于派生 canonical surface pressure 的对数地面气压 |
-| 地表基础场 | 位势、10 m 风、2 m 气温与露点、粗糙度、边界层高度和摩擦速度 |
+| --- | --- |
+| 三维模式层变量 | 第 1–137 层的气温、东西风、南北风、比湿和压力垂直速度 |
+| 地表气压输入 | 用于恢复规范地表气压的对数地表气压 |
+| 地表基础变量 | 位势、10 米风、2 米气温与露点、粗糙度、边界层高度和摩擦速度 |
 | 地表通量 | 瞬时感热通量和水汽通量 |
-| 垂直坐标 metadata | 官方 half-level coefficient table 和 preparation identity |
+| 垂直坐标元数据 | 官方半层系数表和准备过程标识 |
 
-Profile 会派生地表气压与近地比湿，映射通量符号，并为 `diagnostics` capability 计算
-potential vorticity。Hybrid frame 相隔三小时；05:50–06:00 的物理区间需要规划
-00、03、06 和 09 UTC。
+内置资料配置会恢复地表气压和近地层比湿，统一通量符号，并为 `diagnostics` 能力计算位涡。
+混合模式层资料每三小时一个锚点。本例虽然只覆盖 05:50–06:00 UTC，时间插值仍需要
+00、03、06 和 09 UTC 四组资料。
 
-## 理解 PV60 初始化
+## PV60 粒子初始化
 
-命名 ozone rule 先把干空气质量限制在海拔高于 3,000 m，且 hemisphere-normalized
-potential vorticity 大于 2 个 potential-vorticity unit 的位置。南半球的值会先进行
-符号归一化，再应用阈值。
+PV60 规则先筛选海拔 3,000 米以上的干空气，并要求按半球统一符号后的位涡大于
+2 PVU。PVU 是位涡单位，1 PVU 等于 10⁻⁶ K·m²·kg⁻¹·s⁻¹。南半球位涡会先调整符号，
+再应用同一个阈值。
 
-Trajecta 在 eligible dry-air mass 内形成恰好 1,000 个等载体 stratum，并从每个 stratum
-采样一个粒子。Ozone mole fraction 与 potential vorticity 成正比，斜率为每个
-potential-vorticity unit 60 parts per billion by volume。随后根据 ozone 与干空气摩尔质量，
-把 mole fraction 转换成 carried ozone mass。
+Trajecta 在符合条件的干空气质量中建立 1,000 个等质量区间，并从每个区间抽取一个粒子。
+臭氧摩尔分数按照每 PVU 60 ppbv 的斜率与位涡相联系，随后结合臭氧和干空气的摩尔质量，
+换算为粒子携带的臭氧质量。
 
-结果中由此形成两个相关量。`dry_air_mass_kg` 是 eligible atmosphere 的载体权重，
-`particle_mass` 中的 `ozone` 行是出生时分配的物质质量。输送过程中，该质量随粒子移动。
-Population 质量账本则追踪有限域 inflow、outflow 和 termination 对干空气载体的影响。
+结果中保存两类相互关联的质量：
 
-## 在下载前规划资料
+| 结果字段 | 含义 |
+| --- | --- |
+| `dry_air_mass_kg` | 粒子代表的有效平流层干空气质量 |
+| `particle_mass` 中的 `ozone` | 粒子生成时分配的臭氧质量 |
 
-校验项目并保存 data-plan：
+轨迹输送会让臭氧质量随粒子移动。粒子群质量账本跟踪干空气载体质量在区域流入、流出和终止过程
+中的变化。
+
+## 在下载前生成资料计划
+
+校验项目并保存计划：
 
 ```text
 trajecta --project examples/ozone-era5-hybrid project validate
 trajecta --project examples/ozone-era5-hybrid project data-plan --output hybrid-plan.json
 ```
 
-单项 requirement 应选择：
+计划中的单项资料要求应包含：
 
 | 字段 | 预期值 |
-|---|---|
-| Dataset | `era5-hybrid` |
-| Dataset profile | `era5-cds-hybrid137-v0` |
-| Reader | `rust` |
-| Capabilities | `diagnostics`、`domain_fill`、`near_surface_transport`、`transport` |
-| Coverage | 按时间先后排列的 2018-12-01 05:50–06:00 UTC |
-| Lock path | `locks/era5-hybrid.lock.json` |
+| --- | --- |
+| 逻辑资料 | `era5-hybrid` |
+| 内置资料配置 | `era5-cds-hybrid137-v0` |
+| 读取器 | `rust` |
+| 能力 | `diagnostics`、`domain_fill`、`near_surface_transport`、`transport` |
+| 时间覆盖 | 按先后顺序写为 2018-12-01 05:50–06:00 UTC |
+| 资料锁路径 | `locks/era5-hybrid.lock.json` |
 
-虽然数值执行为反向，plan 中的 coverage 仍按物理时间排列。方向保存在 resolved Case 中。
+资料计划始终按时间先后书写覆盖范围，反向方向保存在解析后的案例中。
 
 安装资料工具依赖并预览请求：
 
@@ -105,30 +109,34 @@ python -m pip install -r requirements-data.txt
 python tools/fetch_trajecta_data.py --project examples/ozone-era5-hybrid --plan hybrid-plan.json
 ```
 
-Preview 会列出每项 Climate Data Store request 的模式层和变量代码，并显示地表配套字段。
-区域、anchors 和本地 target 位于同一项请求下。Provider client 从标准配置或环境读取
-凭据，打印的 plan 只包含请求参数。
+预览会列出 CDS 请求、模式层、变量代码和地表配套资料，并给出区域、锚点及本地目标。账户凭据由
+服务方客户端从标准配置或环境变量读取。
 
-## 下载并准备 anchors
+## 下载并准备资料
 
-启动完整 provider 与 preparation pipeline：
+执行完整的下载和准备流程：
 
 ```text
 python tools/fetch_trajecta_data.py --project examples/ozone-era5-hybrid --plan hybrid-plan.json --execute
 ```
 
-Raw service files 与 derived coefficient material 在 `data/.trajecta-fetch/` 中组合。准备阶段
-检查 dimensions、variables、valid times、surface companions、level ordering 和 coefficient
-identity。完成的 NetCDF anchors 移入 `data/ready/`，助手还会写入包含 request 与 file
-identity 的 `data/TRAJECTA_FETCH_MANIFEST.json`。
+服务方原始文件、派生字段和坐标系数的中间结果保存在 `data/.trajecta-fetch/`。准备过程会检查：
 
-Hybrid request 的体积和准备步骤都多于 pressure-level 教程。Provider 可能异步准备
-model-level 请求；相同命令再次运行时，provider utilities 会继续使用已有且匹配的工作
-内容。
+- 维度和变量是否齐全；
+- 有效时次与资料锚点是否一致；
+- 地表配套变量是否覆盖同一网格；
+- 模式层顺序是否为 1–137；
+- 混合坐标系数表是否匹配。
 
-## Finalize 并运行
+通过检查的 NetCDF 锚点会移入 `data/ready/`。助手还会写出
+`data/TRAJECTA_FETCH_MANIFEST.json`，其中包含请求参数和文件散列。
 
-检查一个 ready anchor，创建 lock，并检查本地 I/O：
+混合模式层请求的数据量和准备步骤都多于气压层教程。CDS 可能异步准备三维模式层请求。重复执行
+同一命令时，资料工具会复用已经匹配的下载和中间结果。
+
+## 完成项目定稿并运行
+
+先检查一个准备好的锚点，再创建资料锁：
 
 ```text
 trajecta data inspect examples/ozone-era5-hybrid/data/ready/ERA5_HYBRID_READY_FILE.nc
@@ -136,22 +144,26 @@ trajecta --project examples/ozone-era5-hybrid project finalize
 trajecta --project examples/ozone-era5-hybrid doctor --deep
 ```
 
-Inspection response 应识别 `era5_cds_hybrid137`、137 个模式层、有效时次、source roles
-和 prepared grid。Finalization 把三维主字段、对数地面气压、地表文件与 coefficient
-metadata 一同写入 DatasetLock。
+将 `ERA5_HYBRID_READY_FILE.nc` 换成实际文件名。检查结果应识别
+`era5_cds_hybrid137`、137 个模式层、有效时次、源角色和准备后网格。项目定稿会把主三维变量、
+对数地表气压、地表文件和坐标系数元数据写入同一份资料锁。
 
-以前台方式运行 Profile：
+以前台方式运行：
 
 ```text
 trajecta --project examples/ozone-era5-hybrid run --profile product
 ```
 
-Population 初始化会读取 06:00 UTC snapshot，派生 potential vorticity，选择 eligible
-dry-air strata，并分配 ozone。随后 worker 朝 05:50 UTC 推进并写入 endpoint result。
+工作进程先读取 06:00 UTC 快照，计算位涡，筛选符合 PV60 的干空气质量区间，并分配臭氧质量。
+初始化完成后，积分器向 05:50 UTC 推进并写出两个端点。
+
+!!! tip "反向案例的起点是较晚时刻"
+
+    本例的粒子在 06:00 UTC 生成，随后向 05:50 UTC 积分。结果中的“初始位置”对应受体时刻。
 
 ## 读取反向结果
 
-校验并汇总完成目录：
+验证并查看结果：
 
 ```text
 trajecta result verify RESULT --full
@@ -160,35 +172,30 @@ trajecta result trajectory RESULT --particle-id 0
 trajecta run report --result RESULT
 ```
 
-Event sequence 按执行方向排列：第一个 scheduled event 为 06:00，第二个为 05:50 UTC。
-轨迹向更早物理时间推进时，`integration_offset_ns` 变为负值；`elapsed_age_ns` 仍为非负，
-表示粒子从 06:00 出生后经历的积分时间。
+事件顺序与执行方向一致：第一项计划事件是 06:00，第二项是 05:50 UTC。随着积分进入更早时刻，
+`integration_offset_ns` 变为负值；`elapsed_age_ns` 仍为非负数，表示粒子自 06:00 生成后已经
+积分了多长时间。
 
-Particle summary 会分开列出总干空气载体质量与总 ozone mass。Origin 标识 population 与
-domain。Boundary-intersection termination 使用准确物理时刻，该时刻可能位于两个 scheduled
-endpoint 之间。
+粒子摘要会分别给出干空气载体总质量和臭氧总质量。粒子来源记录其所属粒子群和区域。若粒子在
+两个端点之间穿出边界，终止记录会保存精确的物理时刻和边界面。
 
-分析时，可以将 particle records 以 JSONL stream 输出，再按 `particle_id` 与 SQLite 中
-的 `ozone` mass row 连接。按末端位置、初始位置或 termination face 分组，可以观察所选
-区间内不同方向的反向输送。
+需要分析全部粒子时，可以用 JSONL 流读取状态，再通过 `particle_id` 与 SQLite 中的 `ozone`
+质量行连接。按受体位置、早期位置或终止边界分组，可以得到对这段反向输送过程的不同观察。
 
-## 扩展 ozone 研究
+## 扩展臭氧研究
 
-更长的反向时段从提前 `time.end` 开始。重新生成 data-plan，使三小时 anchors 覆盖扩展后
-的时间区间，再准备新增文件并 finalize。需要中间输送状态时，可将 endpoint output 改为
-interval schedule。
+延长反向时段时，将 `time.end` 移到更早时刻，然后重新生成资料计划。新增的三小时锚点准备完成
+后，再执行项目定稿。需要观察中间演变时，可以把端点输出改为固定间隔输出。
 
-提高 `target_particle_count` 可以降低 eligible stratospheric mass 内的采样噪声，同时
-减小每粒子的 carrier mass。Potential-vorticity sampling、trajectory integration 和
-SQLite output 的计算量也会增长。Profile 的内存与 worker threads 可独立于科学 Case
-调整。
+提高 `target_particle_count` 会细化有效平流层质量的抽样，并降低每个粒子代表的干空气质量。
+位涡计算、轨迹积分和 SQLite 写入也会相应增加。工作线程和内存预算可以在运行配置中单独调整，
+无需改动科学案例。
 
-更换区域时，需要准备新的 hybrid grid、surface companion 和 coefficient metadata。
-Limited-domain boundary 由 ready grid 定义，因此 outflow count 与 inflow birth 的空间
-含义也随之变化。
+更换区域时，需要为新网格准备完整的模式层、地表变量和坐标系数。有限区域边界由准备后的网格
+定义，区域变化会同时改变流出数量和边界新生粒子的空间含义。
 
-## 后续步骤
+## 接下来
 
-[Population 概念](../concepts/populations.md)对照三种初始化策略，
-[资料家族页](data-families.md)解释 hybrid 与 pressure-level anchor 在 cadence 和垂直签名
-上的差异。科学比较材料集中在 [Validation](../validation/index.md) 区域。
+[粒子群模型](../concepts/populations.md)比较三种初始化策略。
+[资料系列与轨迹方向](data-families.md)说明混合模式层与气压层为何使用不同的时次间隔和垂直签名。
+科学对比方法与结果见[验证](../validation/index.md)。

@@ -5,11 +5,11 @@ description: 下载、校验、检查并放置 Trajecta 快速入门使用的四
 
 # CFSR 演示资料
 
-Trajecta 的第一个项目使用 Climate Forecast System Reanalysis 的一个小型资料片段。资产
-包含 2009 年 1 月 1 日的四帧全球压力层分析，每六小时一帧，总量约 22 MiB，普通工作站
-即可方便地完成首次运行。
+Trajecta 的第一个项目使用气候预报系统再分析资料（Climate Forecast System Reanalysis，
+CFSR）的一个小型片段。资料包包含 2009 年 1 月 1 日四个时次的全球气压层分析，时间
+间隔为六小时，总量约 22 MiB，普通工作站即可完成首次运行。
 
-资料作为独立 release asset 发布，与 Windows 和 Ubuntu 安装包分开。下载一次后，两种
+演示资料作为独立发布资源提供，与 Windows 和 Ubuntu 安装包分开。下载一次后，两种
 平台包均可使用，程序更新时也可继续保留这份资料。
 
 ## 归档内容
@@ -35,13 +35,13 @@ cd2c38083130c014daac4b4fcde0680d3f3d6bc2df43daf22c8cd015e95919f8
 
 ## 为什么示例使用四帧
 
-内置 `cfsr-pgbl-pressure-v0` dataset profile 描述六小时间隔的资料。轨迹每次采样时，
+内置资料配置 `cfsr-pgbl-pressure-v0` 描述六小时间隔的资料。轨迹每次采样时，
 Trajecta 会选择包围该时刻的两帧，并在时间方向插值得到气象字段。快速入门从 06:00
 运行至 06:10 UTC，因此采样时刻位于 06 UTC 分析场及其后一帧附近。
 
-演示项目会锁定完整的四帧资产。这组文件覆盖一整天的源分析场，后续教程扩展 Case 时
-还有可用余量。DatasetLock 记录四个文件的身份，查询引擎则按每次采样时间选择所需的
-时间括号。
+演示项目会锁定完整的四帧资产。这组文件覆盖一整天的源分析场，后续教程扩展案例时
+还有可用余量。资料锁记录四个文件的路径和 SHA-256，查询引擎则按每次采样时间选择所需的
+前后时次。
 
 ## 下载并校验
 
@@ -90,7 +90,7 @@ demo-data/trajecta-demo-cfsr-20090101-v1/data/
       examples/domain-fill-cfsr/data/
     ```
 
-Release 教程使用另一个项目目录。可以修改其 Profile 中的 `data_roots.met`，让两个项目
+释放型粒子教程使用另一个项目目录。可以修改其运行配置中的 `data_roots.met`，让两个项目
 指向同一物理资料目录；也可以复制一份文件，得到完全独立的教程目录。
 
 ## 使用 Trajecta 检查单帧
@@ -106,17 +106,17 @@ trajecta --format json data inspect examples/domain-fill-cfsr/data/pgbl00.gdas.2
 | 属性 | 值 |
 |---|---|
 | 容器 | GRIB2 |
-| Dataset family | `cfsr_pgbl_pressure` |
+| 资料系列 | `cfsr_pgbl_pressure` |
 | 水平网格 | 144 × 73，经度周期 |
-| 垂直坐标 | 37 个压力层 |
+| 垂直坐标 | 37 个气压层 |
 | 气压范围 | 1 至 1,000 hPa |
-| Profile 帧间隔 | 21,600 秒 |
+| 资料时间间隔 | 21,600 秒 |
 
-项目 finalize 时，命令返回的网格签名和层次签名会进入 DatasetLock。
+执行 `project finalize` 时，程序会把网格签名和层次签名写入资料锁。
 
 ## 示例读取的字段
 
-CFSR 源文件包含许多消息。Dataset profile 选择 Trajecta 使用的字段，并将源单位和层次
+CFSR 源文件包含许多 GRIB 消息。内置资料配置选择 Trajecta 使用的字段，并将源单位和层次
 类型映射到统一字段模型。
 
 | 用途 | 选取的字段 |
@@ -124,18 +124,18 @@ CFSR 源文件包含许多消息。Dataset profile 选择 Trajecta 使用的字�
 | 三维输送 | 东西风、南北风、压力垂直速度、气温、比湿和位势高度 |
 | 地表状态 | 地表气压和地表位势 |
 | 近地输送 | 10 m 风、2 m 气温、2 m 比湿、粗糙度、边界层高度、热通量和摩擦速度 |
-| Domain-fill 初始化 | 风场、气温、比湿、位势高度、地表气压和地形 |
+| 区域填充初始化 | 风场、气温、比湿、位势高度、地表气压和地形 |
 
-快速入门会使用 domain-fill 初始化与输送字段。近地面和边界层字段也保留在同一 profile
-中，较长的案例可以直接使用相应物理过程。工作流请求 diagnostics capability 时，
-potential vorticity 会从压力层字段派生。
+快速入门会使用区域填充初始化与输送字段。近地面和边界层字段也保留在同一内置资料配置
+中，较长的案例可以直接使用相应物理过程。工作流请求诊断能力时，位涡会从气压层字段
+派生。
 
 ## 来源与引用
 
 四个文件均按源字节取自
 [NOAA NCEI CFSR 六小时低分辨率目录](https://www.ncei.noaa.gov/data/climate-forecast-system/access/reanalysis/6-hourly-low-resolution/2009/200901/20090101/)。
 [CFSR 元数据记录](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C00765)
-介绍低分辨率 GRBLOW collection 及其使用条件；NOAA 的
+介绍低分辨率 GRBLOW 数据集及其使用条件；NOAA 的
 [开放数据页面](https://www.noaa.gov/information-technology/open-data-dissemination)
 给出更广泛的访问政策。上述来源页面于 2026 年 8 月 2 日核查。
 
@@ -149,10 +149,11 @@ Saha et al. (2010)，
 
 ## 在其他项目中使用
 
-RunProfile 可以把逻辑数据集绑定到任何含有这些文件的本地目录。绑定内容包括资料根、
-reader 和 DatasetLock 路径；Case 仍只引用逻辑数据集名称。多个项目因此可以共享同一
-只读资料集合，同时各自维护 lock 与结果目录。
+运行配置可以把逻辑数据集绑定到任何含有这些文件的本地目录。绑定内容包括资料根目录、
+读取器和资料锁路径；案例仍只引用逻辑数据集名称。多个项目因此可以共享同一套只读
+资料，同时各自维护资料锁与结果目录。
 
-使用其他日期或更长时段时，先生成项目 data-plan，再把它传给
-`tools/fetch_trajecta_data.py`。助手根据 Case coverage 整理 provider 请求和本地目标路径。
-所需帧到位后，`project finalize` 会检查文件并创建运行使用的 lock。
+使用其他日期或更长时段时，先生成项目的资料计划（`data-plan`），再把它传给
+`tools/fetch_trajecta_data.py`。辅助工具会根据案例的时空覆盖范围整理向数据服务方发出的
+请求和本地目标路径。所需时次文件到位后，`project finalize` 会检查文件并创建运行使用的
+资料锁。

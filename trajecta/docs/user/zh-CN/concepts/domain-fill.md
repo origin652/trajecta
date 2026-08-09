@@ -1,15 +1,15 @@
 ---
-title: Domain-fill 水汽追踪
-description: 了解 Trajecta 中等干空气质量采样、有限域交换、质量账本和水汽分析方式。
+title: 区域填充水汽追踪
+description: 了解等干空气质量抽样、有限区域交换、质量账本，以及 Trajecta 中水汽轨迹的解读方式。
 ---
 
-# Domain-fill 水汽追踪
+# 区域填充水汽追踪
 
-Domain filling 构造气象域内空气的拉格朗日表示。粒子按干空气质量分布，因此每个初始粒子
-代表相同份额的大气质量，不对应相同几何体积。粒子轨迹与 carrier weight 共同形成移动的
-air-mass 基础，可用于水汽归因和停留时间分析。
+区域填充为气象区域中的空气建立拉格朗日表示。初始粒子按干空气质量分布，每个粒子代表相等份额
+的大气质量，而非相等几何体积。粒子轨迹和载体权重共同构成移动气团，可用于水汽来源、去向和
+停留时间分析。
 
-Case 通过 `domain_fill_air_mass` 选择这一 population：
+案例通过 `domain_fill_air_mass` 选择这种粒子群：
 
 ```yaml
 particle_population:
@@ -19,169 +19,158 @@ particle_population:
   target_particle_count: 50000
 ```
 
-`domain_id` 指向 Case 中的一个气象域。初始化和边界交换使用该域的 safe core、垂直支持和
-边界几何。
+`domain_id` 指向案例中的一个气象区域。初始化和边界交换会使用该区域的安全内部范围、垂直支持
+和边界几何。
 
-## 从气象场得到干空气质量
+## 从气象状态计算干空气质量
 
-在 Case 起始时刻，Trajecta 向气象引擎请求 domain-fill snapshot。每个可用水平格点和垂直层
-会组合以下输入：
+在案例起始时刻，Trajecta 请求一份区域填充快照。对每个可用水平格点和垂直层，快照组合以下
+信息：
 
 | 输入 | 在质量表示中的作用 |
 | --- | --- |
 | 水平坐标 | 计算球面网格面积 |
-| Interface pressure | 计算静力层质量 |
-| 气温与比湿 | 表示湿空气状态及其中的干空气份额 |
-| 位势或高度 | 建立垂直几何并放置 layer |
-| Surface pressure 与 terrain | 确定本地下边界 |
-| 可用 model top | 确定输送上边界 |
+| 层界面气压 | 根据静力关系计算层空气质量 |
+| 气温和比湿 | 确定湿空气状态与干空气份额 |
+| 位势或高度 | 确定垂直几何和层位置 |
+| 地表气压与地形 | 确定当地下边界 |
+| 可用模式顶 | 确定输送上边界 |
 
-计算保留本地 transport floor 以上、可用 top 以下的干空气。比湿参与从总空气状态到干空气
-密度的转换。位于气象域安全支持范围外的 cell 不进入初始质量预算。
+计算只保留当地输送下界以上、可用模式顶以下的干空气。比湿参与从总空气状态到干空气密度的换算。
+区域安全支持范围之外的格点不进入初始质量预算。
 
-最终 snapshot 包含按顺序排列的 mass stratum，以及这些 stratum 表示的干空气总质量。
+快照最终得到一组顺序固定的质量分层，以及这些分层表示的干空气总质量。
 
-## 两种 population 分辨率
+## 选择粒子群分辨率
 
-Case 在以下字段中选择一个：
+案例必须从以下两种方式中选择一种：
 
 | 字段 | 作用 |
 | --- | --- |
-| `target_particle_count` | 创建确切数量的初始粒子，将干空气总质量等分给它们 |
-| `target_dry_air_mass_per_particle` | 使用指定 carrier mass；初始数量为总质量除以 carrier mass 后向下取整 |
+| `target_particle_count` | 生成指定数量的初始粒子，将干空气总质量等分给它们 |
+| `target_dry_air_mass_per_particle` | 指定单粒子载体质量，初始粒子数取总质量除以该质量的整数部分 |
 
-Count 模式便于控制内存和输出规模。Mass-per-particle 模式便于让不同空间域或季节采用接近的
-carrier quantum。第二种模式中，小于一个完整 carrier 的干空气质量作为 residual 进入质量
-账本。
+固定粒子数便于控制内存和输出体积。固定单粒子质量则便于在不同区域或季节保持近似相同的质量
+分辨率。第二种模式中，不足一个完整载体质量的干空气会作为余量进入质量账本。
 
-Carrier 值写入每个粒子的 `dry_air_mass_kg`。粒子是带权空气质量样本，不会取得其初始所在
-网格的全部质量。
+每个粒子的载体值写在 `dry_air_mass_kg`。粒子是对空气质量的加权抽样，只代表分配给它的那一份
+干空气质量，并不继承所在网格单元的全部质量。
 
-## 等质量分层放置
+## 等质量分层抽样
 
-Trajecta 按网格 column 与 layer 排列 dry-air stratum，再把累计质量轴分成等宽区间。每个
-区间放置一个粒子，依次确定：
+Trajecta 按网格柱和垂直层排列干空气质量分层，再把累积质量轴分成相等区间，每个区间放置一个
+粒子。一次抽样依次确定：
 
-1. 区间内的干空气质量坐标；
-2. 包含该坐标的 column 与 layer；
-3. Column 内的 longitude；
-4. 通过均匀采样正弦纬度，在球面面积上放置 latitude；
-5. 静力层内的 pressure，再通过 log-pressure 转换为 geometric height。
+1. 该等质量区间内的干空气质量坐标；
+2. 包含该坐标的网格柱和垂直层；
+3. 网格柱内的经度；
+4. 按球面面积均匀的纬度，即对纬度正弦作均匀抽样；
+5. 静力层内的气压，再通过对数气压关系确定几何高度。
 
-Terrain 或完整 transport floor 在 cell 内发生变化时，sample 会重新放入本地有效垂直范围，
-避免粒子低于 transport floor 或高于当地资料支持上限。
+地形或输送下界在一个网格单元内变化时，样本会调整到当地有效垂直范围，避免落入地表以下或
+资料支持范围以上。
 
-Case random seed、population ID、domain ID、particle identity、lifecycle event 和 sampling
-dimension 共同形成确定性随机 key。Worker 数量与线程调度不会改变初始 sample。
+随机键由案例随机种子、粒子群 ID、区域 ID、粒子 ID、生命周期事件和抽样维度共同组成。
+改变工作线程数或线程调度顺序不会改变初始粒子样本。
 
-## Population 表示的质量
+## 粒子群表示的质量
 
-初始化时，干空气表示满足：
+初始时刻表示的干空气质量为：
 
 ```text
-sum(initial particle carrier mass) + initial residual mass
+所有初始粒子的载体质量之和 + 初始余量
 ```
 
-Count 模式中的初始 residual 为零。提高粒子数会降低单粒子 carrier mass，为空间聚合提供更
-多拉格朗日样本，同时增加气象查询、particle-state 行、provenance assignment 和 worker
-内存。
+固定粒子数模式的初始余量为零。增加粒子数会降低单粒子载体质量，为空间汇总提供更多拉格朗日
+样本；气象查询、粒子状态行、溯源赋值和工作进程内存也会相应增加。
 
-比湿参与 dry-air snapshot 构造，也可在路径上的气象查询中读取。Particle-state 产品提供
-位置、时间、carrier mass 和所选气象状态。水汽分析可以按源区、受体区、穿越时间或停留
-区间整理这些带权轨迹，再与研究所需的湿度场结合。
+比湿既参与干空气快照计算，也会沿轨迹查询。粒子状态产品提供位置、时间、载体质量和选定气象
+状态。水汽分析可以按源区、受体区、穿越时刻或停留区间汇总这些加权轨迹，再结合研究采用的湿度
+字段计算相应量。
 
-## 全球域生命周期
+## 全球区域的生命周期
 
-全球周期域没有侧向 inflow 或 outflow 边缘。Longitude 通过所选 periodic boundary policy
-回绕。除非另一个声明的边界规则终止粒子，例如到达 model top，粒子数通常保持固定。粒子
-接触地表时由配置的 reflection policy 处理。
+全球周期区域没有水平流入和流出边。经度通过选定的周期边界规则衔接。除非粒子触发模式顶终止
+等其他声明规则，粒子数通常保持不变；接触地表则由配置的反射规则处理。
 
-全球 CFSR 快速开始使用 endpoint output 和短时段，初始与最终状态可以直接展示不含侧向
-交换的基本 population。
+全球 CFSR 快速入门只运行十分钟并采用端点输出，适合观察没有水平交换时的基本粒子群。
 
-## 有限域 inflow
+## 有限区域的流入
 
-有限域的四个侧面按垂直 layer 划分。每个 macro-step 中，Trajecta 根据 face area、干空气
-密度和边界法向风计算流入干空气质量。Forward 与 backward 会按各自物理积分方向解释 inward
-normal。
+有限区域有四个水平边界面，每个面按垂直层划分。每个数值宏步中，Trajecta 根据边界面面积、
+干空气密度和法向风计算流入干空气质量。正向与反向运行会按各自物理积分方向解释内法向。
 
-Incoming mass 按 boundary face 分开累计。累计值达到一个完整 carrier mass 时，粒子在该
-threshold 对应的确切时刻出生。Origin 记录 domain 和 boundary-face ID；切向与垂直坐标在
-相应 face layer 内确定性采样。
+每个边界面单独累积流入质量。累计值达到一个完整载体质量时，程序会在跨过该阈值的物理时刻
+生成粒子。粒子来源
+记录区域和边界面 ID，沿边界切向和垂直方向的位置则在相应面层内确定抽样。
 
-小于下一个 carrier threshold 的质量保留为 boundary residual，并带入后续 macro-step。有限
-粒子表示由此与连续干空气通量保持对应。
+不足下一个载体质量的部分作为边界余量带入后续宏步。这样可以用有限粒子数近似连续干空气通量，
+同时在质量账本中保留尚未量化成粒子的部分。
 
-## 有限域 outflow
+## 有限区域的流出
 
-活动粒子越过有限域边界时，continuous boundary solver 沿建议路径定位交点。粒子在该物理
-交点终止，reason 为 `population_outflow`，classification 为 normal。
+活动粒子穿过有限区域边界时，连续边界求解器会在本步轨迹线段上求出相交位置。粒子在该物理交点
+终止，原因为 `population_outflow`，分类为正常终止。
 
-同一个 step 中即使有等量质量流入，粒子数量也可能下降。Incoming dry-air mass 需要量化为
-完整 carrier particle，剩余部分进入 residual。因此，particle count 用于描述采样状态，质量
-守恒则读取 mass ledger。
+同一宏步即使有等量干空气流入，粒子数也可能减少。流入质量只有达到完整载体阈值才生成新粒子，
+余量会留到下一步。因此，粒子数用于描述采样情况，质量守恒应读取质量账本。
 
-## 逐 step 质量账本
+## 每步质量账本
 
-每个完成的 macro-step 记录以下量：
+每个完成的数值宏步记录：
 
-| 量 | 含义 |
+| 字段 | 含义 |
 | --- | --- |
-| `opening_active_kg` | Step 开始时 live particle 上的 carrier mass |
-| `opening_residual_kg` | 带入该 step 的 initial 与 boundary residual |
-| `incoming_kg` | 通过有限域侧面流入的干空气质量 |
-| `outgoing_kg` | 归入 population outflow 的 carrier mass |
-| `normal_terminated_kg` | 由其他声明的 normal rule 终止的 carrier mass |
-| `abnormal_terminated_kg` | 与异常粒子终止关联的 carrier mass |
-| `closing_active_kg` | Step 结束时 live particle 上的 carrier mass |
-| `closing_residual_kg` | Birth 完成后剩余的 sub-carrier mass |
+| `opening_active_kg` | 宏步开始时活动粒子的载体质量 |
+| `opening_residual_kg` | 带入本步的初始余量和边界余量 |
+| `incoming_kg` | 从有限区域边界流入的干空气质量 |
+| `outgoing_kg` | 随区域流出粒子离开的载体质量 |
+| `normal_terminated_kg` | 按其他声明规则正常终止的载体质量 |
+| `abnormal_terminated_kg` | 与异常粒子终止相关的载体质量 |
+| `closing_active_kg` | 宏步结束时活动粒子的载体质量 |
+| `closing_residual_kg` | 生成边界粒子后剩余的不足一份载体质量 |
 
-账本计算：
+账本关系为：
 
 ```text
-opening active + opening residual + incoming
-  = outgoing + normal terminated + abnormal terminated
-    + closing active + closing residual
+期初活动质量 + 期初余量 + 流入质量
+  = 流出质量 + 正常终止质量 + 异常终止质量
+    + 期末活动质量 + 期末余量
 ```
 
-Manifest 为每个 step 记录实际 imbalance 和数值 tolerance。Full result verification 会重复
-检查各条 ledger record，并计算最终累计 balance。
+运行清单记录每一步观察到的不平衡和对应数值容差。完整结果验证会重新检查逐步账本和最终累计
+平衡。
 
-## Normal 与 abnormal termination
+## 正常与异常终止
 
-读取 population 历史时，需要区分终止类别：
-
-| 类别 | 示例 | 含义 |
+| 分类 | 示例 | 解读 |
 | --- | --- | --- |
-| Normal | Population outflow、model-top rule | 已声明的物理生命周期路径 |
-| Abnormal | Invalid meteorology、数值边界失败 | 粒子无法在所选模型下继续 |
+| 正常 | 区域流出、模式顶规则 | 粒子按照案例声明的物理生命周期结束 |
+| 异常 | 无效气象状态、数值边界处理失败 | 粒子在当前模型下无法继续 |
 
-只要出现 abnormal particle termination，终态运行状态就为
-`completed_with_particle_errors`。受影响的粒子及其最终状态仍保留在结果中。`result inspect`
-可以读取按 reason 分组的计数，`result trajectory` 可用于查看具体路径。
+存在任何异常粒子终止时，运行终态为 `completed_with_particle_errors`。受影响粒子及其最后状态
+仍保存在结果中。`result inspect` 可按原因查看数量，`result trajectory` 可读取具体路径。
 
-## Forward 与 backward domain filling
+## 正向与反向区域填充
 
-Forward 从初始化空气质量向较晚物理时间积分；backward 向较早时间积分。初始采样都发生在
-`time.start`，随后时钟沿 Case direction 推进。Boundary inflow、outflow、birth time、
-elapsed age 和 event order 也按该方向定义。
+正向积分从初始化时刻追踪气团到未来。反向积分从较晚的受体时刻追踪到更早的气象状态。初始抽样
+都发生在 `time.start`，时钟沿案例方向推进。边界流入、流出、出生时刻、粒子年龄和事件顺序也
+按该方向定义。
 
-面向受体的水汽研究可以在 receptor time 初始化区域 air mass，再用 backward Case 向早期
-气象场追踪 carrier trajectory。Forward Case 可以从源时段出发，查看 air mass 到达后续区域
-的过程。需要对照的实验适合明确保持 domain、population resolution、气象准备、integration
-step 和 output schedule。
+面向受体的水汽研究可以在受体时刻填充区域气团，再用反向案例追踪到较早时刻。正向案例可以从
+源时段出发，观察气团后来到达的区域。比较两项试验时，应明确记录区域、粒子质量分辨率、资料
+准备、积分步长和输出间隔。
 
 ## 选择粒子数与输出间隔
 
-Population size 控制采样密度，output cadence 控制保存路径的时间分辨率。两者影响分析的不
-同部分。
+粒子数控制空间与质量抽样密度，输出间隔控制保存轨迹的时间分辨率。两者应分别确定。
 
-一项初步研究可以按以下顺序进行：
+初次研究可以按以下顺序进行：
 
-1. 先运行短时、低粒子数 Case，查看空间分布。
-2. 检查 mass-ledger closure 和 termination reason。
-3. 根据研究中的边界穿越或停留过程选择 output interval。
-4. 增加粒子数，直到目标聚合量在研究空间尺度上趋于稳定。
-5. 将粒子数、carrier mass、seed、integration step 与 output schedule 一起记录。
+1. 运行短时段、小粒子数案例，查看初始空间分布。
+2. 检查质量账本和终止原因。
+3. 根据边界穿越或停留时间尺度选择输出间隔。
+4. 逐步增加粒子数，直到目标空间尺度上的统计量趋于稳定。
+5. 在分析记录中保存粒子数、单粒子载体质量、随机种子、积分步长和输出计划。
 
-[Domain-fill 教程](../tutorials/domain-fill.md)使用紧凑 CFSR 项目展示了这一流程。
+[区域填充教程](../tutorials/domain-fill.md)用小型 CFSR 项目展示这一流程。

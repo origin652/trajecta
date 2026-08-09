@@ -1,132 +1,133 @@
 ---
 title: 打包与发布
-description: 确定性产品 archive、原生运行库清单、供应链文件、文档快照和 GitHub release 流程。
+description: 可复现的发行包、原生运行库清单、供应链文件、文档快照和 GitHub 发布流程。
 ---
 
 # 打包与发布
 
-Trajecta 为 Windows x86_64 和 Ubuntu 24.04 x86_64 发布 host-native archive。Archive 由 release
-build 与声明的 payload 组装；解压后运行无需 Rust 或 C 开发环境。
+Trajecta 分别在 Windows x86_64 和 Ubuntu 24.04 x86_64 上原生构建发布包。构建工具把正式
+可执行文件、运行库和声明的其他载荷组装成归档包；使用者解压后即可运行，无需安装 Rust 或
+C 语言开发环境。
 
-软件包、演示资料和文档是三个独立 release artifact。这样可以避免在两个平台 archive 内重复存放
-气象 sample，手册也可以作为带版本的静态站点发布。
+软件包、演示资料和文档是三个独立发布产物。这样可以避免在两个平台归档包内重复存放
+气象样本，手册也可以作为带版本的静态站点发布。
 
-## Release artifact 集合
+## 发布产物集合
 
 `0.1.0-alpha.1` 预期包含以下公开文件：
 
-| Artifact | 用途 |
+| 产物 | 用途 |
 | --- | --- |
-| `trajecta-0.1.0-alpha.1-windows-x86_64.zip` | Windows GNU-hosted 产品软件包 |
-| `trajecta-0.1.0-alpha.1-windows-x86_64.zip.sha256` | Archive checksum |
-| `trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz` | Ubuntu 24.04 产品软件包 |
-| `trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz.sha256` | Archive checksum |
+| `trajecta-0.1.0-alpha.1-windows-x86_64.zip` | Windows GNU 目标的发行包 |
+| `trajecta-0.1.0-alpha.1-windows-x86_64.zip.sha256` | 归档包校验和 |
+| `trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz` | Ubuntu 24.04 发行包 |
+| `trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz.sha256` | 归档包校验和 |
 | `trajecta-demo-cfsr-20090101-v1.zip` | 包含四个文件的 CFSR 演示资料 |
-| 演示资料 checksum 与 build result | Dataset archive identity |
-| GitHub release note | 面向使用者的范围、下载入口、变更和限制 |
+| 演示资料校验和与构建结果 | 演示资料归档包的内容散列 |
+| GitHub 发布说明 | 面向使用者的范围、下载入口、变更和限制 |
 | `0.1.0-alpha.1` 文档快照 | GitHub Pages 上不可变的双语手册 |
 
-Validation CSV、JSON 和 chart 位于文档源码与发布站点。它们由冻结 comparison output 生成，不会
-复制到 executable archive。
+验证 CSV、JSON 和图表位于文档源码与发布站点。它们由冻结对比输出生成，不会
+复制到可执行文件归档包。
 
 ## 软件包内容
 
-`tools/m5_a4_package.py` 会建立以版本和平台命名的单一根目录。Payload 包含：
+`tools/m5_a4_package.py` 会建立以版本和平台命名的单一根目录。软件包载荷包括：
 
 | 分组 | 文件 |
 | --- | --- |
-| Executable | Windows 的 `trajecta.exe` 或 Linux 的 `trajecta` |
+| 可执行文件 | Windows 的 `trajecta.exe` 或 Linux 的 `trajecta` |
 | 原生运行库 | 非系统 ecCodes、netCDF-C、HDF5 和传递依赖共享库 |
-| ecCodes data | 复制的 definition tree，或经过验证的 embedded-MEMFS marker |
+| ecCodes 资料 | 复制的定义文件树，或经过验证的嵌入式内存文件系统标记 |
 | 供应链 | `BUILD-MANIFEST.json`、CycloneDX 1.5 `SBOM.cdx.json`、`THIRD-PARTY-LICENSES.json` |
-| 法律与软件包信息 | 项目 `LICENSE` 和 package `README.md` |
+| 法律与软件包信息 | 项目 `LICENSE` 和软件包 `README.md` |
 | 离线帮助 | 中英文快速入门、恢复说明和支持矩阵 |
-| Example project | Domain-fill CFSR、release CFSR、ERA5 pressure air mass、ERA5 hybrid ozone |
-| 资料工具 | Data-plan helper、CFSR/ERA5 获取与准备工具、quickstart runner |
-| Python requirements | 可选 provider helper 使用的 `requirements-data.txt` |
+| 示例项目 | 区域填充 CFSR、定时释放 CFSR、ERA5 气压层气团、ERA5 混合坐标臭氧 |
+| 资料工具 | 资料计划辅助工具、CFSR/ERA5 获取与准备工具、快速入门运行器 |
+| Python 依赖 | 可选资料获取工具使用的 `requirements-data.txt` |
 
-软件 archive 不包含气象资料和 provider credential。使用者可以另外下载演示 asset，或者准备自己
-的 locked dataset。
+软件归档包不包含气象资料和提供方凭据。使用者可以另外下载演示资源文件，或者准备自己
+的已锁定数据集。
 
-## Formal build 的主机条件
+## 正式构建的主机条件
 
 正式软件包在目标操作系统上原生构建：
 
-| 软件包 | Rust host | Build host |
+| 软件包 | Rust 主机 | 构建主机 |
 | --- | --- | --- |
-| Windows | `x86_64-pc-windows-gnu` | Windows x64 与同一 GNU ABI 的 native library |
+| Windows | `x86_64-pc-windows-gnu` | Windows x64 与同一 GNU ABI 的原生库 |
 | Linux | `x86_64-unknown-linux-gnu` | Ubuntu 24.04 x86_64 |
 
-Package tool 会检查 Rust host triple。Ubuntu 24.04 以外的 Linux build 只有在显式使用 nonformal
-preflight flag 时才可生成，不能作为 release archive。
+软件包工具会检查 Rust 主机目标三元组。在 Ubuntu 24.04 以外的 Linux 上，只能显式启用非正式
+预检参数来生成测试包；这种构建不能作为发布归档包。
 
-Release binary 使用以下 feature set：
+发布可执行文件使用以下特性组合：
 
 ```text
 cargo build --offline --locked --release --package trajecta-cli \
   --features trajecta-met/native-eccodes,trajecta-met/native-netcdf
 ```
 
-Linux 软件包会加入 `$ORIGIN/lib` runtime search path。Windows builder 递归遍历 executable 的 DLL
-import，并从指定 native-library directory 复制非系统 dependency。
+Linux 软件包会加入 `$ORIGIN/lib` 运行时搜索路径。Windows 构建器递归检查可执行文件的 DLL
+导入项，并从指定的原生库目录复制非系统依赖。
 
-## 确定性 archive 构造
+## 确定性归档包构造
 
-编译前，package builder 先记录 source identity，其中包含 Git commit、tracked 与 unignored source
-file 的整体 digest、file count 和 dirty path。Release review 使用明确选择的 source tree；生成的
-target directory 与无关 run artifact 不属于 package input。
+编译前，软件包构建工具先记录源码摘要，其中包含 Git 提交、已跟踪和未忽略源码文件的整体
+摘要、文件数量和已修改路径。发布审查使用明确选择的源码树；生成的
+目标目录与无关运行产物不属于软件包输入。
 
-Timestamp 来自 `SOURCE_DATE_EPOCH`，默认使用 commit time。Archive writer 随后规范化：
+时间戳来自 `SOURCE_DATE_EPOCH`，默认使用提交时间。归档包写入器随后统一以下内容：
 
-- 使用正斜杠表示相对 member path；
-- Root directory name；
-- Member ordering；
-- File 与 directory mode；
-- Tar archive 中的 owner information；
-- ZIP 与 gzip timestamp；
-- Gzip filename metadata；
-- JSON key order 和最终 line ending。
+- 使用正斜杠表示归档成员的相对路径；
+- 根目录名称；
+- 成员顺序；
+- 文件与目录模式；
+- Tar 归档包中的所有者信息；
+- ZIP 与 gzip 时间戳；
+- Gzip 文件名元数据；
+- JSON 键顺序和末尾换行。
 
-!!! tip "每次构建使用新的 output root"
+!!! tip "每次构建使用新的输出根目录"
 
-    Builder 不会覆盖已有 stage、archive 或 checksum。每次 build 使用单独目录。
+    构建器不会覆盖已有的暂存目录、归档包或校验和。每次构建使用单独目录。
 
-## 原生库收集与 probe
+## 原生库收集与探测
 
-Archive 的 component inventory 必须各声明一次 ecCodes、netCDF-C 和 HDF5。Builder 会加载复制后
-的运行库，并调用 version API：
+归档包的组件清单必须各声明一次 ecCodes、netCDF-C 和 HDF5。构建器会加载复制后
+的运行库，并调用版本 API：
 
-| Component | Probe |
+| 组件 | 探测 |
 | --- | --- |
 | ecCodes | `codes_get_api_version` |
 | netCDF-C | `nc_inq_libvers` |
 | HDF5 | `H5get_libversion` |
 
-探测版本必须与 `--native-component` 提供的版本一致。这样可以发现 release metadata 描述的库和
-软件包实际收集的 DLL 或 shared object 不一致。
+探测版本必须与 `--native-component` 提供的版本一致。这样可以发现发布元数据描述的库和
+软件包实际收集的 DLL 或共享对象文件不一致。
 
-Windows system DLL 由操作系统提供。Linux 会跳过系统 C runtime 与 loader，将其余已解析依赖复制
-到 `lib/`。出现 unresolved `ldd` entry 或递归 DLL import 缺失时，build 会停止。
+Windows 系统 DLL 由操作系统提供。Linux 会跳过系统 C 运行时与动态加载器，将其余已解析依赖
+复制到 `lib/`。若 `ldd` 中仍有无法解析的条目，或递归检查发现 DLL 导入缺失，构建会停止。
 
-## Build manifest 与供应链清单
+## 构建清单与供应链清单
 
 `BUILD-MANIFEST.json` 是软件包索引，记录：
 
-- Product version、target triple 与 minimum operating system。
-- Rust/Cargo version、feature set、source date 与 source-tree identity。
-- Binary path、byte count 和 SHA-256。
-- Archive format 与 root directory。
-- 每个 payload path 的 role、size 和 SHA-256。
-- Native component 与 version probe result。
-- SBOM 和 license-inventory identity。
+- 软件版本、目标三元组与最低操作系统版本。
+- Rust/Cargo 版本、特性组合、来源日期与源码树摘要。
+- 可执行文件路径、字节数量和 SHA-256。
+- 归档包格式与根目录。
+- 每个载荷路径的用途、大小和 SHA-256。
+- 原生组件与版本探测结果。
+- SBOM 和许可证清单的内容散列。
 
-CycloneDX 文档根据锁定的 Cargo dependency closure 和三个 native component 生成。License
-inventory 使用相同 component set，并记录 source link 与 license expression。Package verify 会
+CycloneDX 文档根据 Cargo 锁定的完整依赖关系和三个原生组件生成。许可证清单使用相同的组件
+集合，并记录来源链接和许可证表达式。软件包验证会
 交叉检查这些文件，不会将它们视为互不相关的附件。
 
 ## 软件包验证
 
-Verify 从 archive 和相邻 checksum 开始：
+验证从归档包和相邻校验和开始：
 
 ```text
 python tools/m5_a4_package.py verify \
@@ -135,24 +136,24 @@ python tools/m5_a4_package.py verify \
   --result <verification-result.json>
 ```
 
-Verifier 按以下顺序工作：
+验证器按以下顺序工作：
 
-1. 检查 archive SHA-256 和 checksum filename。
-2. 拒绝 absolute path、parent traversal、duplicate member、link 和异常 archive root。
-3. 解压到新目录，不覆盖现有 tree。
-4. 验证 manifest schema 与 product/platform identity。
-5. 重新计算每个 payload digest，并拒绝未列入清单的文件。
-6. 检查 executable name，以及 Linux execute permission。
-7. 验证 CycloneDX 与 license inventory。
-8. 加载解压后的 native library，重复 version probe。
+1. 检查归档包 SHA-256 和校验和文件名。
+2. 拒绝绝对路径、父目录穿越、重复成员、链接和异常的归档包根目录。
+3. 解压到新目录，不覆盖现有树。
+4. 验证构建清单的结构，以及软件版本与目标平台。
+5. 重新计算每个载荷摘要，并拒绝未列入清单的文件。
+6. 检查可执行文件名称，以及 Linux 执行权限。
+7. 验证 CycloneDX 与许可证清单。
+8. 加载解压后的原生库，重复版本探测。
 
-输出 JSON 会记录后续 smoke test 使用的精确 extracted root 和 identity。Matrix runner 应读取该
-root，不应自行猜测 archive directory name。
+输出 JSON 会记录后续快速运行测试使用的实际解压根目录和内容散列。矩阵运行器直接读取该根目录，
+无需根据归档包名称推断路径。
 
-## 演示资料 asset
+## 演示资料资源文件
 
-`tools/build_m5_1_demo_asset.py` 构建单独发布的 CFSR sample。Input manifest 固定四个 GRIB filename、
-byte count、SHA-256、source information 和 data-use note。ZIP 使用固定 root 与 timestamp。
+`tools/build_m5_1_demo_asset.py` 构建单独发布的 CFSR 样本。输入清单固定四个 GRIB 文件名、
+字节数、SHA-256、来源信息和资料使用说明。ZIP 使用固定根目录与时间戳。
 
 ```text
 python tools/build_m5_1_demo_asset.py \
@@ -160,72 +161,72 @@ python tools/build_m5_1_demo_asset.py \
   --output <release-directory>/trajecta-demo-cfsr-20090101-v1.zip
 ```
 
-工具会写 archive、相邻 checksum 和 JSON build result。Quickstart runner 在解压后还会再次验证
-四个 file hash。
+工具会写归档包、相邻校验和和 JSON 构建结果。快速入门运行器在解压后还会再次验证
+四个文件散列。
 
-## Release 前门禁
+## 发布前检查
 
-Release candidate 应在准备打 tag 的同一 source commit 上通过以下分组：
+候选发布应在准备创建 tag 的同一个源码提交上通过以下检查：
 
-| 分组 | 要求结果 |
+| 分组 | 检查内容 |
 | --- | --- |
-| Source | Workspace test、clippy warnings denied、rustdoc、fmt、M4/M5 contract validator |
-| Documentation | Generated reference、bilingual validator、validation asset、严格 release/dev build |
-| Package | 在全新目录 build 并 verify 两个 host-native archive |
-| Product smoke | 两个平台各两个 clean-package CFSR cell |
-| Product matrix | Windows 三十格，Ubuntu 三十格 |
-| Tutorial | 两个平台的 domain-fill 与 release；Ubuntu 的 air-mass 与 ozone |
-| Validation | 冻结 scientific/performance comparison aggregate 与 chart regeneration |
-| Operations | 每轮 matrix 后没有遗留 live daemon/worker；失败 attempt 连同 summary 保留 |
+| 源码 | 工作区测试、以拒绝警告方式运行的 Clippy、rustdoc、格式检查、M4/M5 约定校验器 |
+| 文档 | 自动参考页、双语校验器、验证资源文件、严格的发布与开发站点构建 |
+| 软件包 | 在全新目录构建并验证两个平台原生归档包 |
+| 软件包快速运行测试 | 两个平台各运行两个全新软件包 CFSR 测试单元 |
+| 软件包矩阵 | Windows 30 个测试单元，Ubuntu 30 个测试单元 |
+| 教程 | 两个平台的区域填充与定时释放教程；Ubuntu 上另运行气团与臭氧教程 |
+| 验证 | 冻结的科学与性能对比汇总，以及图表重建 |
+| 运行环境 | 每轮矩阵后没有遗留活动守护进程或工作进程；失败执行轮次连同摘要保留 |
 
-Formal matrix 在首个失败处停止。实现发生修改后，应生成新的 source identity、package、extraction
-root 和 attempt tree；失败 artifact 保持原样。
+正式矩阵在首个失败处停止。实现发生修改后，需要生成新的源码摘要、软件包、解压
+根目录和执行轮次树；失败产物保持原样。
 
-## GitHub workflow
+## GitHub 工作流
 
-M5.1 在 `.github/workflows` 下使用三个 workflow：
+文档站在 `.github/workflows` 下使用三个工作流：
 
-| Workflow | Trigger | 工作内容 |
+| 工作流 | 触发条件 | 工作内容 |
 | --- | --- | --- |
-| `m5-1-docs-ci.yml` | 文档相关 pull request 或手动运行 | 构建 CLI 参考源，验证 helper 与文档，严格构建 release/dev site，运行 domain-fill source quickstart，检查 external link |
-| `m5-1-docs-publish.yml` | Main 文档修改、release 或显式 dispatch | 构建 static site，上传 artifact，通过 `mike` 发布 mutable `dev` 或 immutable release docs |
-| `m5-1-product-docs.yml` | 每周计划、release 或手动运行 | 下载公开软件包与 demo data，运行 packaged tutorial，检查公开 Pages 和 crawler asset |
+| `m5-1-docs-ci.yml` | 文档相关拉取请求（Pull Request）或手动运行 | 构建 CLI 参考源，验证辅助工具与文档，严格构建发布和开发站点，运行区域填充源码快速入门，检查外部链接 |
+| `m5-1-docs-publish.yml` | `main` 文档修改、发布或手动派发 | 构建并上传静态站点，通过 `mike` 更新可变的 `dev` 版本或创建不可变发布快照 |
+| `m5-1-product-docs.yml` | 每周计划、发布或手动运行 | 下载公开软件包与演示资料，运行软件包内教程，检查公开 Pages 和搜索引擎资源文件 |
 
-Pull request 不发布 Pages。Main branch 的文档修改更新 `dev` 版本。Release event 或经过批准的手动
-snapshot 会创建不可变 `0.1.0-alpha.1` 目录，并更新 `latest` alias。
+拉取请求不发布 Pages。`main` 分支的文档修改更新 `dev` 版本。发布事件或经过批准的手动
+快照会创建不可变的 `0.1.0-alpha.1` 目录，并更新 `latest` 别名。
 
 ## 文档发布
 
-Release site 使用 `mkdocs.yml` 构建。Dev site 通过 `mkdocs.dev.yml` 继承配置，将 URL 改为 `/dev/`，
-并生成 `noindex` metadata。发布前，两个 static tree 都会作为 workflow artifact 上传。
+发布站点使用 `mkdocs.yml` 构建。开发站点通过 `mkdocs.dev.yml` 继承配置，将 URL 改为 `/dev/`，
+并生成 `noindex` 元数据。发布前，两份静态文件树都会作为工作流产物上传。
 
-`mike` 在 `gh-pages` branch 保存带版本 HTML。创建 release snapshot 前，workflow 会确认对应版本
-目录尚不存在。Root `robots.txt` 与 `sitemap.xml` 从 release build 生成；root sitemap 指向带版本
-canonical URL，crawler 不访问 `/dev/`。
+`mike` 在 `gh-pages` 分支保存带版本的 HTML。创建发布快照前，工作流会确认对应版本
+目录尚不存在。根目录 `robots.txt` 与 `sitemap.xml` 从发布构建生成；根目录 sitemap 指向带版本
+规范 URL，搜索引擎不会访问 `/dev/`。
 
-生成的 `site` 是普通静态内容。相同 artifact 可以由 GitHub Pages、Nginx 或 Caddy 提供，无需
-Node 或 Python server。
+生成的 `site` 是普通静态内容。相同产物可以由 GitHub Pages、Nginx 或 Caddy 提供，无需
+Node 或 Python 服务端。
 
-## Credential 与发布权限
+## 凭据与发布权限
 
-Release workflow 使用 GitHub short-lived token 下载 release 并更新 Pages branch。ERA5 tutorial
-从 repository secret 读取 `CDSAPI_URL` 和 `CDSAPI_KEY`，只通过 process environment 传递。
+发布工作流使用 GitHub 的短期令牌下载发布资源并更新 Pages 分支。ERA5 教程从仓库机密变量中
+读取 `CDSAPI_URL` 和 `CDSAPI_KEY`，只通过进程环境传递。
 
-Stage release file 前，需要扫描 source 与计划上传的 artifact，检查常见 credential pattern、本机
-home path、provider configuration file 和 private key。Runtime log 与 provenance 可以记录 request
-identity 和公开 dataset metadata，不应包含 authorization header 或 secret environment value。
+暂存发布文件前，需要扫描源码与计划上传的产物，检查常见凭据格式、本机用户目录、资料提供方
+配置文件和私钥。运行时日志与溯源信息可以记录请求标识和公开资料集元数据，但不能包含授权
+请求头或机密环境变量的值。
 
 ## 发布顺序
 
-1. 选择 commit，并确认 workspace version 为 `0.1.0-alpha.1`。
-2. 运行 source、documentation、validation 和 product gate。
-3. 在新 output root 中构建每个 host-native archive。
-4. 将每个 archive verify 到新 extraction directory，再运行 package smoke 和 formal matrix。
-5. 构建并验证 demonstration-data asset。
-6. 一并审阅 `BUILD-MANIFEST.json`、SBOM、license inventory、checksum 和 release note。
-7. 为已选 commit 创建 tag，发布软件与资料 asset。
-8. 发布不可变双语文档 snapshot。
-9. 在全新 browser session 打开公开下载、quickstart、带版本手册、sitemap、language switch 与 chart。
-10. 按 workflow artifact retention 设置保留 summary 和 failed-attempt artifact。
+1. 选择提交，并确认工作区版本为 `0.1.0-alpha.1`。
+2. 运行源码、文档、验证和产品检查。
+3. 在新的输出根目录中构建每个平台原生归档包。
+4. 将每个归档包验证到新的解压目录，再运行软件包快速运行测试和正式矩阵。
+5. 构建并验证演示资料资源文件。
+6. 一并审阅 `BUILD-MANIFEST.json`、SBOM、许可证清单、校验和和发布说明。
+7. 为已选提交创建 tag，发布软件与资料资源文件。
+8. 发布不可变双语文档快照。
+9. 在新的浏览器会话中打开公开下载、快速入门、带版本手册、sitemap、语言切换与图表。
+10. 按工作流产物保留期保存摘要和失败执行轮次产物。
 
-Release 后的文档修订继续进入 `dev`。只有准备新的软件 release 时才修改软件版本。
+发布后的文档修订继续进入 `dev`。只有准备新的软件发布时才修改软件版本。

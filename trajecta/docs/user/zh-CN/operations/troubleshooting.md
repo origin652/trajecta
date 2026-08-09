@@ -1,118 +1,116 @@
 ---
-title: 按症状与 diagnostic code 排查 Trajecta
-description: 根据 human output 或稳定 machine-readable code，排查 Trajecta 运行中的常见问题。
+title: 按症状与诊断码排查
+description: 根据人类可读输出或稳定诊断码，排查 Trajecta 配置、项目、队列、工作进程、存储和结果问题。
 ---
 
-# 故障索引
+# 故障排查索引
 
-先找到观察到问题的命令，并尽量以 JSON mode 再运行一次：
-
-例如，可以将项目状态读取为结构化输出：
+先找到观察到问题的命令，并在适用时用 JSON 模式重新运行。例如，以结构化方式读取项目状态：
 
 ```text
 trajecta --format json --project PROJECT project status
 ```
 
-应用 diagnostic 位于 `diagnostics[]`。每项包含稳定 `code` 和带上下文的 `message`；一次操作
-检查多个项目时，还可能包含嵌套 diagnostic。CLI usage error 返回 exit code `2`。命令已经
-成功解析，但遇到 product 或 runtime error 时返回 `1`。
+应用诊断位于 `diagnostics[]`。每项都有稳定 `code` 和与当前操作相关的 `message`；一次预检包含
+多个失败项时，还可能有嵌套诊断。CLI 用法错误返回退出码 `2`，已经成功解析的命令遇到产品或
+运行错误时返回 `1`。
 
-`job events --follow` 一类 stream 使用 JSONL：
+`job events --follow` 等流式命令使用 JSONL：
 
 ```text
 trajecta --format jsonl job events JOB_ID --since 0 --follow
 ```
 
-比较两个 attempt 时，可以保存完整 JSON 或 JSONL response。Machine mode 将结构化应用响应
-写入 stdout，通常不在 stderr 中重复输出。
+需要比较两个执行轮次时，可以分别保存完整 JSON 或 JSONL。机器模式把结构化应用响应写入标准
+输出，标准错误通常为空。
 
-## 配置与 doctor
+## 本机配置与环境检查
 
-| 症状 | 检查位置 | 常见 code | 后续动作 |
+| 症状 | 先检查 | 常见诊断码 | 处理方法 |
 | --- | --- | --- | --- |
-| CLI 选择了意外配置 | 使用相同 global option 执行 `trajecta config path` | `config.not_found`、`config.invalid_path` | 依次检查 `--config`、`TRAJECTA_CONFIG` 和平台默认路径 |
-| 设置无法保存 | `config get KEY`，随后以 JSON mode 重复 `config set` | `config.invalid_key`、`config.invalid_value`、`config.invalid_schema`、`config.write_failed` | 修正 selector 或 value；更新被拒绝后，原有效文件保持不变 |
-| Doctor 拒绝机器文件 | `config validate` | `doctor.config_invalid`、`config.invalid_schema` | 修正机器配置，再检查项目 |
-| Deep doctor 无法写 probe | 项目根与文件系统权限 | `doctor.filesystem_unwritable`、`doctor.cleanup_failed` | 恢复项目根下的 create、sync、rename 和 cleanup 访问 |
-| Deep doctor 的 SQLite 周期失败 | 可用空间与文件系统状态 | `doctor.sqlite_create_failed`、`doctor.sqlite_integrity_failed`、`doctor.sqlite_checkpoint_failed` | 修正文件系统或 SQLite runtime，再次运行 deep doctor |
-| Deep doctor 无法读取气象资料 | Data root、reader backend 与支持的文件 | `doctor.data_inspect_failed`、`doctor.data_scan_limit` | 确认目录内容和 Profile reader 选择 |
+| CLI 选择了意外的配置 | 用相同全局参数运行 `trajecta config path` | `config.not_found`、`config.invalid_path` | 依次核对 `--config`、`TRAJECTA_CONFIG` 和平台默认路径 |
+| 配置值无法保存 | 先 `config get KEY`，再用 JSON 模式重复 `config set` | `config.invalid_key`、`config.invalid_value`、`config.invalid_schema`、`config.write_failed` | 修正选择器或值；被拒绝的更新不会替换原配置 |
+| 环境检查拒绝本机配置 | `config validate` | `doctor.config_invalid`、`config.invalid_schema` | 先修正本机配置，再检查项目 |
+| 深度检查无法写入临时文件 | 项目根目录和文件系统权限 | `doctor.filesystem_unwritable`、`doctor.cleanup_failed` | 恢复创建、同步、重命名和清理权限 |
+| SQLite 临时流程失败 | 可用空间和文件系统状态 | `doctor.sqlite_create_failed`、`doctor.sqlite_integrity_failed`、`doctor.sqlite_checkpoint_failed` | 修复文件系统或 SQLite 运行环境，再运行深度检查 |
+| 无法检查气象资料 | 资料目录、读取器和文件系列 | `doctor.data_inspect_failed`、`doctor.data_scan_limit` | 核对目录内容与运行配置中的读取器 |
 
-配置路径和资源设置见[配置与 doctor](../getting-started/configuration.md)。
+配置路径与资源设置见[本机配置与环境检查](../getting-started/configuration.md)。
 
 ## 项目与资料准备
 
-| 症状 | 检查位置 | 常见 code | 后续动作 |
+| 症状 | 先检查 | 常见诊断码 | 处理方法 |
 | --- | --- | --- | --- |
-| Project 一直为 `draft` | `project status`、`project validate` | `project.document_invalid`、`project.invalid_index` | 补齐 Case 或 Profile 字段，并修正文档类型 |
-| Project 一直为 `configured` | `project data-plan`、`project status` | `project.lock_missing`、`project.finalize_pending`、`project.output_root_pending` | 准备计划中的文件，并在显式 finalize 前创建输出根 |
-| Finalize 退出且 lock 未变化 | `project finalize` 的完整 JSON response | `project.finalize_preflight_failed` 及嵌套 `data.*` 或 `project.*` code | 修正全部 preflight item，再运行 finalize |
-| Profile 选择了错误 Case | `project show`、Profile `case_path` 与 indexed Case | `project.profile_case_mismatch`、`run.profile_case_mismatch` | 将 Profile 指向一个已索引的 resolved Case |
-| 项目路径被拒绝 | Project index 中的准确相对值 | `project.path_escape`、`project.output_root_invalid` | 使用项目根以下的规范化路径 |
-| Lock content 与本地资料不再匹配 | `doctor --deep`、`data inspect` 与 DatasetLock file list | `project.lock_invalid`、`doctor.lock_invalid`、`data.lock_invalid` | 恢复 locked byte，或使用目标完整资料重新 finalize |
-| Case 所需 frame 超出 lock | Resolved Case coverage 与 lock coverage | `data.lock_requirements_mismatch` | 准备所需时空覆盖，再次 finalize |
+| 项目一直为 `draft` | `project status`、`project validate` | `project.document_invalid`、`project.invalid_index` | 补齐案例或运行配置必填项，并修正文档类型 |
+| 项目一直为 `configured` | `project data-plan`、`project status` | `project.lock_missing`、`project.finalize_pending`、`project.output_root_pending` | 准备计划中的文件与结果目录，再执行项目定稿 |
+| 项目定稿失败且资料锁未更新 | `project finalize` 的完整 JSON 响应 | `project.finalize_preflight_failed` 及嵌套 `data.*` 或 `project.*` | 处理全部预检项后重新定稿 |
+| 运行配置选错案例 | `project show`、`case_path` 和项目案例表 | `project.profile_case_mismatch`、`run.profile_case_mismatch` | 让 `case_path` 指向项目中登记的案例 |
+| 项目路径被拒绝 | 项目索引中的具体相对路径 | `project.path_escape`、`project.output_root_invalid` | 使用项目根目录内的规范相对路径 |
+| 资料锁与本地文件不再一致 | `doctor --deep`、`data inspect` 和资料锁文件表 | `project.lock_invalid`、`doctor.lock_invalid`、`data.lock_invalid` | 恢复锁定文件，或对完整资料重新定稿 |
+| 案例所需时次超出资料锁 | 解析后案例时段和资料锁覆盖 | `data.lock_requirements_mismatch` | 补齐时间与空间覆盖，再次定稿 |
 
-`project finalize` 会先完成所有 preflight check，之后才替换 lock binding。Preflight 失败时，
-已有 lockfile 保持不变。
+`project finalize` 会先完成全部预检，再替换资料锁绑定。预检失败时，现有资料锁保持原状。
 
-## 队列与 daemon
+## 队列与守护进程
 
-| 症状 | 检查位置 | 常见 code | 后续动作 |
+| 症状 | 先检查 | 常见诊断码 | 处理方法 |
 | --- | --- | --- | --- |
-| 机器空闲但任务一直 queued | `job status` resource request 与配置 pool | `scheduler.queued`、`job.invalid_resources`、`daemon.invalid_capacity` | 确认请求能够放入总 CPU 和可调度内存池 |
-| 小任务越过较早的大任务 | Queue position 与 dispatch event | `scheduler.dispatched` | Safe backfill 可越过队首三次，之后会为队首保留资源 |
-| 看似有资源，队列仍暂停 | 主机总可用内存与事件记录 | `daemon.external_memory_pressure` | 减少其他应用内存压力，或在后续批次前调整 reserve |
-| Runtime command 无法连接 | 所选配置、endpoint 路径和已有 daemon process | `daemon.launch_failed`、`daemon.start_timeout`、`daemon.ipc_failed`、`job_backend.unavailable` | 确认配置路径与 local IPC 权限，再重试命令 |
-| Daemon endpoint 已被占用 | Process identity 与 start token | `daemon.bind_failed`、`daemon.owner_probe_failed`、`daemon.identity_failed` | 查看是否已有 daemon 使用同一 catalog 和 endpoint |
-| Catalog operation 失败 | 可用空间、目录权限和 SQLite sidecar | `job_backend.storage`、`job_backend.conflict` | 暂停新提交，恢复 catalog storage，并用同一配置重新连接 |
+| 主机看似空闲，任务仍在排队 | `job status` 中的资源请求与本机资源池 | `scheduler.queued`、`job.invalid_resources`、`daemon.invalid_capacity` | 确认单任务能放入总 CPU 和可调度内存 |
+| 小任务先于较早的大任务运行 | 队列位置和派发事件 | `scheduler.dispatched` | 空闲资源回填最多越过队首三次，之后会为队首保留资源 |
+| 资源看似空闲，队列仍暂停 | 主机总可用内存和事件日志 | `daemon.external_memory_pressure` | 降低其他程序内存占用；下批任务前调整预留 |
+| 运行时命令无法连接 | 本机配置、端点路径和现有守护进程 | `daemon.launch_failed`、`daemon.start_timeout`、`daemon.ipc_failed`、`job_backend.unavailable` | 核对配置路径和本地 IPC 权限后重试 |
+| 守护进程端点已被占用 | 进程 ID 与启动标记 | `daemon.bind_failed`、`daemon.owner_probe_failed`、`daemon.identity_failed` | 检查是否已有守护进程使用同一任务数据库和端点 |
+| 任务数据库操作失败 | 空间、目录权限和 SQLite 伴随文件 | `job_backend.storage`、`job_backend.conflict` | 暂停新提交，修复任务数据库存储，再用同一配置连接 |
 
-[运维手册](index.md)详细介绍 admission、safe backfill、空闲退出与重启协调。
+[运维手册](index.md)详细说明资源准入、空闲资源回填、空闲退出和重启协调。
 
-## Worker 与中断 run
+## 工作进程与中断运行
 
-| 症状 | 检查位置 | 常见 code | 后续动作 |
+| 症状 | 先检查 | 常见诊断码 | 处理方法 |
 | --- | --- | --- | --- |
-| Worker 一直未进入 `running` | 事件、worker stderr 与输出目录创建 | `worker.launch_failed`、`worker.start_failed`、`worker.lease_timeout` | 修正启动或文件系统条件，再创建 rerun |
-| Worker 在运行中消失 | Process list、job event 与 attempt 目录 | `worker.lost`、`run.interrupted.worker_lost` | 等待 terminal reconciliation，检查部分结果，再按需要 rerun |
-| Daemon 返回时 worker 仍存活 | Event 与 worker identity | `worker.reattached` | 继续监测同一 attempt |
-| Daemon 消失后已有 terminal manifest | Event、manifest run ID 与 catalog run ID | `worker.terminal_reconciled` | Inspect 并完整验证结果 |
-| Admission 后输入发生变化 | Resolved input file 与 stored hash | `worker.input_changed` | 恢复已接收的 byte，或从 finalized input 提交新 run |
-| 安全取消需要等待 | 当前 macro-step progress | `job.safe_cancel_requested` | 等待 worker 到达下一个 safe boundary；需要立即终止时再使用 force |
+| 工作进程一直未进入 `running` | 任务事件、工作进程错误输出和结果目录创建 | `worker.launch_failed`、`worker.start_failed`、`worker.lease_timeout` | 修复启动或文件系统问题后重跑 |
+| 工作进程运行中消失 | 进程列表、任务事件和执行轮次目录 | `worker.lost`、`run.interrupted.worker_lost` | 等待终态协调，检查部分结果，再按需重跑 |
+| 守护进程恢复时工作进程仍存活 | 事件和工作进程标识 | `worker.reattached` | 继续监测同一执行轮次 |
+| 守护进程失联后已有终态清单 | 清单运行 ID 与任务数据库运行 ID | `worker.terminal_reconciled` | 检查并完整验证结果 |
+| 任务准入后输入发生变化 | 解析后输入和已存散列 | `worker.input_changed` | 恢复准入时的文件，或在项目重新定稿后提交新任务 |
+| 安全取消需要等待 | 当前数值宏步进度 | `job.safe_cancel_requested` | 等待下一个安全边界；需要立即停止时再使用强制取消 |
 
-完整的重启与 rerun 顺序见[恢复与中断 attempt](recovery.md)。
+完整重启和重跑顺序见[恢复中断执行轮次](recovery.md)。
 
 ## 结果、SQLite 与报告
 
-| 症状 | 检查位置 | 常见 code | 后续动作 |
+| 症状 | 先检查 | 常见诊断码 | 处理方法 |
 | --- | --- | --- | --- |
-| Manifest 无法解析 | 保留文件，并以 JSON mode 运行 `result inspect` | `result.manifest_invalid`、`result.encoding` | 定位生成该文件的 attempt，读取 worker closeout event |
-| Manifest 可读，但 SQLite 不可用 | 主库、WAL、SHM 与文件系统访问 | `result.inspect_sqlite_unavailable`、`result.sqlite_invalid` | 保持文件位于一起，并将 inspection 视为 partial |
-| 终态结果缺少所需文件 | `result inspect` 的 artifact inventory | `result.artifact_missing` | 检查 terminal event，修正 closeout failure 后 rerun |
-| Manifest row count 与 SQLite 不同 | Full verification output | `result.manifest_sqlite_count_mismatch` | 保持目录不变，并创建单独 rerun |
-| 无法读取某个粒子 | Particle ID range 与所选 run | `result.particle_not_found`、`result.trajectory_particle_id_out_of_range` | 选择结果中存在的 ID，并确认解析的是哪个 attempt |
-| 报告无法生成 | 结果目录权限与可用空间 | `report.write_failed`、`report.refresh_failed` | 恢复 write 与 atomic rename 访问，再生成 `run-report.md` |
-| 运行期间 WAL 持续增长 | Job state、output event cadence 与可用空间 | 写入失败时出现 `result.io` | 监测活跃 writer；terminal closeout 会 checkpoint WAL |
+| 运行清单无法解析 | 保留文件，用 JSON 模式运行 `result inspect` | `result.manifest_invalid`、`result.encoding` | 找到产生该目录的执行轮次，读取工作进程收尾事件 |
+| 运行清单可读，SQLite 不可用 | 主库、WAL、SHM 和文件权限 | `result.inspect_sqlite_unavailable`、`result.sqlite_invalid` | 保持文件成组，按部分结果处理 |
+| 终态结果缺少必需文件 | `result inspect` 的产物列表 | `result.artifact_missing` | 查看终态事件，修复收尾问题后创建重跑 |
+| 运行清单行数与 SQLite 不同 | 完整验证输出 | `result.manifest_sqlite_count_mismatch` | 保留目录原状，创建独立重跑 |
+| 无法读取某个粒子 | 粒子 ID 范围和解析到的执行轮次 | `result.particle_not_found`、`result.trajectory_particle_id_out_of_range` | 选择结果中存在的 ID，并确认当前解析到哪一轮 |
+| 运行报告写入失败 | 结果目录权限和可用空间 | `report.write_failed`、`report.refresh_failed` | 恢复写入和原子重命名权限，再生成报告 |
+| 运行中 WAL 持续增长 | 任务状态、输出间隔和可用空间 | 写入失败时为 `result.io` | 监测活跃写入端；终态收尾会执行 WAL 检查点 |
 
-WAL 与目录迁移的详细流程见[存储、SQLite 与 WAL](storage-sqlite.md)。
+WAL 和目录移动方式见[存储、SQLite 与 WAL](storage-sqlite.md)。
 
-## 气象 reader
+## 气象读取
 
-| 症状 | 检查位置 | 常见 code | 后续动作 |
+| 症状 | 先检查 | 常见诊断码 | 处理方法 |
 | --- | --- | --- | --- |
-| Reader 无法打开资料文件 | `data inspect`、file family 与所选 reader | `data.inspect_failed`、`data.unknown_format`、`met.runtime` | 确认文件属于支持的 family，且所选 backend 可以读取 |
-| Backward run 缺少时间支持 | Resolved time range 与区间两侧 lock frame | `met.missing_symmetric_time_support` | 准备 query interval 周围需要的附加 frame |
-| Machine JSON 与 native output 混合 | Command output option | `met.machine_stdout_requires_file` | Machine mode 下将 native probe output 指向文件 |
+| 读取器无法打开文件 | `data inspect`、文件系列和所选读取器 | `data.inspect_failed`、`data.unknown_format`、`met.runtime` | 确认文件属于受支持系列，并可由所选读取器打开 |
+| 反向运行缺少时间支持 | 解析后时段和资料锁两侧时次 | `met.missing_symmetric_time_support` | 准备查询区间周围所需的相邻帧 |
+| 机器 JSON 混入原生输出 | 命令输出选项 | `met.machine_stdout_requires_file` | 使用机器模式时，把原生探测输出写入文件 |
 
-## 查找 code
+## 查找诊断码
 
-[自动生成 diagnostic 索引](../reference/diagnostics.md)列出各组件实现中的全部公开 code。
-可以在该页搜索准确 code；调试安装或准备 bug report 时，还可从页面进入对应 source link。
+[自动生成的诊断码索引](../reference/diagnostics.md)按功能列出公开诊断码，范围包括 CLI、守护进程、
+工作进程和调度器，也包括项目、资料与结果处理。用完整诊断码搜索该页，再根据页面中的源码
+位置定位问题。
 
-一份便于复现的报告可以包含：
+提交问题时，以下信息通常最有用：
 
 - `trajecta --version` 输出；
-- 操作系统与 package architecture；
-- 已移除路径和 credential 的命令；
-- 完整 machine response；
-- 任务已接收时的 job-series ID、run ID 与 attempt number；
-- Terminal `job status` 与相关 event interval；
-- Result manifest status 与 artifact inventory。
+- 操作系统和发行包架构；
+- 移除凭据和私人路径后的命令；
+- 完整机器响应；
+- 已接受任务的任务系列 ID、运行 ID 和执行轮次；
+- 终态 `job status` 和相关事件区间；
+- 运行清单状态与产物列表。

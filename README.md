@@ -7,7 +7,7 @@
 [![Release](https://img.shields.io/github/v/release/origin652/trajecta?include_prereleases&sort=semver)](https://github.com/origin652/trajecta/releases)
 [![Documentation](https://img.shields.io/badge/docs-English-4051b5)](https://origin652.github.io/trajecta/latest/)
 [![中文文档](https://img.shields.io/badge/docs-简体中文-4051b5)](https://origin652.github.io/trajecta/latest/zh-CN/)
-[![M5.1 docs CI](https://github.com/origin652/trajecta/actions/workflows/m5-1-docs-ci.yml/badge.svg)](https://github.com/origin652/trajecta/actions/workflows/m5-1-docs-ci.yml)
+[![Docs CI](https://github.com/origin652/trajecta/actions/workflows/m5-1-docs-ci.yml/badge.svg)](https://github.com/origin652/trajecta/actions/workflows/m5-1-docs-ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Trajecta runs forward and backward Lagrangian simulations for moisture-source

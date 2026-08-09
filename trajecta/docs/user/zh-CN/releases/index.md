@@ -1,90 +1,89 @@
 ---
 title: 发布策略
-description: Trajecta 软件、schema、资料 asset、文档快照和 alpha 兼容性的版本规则。
+description: Trajecta 软件、schema、演示资料、文档快照和 Alpha 兼容性的版本规则。
 ---
 
 # 发布策略
 
-Trajecta 发布记录将一个软件版本与对应 package、公开格式、文档和已知限制关联。当前处于 alpha
-阶段，因此每个版本页还会区分适合 automation 的产品接口，以及仍可能调整的部分。
+Trajecta 的每条发布记录都把软件版本与对应的软件包、公开格式、文档和已知限制放在一起。
+当前仍处于 Alpha 阶段，版本页会注明哪些接口可以供自动化程序使用，哪些贡献者接口仍可能调整。
 
 ## 版本标识
 
-一个项目中会同时出现多种 identifier，它们分别在不同条件下更新：
+一个项目中会同时出现多种版本标识，它们各有独立的更新条件：
 
 | 标识 | 示例 | 更新条件 |
 | --- | --- | --- |
-| 软件版本 | `0.1.0-alpha.1` | 准备新的 executable release |
-| Git tag | `v0.1.0-alpha.1` | 选定该软件 release 的 source commit |
-| 文档 schema | `trajecta.config/v1` | 对应 disk 或 stream format 需要新合同 |
-| SQLite user version | `1` | Result database schema 发生不兼容修改 |
-| DatasetLock schema | Lock 内的版本字段 | Dataset identity 或 lock semantics 改变 |
-| 演示资料 asset | `trajecta-demo-cfsr-20090101-v1` | Sample file set、metadata 或 packaging contract 改变 |
-| 文档版本 | `0.1.0-alpha.1` 或 `dev` | 发布软件 snapshot，或者已接收文档继续更新 |
+| 软件版本 | `0.1.0-alpha.1` | 准备新的可执行文件发布 |
+| Git tag | `v0.1.0-alpha.1` | 选定该软件发布的来源提交 |
+| 文档 schema | `trajecta.config/v1` | 对应磁盘格式或数据流格式需要新约定 |
+| SQLite user 版本 | `1` | 结果数据库 schema 发生不兼容修改 |
+| 资料锁 schema | 资料锁内的版本字段 | 资料集标识或资料锁含义改变 |
+| 演示资料资源文件 | `trajecta-demo-cfsr-20090101-v1` | 样本文件集合、元数据或打包约定改变 |
+| 文档版本 | `0.1.0-alpha.1` 或 `dev` | 发布软件快照，或者已接收文档继续更新 |
 
-软件 release 不会自动增加全部 schema。Automation 在读取 command-specific field 前，应先查看
-对应格式自己的 `schema_version`。
+软件发布不会自动递增所有 schema。自动化程序在读取某条命令的专用字段前，应先查看对应格式
+自己的 `schema_version`。
 
-## 发布 channel
+## 文档发布渠道
 
-| Channel | URL 行为 | 内容 |
+| 渠道 | URL 行为 | 内容 |
 | --- | --- | --- |
-| 具名 release | 不可变 version path；当前默认版本为 `0.1.0-alpha.1` | 与已发布软件版本对应的手册 |
-| `latest` alias | 指向当前具名 release | 稳定文档入口 |
-| `dev` | 可变 `/dev/` path，并设置 search-engine `noindex` | 最新 snapshot 之后已经接收的文档修改 |
+| 版本快照 | 使用不可变的版本路径；当前默认版本为 `0.1.0-alpha.1` | 与已发布软件版本对应的手册 |
+| `latest` 别名 | 指向当前版本快照 | 日常访问的稳定入口 |
+| `dev` | 可变的 `/dev/` 路径，并设置搜索引擎 `noindex` | 最新发布快照之后已经合入的文档修改 |
 
-普通文档修订更新 `dev`。Release event 会在相同版本的 source、package 和 documentation gate 通过后
-建立具名 snapshot。
+普通文档修订更新 `dev`。发布新软件版本时，源码、软件包和文档通过同一轮检查后，
+再建立不可变的版本快照。
 
-## Release 内容
+## 发布内容
 
-完整 release entry 提供：
+完整发布条目提供：
 
-- Windows x86_64 与 Ubuntu 24.04 x86_64 产品 archive；
-- 每个 archive 相邻的 SHA-256 文件；
-- 单独下载的演示资料与 checksum；
-- 说明主要工作流和已知限制的 release note；
+- Windows x86_64 与 Ubuntu 24.04 x86_64 发行包；
+- 每个归档包相邻的 SHA-256 文件；
+- 单独下载的演示资料与校验和；
+- 说明主要工作流和已知限制的发布说明；
 - 带版本的双语手册；
-- 软件包内部的 build manifest、SBOM 和 license inventory；
-- 通过手册 Validation 章节发布的验证 data 与 chart。
+- 软件包内部的构建清单、软件物料清单（SBOM）和许可证清单；
+- 通过手册验证章节发布的验证资料与图表。
 
-Archive name、native component version 和 reader support matrix 见
-[平台与 reader 矩阵](../reference/platforms.md)。
+归档包名称、原生组件版本和读取器支持矩阵见
+[平台与读取器矩阵](../reference/platforms.md)。
 
 ## Alpha 系列兼容性
 
-CLI、公开配置、schema、machine envelope 和 result artifact 构成产品边界。修改这些 surface 时，
-会同时更新 example、validation 和 release note。
+CLI、公开配置、schema、机器输出结构和结果文件共同组成面向用户的接口。修改这些内容时，
+示例、验证程序和发布说明也会随之更新。
 
-稳定 1.0 合同建立前，alpha release 可能调整 default、field 或 behavior。需要重复运行或审计的项目
+稳定 1.0 接口建立前，Alpha 发布可能调整默认值、字段或行为。需要复现或长期保留的项目
 可以保留以下内容：
 
-- Product archive 或其精确 checksum；
-- Resolved Case 与 RunProfile document；
-- DatasetLock 与 source file hash；
-- Terminal run manifest 与 provenance bundle；
-- 本次运行使用的 release documentation snapshot。
+- 发行包或其 SHA-256；
+- 解析后的案例与运行配置文档；
+- 资料锁与源文件散列；
+- 终态运行清单与溯源信息文件；
+- 本次运行使用的发布文档快照。
 
-Public Rust module 在 alpha 期间属于贡献者接口，源码兼容范围见 [Rust API](../developer/api.md)。
+公开 Rust 模块在 Alpha 期间属于贡献者接口，源码兼容范围见 [Rust API](../developer/api.md)。
 
 ## 文档修订
 
-不可变 snapshot 保存 release 随附的原始手册。小型澄清先进入 `dev`。修订如果涉及命令、格式、
-科学解释或安全操作，release note 会记录范围，并在下一份 snapshot 发布前链接到修订后的 dev
-page。
+不可变快照保存发布时随附的手册。小型澄清先进入 `dev`。修订若涉及命令、格式、科学解释或
+安全操作，发布说明会记录影响范围，并在下一份快照发布前链接到修订后的 `dev` 页面。
 
-Raw validation file 与 package checksum 保持原始 identity。只调整呈现方式时，chart 从同一份
-冻结 input 重新生成。
+原始验证文件与软件包校验和保持原有内容散列。只调整呈现方式时，图表从同一份
+冻结输入重新生成。
 
 ## 阅读版本页
 
-每个具名页面采用相同顺序：
+每个版本页面采用相同顺序：
 
-1. Release status 与支持 package；
-2. 科学工作流与资料家族；
-3. Runtime 与 result capability；
-4. 文档与 demonstration data；
-5. Compatibility note 与 known limit；
-6. Installation、quickstart 和精确 reference link。
+1. 发布状态与支持软件包；
+2. 科学工作流与资料系列；
+3. 运行时与结果功能；
+4. 文档与演示资料；
+5. 兼容性说明与已知限制；
+6. 安装、快速入门和参考链接。
 
 首个发布条目为 [0.1.0-alpha.1](0.1.0-alpha.1.md)。

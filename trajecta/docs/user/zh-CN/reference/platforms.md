@@ -1,70 +1,64 @@
 ---
-title: 平台与 reader 支持
-description: 查找 Trajecta 0.1.0-alpha.1 release archive、操作系统、architecture、bundled native library、dataset family、reader、population 与方向。
+title: 平台与读取器支持
+description: 查阅 Trajecta 0.1.0-alpha.1 的发布平台与读取器支持范围，包括包内原生库、气象资料系列、粒子群和积分方向。
 ---
 
-# 平台与 reader 支持
+# 平台与读取器支持
 
-Trajecta `0.1.0-alpha.1` 为两个 x86-64 platform 提供 self-contained command-line package。
-Formal product matrix 在 source checkout 外运行 extracted archive，并覆盖 local control plane
-与 scientific result command。
+Trajecta `0.1.0-alpha.1` 为两个 x86_64 平台提供自包含命令行发行包。正式测试会把软件包解压到
+源码目录之外，再运行项目管理、任务调度和结果读取命令。
 
-## Release package
+## 发行包
 
-| Host | Architecture | Archive | Binary | Local control transport |
+| 主机 | 架构 | 压缩包 | 可执行文件 | 本地控制通道 |
 | --- | --- | --- | --- | --- |
-| Windows x64 | x86-64 | `trajecta-0.1.0-alpha.1-windows-x86_64.zip` | `trajecta.exe` | Named pipe |
-| Ubuntu 24.04 LTS | x86-64 | `trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz` | `trajecta` | Unix-domain socket |
+| Windows x64 | x86_64 | `trajecta-0.1.0-alpha.1-windows-x86_64.zip` | `trajecta.exe` | 具名管道 |
+| Ubuntu 24.04 LTS | x86_64 | `trajecta-0.1.0-alpha.1-linux-x86_64.tar.gz` | `trajecta` | Unix 域套接字 |
 
-每个 release 还会发布 `.sha256` file。Archive 中包含：
+每个发行包同时提供 `.sha256` 文件。压缩包包含：
 
-- Trajecta binary；
-- 带有 source、binary、payload、platform 与 native component identity 的
-  `BUILD-MANIFEST.json`；
-- License 与 package README；
-- 完整 example project；
-- 双语 quickstart、support matrix 与 recovery note；
-- 独立 Python data-fetch helper 及其 requirements file；
-- Packaged reader 所需 native library 与 ecCodes definition。
+- Trajecta 可执行文件；
+- `BUILD-MANIFEST.json`，记录源码、二进制、包内容、平台和原生组件版本；
+- 许可证和发行包 README；
+- 四个完整示例项目；
+- 中英文离线快速入门、支持矩阵和恢复说明；
+- 独立 Python 资料下载助手及其依赖文件；
+- 打包读取器所需的原生库和 ecCodes 定义。
 
-Archive 解压后，packaged binary 可以放在任意目录。Project file 与 data 位于 program
-directory 外部。
+解压后，可执行文件可以放在任意程序目录。项目和气象资料位于程序目录之外。
 
-## Package 中的 native runtime
+## 发行包内的原生运行环境
 
-两个软件包在全新目录解压后都会探测原生库。各平台采用随构建环境提供的版本：
+两个发行包都经过干净解压后的原生库探测。版本随各自构建发行环境：
 
 | 组件 | Windows x86_64 | Ubuntu 24.04 x86_64 | 用途 |
 | --- | ---: | ---: | --- |
-| ecCodes | 2.47.0 | 2.34.1 | 解码 GRIB 并加载定义文件 |
-| netCDF-C | 4.9.3 | 4.9.2 | 为原生读取器提供 NetCDF 访问 |
-| HDF5 | 1.14.6 | 1.10.10 | netCDF-C 使用的底层存储运行库 |
+| ecCodes | 2.47.0 | 2.34.1 | GRIB 解码与定义 |
+| netCDF-C | 4.9.3 | 4.9.2 | 原生读取器的 NetCDF 访问 |
+| HDF5 | 1.14.6 | 1.10.10 | netCDF-C 下层存储运行环境 |
 
-Windows 在 executable 旁分发所需 DLL set。Linux binary 通过 `$ORIGIN/lib` runtime path 加载
-packaged library。ecCodes definition 作为 package data 提供，或由 build manifest 记录的
-packaged memory-filesystem runtime 提供。
+Windows 将所需 DLL 放在可执行文件旁。Linux 二进制通过 `$ORIGIN/lib` 运行路径加载包内库。
+ecCodes 定义作为包文件提供，或由构建清单记录的内存文件系统运行环境提供。
 
-Release archive 用户不需要分别安装这三个 component。Source build 使用的 development
-dependency 见[构建指南](../developer/build.md)。
+使用发行压缩包时，不需要单独安装这三个组件。源码构建需要的开发依赖见
+[构建指南](../developer/build.md)。
 
-!!! tip "发布包已包含原生运行库"
+!!! tip "原生库已经随发行包提供"
 
-    只有从源码构建 Trajecta 时才需要安装 ecCodes、netCDF-C 和 HDF5 开发包。
+    只有从源码构建 Trajecta 时，才需要安装 ecCodes、netCDF-C 和 HDF5 开发包。
 
-## 气象资料 family
+## 气象资料系列
 
-| Family | 常见 source | Vertical coordinate | Rust reader | Native reader | 方向 |
+| 资料系列 | 典型来源 | 垂直坐标 | 纯 Rust 读取器 | 原生读取器 | 积分方向 |
 | --- | --- | --- | --- | --- | --- |
-| CFSR pressure | NCEP CFSR pressure-level GRIB2 | Pressure level | Supported and default | Supported | Forward 与 backward |
-| ERA5 pressure | ERA5 pressure-level GRIB 或 NetCDF preparation | Pressure level | Supported and default | Supported | Forward 与 backward |
-| ERA5 hybrid | ERA5 model-level 与 surface field | 带 half-level coefficient 的 137 个 hybrid model level | Supported and default | Supported | Forward 与 backward |
+| CFSR 气压层 | NCEP CFSR 气压层 GRIB2 | 气压层 | 支持，默认 | 支持 | 正向与反向 |
+| ERA5 气压层 | 准备后的 ERA5 气压层 GRIB 或 NetCDF | 气压层 | 支持，默认 | 支持 | 正向与反向 |
+| ERA5 混合模式层 | ERA5 模式层和地表变量 | 137 个模式层及半层系数 | 支持，默认 | 支持 | 正向与反向 |
 
-Reader choice 控制 meteorological file access 与 query preparation。两个 reader 都向同一个
-Trajecta numerical core 提供数据。RunProfile 可以设置 `execution.meteorology_reader`，一个
-dataset binding 还可以提供更具体的 `reader_backend`。
+读取器选择控制气象文件访问与查询准备，两种读取器最终进入同一 Trajecta 数值核心。运行配置可以
+设置 `execution.meteorology_reader`，单项资料绑定还可以用 `reader_backend` 覆盖。
 
-`rust` reader 是 `config init` 创建的 default。`native` reader 使用上面的 bundled library。
-本地 file 与 Profile 可以通过以下命令检查：
+`config init` 默认创建 `rust` 读取器设置；`native` 使用上述包内原生库。检查文件和项目：
 
 ```text
 trajecta data inspect FILE
@@ -72,39 +66,35 @@ trajecta --project PROJECT project finalize
 trajecta --project PROJECT doctor --deep
 ```
 
-## Formal product matrix
+## 正式发布包测试矩阵
 
-每个 supported platform 从 clean package 运行 30 个 formal cell：
+每个平台都从全新目录解压发布包，并运行 30 个测试单元：
 
-| Group | 每个平台的 cell 数 | Coverage |
+| 组别 | 每个平台单元数 | 覆盖 |
 | --- | ---: | --- |
-| Rust 1k | 18 | 三种 dataset family × 三种 population × 两个方向，1,000 粒子，一个 worker |
-| Rust 10k | 6 | Selected dataset、population 与 direction combination，10,000 粒子，四个 worker |
-| Native 1k | 6 | 三种 dataset family × release population × 两个方向，1,000 粒子，一个 worker |
+| 纯 Rust 读取器，1k | 18 | 三种资料系列 × 三种粒子群 × 两种方向，1,000 粒子，单工作线程 |
+| 纯 Rust 读取器，10k | 6 | 选定资料、粒子群与方向组合，10,000 粒子，四工作线程 |
+| 原生读取器，1k | 6 | 三种资料系列 × 定时释放 × 两种方向，1,000 粒子，单工作线程 |
 
-三种 population 为 regular release、dry-air-mass domain filling 与 stratospheric-ozone domain
-filling。每个 cell 会准备 project，finalize data binding，通过 daemon 运行到 terminal product，
-验证 manifest 与 SQLite，读取 trajectory output，并重新生成 run report。
+三种粒子群为定时释放、干空气区域填充和平流层臭氧区域填充。每个测试单元都会准备资料并完成
+项目定稿，再通过守护进程运行到终态。随后检查运行清单和 SQLite，读取轨迹，并重新生成运行报告。
 
-Formal matrix 前还有两个 clean-package smoke cell，分别覆盖 CFSR forward release 的 Rust
-reader，以及 CFSR backward release 的 native reader。
+正式矩阵前还有两个全新解压快速检查：CFSR 正向释放使用纯 Rust 读取器，CFSR 反向释放使用
+原生读取器。
 
-## Result-reader 支持
+## 结果读取支持
 
-Trajecta product command 支持 active result 的 read-only snapshot，并使用 writer 发布的
-indexed high-water boundary。Complete attempt 还会完成 full verification 与 terminal SQLite
-checkpoint，此时 WAL 为零或不存在。
+运行活跃时，Trajecta 的结果读取命令可以打开只读快照，并遵守写入端公布的索引高水位。执行轮次完成
+后，可以运行完整验证；SQLite 会完成终态检查点，WAL 为零字节或不存在。
 
-Third-party SQLite program 可以在两个平台读取 public version 1 schema。Database 应以
-read-only 打开；active writing 期间，WAL 与 SHM sidecar 保持在主库旁。[SQLite 参考](results-sqlite.md)
-列出 query ordering 与 lifecycle rule。
+两平台上的第三方 SQLite 程序都可读取公开 `user_version = 1` 结构。活跃写入期间应使用只读
+连接，并让 WAL 与 SHM 留在主库旁。[SQLite 参考](results-sqlite.md)列出查询顺序和生命周期规则。
 
 ## 其他系统
 
-当前 release workflow 生成并正式运行 Windows x64 与 Ubuntu 24.04 x86-64 archive。其他
-Linux distribution 可能具有兼容的 GNU C library 和 native runtime，但 `0.1.0-alpha.1` 没有
-对应 release matrix。该版本不发布 macOS 和 ARM64 archive。
+当前发行流程只生成并正式运行 Windows x64 与 Ubuntu 24.04 x86_64 包。其他 Linux 发行版若具有
+相容 GNU C 库和原生运行环境，可能可以运行该包，但 `0.1.0-alpha.1` 没有对应的发布包测试记录。
+本版本不发布 macOS 或 ARM64 压缩包。
 
-WSL2 中可以在 selected Linux distribution 内使用 Ubuntu 24.04 package。大容量 result 与
-meteorological data 可以放在适合 SQLite 和 large sequential I/O 的 filesystem，随后在项目
-位置运行 `doctor --deep`。
+WSL2 环境使用所选 Linux 发行版内的 Ubuntu 24.04 包。大量结果和气象资料适合放在具备良好
+SQLite 与顺序 I/O 行为的文件系统，并在项目实际位置运行 `doctor --deep`。

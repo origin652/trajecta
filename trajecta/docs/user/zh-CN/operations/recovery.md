@@ -1,23 +1,22 @@
 ---
-title: 恢复中断的 Trajecta 任务
-description: 在断电、worker 消失、强制取消、磁盘故障或输出收尾中断后，协调 Trajecta 任务并创建后续 attempt。
+title: 恢复中断执行轮次
+description: 在断电、工作进程失联、强制取消、磁盘故障或输出收尾中断后，协调任务状态并创建安全重跑。
 ---
 
-# 恢复与中断 attempt
+# 恢复中断执行轮次
 
-恢复过程从持久化任务 catalog 和 attempt 目录已有文件开始。Daemon 返回后会读取两处状态，
-然后重新附着身份匹配的活跃 worker，协调有效终态 manifest，或将已经消失的 worker 关闭为
-interrupted attempt。
+恢复时，先保留并检查任务数据库和执行轮次目录中已有的文件。守护进程重新启动后，会根据两者
+判断应当重连仍存活的工作进程、接收有效终态清单，还是把失联工作进程对应的执行轮次标记为中断。
 
-重启过程不会自行创建 rerun。已完成 attempt 保持完成，queued attempt 继续等待正常派发，
-interrupted attempt 则等待显式 `job rerun`。
+重启不会自动创建重跑。已完成执行轮次保持完成，排队任务继续等待正常资源准入，中断执行轮次则
+等待显式 `job rerun`。
 
-## 初始检查
+## 第一轮检查
 
-读取初始状态期间，将机器配置、项目、任务 catalog 和 attempt 目录保持在原路径。SQLite
-数据库应与 `-wal`、`-shm` sidecar 放在一起。
+读取初始状态期间，保持本机配置、项目、任务数据库和执行轮次目录位于原位置。尤其要让 SQLite
+主库与 `-wal`、`-shm` 伴随文件留在一起。
 
-使用提交任务时的同一 `--config` 路径运行：
+使用提交时相同的 `--config`：
 
 ```text
 trajecta --config workstation.toml config validate
@@ -27,60 +26,59 @@ trajecta --config workstation.toml --format json job status JOB_ID
 trajecta --config workstation.toml --format json job events JOB_ID --since 0
 ```
 
-第一条 job 命令会启动本地 daemon 或重新连接。启动协调更新 catalog 后，再读取最近事件。
+首条任务命令会启动或连接本地守护进程。等待启动协调更新任务数据库后，再读取最新事件。
 
-为每个受影响 attempt 记录以下值：
+为每个受影响执行轮次记录：
 
-| 值 | 读取位置 | 用途 |
+| 值 | 从哪里读取 | 用途 |
 | --- | --- | --- |
-| Job-series ID | 提交 receipt 或 `job status` | 后续状态和 rerun 命令选择同一逻辑任务 |
-| Run ID 与 attempt number | `job status` 和事件 | 标识受影响的具体进程与结果目录 |
-| 当前状态 | `job status` | 区分活跃、终态和仍在排队的任务 |
-| 输出目录 | `job status` | 定位 manifest、SQLite、log 和临时文件 |
-| 最后一个持久化事件序号 | `job events` | 作为后续事件读取的游标 |
+| 任务系列 ID | 提交回执或 `job status` | 后续状态、事件和重跑命令 |
+| 运行 ID 与轮次编号 | `job status` 和事件 | 确定受影响进程与结果目录 |
+| 当前状态 | `job status` | 判断仍活跃、已终态或仍排队 |
+| 结果目录 | `job status` | 定位运行清单、SQLite、日志和临时文件 |
+| 最后持久事件序号 | `job events` | 后续续读游标 |
 
-## 读取协调结果
+## 判断启动协调结果
 
-启动后的事件记录通常会出现以下路径之一：
+启动后的事件通常对应以下路径：
 
-| 事件或状态 | 含义 | 后续动作 |
+| 事件或状态 | 含义 | 后续操作 |
 | --- | --- | --- |
-| `worker.reattached` 与 `running` | 已持有的 worker 仍存活，lease 匹配 | 继续监测，不移动其输出目录 |
-| `worker.terminal_reconciled` 与终态 | Worker 已经写入身份匹配的终态 manifest | Inspect 并验证终态结果 |
-| `worker.lost` 随后出现 `run.interrupted.worker_lost` | 找不到身份匹配的活跃 worker 或有效终态收尾 | 检查部分目录，修正原因，再按需要 rerun |
-| `queued` | Attempt 尚未开始 | 继续排队，或根据当前安排取消 |
-| 已有终态且没有新 dispatch event | Catalog 原本已将 attempt 视为完成 | 保持终态；需要再次计算时显式 `job rerun` |
+| `worker.reattached` 且状态为 `running` | 原工作进程仍存活，租约匹配 | 继续监测，不移动结果目录 |
+| `worker.terminal_reconciled` 和终态 | 工作进程已经写出匹配的终态清单 | 检查并完整验证结果 |
+| `worker.lost` 后出现 `run.interrupted.worker_lost` | 没有匹配工作进程，也没有有效终态收尾 | 检查部分目录，修复原因后按需重跑 |
+| `queued` | 断电前尚未启动 | 保持排队，或按当前计划取消 |
+| 原有终态且没有新派发事件 | 任务数据库已认为该轮结束 | 保持终态，需要新执行时显式重跑 |
 
-`worker.lease_attach_failed` 表示 daemon 无法将已经接收的 lease 附着到启动进程。Ownership
-仍无法恢复时，`worker.uncontrolled_after_attach_failure` 会记录 containment failure。创建
-相同输入的新 worker 前，应先检查进程列表与 attempt 目录。
+`worker.lease_attach_failed` 表示守护进程未能把已接受租约连接到新进程。若进程所有权也无法恢复，
+还会出现 `worker.uncontrolled_after_attach_failure`。此时先检查进程列表和执行轮次目录，等待
+状态协调完成，再按需要为同一输入创建重跑轮次。
 
-## 检查 attempt 目录
+## 检查执行轮次目录
 
-先使用 product-level reader：
+先使用结果读取命令：
 
 ```text
 trajecta --format json result inspect JOB_ID
 ```
 
-`result inspect` 可以解析 job-series ID、run ID 或直接结果路径。Manifest 可读而 SQLite
-不可用时，命令会返回 partial inspection 和 `result.inspect_sqlite_unavailable`，其中仍有
-manifest identity 与 artifact inventory。
+`result inspect` 可以接受任务系列 ID、运行 ID 或直接目录路径。运行清单可读而 SQLite 不可用时，
+命令返回部分信息和 `result.inspect_sqlite_unavailable`，仍会列出运行 ID 和文件清单。
 
 随后以只读方式查看目录：
 
-| 文件或目录 | 需要记录的内容 |
+| 文件 | 需要关注的内容 |
 | --- | --- |
-| `run-manifest.json` | Lifecycle status、run identity、count、input identity 和已记录错误 |
-| `particles.sqlite` | 是否存在、字节大小，以及 result inspection 能否打开 |
-| `particles.sqlite-wal` 与 `particles.sqlite-shm` | Writer 是否在 checkpoint 和收尾前停止 |
-| Provenance 目录或 bundle | Provenance closeout 已经开始还是已经完成 |
-| Worker stdout 与 stderr | Native library 消息、allocation failure 或 write error |
-| 临时与 forensic entry | Worker 或 daemon 在失败收尾期间保留的路径 |
+| `run-manifest.json` | 生命周期状态、运行 ID、数量、输入文件散列和记录的失败 |
+| `particles.sqlite` | 是否存在、文件大小、结果命令能否打开 |
+| `particles.sqlite-wal` 与 `particles.sqlite-shm` | 写入端是否在检查点前停止 |
+| 溯源目录或溯源信息文件 | 正式收尾是否开始或完成 |
+| 工作进程标准输出与错误输出 | 原生库消息、内存分配失败或写入错误 |
+| 临时和中断文件 | 工作进程或守护进程在收尾失败时保留的路径 |
 
-!!! warning "保留原 attempt"
+!!! warning "保留原执行轮次"
 
-    Rerun 使用单独目录。旧 manifest、数据库、sidecar 和 forensic file 应成组保留。
+    重跑会使用独立目录。原运行清单、数据库、伴随文件和中断文件应一起保留。
 
 终态为 `complete` 时运行：
 
@@ -88,33 +86,32 @@ manifest identity 与 artifact inventory。
 trajecta result verify JOB_ID --full
 ```
 
-Interrupted attempt 常会缺少 full verification 所需的产物。Partial inspection 仍可用于查看
-最后 manifest 状态和已经写入的 SQLite 行。
+中断执行轮次常常缺少完整验证所需的终态产物，但部分检查仍可定位最后运行清单状态和已写入
+SQLite 行。
 
-## 断电后的恢复
+## 断电后的恢复顺序
 
-1. 确认项目、资料根、输出根和机器配置已经挂载到原路径。
-2. 运行 `config validate` 与项目 `doctor --deep`。
-3. 通过 `job list` 启动 daemon。
-4. 对停电前活跃的每个 series 读取 `job status` 和全部事件。
-5. 等待协调得到稳定的活跃状态或终态。
-6. 检查所有受影响的 attempt 目录。
-7. 对协调为 complete 的结果运行 full verification。
-8. 只为需要再次计算的任务创建 rerun。
+1. 确认项目、资料目录、结果根目录和本机配置挂载到原路径。
+2. 运行 `config validate` 和项目 `doctor --deep`。
+3. 通过 `job list` 启动守护进程。
+4. 对断电前活跃的任务系列读取 `job status` 和全部事件。
+5. 等待协调形成稳定的活跃状态或终态。
+6. 检查每个受影响执行轮次目录。
+7. 对协调为 `complete` 的结果运行完整验证。
+8. 只为确实需要再次计算的任务创建重跑。
 
-输出文件系统若在恢复后报告错误，可先复制完整的非活跃 attempt 目录，再进行后续文件系统
-修复。复制时保持 SQLite 主库与 sidecar 位于一起。
+文件系统若在断电后报告错误，进一步修复前先复制已经停止写入的完整执行轮次目录，并保持 SQLite
+主库与伴随文件在一起。
 
 ## 安全取消与强制取消后的恢复
 
-安全取消会在 worker 到达 macro-step 边界并完成输出收尾后进入 `cancelled`。此类部分 run
-通常可以读取，终态 WAL 已 checkpoint 或不存在。
+安全取消在工作进程到达数值宏步边界并完成输出收尾后进入 `cancelled`。这类部分结果通常可以
+检查，终态 WAL 应已经完成检查点或不存在。
 
-强制取消会立即停止已持有的 worker，并记录 `interrupted`。对应目录可能保留非空 WAL、
-running manifest 或未完成的 provenance 临时文件。读取时将它视为 partial attempt，并保持
-文件组合不变。
+强制取消会立即停止工作进程并记录 `interrupted`。目录中出现非空 WAL、`running` 清单或未完成
+溯源临时文件都符合这种生命周期。
 
-创建后续 attempt 前，先检查最终状态：
+创建新执行轮次前先检查：
 
 ```text
 trajecta job status JOB_ID
@@ -122,52 +119,51 @@ trajecta job events JOB_ID --since 0
 trajecta result inspect JOB_ID
 ```
 
-Rerun 保持 series identity，并创建单独 attempt：
+按原输入重跑：
 
 ```text
 trajecta --format json job rerun JOB_ID
 ```
 
-需要修改 Case、Profile、data lock 或资源请求时，可编辑项目并提交新的 run。Rerun 使用原
-series 已保存的输入。
+需要修改案例、运行配置、资料锁或资源请求时，编辑项目并提交新任务系列。
 
-## 内存压力或 OOM 后的恢复
+## 外部内存压力或内存不足
 
-`daemon.external_memory_pressure` 会暂停 queued dispatch，同时让活跃 worker 继续运行。主机
-内存回到 reserve 以上后，scheduler 会继续工作。单纯保持 queued 的 attempt 无需恢复动作。
+`daemon.external_memory_pressure` 只暂停排队任务派发，不影响已经运行的工作进程。主机可用内存
+回到预留量以上后，正常调度会自动继续，单纯保持排队的任务不需要恢复操作。
 
-操作系统 OOM 终止会表现为 worker loss 和 interruption。Rerun 前可以：
+操作系统因内存不足终止工作进程时，会表现为工作进程失联和 `interrupted`。重跑前：
 
-1. 读取旧 run 的 resource event 和操作系统内存记录。
-2. 将 working set 与 `execution.memory_budget_bytes` 比较。
-3. 减少并发接收量，提高机器 reserve，或调整 Profile request 以符合实际工作量。
-4. SQLite 或 provenance 写入被中断时运行 deep doctor。
+1. 读取旧执行轮次的资源事件和操作系统内存记录。
+2. 将工作集与 `execution.memory_budget_bytes` 比较。
+3. 减少并发准入，提高本机内存预留，或调整运行配置请求。
+4. SQLite 或溯源写入被打断时运行深度环境检查。
 
-资源设置方法见[关机与内存压力](shutdown-memory.md)。
+更多资源设置见[关机与内存压力](shutdown-memory.md)。
 
-## 磁盘耗尽后的恢复
+## 磁盘空间耗尽
 
-先恢复足够可用空间，不移动活跃结果目录。确认没有 worker 继续写受影响目录后：
+先恢复足够空间，并避免移动活跃结果目录。确认没有工作进程继续写入后：
 
-1. 保持主数据库与 sidecar 位于一起。
-2. 运行项目 `doctor --deep`，检查当前文件系统上的 create、sync、rename、WAL 和 cleanup。
-3. Inspect 结果并读取 terminal event。
-4. 对协调为 complete 的 run 执行验证。
-5. 存储问题修正后，将 failed 或 interrupted 任务 rerun 到新的 attempt 目录。
+1. 保持 SQLite 主库和伴随文件在一起。
+2. 运行项目 `doctor --deep`，检查当前文件系统上的创建、同步、重命名、WAL 和清理。
+3. 检查结果与终态事件。
+4. 对协调为 `complete` 的结果运行验证。
+5. 修复存储后，将失败或中断任务重跑到新执行轮次目录。
 
-[存储指南](storage-sqlite.md)还介绍 WAL 处理、输出体积估算和终态结果迁移。
+[存储、SQLite 与 WAL](storage-sqlite.md)说明 WAL 处理、结果大小估算和终态目录移动。
 
-## 队列恢复期间的已完成任务
+## 队列恢复时如何处理已完成任务
 
-Daemon 不会再次派发终态 attempt，其中包括 `complete`、
-`completed_with_particle_errors`、`failed`、`cancelled` 和 `interrupted`。新的 daemon 进程会
-从同一 catalog 读取这些状态。
+守护进程不会重新派发任何终态执行轮次，包括 `complete`、
+`completed_with_particle_errors`、`failed`、`cancelled` 和 `interrupted`。新的守护进程从同一
+任务数据库读取这些状态。
 
-需要另一个 attempt 时运行 `job rerun`。后续 complete attempt 通过 full verification 后，
-较早的 attempt 可能出现在 dry-run prune plan 中：
+需要再次计算时使用 `job rerun`。后续执行轮次完成并通过完整验证后，旧轮次可能进入只读清理
+计划：
 
 ```text
 trajecta --format json job prune
 ```
 
-`0.1.0-alpha.1` 中的 plan 只用于查看，不会删除结果目录或 catalog history。
+`0.1.0-alpha.1` 中该计划仅供查看，不会删除结果目录或任务历史。

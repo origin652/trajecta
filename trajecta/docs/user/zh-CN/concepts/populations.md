@@ -1,27 +1,27 @@
 ---
-title: 粒子 population 模型
-description: 比较 Trajecta 中的 scheduled release、dry-air domain fill 和 stratospheric-ozone population。
+title: 粒子群模型
+description: 比较 Trajecta 中的定时释放、干空气区域填充和平流层臭氧粒子群。
 ---
 
-# 粒子 population 模型
+# 粒子群模型
 
-Particle population 定义粒子的出生方式、携带的质量、稳定身份构造，以及轨迹积分前需要的
-气象 capability。一份 Case 选择一套完整 population strategy。
+粒子群定义决定粒子怎样生成、携带什么质量、稳定粒子 ID 由哪些信息构成，以及轨迹积分开始前需要哪些
+气象能力。一个案例只选择一种完整粒子群策略。
 
-Trajecta `0.1.0-alpha.1` 提供三种内置策略：
+`0.1.0-alpha.1` 提供三种内置策略：
 
-| Strategy | 初始或 scheduled source | 粒子权重或质量 | 常见研究形式 |
+| 策略 | 初始或定时来源 | 粒子权重或质量 | 常见用途 |
 | --- | --- | --- | --- |
-| `release_driven` | 显式 release event | Event substance mass 在粒子间分配 | 源到受体输送与受体释放 |
-| `domain_fill_air_mass` | 一个气象域内的干空气质量 | 相等 dry-air carrier mass | 水汽归因、停留时间与 air-mass 输送 |
-| `domain_fill_stratospheric_ozone` | 一个气象域内符合条件的干空气质量 | Dry-air carrier 加派生 ozone mass | 平流层臭氧输送 |
+| `release_driven` | 明确的释放事件 | 事件声明的物质总质量按粒子分配 | 源—受体输送和受体释放试验 |
+| `domain_fill_air_mass` | 一个气象区域内的干空气质量 | 等干空气载体质量 | 水汽归因、停留时间和气团输送 |
+| `domain_fill_stratospheric_ozone` | 区域内符合规则的平流层干空气质量 | 干空气载体加派生臭氧质量 | 平流层臭氧输送 |
 
-三种策略共用球面轨迹 integrator、气象 query engine、boundary policy、output schedule、SQLite
-sink 和结果生命周期。初始化方式与携带质量各有不同。
+三种策略共用球面轨迹积分器、气象查询、边界规则、输出计划、SQLite 写入和结果生命周期。它们的
+差别集中在初始化、粒子出生和携带质量。
 
-## Release-driven population
+## 定时释放粒子群
 
-Release population 包含一个或多个具名 event：
+释放型粒子群包含一个或多个带名称的释放事件：
 
 ```yaml
 particle_population:
@@ -43,40 +43,36 @@ particle_population:
         upper: { value: 500, unit: m }
 ```
 
-每个 event 定义 inclusive time interval、确切粒子数、水平 geometry、垂直坐标，以及各项已
-声明 substance 的总质量。
+每个事件规定闭合时间区间、粒子数量、水平几何、垂直坐标和各物质总质量。
 
-### Birth time
+### 出生时刻
 
-Instantaneous event 的 `start` 与 `end` 相等，全部粒子在同一时刻出生。Interval event 会按
-粒子数把时段分成 integer-nanosecond stratum，每个 stratum 内确定性采样一个 birth time。
-出生由此分布在指定时段内，不依赖线程顺序。
+瞬时事件的 `start` 与 `end` 相同，全部粒子在该时刻生成。持续事件会按粒子数把时间区间划成
+纳秒级分层，每层抽取一个确定出生时刻。出生分配由事件内序号和随机种子决定，不依赖工作线程
+执行顺序。
 
-Integrator 让每个 cohort 从自己的确切 birth time 开始。Macro-step 中途出生的粒子只推进该
-step 剩余的物理时长。
+每批粒子从各自的出生时刻开始积分。在一个数值宏步内部出生的粒子，只推进该宏步剩余的
+时间。
 
-### 水平与垂直放置
+### 水平和垂直位置
 
-Release geometry 接受 Point、MultiPoint、line、multiline、polygon 和 multipolygon GeoJSON。
-Geometry 可以直接写在 Case 中，也可以从相对于 Case 的本地文件加载。Point 采用等权重，
-line 使用 geodesic length，polygon 使用球面面积并处理 hole。
+释放几何支持 GeoJSON 的 `Point`、`MultiPoint`、`LineString`、`MultiLineString`、
+`Polygon` 和 `MultiPolygon`。几何可以内嵌，也可以从案例相对路径读取。点按等权抽样，线按
+大地线长度抽样，多边形按球面面积抽样，并考虑内部孔洞。
 
-垂直位置可以使用 mean sea level 以上高度、本地 ground 以上高度或 atmospheric pressure。
-只有 lower 值时表示固定坐标；增加 upper 后在所选坐标的区间内均匀采样。Above-ground 和
-pressure release 通过所选气象状态解析。
+垂直位置可采用海拔高度、离地高度或大气气压。只有下界时表示固定坐标；同时给出上界会形成均匀
+抽样区间。离地高度和气压需要结合出生位置与时刻的气象状态解析。
 
-### Substance mass
+### 物质质量
 
-每个 event 声明的总质量按确切粒子数分配。最后一个粒子采用浮点补偿份额，使存储的 share
-重新求和后回到 event total。Release particle 的 `dry_air_mass_kg` 为零，声明的 substance
-保存在 `particle_mass`。
+每个事件声明的物质总质量按事件指定的粒子数分配。最后一个粒子补偿浮点余量，使所有份额重新相加后
+等于事件总量。释放粒子的 `dry_air_mass_kg` 为 `0`，声明物质保存在 `particle_mass`。
 
-同一个 population 可以包含多个 event，并共享 substance 定义。Event ID 在 population 中
-保持唯一，也会进入 particle origin 与稳定身份。
+多个事件可以共用同一粒子群和物质定义。事件 ID 必须唯一，并参与生成粒子来源与稳定 ID。
 
-## Dry-air domain-fill population
+## 干空气区域填充
 
-Air-mass strategy 从一个气象域创建粒子：
+气团策略从一个气象区域生成粒子：
 
 ```yaml
 particle_population:
@@ -86,80 +82,75 @@ particle_population:
   target_particle_count: 50000
 ```
 
-初始化根据气象网格推导干空气质量，再通过确定性分层采样放置等 carrier-mass 粒子。Case
-可以指定确切初始粒子数，也可以指定每个粒子的目标干空气质量。
+初始化根据气象网格计算干空气质量，再通过确定的分层抽样生成等载体质量粒子。案例可以选择指定
+初始粒子数，也可以指定每个粒子代表的干空气质量。
 
-有限域在 inward boundary flux 累计到一个 carrier mass 时增加粒子，离开域的粒子则终止。
-全球周期域没有侧向交换。逐 step mass ledger 跟踪 active、incoming、outgoing、terminated
-与 residual dry-air mass。
+有限区域会根据边界流入干空气质量生成新粒子，并在粒子离开区域时终止它们。全球周期区域没有
+水平流入和流出。每个数值宏步的质量账本记录活跃、流入、流出、终止和余量。
 
-[Domain-fill 概念](domain-fill.md)进一步说明该生命周期及其水汽分析方式。
+[区域填充水汽追踪](domain-fill.md)详细说明这一生命周期及其水汽分析含义。
 
-## Stratospheric-ozone domain fill
+## 平流层臭氧区域填充
 
-Ozone strategy 包含一份 dry-air domain-fill 设置。`air_mass` 提供 population ID、domain，
-以及 target count 或 carrier mass。`ozone_rule` 选择具名内置 assignment rule；
-`ozone_substance` 指定接收 derived ozone mass 的 Case substance column。随软件提供的 ozone
-示例包含完整配置。
+臭氧策略在干空气区域填充外增加平流层筛选和臭氧赋值。`air_mass` 指定粒子群 ID、区域和目标
+粒子数或载体质量。`ozone_rule` 按名称选择内置规则，`ozone_substance` 指向案例中接收派生臭氧
+质量的物质。完整配置见臭氧示例。
 
-该策略先推导 dry-air
-snapshot，再把初始化范围限制到当前规则的 stratospheric eligibility mask。规则要求 geometric
-height 严格高于 3,000 m，且按南北半球统一符号后的 potential vorticity 严格高于 2 PVU。
+初始化先建立干空气快照，再保留符合规则的平流层部分。当前内置规则要求：
 
-Mask 内的各粒子携带相等 eligible dry-air mass。Ozone mole fraction 按每 PVU 60 parts per
-billion by volume 推导，再结合 dry-air carrier mass 与 molar-mass ratio 转换为 ozone mass。
-结果保存在 `ozone_substance` 对应的质量列。
+- 几何高度高于 3,000 米；
+- 按半球统一符号后的位涡高于 2 PVU。
 
-有限域 birth 只发生在 inflow face 的 eligible 部分，并在出生位置使用同一规则赋予 ozone
-mass。Dry-air mass ledger 继续负责 population conservation；ozone mass 是粒子携带的
-substance。
+在有效质量范围内，每个粒子代表相同干空气质量。臭氧摩尔分数按每 PVU 60 ppbv 计算，再结合
+干空气载体质量和摩尔质量比换算成臭氧质量，写入 `ozone_substance` 对应的质量行。
 
-该策略需要 domain-fill capability，以及推导 potential vorticity 所需的 diagnostic field。
-ERA5 hybrid 示例给出了此流程使用的完整 137-level 输入路径。
+有限区域的边界新生粒子只从流入面上符合规则的部分生成，并在出生位置按同一规则分配臭氧。
+质量账本以干空气载体为守恒对象，臭氧作为随粒子移动的携带物质。
 
-## 稳定 particle identity
+该策略除区域填充能力外，还需要计算位涡的诊断字段。ERA5 混合模式层示例提供了完整的 137 层
+资料路径。
 
-Particle ID 采用确定性构造，与 worker 调度无关。不同 origin 使用以下组成信息：
+## 稳定粒子 ID
 
-| Origin | Identity 组成 |
+粒子 ID 由科学来源确定，不受线程调度影响：
+
+| 来源 | 粒子 ID 的组成信息 |
 | --- | --- |
-| Release | Population ID、event ID 与 event-local ordinal |
-| Initial domain fill | Population ID、domain ID 与 mass-stratum ordinal |
-| Boundary domain fill | Population ID、domain ID、boundary-face ID、lifecycle event index 与 birth ordinal |
+| 释放事件 | 粒子群 ID、事件 ID、事件内序号 |
+| 初始区域填充 | 粒子群 ID、区域 ID、质量分层序号 |
+| 边界区域填充 | 粒子群 ID、区域 ID、边界面 ID、生命周期事件序号、出生序号 |
 
-数值 particle ID 和 origin details 一起保存在 SQLite。Resolved scientific input 相同的 rerun
-会得到相同稳定 particle identity；run ID 与 attempt 则会更新。
+数值粒子 ID 与来源详情一起写入 SQLite。解析后的科学输入相同时，重跑或改变工作线程数仍会生成
+相同粒子 ID；运行 ID 和执行轮次则会变化。
 
-## Population 与方向
+## 粒子群与积分方向
 
-Direction 位于 Case time specification。Population 在 Case start 或 scheduled birth time 创建
-粒子，随后 integrator 沿所选方向向 end 推进。
+方向属于案例的时间设置。粒子在 `time.start` 或计划出生时刻生成，积分器随后沿选定方向前往
+`time.end`。
 
-Release event time 位于 Case 的物理区间内。Domain filling 则按积分方向解释 boundary inward
-与 outward flux。同一个有限域 face 在一个方向中可能是 inflow，在另一个方向中可能成为
-outflow。
+释放事件必须位于案例覆盖的物理区间内。区域填充的边界流入和流出按积分方向解释，同一有限区域
+边界面在正向与反向运行中可能承担不同角色。
 
-## 气象 capability
+## 气象能力要求
 
-每类 population 都需要 transport field，并按策略增加以下要求：
+所有粒子群都需要输送字段，其他能力由策略派生：
 
-| Population | 额外 capability |
+| 粒子群 | 附加要求 |
 | --- | --- |
-| Release-driven | 所选 release coordinate 需要的 geometry 与 vertical-resolution field |
-| Dry-air domain fill | 用于 mass、terrain、vertical support 和 boundary flux 的 domain-fill snapshot field |
-| Ozone domain fill | Domain-fill field 加 potential-vorticity diagnostic |
+| 定时释放 | 解析所选垂直坐标和几何位置所需的气象字段 |
+| 干空气区域填充 | 质量、地形、垂直范围和边界通量所需的区域填充字段 |
+| 臭氧区域填充 | 区域填充字段及位涡诊断 |
 
-`project data-plan` 写出推导后的 capability set。`project finalize` 在创建 DatasetLock 前，对照
-dataset profile 和实际检查的文件确认这些能力。
+`project data-plan` 会写出最终能力集合。`project finalize` 在创建资料锁前，将这些要求与公开
+资料配置和实际文件比较。
 
-## 选择 strategy
+## 选择策略
 
-可以从研究中需要表示的物理对象选择：
+可以从研究要表示的物理对象出发：
 
-- 已知 source geometry 和 release period 对应 `release_driven`。
-- 按大气质量加权的区域或全球空气对应 `domain_fill_air_mass`。
-- 携带内置 ozone proxy 的平流层 air-mass population 对应
-  `domain_fill_stratospheric_ozone`。
+- 已知源区和释放时段适合 `release_driven`；
+- 按大气质量表示的全球或区域气团适合 `domain_fill_air_mass`；
+- 携带内置臭氧代理量的平流层气团适合 `domain_fill_stratospheric_ozone`。
 
-Population 变化会影响 particle origin、carrier 语义、所需气象量和 scientific identity。修改
-strategy 或其 domain 后，重新生成 data-plan 并 finalize 项目。
+改变策略会同时改变粒子来源、载体含义、气象要求和结果解释。修改策略或所属区域后，需要重新
+生成资料计划并重新完成项目定稿。

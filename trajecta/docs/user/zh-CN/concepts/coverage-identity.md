@@ -1,17 +1,17 @@
 ---
-title: 时间覆盖、空间覆盖、job 与 attempt
-description: 了解 Trajecta 中的轨迹时间、插值帧、domain support、dataset identity、job series、run ID 和 attempt。
+title: 覆盖范围与运行标识
+description: 了解轨迹时间、插值时次、空间支持、资料内容标识、任务系列、运行 ID 和保留的执行轮次。
 ---
 
-# 覆盖与运行身份
+# 覆盖范围与运行标识
 
-Trajecta 研究中有两类连续性。气象覆盖让每次轨迹查询都位于已准备的时间与空间支持内；运行
-身份则区分每次队列提交、rerun 和结果目录。Data-plan 与 DatasetLock 处理前一类关系，job
-series、run 和 attempt identity 处理后一类关系。
+一次 Trajecta 研究需要同时处理气象资料覆盖和运行记录。前者保证每次轨迹查询都落在已经准备好
+的时间与空间范围内，后者用任务系列、运行 ID 和执行轮次区分每次提交及其结果目录。资料计划与
+资料锁负责描述覆盖范围，任务数据库负责保存运行记录。
 
-## Case 中的物理时间
+## 案例中的物理时间
 
-Case 记录 `start`、`end` 与 `direction`：
+案例记录 `start`、`end` 和 `direction`：
 
 ```yaml
 time:
@@ -20,163 +20,159 @@ time:
   direction: backward
 ```
 
-`start` 是 population 初始化所在的一端。Integrator 按声明方向向 `end` 推进。Forward Case
-的 end 较晚，backward Case 的 end 较早。
+`start` 是粒子群初始化一侧，积分器沿声明方向前往 `end`。正向案例的终点较晚，反向案例的
+终点较早。
 
-资料获取与 locking 会把两个时刻按实际时间排序：
+准备和锁定气象资料时，Trajecta 会把两个时刻按先后排列：
 
 ```text
-coverage start = min(Case start, Case end)
-coverage end   = max(Case start, Case end)
+coverage_start = min(Case start, Case end)
+coverage_end   = max(Case start, Case end)
 ```
 
-因此，将端点对调的 forward 与 backward Case 请求相同物理时段。Direction 仍会影响轨迹
-推进、boundary flux、event order 和 particle age。
+因此，一段反向案例和交换起止点后的正向案例可能请求相同物理时段。积分方向仍会改变粒子推进、
+边界通量、事件顺序和粒子年龄。
 
-## 时间插值需要相邻帧
+## 时间插值为何需要相邻帧
 
-气象场位于离散 valid time。两个 frame 之间的 query 使用包围该时刻的一对 frame 做时间插值。
-因此，lock requirement 在物理 Case coverage 前后各加入一帧。
+气象场只在离散有效时次上存在。查询落在两个时次之间时，需要用前后两帧插值，因此资料要求会
+在案例物理区间两侧保留相邻帧。
 
-假设资料间隔为六小时，运行时段为 06:10 至 11:50 UTC：
+以六小时资料和 06:10–11:50 UTC 运行举例：
 
 ```text
 00:00   06:00   [06:10 ───────── 11:50]   12:00   18:00
-          pair for early queries ───────────┘
+          早期查询的插值对 ───────────────┘
 ```
 
-06:00 与 12:00 包围 Case。额外的 before/after frame 规则可以将 00:00 和 18:00 作为 lock
-coverage 的插值 buffer。确切选择取决于 dataset profile cadence 和实际 valid-time inventory。
+06:00 与 12:00 夹住案例时段。资料配置的覆盖规则还可保留 00:00 和 18:00，作为锁定范围两侧
+的插值缓冲。具体选择由资料时次间隔和实际文件清单共同决定。
 
-端点正好落在某个 frame 上时，仍沿用 profile 声明的覆盖规则。文件数量适合通过 data-plan
-计算，不宜只根据运行时长估算。
+案例端点恰好落在资料时次上时，仍遵循资料配置声明的覆盖规则。文件数量应以资料计划为准，不宜
+只根据模拟时长估算。
 
-## Data-plan coverage
+## 资料计划中的覆盖
 
-`project data-plan` 组合各个已进入索引的 Profile 与其 Case，输出以下 requirement：
+`project data-plan` 逐一组合项目中登记的运行配置及其案例，输出：
 
-- 物理 coverage start 与 end；
-- 一帧 before buffer 和一帧 after buffer；
-- Dataset ID 与 dataset-profile name；
-- 所需 capability set；
-- 项目相对 data root 与 lock path；
-- 生成计划时使用的 project input SHA-256 identity。
+- 物理覆盖起止时刻；
+- 前一帧和后一帧的插值缓冲；
+- 逻辑资料 ID 和内置资料配置；
+- 所需气象能力；
+- 相对于项目根目录的资料目录与资料锁路径；
+- 生成该计划时的项目 SHA-256。
 
-项目内容不变时，计划也保持确定。Acquisition helper 将计划展开为 provider timestamp 和目标
-路径。Case 或 Profile 变化后，project identity 随之变化，需要生成新计划。
+项目内容不变时，资料计划的内容也保持不变。下载助手再把计划展开为服务方时次和目标路径。
+案例或运行配置改变后，`project_sha256` 会随之变化，此时需要重新生成计划。
 
-## DatasetLock coverage
+## 资料锁中的覆盖
 
-Finalize 检查实际文件中的 valid time。Lock builder 选择与 profile 匹配的文件，覆盖 Case 和
-插值 buffer。Coverage gap 按以下情况返回：
+项目定稿会检查实际文件包含的有效时次，并选择能够覆盖案例和插值缓冲的文件。常见缺口包括：
 
 | 缺口 | 含义 |
 | --- | --- |
-| Coverage 超出 available time | 物理 Case interval 位于 inventory 范围外 |
-| Missing warmup frame | 所选区间之前缺少要求的 frame |
-| Missing following frame | 所选区间之后缺少要求的 frame |
-| No profile-matched file | 文件已经存在，但没有文件属于所选 interpretation profile |
+| 物理时段超出已有时次 | 案例起止范围不在文件清单内 |
+| 缺少前置帧 | 所选区间之前没有所需插值时次 |
+| 缺少后续帧 | 所选区间之后没有所需插值时次 |
+| 没有匹配内置资料配置的文件 | 目录中有文件，但其系列或结构与所选资料配置不同 |
 
-DatasetLock 记录各个所选文件及其 valid time。提交时，Trajecta 根据该 lock 与 RunProfile 的
-本地 data root 重建 inventory。文件字节、网格、垂直拓扑或 profile identity 发生变化后，
-通过新的 finalize 建立绑定。
+资料锁记录每个选中文件和有效时次。提交时，Trajecta 根据资料锁与运行配置中的本机根目录重建
+清单。文件内容、网格、垂直拓扑或资料配置发生变化后，需要重新完成项目定稿。
 
-## 空间支持与 safe core
+## 空间支持与安全内部范围
 
-气象资料提供水平网格和垂直支持。Case meteorology domain 将逻辑 dataset 连接到 domain ID、
-priority 和 `horizontal_halo_cells`。
+气象资料提供水平网格和垂直支持。案例中的气象区域将逻辑资料连接到区域 ID、优先级和
+`horizontal_halo_cells`。
 
-Halo 为水平插值保留相邻 grid cell。应用该 reserve 后，trajectory-safe core 位于 source outer
-boundary 内侧。全球周期网格在 longitude 上回绕，safe core 沿周期方向连续。有限网格的侧面
-用于 continuous domain crossing 和 domain-fill exchange。
+水平插值需要周围格点。`horizontal_halo_cells` 从源网格外边界向内保留相应格点数，剩余部分
+构成轨迹可安全查询的内部范围。全球周期网格在经度方向衔接；有限网格的四个侧面用于连续边界
+相交和区域填充交换。
 
-垂直支持位于本地 transport floor 与可用 model top 之间。Terrain 和 surface pressure 会使
-下部有效边界随水平位置变化。Release placement、domain-fill initialization、气象 query、
-reflection 和 model-top termination 都使用解析后的 support。
+垂直支持位于当地输送下界和可用模式顶之间。地形与地表气压会使下边界随水平位置变化。释放
+位置解析、区域填充初始化、气象查询、地表反射和模式顶终止都使用这一实际支持范围。
 
-## 多个气象域
+## 多个气象区域
 
-一份 Case 可以列出多个 domain。每项拥有唯一 ID、逻辑 dataset 和 priority。例如，高分辨率
-nested domain 可以与周围较粗的资料同时使用，前提是两套资料已经按兼容科研设置准备。
+一个案例可以列出多个区域，每个区域具有唯一 ID、逻辑资料和优先级。只要资料按一致的科学设置
+准备，就可以在较粗外围资料中嵌入高分辨率区域。
 
-在 query point 上，domain precedence 选择包含该点的最高优先级 valid safe core。Domain-fill
-population 仍声明一个 domain，因为初始质量预算和侧向边界需要一套连贯网格。其他 domain
-可以根据 Case 选择规则参与 trajectory meteorology。
+查询点落入多个安全内部范围时，优先使用优先级较高的区域。区域填充粒子群仍指定一个明确区域，
+因为初始质量预算和水平边界必须来自同一完整网格。其他区域可以按案例的区域选择规则参与后续
+轨迹气象查询。
 
-每个逻辑 dataset 都有自己的 RunProfile binding 和 DatasetLock。Data planning 会对所选
-Case/Profile pair 的 requirement 求并集。
+每个逻辑资料都有自己的运行配置绑定和资料锁。资料计划会合并所选案例与运行配置中的全部要求。
 
-## 四层 identity
+## 四层标识
 
-配置、资料、执行和科研输出可以分别理解：
+比较两次运行时，可以分别查看以下四层信息：
 
-| 层次 | 示例 | 记录位置 |
+| 层次 | 示例 | 保存位置 |
 | --- | --- | --- |
-| Resolved configuration | Case SHA-256、RunProfile SHA-256、numerical model ID | Run manifest 与 resolved document |
-| Input data | DatasetLock SHA-256、profile SHA-256、单文件 SHA-256 | DatasetLock、manifest 与 provenance |
-| Execution | Job-series ID、run ID、attempt、resource、software version | Job catalog 与 run manifest |
-| Output content | Exact SQLite SHA-256、canonical SQL digest、provenance content digest、canonical output digest | Manifest 与 verification result |
+| 解析后配置 | 案例 SHA-256、运行配置 SHA-256、数值模型 ID | 运行清单和解析后文档 |
+| 输入资料 | 资料锁 SHA-256、内置资料配置 SHA-256、文件 SHA-256 | 资料锁、运行清单和溯源信息 |
+| 执行 | 任务系列 ID、运行 ID、执行轮次、资源和软件版本 | 任务数据库和运行清单 |
+| 输出内容 | SQLite SHA-256、规范 SQL 摘要、溯源内容摘要、规范输出摘要 | 运行清单和验证结果 |
 
-两个运行可以使用不同 run ID，同时拥有相同 resolved input 和 canonical output identity。反过来，
-文件名相同而 SHA-256 更新时，它已经是不同输入，即使 Case 没有变化。
+两个运行可以拥有不同运行 ID，却采用相同解析后输入并产生相同规范输出。反过来，文件名相同但
+SHA-256 改变时，它就是另一份输入，即使案例没有变化。
 
-## Job-series ID
+## 任务系列 ID
 
-本地队列接收一项新的逻辑提交时，会创建 UUID-v7 job-series ID。`job status`、`job wait`、
-`job events`、cancel、rerun 和 forget 通常都使用该 ID。
+本地队列接受一个新的逻辑提交时，会创建 UUIDv7 任务系列 ID。`job status`、`job wait`、
+`job events`、取消、重跑和隐藏通常都以该 ID 为参数。
 
-Series 将源于同一接收请求的 attempt 组织在一起。`job rerun` 之后它保持稳定，事件与 history
-query 也继续连接到同一个 series。
+任务系列把源自同一已接受请求的执行轮次放在一起。`job rerun` 后系列 ID 保持不变，事件和历史
+查询也保持连续。
 
-## Run ID 与 attempt number
+## 运行 ID 与执行轮次
 
-每个 attempt 获得新的 UUID-v7 run ID，以及从 1 开始的 attempt number。两者共同标识一个
-worker execution 和一个结果目录。
+每个执行轮次获得新的 UUIDv7 运行 ID，以及从 1 开始的轮次编号。两者共同选择一个工作进程执行
+和一个结果目录：
 
 ```text
-job series S
-├── attempt 1, run R1: interrupted
-├── attempt 2, run R2: cancelled
-└── attempt 3, run R3: complete
+任务系列 S
+├── 执行轮次 1，运行 R1：interrupted
+├── 执行轮次 2，运行 R2：cancelled
+└── 执行轮次 3，运行 R3：complete
 ```
 
-Attempt number 表达 series 内顺序。Run ID 在全局范围内区分运行，并进入 manifest、SQLite、
-provenance、particle-state join 与 result lookup。
+轮次编号表示同一系列内的先后；运行 ID 在全局范围内唯一，并写入运行清单、SQLite、溯源信息、
+粒子状态连接和结果查询。
 
-`job rerun` 保留 series，创建下一个 run ID，并完整保留旧 attempt 目录。编辑 Project/Profile
-pair 后重新提交会形成新的逻辑 series，因为请求输入已经发生变化。
+`job rerun` 保留系列并创建下一个运行 ID，旧执行轮次目录保持不变。修改项目或运行配置后重新
+提交会创建新的任务系列，因为请求输入已经改变。
 
-## 稳定 particle identity
+## 稳定粒子标识
 
-Particle ID 根据 population identity 和确定性 birth coordinate 生成，例如 event ordinal 或
-domain-fill stratum ordinal。它不包含 run ID。Resolved scientific input 相同的任务可以在不同
-worker 数和 rerun 中使用相同 particle ID。
+粒子 ID 由粒子群 ID 和确定的出生来源推导，例如释放事件序号或区域填充质量分层序号。粒子 ID
+不包含运行 ID，因此解析后的科学输入相同时，不同线程数或重跑可以使用同一组粒子 ID。
 
-每条 trajectory record 还包含 job-series ID、run ID 与 attempt。因此，分析可以对齐两个运行
-中的 particle `42`，同时保留各自 source attempt 身份。
+每条轨迹记录仍保存任务系列 ID、运行 ID 和执行轮次。分析可以对齐两个运行中的粒子 `42`，
+同时保留它们各自来源。
 
-## Restart 与 recovery identity
+## 重启与恢复
 
-Local daemon 在 catalog 中记录 worker process identity 和 attempt state。Daemon 重启后会
-根据操作系统进程身份协调活动记录：
+本地守护进程在任务数据库中保存工作进程的 PID、启动标记和执行轮次状态。守护进程重启后会将
+这些记录与操作系统中的进程进行核对：
 
-- 已确认仍存活的 worker 继续属于原 attempt；
-- 已消失的 worker 进入 `interrupted`；
-- queued work 继续等待 dispatch；
-- terminal work 保持终态。
+- 确认仍存活的工作进程继续属于原执行轮次；
+- 已消失的工作进程对应执行轮次变为 `interrupted`；
+- `queued` 任务继续等待派发；
+- 终态任务保持原状态。
 
-Recovery 可以在需要时更新 lifecycle state，不会分配新 run ID，也不会重复 complete attempt。
-只有显式 rerun 或新 submission 才会创建另一次执行。
+恢复只在需要时更新生命周期状态，不会分配新运行 ID，也不会重复完整执行轮次。新的执行只来自
+显式重跑或新提交。
 
 ## 比较两个结果
 
-根据比较问题选择 identity：
+不同的比较目的需要查看不同信息：
 
-- 对比 Case 与 Profile digest，确认 resolved setup 是否等价。
-- 对比 DatasetLock 与 dataset-content digest，确认 input byte 和 interpretation 是否等价。
-- 对齐 trajectory 时比较 stable particle ID。
-- 判断规范化结果是否相同时比较 canonical output digest。
-- 在分析表中保留 run ID 和 attempt，使运维历史仍可区分。
+| 要比较的内容 | 适合查看的信息 |
+| --- | --- |
+| 科学与执行配置是否相同 | 案例和运行配置摘要 |
+| 输入字节与解释方式是否相同 | 资料锁、资料内容和内置资料配置摘要 |
+| 粒子轨迹能否逐一对齐 | 稳定粒子 ID |
+| 规范化结果是否一致 | 规范输出摘要 |
+| 各次运行的运维历史 | 运行 ID 与执行轮次 |
 
-`result verify --full` 会重新计算 normalized output identity，并检查 lifecycle row。其结果记录
-可以作为跨运行比较的起点。
+`result verify --full` 会重新计算规范化输出摘要，并检查生命周期记录，适合在比较两次运行前使用。

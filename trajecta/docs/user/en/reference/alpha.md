@@ -91,7 +91,7 @@ loadable plugin mechanism.
 
 | Surface | Alpha compatibility rule |
 | --- | --- |
-| Software version | Remains `0.1.0-alpha.1` for M5.1; ordinary commits do not create another version |
+| Software version | Remains `0.1.0-alpha.1`; ordinary documentation commits do not create another version |
 | Configuration and machine streams | Carry their own `schema_version`; a format change uses a new schema identity |
 | Case and RunProfile | Carry their current numeric document schema and reject unknown fields |
 | SQLite | Public `user_version = 1` schema; open read-only for external analysis |

@@ -70,4 +70,4 @@ update.
 Current package platforms, local-daemon behavior, dry-run pruning, result
 interfaces, and reserved future extension points are summarized in
 [Alpha limits](alpha.md). The software version remains
-`0.1.0-alpha.1` throughout M5.1.
+`0.1.0-alpha.1` throughout this documentation release.

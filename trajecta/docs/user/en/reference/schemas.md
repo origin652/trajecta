@@ -9,8 +9,8 @@ description: Source-backed schemas for Trajecta configuration, control-plane str
 
 Trajecta versions each machine-readable disk or stream format independently.
 The `schema_version` inside a document selects that format contract; the
-software version identifies the executable that reads or writes it. M5.1 keeps
-the existing schema identifiers.
+software version identifies the executable that reads or writes it. The current
+release keeps the existing schema identifiers.
 
 The linked schema files define required fields, value types, enumerations,
 additional-property rules, and nested records. Examples show one valid instance

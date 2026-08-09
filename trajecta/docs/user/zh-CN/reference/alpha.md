@@ -1,96 +1,88 @@
 ---
-title: Alpha release 范围
-description: 了解 Trajecta 0.1.0-alpha.1 的平台、本地 runtime、资料准备、结果接口、compatibility 与预留 extension point。
+title: Alpha 发行范围
+description: 了解 Trajecta 0.1.0-alpha.1 的平台、本地运行时、资料准备、结果接口、兼容规则和扩展预留。
 ---
 
-# Alpha release 范围
+# Alpha 发行范围
 
-`0.1.0-alpha.1` 提供从项目准备到 verified trajectory result 的完整本地流程。Alpha label 为
-首个 stable release 前的 public document 与 operational detail 调整保留空间。本页集中列出
-当前范围。
+`0.1.0-alpha.1` 提供从项目准备到验证轨迹结果的完整本地工作流。Alpha 阶段仍会继续完善公开
+文档和运维细节。本页集中列出当前发行范围。
 
 ## 已包含的工作流
 
-当前 release 支持：
+当前版本支持：
 
-1. Incremental machine 与 project configuration。
-2. Case 与 RunProfile validation 和 resolution。
-3. Deterministic data planning、inspection、locking 与 project finalization。
-4. 向 persistent local queue 进行 foreground 或 detached submission。
-5. 带 durable event 的 multi-job CPU 与 memory admission。
-6. Safe cancellation、force cancellation、rerun 与 restart recovery。
-7. Result inspection、quick 或 full verification、trajectory reading 与 Markdown report
-   generation。
-8. Windows x64 与 Ubuntu 24.04 x86-64 packaged execution。
+1. 渐进创建本机配置与项目配置。
+2. 校验并解析案例和运行配置。
+3. 可重复生成的资料计划、资料检查、资料锁和项目定稿。
+4. 向持久本地队列以前台或后台方式提交任务。
+5. 多任务 CPU 与内存准入，以及持久事件流。
+6. 安全取消、强制取消、重跑和重启恢复。
+7. 结果检查、快速与完整验证、轨迹读取和 Markdown 运行报告。
+8. 在 Windows x64 与 Ubuntu 24.04 x86_64 上使用发行包运行。
 
-支持的 meteorological family 为 CFSR pressure level、ERA5 pressure level 与 ERA5 hybrid
-model level。Package matrix 包含 regular release、dry-air-mass domain filling 与
-stratospheric-ozone domain filling。
+支持的气象资料系列为 CFSR 气压层、ERA5 气压层和 ERA5 混合模式层。发布包测试矩阵覆盖定时释放、
+干空气区域填充和平流层臭氧区域填充。
 
-## Local control plane
+## 本地控制面
 
-Daemon、worker process、job catalog 与 IPC endpoint 位于同一台机器。Detached mode 支持该
-机器上的后台任务，并能在 submitting terminal 关闭后继续运行。当前 command surface 不含
-remote host、network queue submission 和 distributed multi-node scheduling。
+守护进程、工作进程、任务数据库和 IPC 端点位于同一计算机。后台模式可以在本机继续运行，并在
+提交终端关闭后保持任务。当前命令树不包含远程主机提交或分布式多节点调度。
 
-一份 machine configuration 选择一个 local endpoint 与 catalog。多份配置可以描述分开的
-local queue，只需让 endpoint 和 catalog path 各自独立。
+一份本机配置选择一个本地端点和任务数据库。可以创建多份配置形成独立队列，但端点和任务数据库
+路径不能冲突。
 
 ## 资料准备
 
-Project 可以在 meteorological file 到达前完成配置。`project data-plan` 报告 missing 或 partial
-requirement，data 就绪后再显式运行 `project finalize`。
+气象文件到达前，项目可以先完成配置。`project data-plan` 会报告缺失或部分要求；资料到齐后，
+用户显式运行 `project finalize`。
 
-Optional download helper 是一项独立 Python tool：
+资料下载助手是独立 Python 工具：
 
 ```text
 python tools/fetch_trajecta_data.py --project PROJECT --plan DATA_PLAN
 ```
 
-Default mode 预览 provider request 与 target path，`--execute` 才执行下载。Provider credential
-从 official configuration 或 environment location 读取，不写入 Project、DatasetLock、log 或
-provenance。Helper 也不会创建 DatasetLock，仍由 explicit finalization 完成。
+默认模式只预览服务方请求与目标路径，`--execute` 才下载。服务方凭据从官方配置或环境位置读取，
+不会写入项目、资料锁、日志或溯源信息。资料锁仍由用户执行 `project finalize` 创建。
 
-## 结果产品
+## 结果产物
 
-Primary result 是包含 manifest、SQLite particle history、provenance bundle、resolved input 与
-optional Markdown report 的 run directory。Product command 提供 inspection、verification 与
-trajectory streaming。Version 1 SQLite schema 可用于 advanced read-only analysis。
+主要结果为运行目录，其中包含运行清单、SQLite 粒子历史、溯源信息、解析后输入和可选 Markdown
+报告。结果命令提供概览、验证和轨迹流。高级分析可以只读打开 SQLite 第 1 版结构。
 
-当前没有 general export command。后续 exporter 计划写入用户选择的 immutable run product
-外部目录，使 current result identity 不受 derived file 影响。
+图件、统计表、NetCDF 和其他派生产品写入用户指定的外部目录，使运行目录保持稳定。
 
-## Queue retention
+## 队列保留
 
-Daemon 重启后，complete 与其他 terminal attempt 继续保持终态。Rerun 由用户显式创建，并
-生成新 attempt。`job forget` 改变日常列表可见性，同时保留 catalog 与 artifact。
+守护进程重启后，完成及其他终态执行轮次继续保持终态。重跑必须显式请求，并创建新执行轮次。
+`job forget` 只改变日常列表可见性，任务数据库和文件继续保留。
 
-`job prune` 返回 `delete_enabled: false` 的 deterministic dry-run plan。`0.1.0-alpha.1` 没有
-应用该 plan 或删除 result directory 的命令。
+`job prune` 返回 `delete_enabled: false` 的确定性 `dry_run` 计划。`0.1.0-alpha.1` 不会通过该
+命令删除结果目录。
 
-## Extensibility
+## 扩展机制
 
-Plugin loading、plugin manifest 与 stable plugin API 尚未实现。预留的
-[Extensibility](../concepts/extensibility.md)页面说明后续设计需要保持的边界。现有 Rust trait
-属于 workspace 内的 contributor interface，不构成 loadable plugin mechanism。
+当前版本尚未实现插件加载、插件清单或稳定插件 API。[扩展机制](../concepts/extensibility.md)
+说明源码内现有边界，以及后续设计需要保留的运行标识与溯源关系。Rust trait 目前是工作区内部
+的贡献者接口。
 
-## Compatibility
+## 兼容规则
 
-| Surface | Alpha compatibility rule |
+| 接口 | Alpha 兼容规则 |
 | --- | --- |
-| Software version | M5.1 保持 `0.1.0-alpha.1`；普通 commit 不创建另一个 version |
-| Configuration 与 machine stream | 携带各自 `schema_version`；format change 使用新的 schema identity |
-| Case 与 RunProfile | 携带 current numeric document schema，并拒绝 unknown field |
-| SQLite | Public `user_version = 1` schema；external analysis 使用 read-only |
-| CLI | Public command tree 从 binary 生成，并与 frozen contract 校验 |
-| Rust crate | Contributor-facing，可以在 alpha series 中演进 |
+| 软件版本 | 当前发行版为 `0.1.0-alpha.1`；下一次明确发布前保持该版本 |
+| 本机配置与机器数据流 | 各自携带 `schema_version`；格式变化使用新的格式版本 |
+| 案例与运行配置 | 携带当前数字文档版本，并拒绝未知字段 |
+| SQLite | 公开 `user_version = 1`；外部分析采用只读连接 |
+| CLI | 公开命令树由二进制生成，并与冻结约定校验 |
+| Rust crate | 面向贡献者，Alpha 阶段可以调整内部组织 |
 
-Future release 引入另一个 identifier 时，alpha schema change 可能带有 documented migration。
-Resolved document 与 result artifact 保持原 identity，不会因安装较新 binary 而被静默改写。
+未来版本若引入新的格式版本，可能需要相应的迁移步骤。已有解析后文档和结果产物保留原始版本与摘要，
+安装新二进制不会静默改写它们。
 
-## Validation 范围
+## 验证范围
 
-Clean-package product validation 覆盖两个发布平台，以及[平台参考](platforms.md)中的 matrix。
-Scientific 与 performance measurement 使用 [Validation](../validation/index.md)所述冻结一小时
-ERA5 对比。使用其他 duration、domain、dataset resolution 或 physical module 的研究，可以
-加入符合自身 workflow 的 validation case。
+全新解压的发布包测试覆盖两个已发布平台及[平台参考](platforms.md)中的矩阵。科学和性能测量采用
+[验证章节](../validation/index.md)所述的一小时 ERA5 案例。使用其他时长、区域、资料分辨率或
+物理模块的研究，可以增加适合自身工作流的验证案例。

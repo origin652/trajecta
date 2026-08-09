@@ -1,69 +1,77 @@
 ---
-title: 定时 release 教程
-description: 使用明确的事件时刻、geometry、高度、粒子数和 tracer 质量运行确定性点源 release。
+title: 定时释放教程
+description: 设置点源释放的时刻、位置、高度、粒子数量和示踪物质量，并读取释放粒子的轨迹结果。
 ---
 
-# 定时 release 教程
+# 定时释放教程
 
-Release Case 从一个源事件开始。事件声明粒子的出生时段、水平与垂直位置、创建数量，以及
-携带的命名物质质量。已知源区、注入过程、观测站或受体实验都可以采用这种 population
-模型。
+释放型案例从一个源事件开始。事件规定粒子何时生成、从哪里出发、位于什么高度、生成多少粒子，
+以及这些粒子合计携带多少指定物质。已知排放源、注入过程、观测点或受体试验，都可以从这种
+粒子群开始。
 
-示例项目在经度 0°、纬度 0°、海拔 1,000 m 的位置创建 1,000 个粒子。所有粒子出生于
-2009 年 1 月 1 日 06:00 UTC，共同携带一千克名为 `water` 的 tracer，并在全球 CFSR
-气象场中向前运行十分钟。
+本例在东经 0°、北纬 0°、海拔 1,000 米的位置生成 1,000 个粒子。所有粒子于
+2009 年 1 月 1 日 06:00 UTC 同时生成，共同携带 1 千克名为 `water` 的示踪物，随后在全球
+CFSR 风场中正向积分十分钟。
 
-## 阅读 Case
+## 阅读案例
 
-完整科学配置直接来自示例项目：
+完整配置直接取自示例项目：
 
 --8<-- "examples/release-cfsr/cases/release.yaml"
 
-Case 与 domain-fill 示例采用相同的数值步、全球边界规则、端点输出和 CFSR 时段。
-Population 部分则改为：
+数值步长、全球边界规则、端点输出和气象时段与区域填充示例相同，主要差别位于
+`particle_population`：
 
-| Release 字段 | 示例值 |
-|---|---|
-| Population ID | `release` |
-| Event ID | `event` |
-| Event interval | 2009-01-01 06:00 UTC 这一时刻 |
-| 粒子数 | 1,000 |
-| 物质质量 | 整个事件共 1 kg `water` |
-| 水平 geometry | Inline GeoJSON point `[0, 0]` |
-| 垂直坐标 | 固定海拔 1,000 m |
-| 随机种子 | 4201 |
+| 释放设置 | 本例取值 |
+| --- | --- |
+| 粒子群 ID | `release` |
+| 事件 ID | `event` |
+| 释放时间 | 2009-01-01 06:00 UTC 的单一时刻 |
+| 粒子数量 | 1,000 |
+| 物质质量 | 整个事件合计 1 kg `water` |
+| 水平几何 | 内嵌 GeoJSON 点 `[0, 0]` |
+| 垂直位置 | 海拔 1,000 m |
+| 随机种子 | `4201` |
 
-`substances` 将稳定标识符 `water` 与可读名称关联起来。结果表使用该标识符作为粒子质量
-列的键。
+`substances` 为 `water` 提供稳定标识和可读名称。结果表使用稳定标识作为粒子物质质量的键。
 
-## 理解事件分配
+## 粒子如何分配
 
-### 时间与质量
+### 释放时间
 
-当 `start` 等于 `end` 时，所有粒子的 birth time 相同。事件覆盖非零时段时，Trajecta
-会在区间内分配确定性的分层出生时刻。Event 内的粒子 ordinal 与 Case seed 共同确定
-schedule，因此 worker 执行顺序不会改变出生时刻。
+当事件的 `start` 与 `end` 相同时，全部粒子在同一时刻生成。若两个时刻不同，Trajecta 会在
+该区间内按分层方式分配确定的出生时间。事件内序号和案例随机种子共同决定分配结果，因此工作
+线程的执行顺序不会改变粒子的释放时间。
 
-每种命名物质的质量按粒子数分配。本教程前 999 个粒子使用常规浮点份额 0.001 kg，最后
-一个份额补偿舍入余量，使保存的粒子质量合计为声明的一千克。
+释放区间必须位于模拟时段内。正向案例按时间增加方向经过事件，反向案例按时间减少方向经过事件。
+改变方向时，需要同时检查模拟起止时间和所有释放事件。
 
-Release 粒子不表示干空气载体，因此 `dry_air_mass_kg` 为零。科学 payload 保存在
-`particle_mass` 中，并以 particle 与 substance 为键。
+**示踪物质量**
 
-### Geometry 与垂直位置
+每种物质的事件总质量按粒子数分配。本例中，绝大多数粒子的 `water` 质量为 0.001 kg，最后一份
+会补偿浮点除法产生的微小余量，使全部粒子质量之和严格对应声明的 1 kg。
 
-`Point` 会把全部粒子放在同一经纬度。其他可用 GeoJSON 类型包括 `MultiPoint`、
-`LineString`、`MultiLineString`、`Polygon` 和 `MultiPolygon`。对应的采样权重分别来自
-等点权、球面大圆线长或球面多边形面积。Geometry 可以直接写入 Case，也可以从项目内
-相对路径指向 `.geojson` 文件。
+释放粒子的干空气载体质量为零，科学载荷保存在 `particle_mass` 表中，并通过粒子 ID 和物质 ID
+关联。包含多种物质时，每个粒子可以有多条质量记录。
 
-垂直位置支持海拔高度、距地高度和气压。缺少 upper bound 时采用固定值；同时提供 lower
-与 upper 时在闭区间中采样。距地高度和气压 release 会在粒子准确的出生位置与时刻查询
-气象资料，解析为几何海拔后再开始输送。
+### 水平几何和垂直位置
 
-## 准备共享 CFSR 资料
+GeoJSON `Point` 会把全部粒子放在同一经纬度。还可使用 `MultiPoint`、`LineString`、
+`MultiLineString`、`Polygon` 和 `MultiPolygon`。不同几何采用相应的抽样权重：
 
-Release 项目使用快速入门的同一四帧资产。把文件复制到它的本地 data root：
+- 多点按点等权抽样；
+- 线按球面大圆弧长度抽样；
+- 多边形按球面面积抽样。
+
+简单几何可以直接写在案例中。较复杂的源区可保存为项目内的 `.geojson` 文件，并用项目相对
+路径引用。
+
+垂直位置支持海拔高度、离地高度和气压。只给下界时表示固定位置；同时给出上下界时，会在闭区间
+内抽样。离地高度和气压释放需要在每个粒子的具体出生位置与时刻查询气象资料，然后再开始输送。
+
+## 准备共用的 CFSR 资料
+
+释放项目可以复用快速入门下载的四个 CFSR 文件。把文件复制到该项目的资料目录：
 
 === "Windows PowerShell"
 
@@ -78,7 +86,7 @@ Release 项目使用快速入门的同一四帧资产。把文件复制到它的
     cp examples/domain-fill-cfsr/data/* examples/release-cfsr/data/
     ```
 
-随后校验并查看 requirement：
+随后校验项目、生成资料计划并预览本地状态：
 
 ```text
 trajecta --project examples/release-cfsr project validate
@@ -86,28 +94,28 @@ trajecta --project examples/release-cfsr project data-plan --output release-plan
 python tools/fetch_trajecta_data.py --project examples/release-cfsr --plan release-plan.json
 ```
 
-该 population 请求 `transport` 与 `near_surface_transport`。初始位置来自 release
-geometry，因此 requirement 中没有 `domain_fill` capability。
+释放型粒子群只需要 `transport` 和 `near_surface_transport`。初始位置由释放几何直接给出，
+因此无需 `domain_fill` 能力。
 
-创建 DatasetLock 并运行 deep local check：
+创建该项目自己的资料锁，并运行深度环境检查：
 
 ```text
 trajecta --project examples/release-cfsr project finalize
 trajecta --project examples/release-cfsr doctor --deep
 ```
 
-即使底层 CFSR 文件来自 domain-fill 项目或共享目录，新建的 `locks/cfsr.lock.json` 仍属于
-当前 release 项目。
+即使底层 CFSR 文件来自另一个项目或共享目录，`locks/cfsr.lock.json` 仍属于当前项目。它记录
+本次运行配置实际选择的文件清单和内容散列。
 
-## 运行 release
+## 运行释放案例
 
-以前台方式提交 Profile：
+以前台方式提交 `product`：
 
 ```text
 trajecta --project examples/release-cfsr run --profile product
 ```
 
-后续命令使用运行返回的结果目录：
+将命令给出的结果目录代入以下命令：
 
 ```text
 trajecta result verify RESULT --full
@@ -115,67 +123,66 @@ trajecta result inspect RESULT
 trajecta run report --result RESULT
 ```
 
-示例的 endpoint schedule 包含两个 output event。初始事件中会出现全部 1,000 个粒子；
-仍位于垂直模式范围内的粒子也会出现在末端事件。Inspect summary 给出准确状态行数和全部
-正常终止统计。
+端点计划会产生两个输出事件。初始事件应包含全部 1,000 个粒子；仍在可用垂直范围内的粒子还会
+出现在终点事件中。摘要会给出实际状态行数和正常终止统计。
 
-## 读取 origin 与 tracer 质量
+## 读取来源和物质质量
 
-### Population 和质量记录
+### 粒子群与质量记录
 
-Release 粒子的 `origin_kind` 为 `release`，`origin_event_id` 为 `event`。离开源点后，
-这个 origin 仍随粒子保存。`particle_mass` 为每个粒子保存一条 `water` 记录；
-`particle_state` 保存随时间变化的位置、输送字段、状态和终止信息。
+释放粒子的 `origin_kind` 为 `release`，`origin_event_id` 为 `event`。粒子离开源点后，这一来源
+仍然保留。`particle_mass` 为每个粒子保存一条 `water` 质量记录，`particle_state` 则保存随时间
+变化的位置、输送状态和终止信息。
 
-Run report 汇总声明质量与粒子表示的物质质量。多事件 Case 可以按 origin event ID 聚合
-轨迹和质量，无需根据时间戳反推 release 来源。
+在多事件案例中，可以按 `origin_event_id` 分组轨迹和质量，无需根据时间戳猜测粒子属于哪次
+释放。运行报告还会汇总各物质声明的总质量和结果中实际表示的质量。
 
-### 单粒子轨迹
+### 单个粒子轨迹
 
-一次读取三条路径：
+一次读取三个粒子：
 
 ```text
 trajecta result trajectory RESULT --particle-id 0 --particle-id 1 --particle-id 2
 ```
 
-初始事件中，三个粒子共享相同位置和高度，各自的 stable ID 与质量行仍彼此独立。末端记录
-展示局地风场在两个积分步内使它们分离或保持共位的情况。
+三者在初始事件拥有相同位置和高度，但粒子 ID 与质量记录相互独立。终点记录会显示局地风场是否
+使它们分离。随机过程固定后，相同输入会产生稳定的粒子 ID 和释放分配。
 
-较大的选择可以采用 JSONL，避免在内存中组装一个很大的响应：
+读取大量粒子时，可使用 JSONL 避免在内存中构造一个大型 JSON 响应：
 
 ```text
 trajecta --format jsonl result trajectory RESULT --all
 ```
 
-外部分析工具需要读取完整结果时，可以把 stream 重定向到分析文件。
+外部分析程序可以把该流重定向到单独文件，或逐行处理。
 
-## 调整 release 设计
+## 修改释放设计
 
-### 增加时段或多个事件
+### 连续释放和多个事件
 
-设置不同的 `start` 与 `end` 可以表达持续 release。声明的粒子数会分布在该区间内，每个
-粒子拥有准确 birth time。模拟区间需要沿所选方向包含相关 event time。
+将事件 `start` 与 `end` 设为不同时间，即可表示一个持续释放区间。声明的粒子数会在区间内获得
+各自确定的出生时刻。模拟时段必须沿所选积分方向覆盖这些事件。
 
-在 `events` 下增加条目，可以描述不同源时段、位置、物质或高度。每个事件使用稳定且唯一
-的 ID，并拥有自己的粒子数和质量 map；所有事件共享 population seed 与 Case numerics。
+`events` 下可以增加多个条目，分别描述不同时间、位置、物质或高度。每个事件需要唯一且稳定的
+ID，并拥有自己的粒子数和质量映射；案例的数值设置和粒子群随机种子由这些事件共用。
 
-Event time 改变以后重新生成 data-plan。气象 coverage 需要覆盖全部出生时刻和随后的轨迹
-区间。
+事件时间变化后，应重新生成资料计划，确保气象覆盖包含每个出生时刻和后续轨迹区间。
 
-### 更换 geometry 或垂直坐标
+### 复杂源区
 
-复杂线段或多边形可以保存在项目相对路径的 GeoJSON 文件中。Resolved run 会记录源文件
-散列和 canonical geometry hash。点或较短的坐标列表适合直接写入 Case。
+详细的线源或面源适合放在项目内的 GeoJSON 文件中。解析后的运行会记录源文件 SHA-256 和规范化
+几何散列。点源或很短的坐标列表直接写入案例更便于阅读。
 
-源高度随地形变化时选择 `above_ground`，绝对几何海拔则选择 `above_sea_level`。以等压面
-描述的源可以选择 pressure。Lower 与 upper 同时存在时，release 会覆盖一个垂直层，而非
-单一表面。
+`above_ground` 适用于随地形起伏的离地高度；`above_sea_level` 表示绝对海拔。源项按等压面
+描述时可选择气压坐标。给出上下界后，释放位置会覆盖一个垂直层。
 
-粒子数控制 release 的空间与时间采样。物质总质量仍取 event 声明值，因此增加粒子后，
-每粒子质量会降低。输出 cadence 与运行时长随后决定这些粒子产生的状态行数。
+**调整粒子数和输出**
 
-## 后续步骤
+粒子数决定源项在时间、水平和垂直方向上的采样密度。事件总质量保持不变，粒子越多，每个粒子
+分得的质量越小。最终状态行数还取决于运行时长和输出频率。扩大粒子群前，可以先确定分析所需
+的时间分辨率，避免保存大量不会使用的中间状态。
 
-[Air-mass 教程](air-mass.md)会回到 domain filling，并引入通过项目 plan 下载的有限域
-ERA5 资料。[Population 概念](../concepts/populations.md)集中比较 release、air-mass 与
-ozone lifecycle。
+## 接下来
+
+[气团输送教程](air-mass.md)回到区域填充粒子群，并使用从资料计划下载的有限区域 ERA5 气压层
+资料。[粒子群模型](../concepts/populations.md)集中比较释放、气团和臭氧粒子的生成与生命周期。

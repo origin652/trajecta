@@ -1,28 +1,28 @@
 ---
-title: Project、Case、RunProfile 与 DatasetLock 参考
-description: 查找 Trajecta 项目关系、文档字段、路径规则、draft 状态、data plan、lock 与 finalize 行为。
+title: 项目、案例、运行配置与资料锁参考
+description: 查阅 Trajecta 项目关系、文档字段、路径规则、草稿状态、资料计划、资料锁和项目定稿行为。
 ---
 
-# Project、Case、RunProfile 与 DatasetLock
+# 项目、案例、运行配置与资料锁
 
-Trajecta 将 portable scientific intent、machine-local execution 与 run 使用的准确气象文件分开
-保存。Project 通过名称连接这些部分，同时让每份 source document 保持独立可读。
+Trajecta 将可移植的科学设置、本机执行环境和实际使用的气象文件分别保存。项目通过名称连接这些部分，
+每份源文档仍可单独阅读和校验。
 
 ## 文档职责
 
-| 文档 | 格式 | 主要职责 | 创建或读取它的命令 |
+| 文档 | 格式 | 主要作用 | 创建或读取命令 |
 | --- | --- | --- | --- |
-| Project index | YAML，`trajecta-project.yaml` | 命名 Case 与 Profile，选择 dataset profile，记录 optional default Profile | `project init`、`project get/set`、`project validate`、`project finalize` |
-| Case | YAML 或 JSON | 定义 scientific time、meteorology requirement、population、numerics、physics 与 output schedule | `case validate`、`case resolve`、project validation、worker |
-| RunProfile | YAML 或 JSON | 选择一个 Case，并提供 local output、dataset binding、reader 与 resource | Project validation、finalization、scheduler、worker |
-| Data plan | JSON，`trajecta.data-plan/v1` | 列出确定性 file 与 capability requirement，以及 current local status | `project data-plan` |
-| DatasetLock | JSON | 将一个 logical dataset 绑定到 immutable local file、hash、coverage 与 capability | `data lock`、`project finalize`、`doctor --deep`、worker |
-| Resolved Case | JSON result artifact | 完整展开 Case component 并记录 source digest | `case resolve`、run admission、worker |
-| Resolved RunProfile | JSON result artifact | Canonicalize local path，并记录准确 execution binding | Run admission 与 worker |
+| 项目索引 | YAML，`trajecta-project.yaml` | 登记案例与运行配置，选择内置资料配置，保存可选默认运行配置 | `project init`、`project get/set`、`project validate`、`project finalize` |
+| 案例（`Case`） | YAML 或 JSON | 定义科学时间、气象要求、粒子群、数值方法、物理过程和输出计划 | `case validate`、`case resolve`、项目校验、工作进程 |
+| 运行配置（`RunProfile`） | YAML 或 JSON | 选择一个案例，提供本机结果目录、资料绑定、读取器和资源 | 项目校验、项目定稿、调度器、工作进程 |
+| 资料计划 | JSON，`trajecta.data-plan/v1` | 列出所需资料与能力，以及当前本地状态 | `project data-plan` |
+| 资料锁（`DatasetLock`） | JSON | 将逻辑资料绑定到不可变本地文件、散列、覆盖和能力 | `data lock`、`project finalize`、`doctor --deep`、工作进程 |
+| 解析后案例 | 结果目录中的 JSON | 展开全部案例组件，并记录源摘要 | `case resolve`、运行准入、工作进程 |
+| 解析后运行配置 | 结果目录中的 JSON | 规范化本机路径，并记录实际执行绑定 | 运行准入、工作进程 |
 
-## Project index
+## 项目索引
 
-Project index 使用 schema identity `trajecta.project-index/v1`。
+项目索引的格式版本为 `trajecta.project-index/v1`：
 
 ```yaml
 schema_version: trajecta.project-index/v1
@@ -44,58 +44,54 @@ default_profile: wet-local
 
 ### 字段
 
-| Field | Constraint | 含义 |
+| 字段 | 约束 | 含义 |
 | --- | --- | --- |
-| `schema_version` | 准确等于 `trajecta.project-index/v1` | Index format identity |
-| `name` | Non-empty string | Human project name |
-| `cases` | Mapping，name 与 path 非空且唯一 | Case name 到 project-relative document path |
-| `profiles` | Mapping，name 非空且唯一 | Runnable Profile entry |
-| `profiles.<name>.path` | Non-empty project-relative path | Entry 选择的 RunProfile document |
-| `profiles.<name>.dataset_profiles` | Logical dataset ID 到 named profile 的 mapping | 为每个 Case dataset 选择 preparation 与 lock behavior |
-| `profiles.<name>.template` | Optional non-empty name | 准备期间使用的 machine configuration Profile template |
-| `profiles.<name>.template_sha256` | 与 `template` 同时出现；64 个 hexadecimal character | Selected template content identity |
-| `default_profile` | Optional existing Profile name | Project-aware command 允许省略 selection 时采用的 Profile |
+| `schema_version` | 必须为 `trajecta.project-index/v1` | 项目索引格式版本 |
+| `name` | 非空字符串 | 项目的人类可读名称 |
+| `cases` | 名称与路径均非空且唯一的映射 | 案例名称到项目相对文档路径 |
+| `profiles` | 名称非空且唯一的映射 | 可以提交运行的配置条目 |
+| `profiles.<name>.path` | 非空项目相对路径 | 该条目选择的运行配置文档 |
+| `profiles.<name>.dataset_profiles` | 逻辑资料 ID 到内置资料配置名称的映射 | 为案例中的每项资料选择准备与锁定规则 |
+| `profiles.<name>.template` | 可选非空名称 | 准备期间采用的本机运行模板 |
+| `profiles.<name>.template_sha256` | 使用 `template` 时必需；64 位十六进制 | 所选模板的内容散列 |
+| `default_profile` | 可选，必须引用已有运行配置 | 允许省略选择时采用的默认配置 |
 
-同一 mapping level 中的 key 保持唯一。Typed index conversion 前会拒绝 duplicate YAML mapping
-key，其中也包括 `dataset_profiles` 内的重复项。
+同一映射层中的键必须唯一。原始 YAML 在转换为类型化索引前就会检查重复键，包括
+`dataset_profiles` 中的嵌套重复。
 
-## Case 与 Profile 的关系
+## 案例与运行配置的关系
 
-一个 project 可以包含多个 Case 和多个 Profile。每个 Profile entry 选择一份 RunProfile
-document，其中的 `case_path` 再选择一个 indexed Case。多个 Profile 可以引用同一个 Case，
-从而表达不同 reader、thread、memory 或 output choice。
+项目可以包含多个案例和多个运行配置。每个项目运行配置条目选择一份 `RunProfile` 文档，该文档
+的 `case_path` 再选择一个已登记案例。多个运行配置可以指向同一案例，用于比较读取器、线程、
+内存或结果目录。
 
-一个 Profile 不会展开到多个 Case。需要以两种机器配置运行四个 Case 时，可以为需要的组合
-建立单独 named Profile entry。每次 run receipt 由此对应一个 resolved Case 和一个 resolved
-RunProfile。
+单个运行配置条目只选择一个案例。四个案例分别在两种机器设置下运行时，可以登记八个带名称的组合。
+每份提交回执由此明确对应一个解析后案例和一个解析后运行配置。
 
-Selected Case 使用的 logical dataset identifier 应出现在 Profile entry 的
-`dataset_profiles` mapping 中。缺少 mapping 或出现额外 mapping 时，project validation 与
-finalize preflight 会返回相应 diagnostic。
+案例使用的所有逻辑资料 ID 都必须出现在该运行配置条目的 `dataset_profiles` 中。多余或缺失映射
+会在项目校验或定稿前检查中报告。
 
-## Case document
+## 案例文档
 
-Case 使用当前 numeric Case schema version 和 `kind: case`。Top-level object 会拒绝 unknown
-field。
+案例采用当前数字结构版本，并设置 `kind: case`。顶层对象拒绝未知字段。
 
-| Field | 职责 |
+| 字段 | 作用 |
 | --- | --- |
-| `schema_version` | Numeric Case document contract version |
-| `kind` | `case` |
-| `metadata` | Metadata contract 支持的 name、description、authorship 或 label |
-| `time` | Direction、start/end instant、transport step 与 output timing requirement |
-| `meteorology` | Domain、logical dataset reference、required field、coverage 与 vertical interpretation |
-| `particle_population` | Release、air-mass、ozone 或 domain-fill initialization 与 lifecycle setting |
-| `substances` | Tracked substance definition 与 initial mass relationship |
-| `numerics` | Integration 与 boundary-control setting |
-| `physics` | Selected physical module 及其 parameter |
-| `outputs` | Product 与 output-event specification |
+| `schema_version` | 案例文档数字结构版本 |
+| `kind` | 固定为 `case` |
+| `metadata` | 名称、说明、作者或元数据约定支持的标签 |
+| `time` | 方向、起止时刻、输送步长和输出时间要求 |
+| `meteorology` | 区域、逻辑资料引用、必需字段、覆盖和垂直解释 |
+| `particle_population` | 释放、气团、臭氧或区域填充的初始化与生命周期 |
+| `substances` | 跟踪物质定义和初始质量关系 |
+| `numerics` | 积分器和边界控制设置 |
+| `physics` | 所选物理模块及参数 |
+| `outputs` | 产品和输出事件设置 |
 
-Component 可以 inline，也可以引用 local component document。`case resolve` 会展开 reference，
-normalize value，并记录每个 source digest。Worker 接收 resolved form，因此 source component
-在 admission 之后的编辑不会改变该 attempt 的内容。
+组件可以内嵌，也可以引用项目内组件文档。`case resolve` 会展开引用、规范化数值并记录每个源
+摘要。工作进程接收解析后形式，因此源组件在任务准入后发生修改，不会改变该执行轮次。
 
-Validation intent 改变 minimum complete shape：
+校验意图决定文档至少需要哪些部分：
 
 ```text
 trajecta case validate cases/study.yaml --intent simulation
@@ -103,102 +99,96 @@ trajecta case validate cases/study.yaml --intent met-probe
 trajecta case validate cases/study.yaml --intent migration
 ```
 
-Simulation intent 要求 numerical run 所需 component。Meteorological probe 可以使用更小的
-Case，集中描述 query coverage。Migration intent 用于 document conversion check。
+`simulation` 要求数值运行所需的完整组件。`met-probe` 可以使用只关注气象查询覆盖的较小案例。
+`migration` 用于文档转换检查。
 
-## RunProfile document
+## 运行配置文档
 
-RunProfile 使用当前 numeric Case schema version 和 `kind: run_profile`。
+运行配置采用当前数字结构版本，并设置 `kind: run_profile`。
 
-| Field | 职责 |
+| 字段 | 作用 |
 | --- | --- |
-| `schema_version` | Numeric RunProfile contract version |
-| `kind` | `run_profile` |
-| `metadata` | Descriptive Profile metadata |
-| `case_path` | 指向一个 selected Case 的 local path |
-| `output_root` | 创建 unique run 与 attempt directory 的 root |
-| `datasets` | Logical dataset binding，其中包含 lockfile、root、optional cache root 与 reader override |
-| `profile_sources` | Meteorological reader 使用的 explicit Profile file 或 non-recursive directory source |
-| `execution.worker_threads` | Positive scheduler CPU request |
-| `execution.memory_budget_bytes` | 以 byte 表示的 positive scheduler memory request |
-| `execution.executor` | Non-empty executor identity |
-| `execution.meteorology_reader` | Binding 未 override 时采用的 default `rust` 或 `native` reader |
+| `schema_version` | 运行配置数字结构版本 |
+| `kind` | 固定为 `run_profile` |
+| `metadata` | 运行配置说明信息 |
+| `case_path` | 指向唯一所选案例的本地路径 |
+| `output_root` | 创建独立运行和执行轮次目录的根路径 |
+| `datasets` | 逻辑资料绑定，含资料锁、根目录、可选缓存目录和可选读取器覆盖 |
+| `profile_sources` | 气象读取器使用的明确配置文件或非递归目录源 |
+| `execution.worker_threads` | 正数 CPU 调度请求 |
+| `execution.memory_budget_bytes` | 以字节表示的正数内存请求 |
+| `execution.executor` | 非空执行器标识 |
+| `execution.meteorology_reader` | 没有单项覆盖时采用的 `rust` 或 `native` 读取器 |
 
-Resolved RunProfile 会 canonicalize local path，并记录 source digest。Memory budget 向上取整到
-MiB 后用于 queue admission。Dataset binding 可以为一个 logical dataset override Profile
-reader。
+解析后运行配置会规范化本机路径，并记录源摘要。内存预算在队列准入时向上取整到 MiB。单项资料
+绑定可以为一个逻辑资料覆盖运行配置的默认读取器。
 
-## Project 路径规则
+## 项目路径规则
 
-Project index 中的路径遵守 lexical 与 canonical project jail：
+项目索引中的路径同时经过词法和规范化范围检查：
 
-- 路径相对于 project root；
-- Index 使用 `/` 作为 portable separator；
-- Empty component、repeated separator、`.` segment 与 `..` segment 会被拒绝；
-- Absolute path 和 normalize 后越过 root 的路径会被拒绝；
-- 已存在 filesystem object 的 canonicalization 也不能越过 project root。
+- 路径以项目根目录为基准；
+- 项目索引使用 `/` 作为可移植分隔符；
+- 空路径段、重复分隔符、`.` 与 `..` 路径段会被拒绝；
+- 绝对路径和规范化后越过项目根目录的路径会被拒绝；
+- 已存在文件经规范化解析后也不能通过符号链接越过项目根目录。
 
-`project set` 在写入前校验 resulting complete index。路径被拒绝后，index byte 保持不变，
-project 外也不会创建文件。
+`project set` 会先校验修改后的完整索引再写入。路径被拒绝时，索引字节保持不变，也不会在项目外
+创建文件。
 
-RunProfile data root 与 output root 是 resolved Profile contract 中的 machine-local path。Public
-project format 要求 project-relative path 时，project preparation 会让 generated plan 和 lock
-path 保持相对形式。
+运行配置中的资料目录和结果目录描述当前计算机的本地路径。公开项目格式要求的资料计划和资料锁
+路径仍使用项目相对形式。
 
-## Draft、configured 与 finalized
+## 草稿、已配置与已定稿
 
 | 状态 | 含义 | 可进行的工作 |
 | --- | --- | --- |
-| `draft` | 一个或多个 required Case / Profile value 仍缺失 | 继续 incremental `project set`，查看 partial status |
-| `configured` | Document 能解析和 resolve，data、lock 或 output preparation 仍未完成 | 生成 data plan，准备文件并运行 validation |
-| `finalized` | Required document、lock、capability、coverage 与 output root 已就绪 | 运行 doctor 并提交 selected Profile |
+| `draft` | 案例或运行配置仍缺少必填值 | 继续使用 `project set` 补充字段，查看部分状态 |
+| `configured` | 文档可解析，资料、资料锁或结果目录尚待准备 | 生成资料计划、准备文件并校验 |
+| `finalized` | 文档、资料锁、能力、覆盖和结果目录均已就绪 | 运行 `doctor`，并提交运行配置 |
 
-增量设置期间，缺少 required RunProfile value 可以保持 draft。Unknown field、wrong type、
-duplicate key 和 semantic Case error 会报告为 document error，不会当成 draft field。
+运行配置缺少必填值时可以保持草稿。未知字段、错误类型、重复键和案例语义错误会作为文档错误返回。
 
-## Data plan
+## 资料计划
 
 ```text
 trajecta --project PROJECT project data-plan
 trajecta --format json --project PROJECT project data-plan --output data-plan.json
 ```
 
-Plan 从 selected Case 派生 temporal 与 spatial coverage，再按 dataset 与 capability 列出
-requirement。它会报告 current local state 为 missing、partial 或 ready。Requirement、root 与
-capability 使用确定性排序，因此相同 project state 会产生相同 plan byte。
+资料计划根据所选案例推导时空覆盖，再按资料和能力列出要求。它会报告本地状态为 `missing`、
+`partial` 或 `ready`。要求、根目录和能力采用确定顺序，因此项目状态相同会产生相同计划字节。
 
-Project 可以在资料到达前完成配置。Plan 描述准备内容，不创建 DatasetLock。文件就绪后，
-explicit finalization 会读取真实 metadata 与 content。
+项目可以在资料到达前处于 `configured`。计划只描述需要准备的内容，不创建资料锁。文件到齐后，
+执行项目定稿时会读取实际元数据和文件内容。
 
-## DatasetLock 与 finalization
+## 资料锁与项目定稿
 
-DatasetLock 记录：
+资料锁记录：
 
-- Schema 与 dataset-profile identity；
-- Coverage interval 与 spatial capability set；
-- 每个 selected file 的 relative path、size 与 SHA-256；
-- 解析 locked path 使用的 named local root；
-- 校验 binding 所需的 reader 与 metadata。
+- 结构版本和内置资料配置散列；
+- 覆盖区间与空间能力集合；
+- 每个文件的相对路径、大小和 SHA-256；
+- 解析锁定路径所需的本地根目录名称；
+- 验证资料绑定所需的读取器和元数据。
 
-`data lock` 根据 root、profile 与 Case 直接构建一个 lock：
+`data lock` 可以根据资料根、内置资料配置和案例直接构建一份锁：
 
 ```text
 trajecta data lock --root DATA --profile PROFILE --case CASE --output LOCKFILE
 ```
 
-`--replace` 允许在完整 build 成功后替换已有 output。未使用该 option 且 lock 已存在时，命令
-返回 `data.lock_exists`。
+目标已存在时，默认返回 `data.lock_exists`。加入 `--replace` 后，只有完整构建成功才替换旧文件。
 
-Project finalization 会一起处理全部 selected mapping：
+项目定稿会一次处理全部所选映射：
 
 ```text
 trajecta --project PROJECT project finalize
 ```
 
-它会校验 index 与 referenced document，检查 Profile-to-Case selection，读取 data root，派生
-required coverage 与 capability，构建 candidate lock，并检查 output root。Complete preflight
-成功后才替换已有 lockfile。Preflight 失败会返回 nested diagnostic，同时保留 previous lock
-byte。
+它会校验项目索引和引用文档，检查运行配置与案例的选择关系，扫描资料目录，推导所需覆盖与能力，
+构建候选资料锁，并检查结果目录。全部预检通过后才替换现有资料锁；预检失败会返回嵌套诊断，并
+保留旧文件字节。
 
-修改 Case、Profile、mapping、template identity 或 locked input file 会使旧 binding 过期。
-提交该 Profile 前，可以生成新 plan，准备变化的文件，再次运行 finalize。
+案例、运行配置、资料映射、模板散列或锁定文件发生变化后，旧绑定会失效。下一次提交前需要重新
+生成资料计划，准备变化的文件并重新完成项目定稿。

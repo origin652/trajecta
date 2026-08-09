@@ -1,141 +1,138 @@
 ---
-title: 取消、重跑、隐藏和审阅 Trajecta 清理计划
-description: 停止 queued 或 running attempt，在同一 job series 中创建新 attempt，隐藏终态任务并查看 dry-run prune 计划。
+title: 取消、重跑、隐藏与清理预览
+description: 停止排队或运行中的任务，在同一任务系列中创建新执行轮次，隐藏终态任务，并查看只读清理计划。
 ---
 
-# 取消、重跑、隐藏与清理计划
+# 取消、重跑、隐藏与清理预览
 
-Trajecta 为每个已接收的 attempt 保存持久化历史。生命周期命令可以改变队列状态，或创建新的
-attempt；较早的结果目录继续保留，便于将中断运行与后续成功运行放在一起检查。
+Trajecta 会持久保存每个已接受任务的执行历史。生命周期命令可以改变队列状态，或在同一任务系列
+中创建新的执行轮次。旧结果目录会继续保留，便于将中断运行与之后成功的运行放在一起检查。
 
-操作前先记录当前快照：
+开始操作前，先保存当前快照：
 
 ```text
 trajecta --format json job status JOB_ID
 ```
 
-本页的 `JOB_ID` 指 job series ID。快照中包含当前 `run_id`、attempt 序号、状态和输出目录。
+本页的 `JOB_ID` 指任务系列 ID。快照会显示当前 `run_id`、执行轮次编号、状态和结果目录。
 
-## 请求安全取消
+## 安全取消
 
-常规 cancel 采用协作式停止：
+常规取消采用协作方式：
 
 ```text
 trajecta job cancel JOB_ID
 ```
 
-不同当前状态对应以下行为：
+不同状态下的行为如下：
 
-| 当前状态 | 安全取消行为 |
+| 当前状态 | 安全取消的处理 |
 | --- | --- |
-| `queued` | 从待 dispatch 队列移出，并记录 `cancelled` |
-| `starting` 或 `running` | 记录 `cancelling`，worker 在 macro-step 边界读取请求 |
+| `queued` | 从待派发队列中移除，状态变为 `cancelled` |
+| `starting` 或 `running` | 记录 `cancelling`，工作进程在数值宏步边界响应 |
 | `cancelling` | 返回当前取消状态 |
-| 任一终态 | 返回已有终态快照 |
+| 已到达终态 | 返回已有终态快照 |
 
-到达数值安全点后，worker 停止推进粒子，完成当前已有的部分结果，对输出数据库执行
-checkpoint，随后进入 `cancelled`。因此，停止时间主要取决于到达并收尾当前 macro-step 所需
-的工作量。
+工作进程到达安全点后停止推进粒子，收尾已生成的部分结果，对输出数据库执行检查点，并进入
+`cancelled`。实际等待时间取决于完成和关闭当前数值宏步所需的时间。
 
-可以在另一个终端观察转换：
+另开终端观察状态：
 
 ```text
 trajecta job events JOB_ID --follow
 trajecta job wait JOB_ID
 ```
 
-`job wait` 对 cancelled 终态返回退出码 `1`。结果目录仍可交给 `result inspect` 和 forensic
-检查。
+`job wait` 在 `cancelled` 终态返回退出码 `1`。结果目录仍可由 `result inspect` 读取，也可用于
+分析取消前已经写入的内容。
 
-## 强制停止无响应的 worker
+## 强制停止无响应的工作进程
 
-需要立即停止 worker 时使用：
+需要立即停止工作进程时：
 
 ```text
 trajecta job cancel JOB_ID --force
 ```
 
-Daemon 终止自己管理的 worker 进程，并记录 `interrupted`。已经写出的文件留在 attempt 目录，
-其中可能包含尚未完成常规 checkpoint 的 SQLite WAL 或临时输出。该目录按部分 forensic
-artifact 处理，可先运行：
+守护进程会终止自己拥有的工作进程，并将执行轮次记为 `interrupted`。已经写入的文件原样保留，
+其中可能包括尚未执行正常检查点的 SQLite WAL 和临时输出。先查看：
 
 ```text
 trajecta result inspect JOB_ID
 trajecta --format json job events JOB_ID --since 0
 ```
 
-安全取消停留在 `cancelling`，并超过预期 macro-step 时长后，也可以采用 force cancel。
-[恢复指南](../operations/recovery.md)列出了 worker 失联、SQLite/WAL 状态和 interrupted
-manifest 的检查方法。
+安全取消长时间停在 `cancelling`，且已经超过一个正常宏步所需时间时，也可以考虑强制停止。
+[恢复指南](../operations/recovery.md)说明如何检查失联工作进程、SQLite/WAL 状态和中断运行清单。
 
-## 创建 rerun attempt
+!!! warning "强制停止可能留下未收尾文件"
 
-Rerun 保留逻辑 job series，并创建新的运行身份：
+    保留整个执行轮次目录。需要重新计算时，创建新执行轮次，不要继续写入旧目录。
+
+## 创建重跑执行轮次
+
+重跑保持任务系列不变，同时创建新的运行 ID：
 
 ```text
 trajecta --format json job rerun JOB_ID
 ```
 
-新的 receipt 具有以下特点：
+新回执具有：
 
-- `job_series_id` 与原 series 相同；
-- `run_id` 是新的 UUID-v7；
-- attempt 序号增加 1；
-- 初始状态为 `queued`。
+- 与旧运行相同的 `job_series_id`；
+- 新的 UUIDv7 `run_id`；
+- 加一后的 `attempt`；
+- 初始状态 `queued`。
 
-Series 中原有的规范化输入选择和 scheduler resource request 会复制到新 attempt。Case、
-Profile、dataset lock 或资源请求需要调整时，修改项目并提交一项新的 run。
+重跑会复制任务系列中原先规范化的输入选择和调度资源请求。需要修改案例、运行配置、资料锁或
+资源请求时，应按新配置提交一个新的任务系列。
 
-当前 attempt 仍在活动状态时，`job rerun` 会先请求安全取消并等待终态，再创建下一项 queued
-attempt。由此避免同一逻辑 series 同时拥有两个活动 attempt。
+若当前执行轮次仍然活跃，`job rerun` 会先请求安全取消，等待它进入终态，再创建下一轮。这样
+同一任务系列不会同时拥有两个活跃执行轮次。
 
-新 attempt 继续使用同一个 job series ID 跟踪：
+新一轮仍用同一个任务系列 ID 跟踪：
 
 ```text
 trajecta job status JOB_ID
 trajecta job events JOB_ID --follow
 ```
 
-事件和快照都带有 `run_id` 与 `attempt`，reader 可以据此分开新旧历史。
+事件和快照都包含 `run_id` 与 `attempt`，读取程序可以据此分开各轮历史。
 
-## 为成功 attempt 执行 full verify
+## 验证重跑结果
 
-新 attempt 完成后运行完整结果校验：
+新执行轮次完成后运行：
 
 ```text
 trajecta result verify JOB_ID --full
 ```
 
-Full verifier 检查生命周期覆盖、粒子质量、质量账本、SQLite 行数和 canonical output digest。
-校验成功后，本机 catalog 会保存记录，并可将同一 series 中较早的终态 attempt 标为由该次
-verified complete 运行取代。
+完整验证会检查生命周期覆盖、粒子质量、质量账本、SQLite 行数和规范输出摘要。通过后，本机任务
+数据库会记录当前运行的规范化输出摘要；同一任务系列中更早的终态执行轮次可以据此标记为已被替代。
 
-这条记录决定旧 attempt 能否成为 prune plan 中的候选项。仅有一个更新的 attempt，或新
-attempt 尚未通过 full verify，都不会使旧目录进入可清理候选。
+只有后续 `complete` 执行轮次完成完整验证后，旧目录才可能出现在清理预览的候选项中。单纯存在
+一个较新的执行轮次并不足以形成清理候选。
 
-## 从日常列表隐藏终态 series
+## 从日常列表中隐藏任务
 
-`job forget` 将终态 series 从常规 `job list` 中隐藏：
+`job forget` 可以让一个终态任务系列不再出现在日常 `job list` 中：
 
 ```text
 trajecta job forget JOB_ID
 ```
 
-该操作只改变列表可见性。Catalog 行、事件、attempt 身份、结果目录和 verification 历史都会
-保留，直接查询和结果路径仍可使用。
+该命令只改变列表可见性。任务数据库行、事件、执行轮次记录、结果目录和完整验证历史都会保留；
+仍可通过 ID 或结果路径直接查询。活跃任务需要先进入终态。
 
-探索性 series 已审阅完毕，不再需要占据日常队列视图时，可以使用 forget。活动 series 先
-进入终态，随后才能隐藏。
+## 查看清理预览
 
-## 查看 dry-run prune plan
-
-`0.1.0-alpha.1` 中的 prune 只计算计划：
+`0.1.0-alpha.1` 的清理命令只计算计划：
 
 ```text
 trajecta --format json job prune
 ```
 
-响应使用 `trajecta.prune-plan/v1`，并始终包含：
+响应采用 `trajecta.prune-plan/v1`，并始终包含：
 
 ```json
 {
@@ -144,22 +141,27 @@ trajecta --format json job prune
 }
 ```
 
-候选项按 series、attempt 和 run identity 排序。一个看起来可以清理的条目，需要同一 series
-中存在较新的 `complete` attempt，且该次运行已经通过 full verify。每项记录实际路径、递归
-字节数、原因、保护标记和 superseding run ID。
+候选项按任务系列、执行轮次和运行 ID 排序。每项会给出：
 
-该命令不会删除文件、SQLite 行、事件、报告或 provenance。当前版本没有 apply 或 delete
-选项。估算存储量时可以保存 JSON 计划；手工归档则沿用所在计算环境的保留流程。
+| 字段内容 | 说明 |
+| --- | --- |
+| 目录路径 | 当前观察到的执行轮次目录 |
+| 递归字节数 | 该目录估算占用空间 |
+| 候选原因 | 为什么这一轮被较新运行替代 |
+| 保护标记 | 当前是否仍需保留 |
+| 替代运行 ID | 后续通过完整验证的运行 |
 
-!!! tip "当前 prune 只生成报告"
+此命令不会删除文件，也不会更改任务数据库、事件、报告或溯源信息。本版本没有应用清理计划的
+参数。可以保存 JSON 响应用于存储估算，再按照本地归档流程处理目录。
 
-    输出路径用于人工审阅。执行命令不会释放磁盘空间。
+!!! tip "`job prune` 只生成清单"
 
-## Daemon 重启后的处理
+    无论执行多少次，它都不会释放磁盘空间。
 
-Daemon 启动时读取持久化 attempt 状态和所管理的 worker 身份。`complete`、`failed`、
-`cancelled` 与 `interrupted` 等终态保持不变，不会再次 dispatch。Queued 任务在资源可用后
-继续接收。活动状态中的 worker 已经消失时，对应 attempt 会协调为 interrupted，并保留输出
-目录。
+## 守护进程重启后
 
-需要新的 attempt 时运行 `job rerun`。Daemon 重启本身不会创建 attempt。
+守护进程启动时会读取持久化状态和工作进程标识。`complete`、`failed`、`cancelled` 和
+`interrupted` 等终态执行轮次继续保持终态，不会重新派发。排队任务在资源可用后继续准入。
+
+若某个活跃执行轮次的工作进程已经消失，恢复过程会将它协调为 `interrupted` 并保留结果目录。
+需要再次运行时，显式使用 `job rerun`；重启守护进程本身不会创建新执行轮次。

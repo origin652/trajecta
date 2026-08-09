@@ -1,55 +1,55 @@
 ---
-title: 渐进配置 Trajecta
-description: 逐项选择、查看、修改和校验 Trajecta 的本机配置与项目配置。
+title: 渐进配置
+description: 逐项选择、查看、修改并校验 Trajecta 的本机配置和项目配置。
 ---
 
 # 渐进配置
 
-Trajecta 将本机设置和科研运行文档分开保存。本机配置管理 local daemon、共享 CPU 与内存
-池、监测间隔，以及可选的执行模板。项目配置连接具名 Case、RunProfile、资料和 lock。
+Trajecta 把本机运行环境与科学项目分开配置。本机配置管理守护进程、共享 CPU 与内存资源池、
+状态采样频率和可选运行模板。项目配置把带名称的案例、运行配置、逻辑资料和资料锁连接起来。
 
-两层配置都支持小范围的校验式修改。这种方式适合分几次完成项目设置，也方便通过机器可读
-输出逐项审阅。
+两层配置都支持按字段修改。每次修改都会先构造并校验完整文档，通过后再替换原文件。项目需要
+分几次完成，或需要由人和自动化工具轮流审阅时，可以逐项填写，无需一次生成整份 JSON 或 YAML。
 
 ## 选择本机配置文件
 
-同一用户账户下有多套安装时，可在编辑前查询实际路径：
+同一账户下有多套运行环境时，编辑前先查看当前选择：
 
 ```text
 trajecta config path
 ```
 
-配置路径按以下顺序选择：
+配置路径按以下优先级确定：
 
-1. 当前命令中的 `--config FILE`；
-2. `TRAJECTA_CONFIG` 环境变量；
-3. 平台默认位置。
+1. 当前命令的全局参数 `--config FILE`；
+2. 环境变量 `TRAJECTA_CONFIG`；
+3. 平台默认路径。
 
-| 平台 | 默认位置 |
+| 平台 | 默认路径 |
 | --- | --- |
 | Windows | `%APPDATA%\Trajecta\config.toml` |
-| Ubuntu 24.04 及其他受支持 Linux 系统 | `${XDG_CONFIG_HOME:-$HOME/.config}/trajecta/config.toml` |
+| Ubuntu 24.04 及其他受支持 Linux | `${XDG_CONFIG_HOME:-$HOME/.config}/trajecta/config.toml` |
 
-独立基准测试或第二套本机资源池可以使用显式路径：
+独立性能测试或第二套本机资源池可以使用显式路径：
 
 ```text
 trajecta --config configs/workstation.toml config path
 trajecta --config configs/workstation.toml config validate
 ```
 
-所选配置也决定 local daemon endpoint 和任务 catalog。因此，指向不同配置文件的命令会
-看到不同的本机队列。
+所选配置还决定守护进程端点和任务数据库。两个终端若指向不同配置，即使位于同一台计算机，
+也会看到不同的任务队列。
 
 ## 创建并查看配置
 
-`config init` 根据当前平台创建起始文件。目标文件已经存在时，原文件保持不变。
+`config init` 根据当前平台和硬件创建初始文件。目标文件已经存在时不会覆盖：
 
 ```text
 trajecta config init
 trajecta config list
 ```
 
-`config list` 按稳定的 dotted-key 顺序列出叶子值。读取单项值时使用 `config get`：
+`config list` 按稳定的点分字段顺序显示所有叶子值。读取单个值可使用：
 
 ```text
 trajecta config get resources.cpu_slots
@@ -57,7 +57,7 @@ trajecta config get resources.memory_pool_mib
 trajecta config get default_reader_backend
 ```
 
-脚本可以把全局输出选项放在命令名之前：
+脚本读取时，把全局输出格式放在子命令之前：
 
 ```text
 trajecta --format json config get resources.memory_pool_mib
@@ -65,7 +65,7 @@ trajecta --format json config get resources.memory_pool_mib
 
 ## 修改带类型的值
 
-`config set` 接收 dotted key 和 JSON 值。无法解析为 JSON 的普通文本按字符串处理。
+`config set` 接受点分字段和一个 JSON 值。无法解析为 JSON 的普通文本会按字符串处理：
 
 ```text
 trajecta config set resources.cpu_slots 8
@@ -75,23 +75,25 @@ trajecta config set default_reader_backend '"rust"'
 trajecta config validate
 ```
 
-Trajecta 会先解析并检查更新后的完整文档，随后替换旧文件。编辑被拒绝时，旧文件的字节内容
-不变。
-
-资源字段各自表达以下含义：
+资源字段的用途如下：
 
 | 字段 | 含义 |
 | --- | --- |
-| `resources.cpu_slots` | 所有已接收任务共享的 scheduler CPU 容量 |
-| `resources.memory_pool_mib` | 本机 scheduler 纳入分配的内存总量 |
-| `resources.memory_reserve_mib` | 留给操作系统和其他进程、不进入调度池的内存 |
+| `resources.cpu_slots` | 所有已准入任务共享的 CPU 槽位总数 |
+| `resources.memory_pool_mib` | 本地调度器用于任务准入的内存总量 |
+| `resources.memory_reserve_mib` | 留给操作系统和其他程序、不进入调度池的内存 |
 
-Reserve 小于 pool。增加容量时可先调高 pool；缩小容量时先调低 reserve。完成一组修改后
-运行 `config validate`。
+`memory_reserve_mib` 必须小于 `memory_pool_mib`。需要同时调整两者时：
 
-## 添加执行模板
+- 扩大资源池，先增大 `memory_pool_mib`；
+- 缩小资源池，先降低 `memory_reserve_mib`；
+- 全部修改完成后运行 `config validate`。
 
-具名 Profile 模板可以通过一个结构化值创建：
+修改值未通过校验时，原配置文件的字节内容保持不变。
+
+## 添加运行模板
+
+可以用一个结构化值创建带名称的运行模板：
 
 ```text
 trajecta config set profile_templates.workstation '{"execution":{"worker_threads":4,"memory_budget_bytes":2147483648,"executor":"local","meteorology_reader":"rust"}}'
@@ -99,49 +101,58 @@ trajecta config get profile_templates.workstation
 trajecta config validate
 ```
 
-模板的 worker 数量位于 `resources.cpu_slots` 范围内，内存预算以字节表示。删除整个模板时
-使用模板名：
+模板中的工作线程数要落在 `resources.cpu_slots` 范围内，内存预算以字节表示。按名称移除模板：
 
 ```text
 trajecta config unset profile_templates.workstation
 ```
 
-`config unset` 只用于可选 Profile 模板，配置中的固定字段保留在文档内。
+`config unset` 只用于可选模板字段，必需配置字段不能移除。
 
-## 通过 selector 编辑项目
+!!! tip "模板只保存本机执行设置"
 
-先查看项目的派生状态和完整索引：
+    模拟时段、区域和粒子群仍写在案例中。模板适合复用线程、内存和读取器选择。
+
+## 按字段编辑项目索引
+
+先查看项目当前状态和完整索引：
 
 ```text
 trajecta --project PROJECT project status
 trajecta --project PROJECT project show
 ```
 
-`project get`、`project set` 与 `project unset` 操作项目索引中的 selector。选择 selector 前
-可以先读取当前文档：
+`project get`、`project set` 和 `project unset` 使用项目索引中的选择器。修改前可先读取目标：
 
 ```text
 trajecta --project PROJECT project get index
 trajecta --project PROJECT project get profile.quickstart
 ```
 
-值可以是 JSON 或 YAML 的标量与结构。命令在项目根目录内解析各条相对路径，校验更新后的
-索引，再原子替换文件。
+值可以使用 JSON，也可以是 YAML 标量或结构。命令会完成以下步骤：
+
+1. 在内存中应用修改；
+2. 将项目相对路径解析到项目根目录内；
+3. 校验完整项目索引；
+4. 通过同目录临时文件原子替换原文件。
+
+例如，为运行配置指定本机模板：
 
 ```text
 trajecta --project PROJECT project set profile.quickstart.template workstation
 trajecta --project PROJECT project validate
 ```
 
-绝对路径、`../data` 形式的父级穿越、重复名称，以及解析到项目根目录之外的路径都会被
-拒绝。将资料根目录放在项目树内，项目在 Windows 和 Linux 之间移动时更容易保持一致。
+绝对路径、`../data` 这类访问上级目录的写法、重复名称，以及最终指向项目根目录外的路径都会被拒绝。
+资料目录放在项目根目录内，项目在 Windows 与 Ubuntu 之间移动时更容易保持路径有效。
 
-## 逐步完成 draft
+## 保留草稿状态
 
-Profile 的必填字段尚未录入完整时，可以保留 draft 状态。Draft 表示可识别的内容仍有缺项。
-未知字段、类型错误和格式损坏的 Case 或 RunProfile 会以 error 返回。
+运行配置必填项尚未填写完整时，项目可以保持 `draft`。这一状态表示文档结构可识别，但还不能
+解析成完整运行请求。未知字段、错误类型、畸形 YAML，以及案例或运行配置中的语义错误会报告为
+`error`，不会被归入草稿。
 
-编辑期间可以反复执行：
+编辑期间可重复执行：
 
 ```text
 trajecta --project PROJECT project status
@@ -149,13 +160,21 @@ trajecta --project PROJECT project show
 trajecta --project PROJECT project validate
 ```
 
-文档完整后，项目从 `draft` 进入 `configured`。`project finalize` 检查所选气象资料和
-DatasetLock 后，项目进入 `finalized`。
+文档齐全后，状态进入 `configured`。气象文件和资料锁通过 `project finalize` 检查后，状态进入
+`finalized`。
 
-## 检查完整本机环境
+## 检查整套本机环境
 
-配置校验读取所选 TOML 文件。项目校验读取索引和当前已有文档。Doctor 将这些内容与本机
-运行环境合在一起检查：
+各命令检查的范围不同：
+
+| 命令 | 检查范围 |
+| --- | --- |
+| `config validate` | 当前选择的 TOML 本机配置 |
+| `project validate` | 项目索引及目前存在的案例、运行配置文档 |
+| `doctor` | 本机配置、项目状态和基础运行条件 |
+| `doctor --deep` | 再检查资料目录、现有资料锁、气象文件和 SQLite/WAL 文件系统 |
+
+常用顺序如下：
 
 ```text
 trajecta config validate
@@ -164,13 +183,12 @@ trajecta --project PROJECT doctor
 trajecta --project PROJECT doctor --deep
 ```
 
-Deep doctor 会在相应内容存在时打开已配置的资料根目录与 lock。它还会创建临时 SQLite
-数据库，依次测试 WAL 模式、integrity check 和 checkpoint，最后清理临时文件。移动项目、
-更换存储位置或调整本机配置后，可以用这条命令检查运行环境。
+深度检查会创建临时 SQLite 数据库，启用 WAL，写入并读取数据，运行完整性检查，将 WAL 检查点
+回主库，最后删除临时文件。移动项目、调整存储位置或更改本机资源配置后，适合再运行一次。
 
-## 查看编辑失败原因
+## 保存诊断信息
 
-需要保存稳定的诊断记录时，以 JSON 模式重复只读校验：
+需要把错误交给脚本或问题记录时，可用 JSON 方式重复只读检查：
 
 ```text
 trajecta --format json config validate
@@ -178,5 +196,5 @@ trajecta --format json --project PROJECT project validate
 trajecta --format json --project PROJECT doctor --deep
 ```
 
-输出中的命令路径和 diagnostic code 可以放入 issue 或运行日志。修正所选文件后，重新运行
-同一条校验命令，再继续 finalize 或提交任务。
+输出包含完整命令路径和稳定诊断码。根据诊断修改相应文件后，再运行同一条校验命令。项目通过
+校验并完成项目定稿后，再提交较长任务。
