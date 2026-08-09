@@ -7,9 +7,45 @@ description: 由源码生成的 Trajecta CLI、daemon、worker、任务、项目
 
 # Diagnostic code
 
-机器输出通过 `diagnostics[].code` 标识条件；message 提供上下文，措辞可能进一步细化。
-自动化程序应按 code 分支。下列索引从生产 Rust 源码重建，因此每个已记录 code 都有对应
-实现位置。
+Machine output 通过 `diagnostics[].code` 标识条件。Code 是 script 和故障排查使用的稳定
+selector；message 会加入本次 invocation 对应的 path、value、operating-system error 或
+run identity。
+
+## Diagnostic record
+
+| Field | 内容 |
+| --- | --- |
+| `severity` | `error`、`warning` 或 `info` |
+| `code` | 带 namespace 的 condition，例如 `project.lock_missing` |
+| `message` | 本次 occurrence 的 human-readable detail |
+| `path` | 定位 document value 的有序 field 或 array-index component |
+| `hint` | Optional next command 或 correction |
+
+一个 envelope 可以包含多个 diagnostic。例如，`project finalize` 可以返回一个 preflight
+failure，并带有嵌套 project 或 data condition。修改文档前可以先读取全部 entry。JSONL
+中的 diagnostic 是 `kind: "diagnostic"` 的 stream item，后续 summary 负责关闭 stream。
+
+## 在 automation 中使用 code
+
+Automation 可以按完整 code 分支，并单独读取 process exit status。Message 可以在后续版本
+中增加上下文，而 condition code 保持原值。遇到未知 code 时，可将完整 entry 保留到 log，
+再按 severity 处理，使较新的 producer 仍能向已有 monitoring script 提供信息。
+
+Namespace 通常对应以下 component：
+
+| Prefix | 区域 |
+| --- | --- |
+| `config.*`、`doctor.*` | Machine configuration 与 environment check |
+| `project.*`、`case.*`、`data.*` | Project document、dataset plan 与 lock |
+| `daemon.*`、`job_backend.*`、`scheduler.*` | Local control plane、catalog 与 admission |
+| `job.*`、`worker.*`、`run.*` | Attempt lifecycle 与 numerical worker |
+| `met.*` | Meteorological probe 或 replay command |
+| `result.*`、`report.*` | Result inspection、verification、trajectory output 与 report creation |
+
+## Source 索引
+
+下表从 production Rust string literal 重建。Contributor 调查 code 的发出分支时，可以使用
+其中的 source link。
 
 按症状排查时，请先查阅[运维故障索引](../operations/troubleshooting.md)。
 

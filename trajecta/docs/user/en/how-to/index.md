@@ -5,149 +5,60 @@ description: Task-oriented procedures for configuration, deferred data, finaliza
 
 # How-to guides
 
-These procedures assume an installed `0.1.0-alpha.1` package and a selected
-machine configuration.
+The how-to guides begin with a concrete task and assume that the reader already
+knows the broad shape of a Trajecta project. For a first run, use the
+[fifteen-minute quickstart](../getting-started/quickstart.md). For a complete
+worked example, choose one of the [tutorials](../tutorials/index.md).
 
-## Build configuration incrementally
+Commands on these pages use three placeholders:
 
-Use selectors to inspect and change one value at a time:
+| Placeholder | Meaning | Example |
+| --- | --- | --- |
+| `PROJECT` | Project directory or `trajecta-project.yml` path | `examples/domain-fill-cfsr` |
+| `PROFILE` | A profile name from the project index | `quickstart` |
+| `RESULT` | Job-series ID, run ID, or run directory | `runs/0198.../attempt-1` |
 
-```text
-trajecta config list
-trajecta config get resources.memory_pool_mib
-trajecta config set resources.memory_reserve_mib 1024
-trajecta config set resources.memory_pool_mib 8192
-trajecta config unset profile_templates.experimental
-trajecta config validate
-```
+Paths in project documents remain relative to the project root. Shell examples
+use forward slashes because PowerShell and Unix-style shells both accept them in the
+locations shown.
 
-Keep one file as the configuration truth. Failed `set` or `unset` operations do
-not replace a valid file with partial content.
+## Choose a procedure
 
-## Configure a project before data exists
+| Task | Guide | What it covers |
+| --- | --- | --- |
+| Change one machine or project value | [Build configuration incrementally](progressive-configuration.md) | Configuration selection, typed values, templates, project selectors, and validation |
+| Prepare a project while meteorological data is still absent | [Configure before data arrives](deferred-data.md) | Project states, data plans, provider requests, local inspection, and finalization |
+| Choose foreground or detached execution | [Run in front or through the queue](run-queue.md) | Submission, resource admission, job status, waiting, and daemon ownership |
+| Feed status to a terminal, script, or monitoring process | [Follow job events](events.md) | Global cursors, per-job filters, JSONL framing, reconnects, and polling |
+| Stop work or create another attempt | [Cancel, rerun, forget, and prune](cancel-rerun-prune.md) | Safe and forced cancellation, attempt history, list visibility, and dry-run cleanup plans |
+| Examine a completed or partial run | [Inspect and read results](results.md) | Inspection, verification, trajectories, reports, and advanced SQLite access |
+| Ask an AI assistant to help prepare configuration | [AI-assisted configuration](ai-companion.md) | Shared source files, bounded prompts, command review, and local validation |
 
-`project init`, `project set`, `case validate`, and `project validate` can run
-before meteorological files are present. The project remains `configured` or
-`draft`, and missing locks appear as diagnostics.
+## A useful order for a new project
 
-```text
-trajecta --project PROJECT project status
-trajecta --project PROJECT project validate
-trajecta --project PROJECT project data-plan --output data-plan.json
-```
+Most projects move through the following sequence:
 
-This state is useful for review and provider planning. It is not admissible for
-a run.
+1. Create or select the machine configuration.
+2. Initialize the project and add its Case and RunProfile documents.
+3. Generate a data plan while the project is in `configured` state.
+4. Acquire the requested files and inspect representative inputs.
+5. Finalize the project, which creates immutable dataset locks.
+6. Submit a foreground or detached run.
+7. Follow durable events and inspect the terminal result.
 
-## Use data-plan and finalize
+Each command can also emit a machine-readable envelope through `--format json`.
+Event and trajectory streams additionally support `--format jsonl`. The
+[schema reference](../reference/schemas.md) describes those records, and the
+[diagnostic index](../reference/diagnostics.md) maps stable codes to recovery
+steps.
 
-Review a data plan before network access:
+## Before changing a running setup
 
-```text
-python tools/fetch_trajecta_data.py --project PROJECT --plan data-plan.json
-```
+`config set`, `config unset`, `project set`, and `project unset` validate the
+new document before replacing the previous file. Keep the command output when
+an edit fails; it identifies the selector and document that need attention.
 
-CFSR downloads use the Python standard library. Before executing an ERA5
-pressure or hybrid request, install the pinned preparation dependencies:
-
-```text
-python -m pip install -r requirements-data.txt
-```
-
-After approving the provider request, add `--execute`. The helper writes only
-inside declared data roots and never creates or replaces a DatasetLock.
-
-```text
-python tools/fetch_trajecta_data.py --project PROJECT --plan data-plan.json --execute
-trajecta --project PROJECT project finalize
-```
-
-Finalization expands the selected documents, inspects actual data, checks
-capabilities and coverage, then writes locks atomically. Re-run `project
-data-plan` after changing a Case or Profile.
-
-## Run in front or background
-
-Foreground wait is the default:
-
-```text
-trajecta --project PROJECT run --profile PROFILE
-```
-
-Submit to the local queue and return after admission with:
-
-```text
-trajecta --project PROJECT run --profile PROFILE --detach
-trajecta job wait JOB_ID
-```
-
-The daemon admits work against configured CPU and memory pools. A detached job
-continues after the submitting terminal closes. A foreground client disconnect
-also leaves admitted work under daemon ownership.
-
-## Consume task events
-
-Read all queue events from the beginning:
-
-```text
-trajecta --format jsonl job events --since 0 --follow
-```
-
-Read one job only:
-
-```text
-trajecta --format jsonl job events JOB_ID --since SEQUENCE --follow
-```
-
-Persist the last event sequence after processing it. Reconnect with `--since`
-to avoid losing or duplicating state transitions. JSONL emits a stream header,
-items, and one summary when the stream ends.
-
-## Cancel, rerun, forget, and prune
-
-```text
-trajecta job cancel JOB_ID
-trajecta job cancel JOB_ID --force
-trajecta job rerun JOB_ID
-trajecta job forget JOB_ID
-trajecta job prune
-```
-
-Safe cancel requests a cooperative stop. Force cancel is reserved for a worker
-that does not reach a safe point. A rerun creates a new attempt and retains the
-old attempt. Completed jobs are not run again during daemon recovery.
-
-`job prune` is **dry-run only** in this release. It returns a deterministic plan
-and does not delete results, job rows, forensic data, or attempts. Review the
-plan outside an active incident.
-
-## Read results
-
-Start with product commands:
-
-```text
-trajecta result inspect RESULT
-trajecta result verify RESULT --full
-trajecta result trajectory RESULT --particle-id 42
-trajecta run report --result RESULT
-```
-
-Use the SQLite schema only for advanced read-only analysis. Do not modify the
-database, manifest, provenance bundle, or result directory in place.
-
-## Use an AI configuration companion
-
-Give the assistant the same Case, Profile, project index, data plan, and public
-schema files that a human reviews. Ask it to propose `config set` or `project
-set` commands rather than a second configuration copy. Never provide CDS
-credentials or private paths that are unnecessary for the task.
-
-Before accepting an AI-assisted setup, run:
-
-```text
-trajecta config validate
-trajecta --project PROJECT project validate
-trajecta --project PROJECT doctor --deep
-```
-
-Diagnostics and the resolved documents remain the acceptance evidence.
+A finalized project binds resolved configuration to a dataset inventory.
+Changing a Case, Profile, data mapping, or meteorological file calls for a new
+`project finalize` before the next submission. Existing attempts retain their
+own resolved documents and provenance inside their result directories.

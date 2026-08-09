@@ -70,6 +70,45 @@ DIAGNOSTIC_PREFIXES = {
 CODE_PATTERN = re.compile(r'"([a-z][a-z0-9_-]*(?:\.[a-z][a-z0-9_-]*)+)"')
 NON_DIAGNOSTIC_CODES = {"config.toml"}
 
+COMMAND_PURPOSES = {
+    "config init": ("Create a machine configuration at the selected path", "在所选路径创建机器配置"),
+    "config path": ("Print the selected machine-configuration path", "显示当前选择的机器配置路径"),
+    "config list": ("List every configuration leaf and its value", "列出全部配置 leaf 及其值"),
+    "config get": ("Read one configuration selector", "读取一个配置 selector"),
+    "config set": ("Validate and atomically update one selector", "校验并原子更新一个 selector"),
+    "config unset": ("Remove an optional selector", "移除一个 optional selector"),
+    "config validate": ("Validate the complete selected configuration", "校验完整的所选配置"),
+    "project init": ("Create a project index and initial directory layout", "创建 project index 与初始目录结构"),
+    "project status": ("Report draft, configured, or finalized project state", "报告 draft、configured 或 finalized 项目状态"),
+    "project show": ("Show the resolved project index and document summary", "显示 resolved project index 与文档摘要"),
+    "project get": ("Read one project selector", "读取一个 project selector"),
+    "project set": ("Validate and update one project selector", "校验并更新一个 project selector"),
+    "project unset": ("Remove an optional project selector", "移除一个 optional project selector"),
+    "project validate": ("Validate the index and referenced Case and Profile documents", "校验 index 及其引用的 Case 与 Profile 文档"),
+    "project data-plan": ("Calculate deterministic dataset requirements and local status", "计算确定性资料需求及其本地状态"),
+    "project finalize": ("Inspect prepared data and atomically bind DatasetLocks", "检查已准备资料并原子绑定 DatasetLock"),
+    "case validate": ("Validate a Case for a selected intent", "按指定 intent 校验 Case"),
+    "case resolve": ("Expand a Case into its resolved public document", "将 Case 展开为 resolved public document"),
+    "data inspect": ("Inspect one supported meteorological file", "检查一个受支持的气象资料文件"),
+    "data lock": ("Build a DatasetLock from a Case, profile, and data root", "根据 Case、profile 与 data root 构建 DatasetLock"),
+    "met probe": ("Query selected meteorological points", "查询指定气象点"),
+    "met replay": ("Replay a JSONL meteorological query stream", "重放 JSONL 气象查询流"),
+    "doctor": ("Check configuration, project, data, filesystem, and optional deep probes", "检查配置、项目、资料、文件系统及可选 deep probe"),
+    "run": ("Submit a project Profile or direct Case/Profile pair", "提交 project Profile 或直接 Case/Profile pair"),
+    "job list": ("List the latest visible attempt for each job series", "列出各 job series 的最新可见 attempt"),
+    "job status": ("Read the current snapshot for one job series", "读取一个 job series 的当前快照"),
+    "job wait": ("Wait for the current attempt to become terminal", "等待 current attempt 进入终态"),
+    "job events": ("Read or follow durable queue events", "读取或跟随持久化队列事件"),
+    "job cancel": ("Request safe cancellation or force-stop the current attempt", "请求安全取消或强制停止 current attempt"),
+    "job rerun": ("Create the next attempt in an existing series", "在现有 series 中创建下一个 attempt"),
+    "job forget": ("Hide a terminal series from routine list output", "从日常列表隐藏 terminal series"),
+    "job prune": ("Return the dry-run storage-prune plan", "返回 dry-run 存储清理计划"),
+    "result inspect": ("Summarize a run manifest, artifacts, and available SQLite counts", "汇总 run manifest、artifact 与可用 SQLite count"),
+    "result verify": ("Run quick or full product verification", "执行 quick 或 full product verification"),
+    "result trajectory": ("Stream trajectory rows for selected or all particles", "流式读取指定粒子或全部粒子的 trajectory row"),
+    "run report": ("Create or refresh RESULT/run-report.md", "创建或刷新 RESULT/run-report.md"),
+}
+
 
 def default_binary() -> Path:
     suffix = ".exe" if sys.platform == "win32" else ""
@@ -127,13 +166,19 @@ def cli_pages(help_text: str) -> dict[Path, str]:
         extra = sorted(set(paths) - set(entries))
         raise RuntimeError(f"CLI help/contract drift: missing={missing}, extra={extra}")
 
+    if set(COMMAND_PURPOSES) != set(entries):
+        missing = sorted(set(entries) - set(COMMAND_PURPOSES))
+        extra = sorted(set(COMMAND_PURPOSES) - set(entries))
+        raise RuntimeError(f"CLI purpose drift: missing={missing}, extra={extra}")
+
     rows = []
+    zh_rows = []
     for synopsis, path in zip(synopses, paths, strict=True):
         entry = entries[path]
-        rows.append(
-            f"| `{synopsis}` | `{entry['stage']}` | "
-            f"{'yes' if entry['streaming'] else 'no'} |"
-        )
+        output = "JSONL capable" if entry["streaming"] else "single response"
+        zh_output = "可使用 JSONL" if entry["streaming"] else "单次响应"
+        rows.append(f"| `{synopsis}` | {COMMAND_PURPOSES[path][0]} | {output} |")
+        zh_rows.append(f"| `{synopsis}` | {COMMAND_PURPOSES[path][1]} | {zh_output} |")
     en = f"""---
 title: CLI command tree
 description: Complete Trajecta 0.1.0-alpha.1 command synopsis generated from the real binary help and checked against the frozen CLI contract.
@@ -144,23 +189,65 @@ description: Complete Trajecta 0.1.0-alpha.1 command synopsis generated from the
 # CLI command tree
 
 This page is generated from the `trajecta --help` output produced by the current
-binary. Every frozen command is cross-checked against
-`testdata/M5_CLI_CONTRACT.v1.json`. `run report` is an implemented M5-A3 command
-that post-dates the frozen 35-command contract.
+binary. Every command is cross-checked against
+`testdata/M5_CLI_CONTRACT.v1.json`; the implemented `run report` command is
+checked alongside that frozen contract.
 
-## Global rules
+## Command form
 
-- Global options may appear before or after a command.
-- Human output is the default. Use `--format json` for one envelope and
-  `--format jsonl` for streams.
-- `run` waits in the foreground unless `--detach` is supplied.
-- `job prune` is dry-run only in this alpha release.
+```text
+trajecta [GLOBAL OPTIONS] COMMAND [ARGUMENTS]
+```
+
+Global options may appear before or after a command. `--config PATH` selects
+the machine configuration and therefore the local daemon endpoint and job
+catalog. `--project PATH` selects a project root or its index for project-aware
+commands.
+
+| Option | Meaning |
+| --- | --- |
+| `--format human` | Human-readable output; this is the default |
+| `--format json` | One `trajecta.cli-output/v1` envelope |
+| `--format jsonl` | One `trajecta.cli-stream-item/v1` object per line for a stream-capable command |
+| `--json` | Alias for `--format json` |
+| `--config PATH` | Explicit machine configuration, ahead of environment and platform defaults |
+| `--project PATH` | Explicit project root or `trajecta-project.yaml` path |
+| `-h`, `--help` | Display command help |
+
+## Argument conventions
+
+| Placeholder | Accepted value |
+| --- | --- |
+| `PATH`, `FILE`, `DIR` | Filesystem path; project document paths remain inside the project jail |
+| `KEY`, `SELECTOR` | Dotted configuration or project selector |
+| `JOB_ID` | Job-series identifier returned by run admission |
+| `RESULT` | Job-series ID, run ID, or result-directory path accepted by result commands |
+| `UNIX` | Integer UTC Unix timestamp in seconds |
+| `JSONL` | Newline-delimited JSON file path; selected meteorology commands also accept `-` for standard input or output |
+
+## Runtime behavior
+
+- `run` waits in the foreground unless `--detach` is supplied. Detached mode
+  returns after durable queue admission.
+- A foreground run exits after the attempt becomes terminal. Use `job status`,
+  `job wait`, or `job events` to reconnect from another terminal.
+- `job events`, meteorological streams, and trajectory output can use JSONL.
+  Their final stream item is a summary.
+- `job prune` returns a dry-run plan in this alpha release. It has no delete or
+  apply option.
+- Application errors in machine mode use the same envelope shape as successful
+  commands. Process exit codes remain available to shell scripts.
 
 ## Commands
 
-| Synopsis | Introduced | Streaming |
+| Synopsis | Purpose | Machine output |
 | --- | --- | --- |
 {chr(10).join(rows)}
+
+The procedural guides provide complete sequences for
+[project preparation](../how-to/progressive-configuration.md),
+[queue operation](../how-to/run-queue.md), and
+[result reading](../how-to/results.md).
 
 ## Exact binary help
 
@@ -168,9 +255,6 @@ that post-dates the frozen 35-command contract.
 {help_text}
 ```
 """
-    zh_rows = [
-        row.replace("| yes |", "| 是 |").replace("| no |", "| 否 |") for row in rows
-    ]
     zh = f"""---
 title: CLI 命令树
 description: 由真实二进制帮助生成，并与冻结 CLI 合同校验的 Trajecta 0.1.0-alpha.1 完整命令概要。
@@ -180,23 +264,59 @@ description: 由真实二进制帮助生成，并与冻结 CLI 合同校验的 T
 
 # CLI 命令树
 
-本页由当前二进制的 `trajecta --help` 输出生成。冻结命令同时与
-`testdata/M5_CLI_CONTRACT.v1.json` 交叉校验。`run report` 是 M5-A3 已实现命令，
-其实现时间晚于冻结的 35 条命令合同。
+本页由当前二进制的 `trajecta --help` 输出生成。全部命令与
+`testdata/M5_CLI_CONTRACT.v1.json` 交叉校验；已经实现的 `run report` 会与该冻结合同一同
+检查。
 
-## 全局规则
+## 命令形式
 
-- 全局选项可以位于命令前后。
-- 默认输出供人类阅读。单个机器结果使用 `--format json`，流式结果使用
-  `--format jsonl`。
-- `run` 默认在前台等待；`--detach` 用于提交后返回。
-- 当前 alpha 版本的 `job prune` 只生成 dry-run 计划。
+```text
+trajecta [GLOBAL OPTIONS] COMMAND [ARGUMENTS]
+```
+
+Global option 可以位于命令前后。`--config PATH` 选择机器配置，进而确定本地 daemon
+endpoint 与 job catalog。`--project PATH` 为 project-aware command 选择项目根或 index。
+
+| Option | 含义 |
+| --- | --- |
+| `--format human` | Human-readable output，也是默认格式 |
+| `--format json` | 一个 `trajecta.cli-output/v1` envelope |
+| `--format jsonl` | Stream-capable command 每行一个 `trajecta.cli-stream-item/v1` object |
+| `--json` | `--format json` 的 alias |
+| `--config PATH` | 显式机器配置，优先于环境变量和平台默认路径 |
+| `--project PATH` | 显式 project root 或 `trajecta-project.yaml` 路径 |
+| `-h`、`--help` | 显示 command help |
+
+## 参数名称
+
+| Placeholder | 接受的值 |
+| --- | --- |
+| `PATH`、`FILE`、`DIR` | 文件系统路径；项目文档路径保持在 project jail 内 |
+| `KEY`、`SELECTOR` | Dotted configuration 或 project selector |
+| `JOB_ID` | Run admission 返回的 job-series identifier |
+| `RESULT` | Result command 接受的 job-series ID、run ID 或结果目录路径 |
+| `UNIX` | 以秒表示的 UTC Unix timestamp integer |
+| `JSONL` | Newline-delimited JSON file path；指定 meteorological command 还可使用 `-` 表示 standard input 或 output |
+
+## Runtime 行为
+
+- `run` 默认在前台等待；`--detach` 在任务持久化接收后返回。
+- Foreground run 会等待 attempt 进入终态。另一个终端可通过 `job status`、`job wait` 或
+  `job events` 重新连接。
+- `job events`、meteorological stream 与 trajectory output 可以使用 JSONL，最后一个 stream
+  item 为 summary。
+- 当前 alpha 版本的 `job prune` 返回 dry-run plan，没有 delete 或 apply option。
+- Machine mode 中的 application error 与成功命令使用相同 envelope shape。Shell script
+  仍可读取 process exit code。
 
 ## 命令
 
-| 概要 | 引入阶段 | 流式输出 |
+| 概要 | 用途 | Machine output |
 | --- | --- | --- |
 {chr(10).join(zh_rows)}
+
+完整操作顺序见[项目准备](../how-to/progressive-configuration.md)、
+[队列运行](../how-to/run-queue.md)与[结果读取](../how-to/results.md)。
 
 ## 二进制原始帮助
 
@@ -244,16 +364,62 @@ description: Source-backed schemas for Trajecta configuration, control-plane str
 
 # JSON and JSONL schemas
 
-The schema files are the normative machine-readable definitions. Examples are
-validation fixtures, not substitutes for the schemas. Case and RunProfile use
-their public YAML document contracts; see [Project, Case, and Profile](documents.md).
+Trajecta versions each machine-readable disk or stream format independently.
+The `schema_version` inside a document selects that format contract; the
+software version identifies the executable that reads or writes it. M5.1 keeps
+the existing schema identifiers.
+
+The linked schema files define required fields, value types, enumerations,
+additional-property rules, and nested records. Examples show one valid instance
+and are also used as validation fixtures. Case and RunProfile follow their
+public YAML document contracts; see
+[Project, Case, and Profile](documents.md).
+
+## Schema families
+
+| Family | Formats | Where they appear |
+| --- | --- | --- |
+| Configuration and project | Machine configuration, project index, data plan | Files edited during local and project setup |
+| CLI response | Single JSON envelope and JSONL stream item | Standard output in machine mode |
+| Job control | Job record, job event, prune plan | Local daemon queries and queue history |
+| Result reading | Result inspection, trajectory record, trajectory stream | `result inspect` and `result trajectory` output |
+| Scientific product | Run manifest and provenance bundle | Every completed result directory |
+| Distribution | Build manifest | Release package root |
+
+## Machine-output envelopes
+
+`trajecta.cli-output/v1` represents one command response. It contains the full
+command path, an `ok` flag, a command-specific `data` value, and structured
+diagnostics. A usage error in JSON mode uses the same outer format while
+retaining process exit code `2`.
+
+`trajecta.cli-stream-item/v1` represents one JSONL line. Its `kind` selects a
+data item, diagnostic, or final summary. The outer `sequence` orders lines in
+that invocation. A job event inside `data` has its own durable global sequence
+for reconnection.
+
+## Documents on disk
+
+The configuration and project-index schemas reject unknown properties and
+invalid value types. Product commands validate them before an atomic update.
+The data plan is generated from resolved project requirements and local status;
+it can be written to a file and reviewed before data preparation.
+
+The run manifest and provenance bundle are immutable result identities after a
+successful closeout. Open them through `result inspect` and `result verify`
+when possible, since those commands also check their relationship with SQLite
+and the selected attempt.
+
+## Schema index
 
 | Product | Schema | Example | Required top-level fields |
 | --- | --- | --- | --- |
 {rows}
 
 Schema versions identify disk and stream formats independently of the software
-version. M5.1 does not introduce a new schema version.
+version. Automation can select a parser from `schema_version` before reading
+command-specific fields. The [exit-code reference](exit-codes.md) explains how
+schema-valid machine output relates to process status.
 """
     zh = f"""---
 title: JSON 与 JSONL schema
@@ -264,14 +430,55 @@ description: Trajecta 配置、控制面流、结果、manifest、provenance 和
 
 # JSON 与 JSONL schema
 
-Schema 文件是规范的机器可读定义。示例属于校验 fixture，不能代替 schema。Case 与
-RunProfile 使用公开 YAML 文档合同，详见 [Project、Case 与 Profile](documents.md)。
+Trajecta 为每种 machine-readable disk 或 stream format 单独设置版本。文档中的
+`schema_version` 选择 format contract，software version 则标识读写它的 executable。M5.1
+保持已有 schema identifier。
+
+链接中的 schema file 定义 required field、value type、enumeration、additional-property rule
+与 nested record。Example 展示一份 valid instance，同时用于 validation fixture。Case 与
+RunProfile 使用公开 YAML document contract，详见
+[Project、Case 与 Profile](documents.md)。
+
+## Schema family
+
+| Family | Format | 出现位置 |
+| --- | --- | --- |
+| 配置与项目 | Machine configuration、project index、data plan | 本机与项目设置期间编辑或生成的文件 |
+| CLI response | Single JSON envelope 与 JSONL stream item | Machine mode standard output |
+| Job control | Job record、job event、prune plan | Local daemon query 与 queue history |
+| 结果读取 | Result inspection、trajectory record、trajectory stream | `result inspect` 与 `result trajectory` 输出 |
+| 科学产品 | Run manifest 与 provenance bundle | 每个完成结果目录 |
+| 分发 | Build manifest | Release package root |
+
+## Machine-output envelope
+
+`trajecta.cli-output/v1` 表示一次 command response，其中包含完整 command path、`ok` flag、
+command-specific `data` value 与 structured diagnostic。JSON mode 中的 usage error 使用相同
+outer format，同时保留 process exit code `2`。
+
+`trajecta.cli-stream-item/v1` 表示一行 JSONL。`kind` 用于选择 data item、diagnostic 或最终
+summary。外层 `sequence` 对本次 invocation 中的行排序。`data` 内的 job event 还有自己的
+durable global sequence，用于重新连接。
+
+## 磁盘文档
+
+Configuration 与 project-index schema 会拒绝 unknown property 和 invalid value type。Product
+command 在 atomic update 前校验完整文档。Data plan 根据 resolved project requirement 与
+local status 生成，可以写入文件，并在准备资料前审阅。
+
+Run manifest 与 provenance bundle 在成功收尾后成为 immutable result identity。通常可通过
+`result inspect` 与 `result verify` 打开，因为这两条命令还会检查它们与 SQLite、selected
+attempt 的关系。
+
+## Schema 索引
 
 | 产品 | Schema | 示例 | 顶层必填字段 |
 | --- | --- | --- | --- |
 {rows}
 
-Schema 版本独立标识磁盘或流格式，不随软件版本自动增加。M5.1 不引入新的 schema 版本。
+Schema version 独立标识磁盘或流格式，不随 software version 自动增加。Automation 可以先
+根据 `schema_version` 选择 parser，再读取 command-specific field。[Exit code 参考](exit-codes.md)
+说明 schema-valid machine output 与 process status 的关系。
 """
     return {
         DOCS / "en" / "reference" / "schemas.md": en,
@@ -326,10 +533,48 @@ description: Source-backed index of stable Trajecta CLI, daemon, worker, job, pr
 
 # Diagnostic codes
 
-Machine output identifies a condition by `diagnostics[].code`; messages provide
-context and may become more precise. Automation should branch on the code. The
-index below is rebuilt from production Rust sources, so a documented code cannot
-exist without a corresponding implementation site.
+Machine output identifies a condition through `diagnostics[].code`. Codes are
+short, stable selectors for scripts and troubleshooting; messages add the path,
+value, operating-system error, or run identity relevant to one invocation.
+
+## Diagnostic record
+
+| Field | Content |
+| --- | --- |
+| `severity` | `error`, `warning`, or `info` |
+| `code` | Namespaced condition such as `project.lock_missing` |
+| `message` | Human-readable detail for this occurrence |
+| `path` | Ordered field or array-index components locating a document value |
+| `hint` | Optional next command or correction |
+
+An envelope can contain several diagnostics. `project finalize`, for example,
+can return one preflight failure with nested project or data conditions. Read
+all entries before changing a document. In JSONL, a diagnostic is a stream item
+with `kind: "diagnostic"`; a later summary closes the stream.
+
+## Using codes in automation
+
+Branch on the complete code and inspect the process exit status separately.
+The message can gain more context between releases without changing the
+condition selected by the code. Unknown codes are best retained in logs and
+handled as the severity indicates, allowing a newer producer to communicate
+with an older monitoring script.
+
+The namespace usually identifies the component:
+
+| Prefix | Area |
+| --- | --- |
+| `config.*`, `doctor.*` | Machine configuration and environment checks |
+| `project.*`, `case.*`, `data.*` | Project documents, dataset planning, and locks |
+| `daemon.*`, `job_backend.*`, `scheduler.*` | Local control plane, catalog, and admission |
+| `job.*`, `worker.*`, `run.*` | Attempt lifecycle and numerical worker |
+| `met.*` | Meteorological probe or replay command |
+| `result.*`, `report.*` | Result inspection, verification, trajectory output, and report creation |
+
+## Source index
+
+The list below is rebuilt from production Rust string literals. Source links
+are included for contributors who are tracing the branch that emitted a code.
 
 Start troubleshooting by symptom in the [operations index](../operations/troubleshooting.md).
 
@@ -344,9 +589,45 @@ description: 由源码生成的 Trajecta CLI、daemon、worker、任务、项目
 
 # Diagnostic code
 
-机器输出通过 `diagnostics[].code` 标识条件；message 提供上下文，措辞可能进一步细化。
-自动化程序应按 code 分支。下列索引从生产 Rust 源码重建，因此每个已记录 code 都有对应
-实现位置。
+Machine output 通过 `diagnostics[].code` 标识条件。Code 是 script 和故障排查使用的稳定
+selector；message 会加入本次 invocation 对应的 path、value、operating-system error 或
+run identity。
+
+## Diagnostic record
+
+| Field | 内容 |
+| --- | --- |
+| `severity` | `error`、`warning` 或 `info` |
+| `code` | 带 namespace 的 condition，例如 `project.lock_missing` |
+| `message` | 本次 occurrence 的 human-readable detail |
+| `path` | 定位 document value 的有序 field 或 array-index component |
+| `hint` | Optional next command 或 correction |
+
+一个 envelope 可以包含多个 diagnostic。例如，`project finalize` 可以返回一个 preflight
+failure，并带有嵌套 project 或 data condition。修改文档前可以先读取全部 entry。JSONL
+中的 diagnostic 是 `kind: "diagnostic"` 的 stream item，后续 summary 负责关闭 stream。
+
+## 在 automation 中使用 code
+
+Automation 可以按完整 code 分支，并单独读取 process exit status。Message 可以在后续版本
+中增加上下文，而 condition code 保持原值。遇到未知 code 时，可将完整 entry 保留到 log，
+再按 severity 处理，使较新的 producer 仍能向已有 monitoring script 提供信息。
+
+Namespace 通常对应以下 component：
+
+| Prefix | 区域 |
+| --- | --- |
+| `config.*`、`doctor.*` | Machine configuration 与 environment check |
+| `project.*`、`case.*`、`data.*` | Project document、dataset plan 与 lock |
+| `daemon.*`、`job_backend.*`、`scheduler.*` | Local control plane、catalog 与 admission |
+| `job.*`、`worker.*`、`run.*` | Attempt lifecycle 与 numerical worker |
+| `met.*` | Meteorological probe 或 replay command |
+| `result.*`、`report.*` | Result inspection、verification、trajectory output 与 report creation |
+
+## Source 索引
+
+下表从 production Rust string literal 重建。Contributor 调查 code 的发出分支时，可以使用
+其中的 source link。
 
 按症状排查时，请先查阅[运维故障索引](../operations/troubleshooting.md)。
 

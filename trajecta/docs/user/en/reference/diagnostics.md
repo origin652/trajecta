@@ -7,10 +7,48 @@ description: Source-backed index of stable Trajecta CLI, daemon, worker, job, pr
 
 # Diagnostic codes
 
-Machine output identifies a condition by `diagnostics[].code`; messages provide
-context and may become more precise. Automation should branch on the code. The
-index below is rebuilt from production Rust sources, so a documented code cannot
-exist without a corresponding implementation site.
+Machine output identifies a condition through `diagnostics[].code`. Codes are
+short, stable selectors for scripts and troubleshooting; messages add the path,
+value, operating-system error, or run identity relevant to one invocation.
+
+## Diagnostic record
+
+| Field | Content |
+| --- | --- |
+| `severity` | `error`, `warning`, or `info` |
+| `code` | Namespaced condition such as `project.lock_missing` |
+| `message` | Human-readable detail for this occurrence |
+| `path` | Ordered field or array-index components locating a document value |
+| `hint` | Optional next command or correction |
+
+An envelope can contain several diagnostics. `project finalize`, for example,
+can return one preflight failure with nested project or data conditions. Read
+all entries before changing a document. In JSONL, a diagnostic is a stream item
+with `kind: "diagnostic"`; a later summary closes the stream.
+
+## Using codes in automation
+
+Branch on the complete code and inspect the process exit status separately.
+The message can gain more context between releases without changing the
+condition selected by the code. Unknown codes are best retained in logs and
+handled as the severity indicates, allowing a newer producer to communicate
+with an older monitoring script.
+
+The namespace usually identifies the component:
+
+| Prefix | Area |
+| --- | --- |
+| `config.*`, `doctor.*` | Machine configuration and environment checks |
+| `project.*`, `case.*`, `data.*` | Project documents, dataset planning, and locks |
+| `daemon.*`, `job_backend.*`, `scheduler.*` | Local control plane, catalog, and admission |
+| `job.*`, `worker.*`, `run.*` | Attempt lifecycle and numerical worker |
+| `met.*` | Meteorological probe or replay command |
+| `result.*`, `report.*` | Result inspection, verification, trajectory output, and report creation |
+
+## Source index
+
+The list below is rebuilt from production Rust string literals. Source links
+are included for contributors who are tracing the branch that emitted a code.
 
 Start troubleshooting by symptom in the [operations index](../operations/troubleshooting.md).
 

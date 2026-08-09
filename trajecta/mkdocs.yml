@@ -105,7 +105,15 @@ nav:
       - Air-mass workflow: tutorials/air-mass.md
       - Ozone workflow: tutorials/ozone.md
       - Data families and direction: tutorials/data-families.md
-  - How-to Guides: how-to/index.md
+  - How-to Guides:
+      - Choose a procedure: how-to/index.md
+      - Build configuration incrementally: how-to/progressive-configuration.md
+      - Configure before data arrives: how-to/deferred-data.md
+      - Run in front or through the queue: how-to/run-queue.md
+      - Follow job events: how-to/events.md
+      - Cancel, rerun, forget, and prune: how-to/cancel-rerun-prune.md
+      - Inspect and read results: how-to/results.md
+      - AI-assisted configuration: how-to/ai-companion.md
   - Concepts:
       - Product model: concepts/index.md
       - Domain-fill moisture: concepts/domain-fill.md
@@ -115,10 +123,12 @@ nav:
       - Extensibility: concepts/extensibility.md
   - Operations:
       - Operations manual: operations/index.md
+      - Shutdown and memory pressure: operations/shutdown-memory.md
+      - Storage, SQLite, and WAL: operations/storage-sqlite.md
       - Recovery and forensics: operations/recovery.md
       - Troubleshooting index: operations/troubleshooting.md
   - Validation:
-      - Evidence policy: validation/index.md
+      - Validation overview: validation/index.md
       - Scientific method: validation/science.md
       - Performance method: validation/performance.md
       - Comparability: validation/comparability.md

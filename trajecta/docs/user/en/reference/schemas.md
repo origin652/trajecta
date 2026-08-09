@@ -7,9 +7,53 @@ description: Source-backed schemas for Trajecta configuration, control-plane str
 
 # JSON and JSONL schemas
 
-The schema files are the normative machine-readable definitions. Examples are
-validation fixtures, not substitutes for the schemas. Case and RunProfile use
-their public YAML document contracts; see [Project, Case, and Profile](documents.md).
+Trajecta versions each machine-readable disk or stream format independently.
+The `schema_version` inside a document selects that format contract; the
+software version identifies the executable that reads or writes it. M5.1 keeps
+the existing schema identifiers.
+
+The linked schema files define required fields, value types, enumerations,
+additional-property rules, and nested records. Examples show one valid instance
+and are also used as validation fixtures. Case and RunProfile follow their
+public YAML document contracts; see
+[Project, Case, and Profile](documents.md).
+
+## Schema families
+
+| Family | Formats | Where they appear |
+| --- | --- | --- |
+| Configuration and project | Machine configuration, project index, data plan | Files edited during local and project setup |
+| CLI response | Single JSON envelope and JSONL stream item | Standard output in machine mode |
+| Job control | Job record, job event, prune plan | Local daemon queries and queue history |
+| Result reading | Result inspection, trajectory record, trajectory stream | `result inspect` and `result trajectory` output |
+| Scientific product | Run manifest and provenance bundle | Every completed result directory |
+| Distribution | Build manifest | Release package root |
+
+## Machine-output envelopes
+
+`trajecta.cli-output/v1` represents one command response. It contains the full
+command path, an `ok` flag, a command-specific `data` value, and structured
+diagnostics. A usage error in JSON mode uses the same outer format while
+retaining process exit code `2`.
+
+`trajecta.cli-stream-item/v1` represents one JSONL line. Its `kind` selects a
+data item, diagnostic, or final summary. The outer `sequence` orders lines in
+that invocation. A job event inside `data` has its own durable global sequence
+for reconnection.
+
+## Documents on disk
+
+The configuration and project-index schemas reject unknown properties and
+invalid value types. Product commands validate them before an atomic update.
+The data plan is generated from resolved project requirements and local status;
+it can be written to a file and reviewed before data preparation.
+
+The run manifest and provenance bundle are immutable result identities after a
+successful closeout. Open them through `result inspect` and `result verify`
+when possible, since those commands also check their relationship with SQLite
+and the selected attempt.
+
+## Schema index
 
 | Product | Schema | Example | Required top-level fields |
 | --- | --- | --- | --- |
@@ -29,4 +73,6 @@ their public YAML document contracts; see [Project, Case, and Profile](documents
 | Trajecta product build manifest | [M5_BUILD_MANIFEST.schema.json](https://github.com/origin652/trajecta/blob/main/trajecta/testdata/M5_BUILD_MANIFEST.schema.json) | [M5_BUILD_MANIFEST.example.json](https://github.com/origin652/trajecta/blob/main/trajecta/testdata/M5_BUILD_MANIFEST.example.json) | `schema_version`, `product`, `version`, `platform`, `source`, `build`, `archive`, `binary`, `sbom`, `license_inventory`, `native_components`, `payload` |
 
 Schema versions identify disk and stream formats independently of the software
-version. M5.1 does not introduce a new schema version.
+version. Automation can select a parser from `schema_version` before reading
+command-specific fields. The [exit-code reference](exit-codes.md) explains how
+schema-valid machine output relates to process status.

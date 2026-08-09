@@ -5,138 +5,54 @@ description: 说明渐进配置、延后准备资料、finalize、队列、事�
 
 # 操作指南
 
-以下流程假定已经安装 `0.1.0-alpha.1`，并选定本机配置。
+操作指南从一个具体任务出发，适合已经了解 Trajecta 项目基本结构的读者。第一次运行可从
+[15 分钟快速开始](../getting-started/quickstart.md)进入；需要完整科研流程时，可选择相应的
+[教程](../tutorials/index.md)。
 
-## 渐进配置
+本节命令使用三个占位符：
 
-使用 selector 逐项读取和修改：
+| 占位符 | 含义 | 示例 |
+| --- | --- | --- |
+| `PROJECT` | 项目目录或 `trajecta-project.yml` 的路径 | `examples/domain-fill-cfsr` |
+| `PROFILE` | 项目索引中的 Profile 名称 | `quickstart` |
+| `RESULT` | Job series ID、run ID 或运行结果目录 | `runs/0198.../attempt-1` |
 
-```text
-trajecta config list
-trajecta config get resources.memory_pool_mib
-trajecta config set resources.memory_reserve_mib 1024
-trajecta config set resources.memory_pool_mib 8192
-trajecta config unset profile_templates.experimental
-trajecta config validate
-```
+项目文档中的路径以项目根目录为基准。示例统一使用正斜杠；在这里列出的 Windows
+PowerShell 和 POSIX shell 命令都可以识别这种写法。
 
-请保持单一配置真源。`set` 或 `unset` 失败时，有效旧文件不会被部分内容替换。
+## 按任务选择指南
 
-## 先配置项目，后准备资料
+| 要完成的工作 | 指南 | 主要内容 |
+| --- | --- | --- |
+| 修改一项本机配置或项目配置 | [渐进配置](progressive-configuration.md) | 配置文件选择、类型化值、模板、项目 selector 和校验 |
+| 气象资料尚未到齐时先准备项目 | [先配置项目，后准备资料](deferred-data.md) | 项目状态、data-plan、资料请求、本地检查和 finalize |
+| 选择前台运行或提交后台队列 | [前台运行与任务队列](run-queue.md) | 提交、资源接收、状态查询、等待和 daemon 托管 |
+| 向终端、脚本或监控程序提供状态 | [跟踪任务事件](events.md) | 全局游标、单任务过滤、JSONL 结构、断线续读和轮询 |
+| 停止任务或创建新的 attempt | [取消、重跑、隐藏与清理计划](cancel-rerun-prune.md) | 安全取消、强制停止、attempt 历史、列表可见性和 dry-run 清理计划 |
+| 阅读完整或部分运行结果 | [检查和读取结果](results.md) | inspect、verify、轨迹流、报告和 SQLite 高级查询 |
+| 借助 AI 准备配置 | [AI 辅助配置](ai-companion.md) | 共享配置真源、限定任务、命令审阅和本地校验 |
 
-气象文件尚未准备时，可以执行 `project init`、`project set`、`case validate` 和
-`project validate`。项目保持 `configured` 或 `draft`，缺少 lock 会形成 diagnostic。
+## 新项目的一般顺序
 
-```text
-trajecta --project PROJECT project status
-trajecta --project PROJECT project validate
-trajecta --project PROJECT project data-plan --output data-plan.json
-```
+一个新项目通常按以下顺序形成：
 
-该状态可用于审阅和规划 provider request，尚不满足任务接收条件。
+1. 创建或选择本机配置。
+2. 初始化项目，加入 Case 与 RunProfile 文档。
+3. 项目进入 `configured` 状态后生成 data-plan。
+4. 准备所需资料，并抽查有代表性的输入文件。
+5. Finalize 项目，生成不可变的资料锁定记录。
+6. 前台提交运行，或交给后台队列。
+7. 跟踪持久化事件，随后检查终态结果。
 
-## 使用 data-plan 与 finalize
+各命令都可以通过 `--format json` 输出机器可读 envelope。事件流和轨迹流还支持
+`--format jsonl`。[Schema 参考](../reference/schemas.md)说明这些记录的结构，
+[diagnostic 索引](../reference/diagnostics.md)给出稳定错误码及处理入口。
 
-网络访问前先审阅 data-plan：
+## 修改运行环境前
 
-```text
-python tools/fetch_trajecta_data.py --project PROJECT --plan data-plan.json
-```
+`config set`、`config unset`、`project set` 和 `project unset` 会先校验新文档，再替换原
+文件。编辑失败时保留命令输出，其中会指出需要处理的 selector 和文档。
 
-CFSR 下载只使用 Python 标准库。执行 ERA5 pressure 或 hybrid 请求前，请安装冻结的资料
-准备依赖：
-
-```text
-python -m pip install -r requirements-data.txt
-```
-
-批准请求后增加 `--execute`。助手只写入声明的数据根，不会创建或替换 DatasetLock。
-
-```text
-python tools/fetch_trajecta_data.py --project PROJECT --plan data-plan.json --execute
-trajecta --project PROJECT project finalize
-```
-
-Finalize 会展开所选文档，检查真实资料、能力和覆盖范围，再原子写入 lock。Case 或
-Profile 变化后，应重新生成 `project data-plan`。
-
-## 前台和后台运行
-
-命令默认前台等待：
-
-```text
-trajecta --project PROJECT run --profile PROFILE
-```
-
-以下命令提交到本地队列，并在任务被接收后返回：
-
-```text
-trajecta --project PROJECT run --profile PROFILE --detach
-trajecta job wait JOB_ID
-```
-
-Daemon 根据 CPU 和内存池接收任务。关闭提交终端后，后台任务继续运行。前台客户端断开
-也不会撤销已接收任务。
-
-## 消费任务事件
-
-从头读取整个队列：
-
-```text
-trajecta --format jsonl job events --since 0 --follow
-```
-
-只读取一个任务：
-
-```text
-trajecta --format jsonl job events JOB_ID --since SEQUENCE --follow
-```
-
-处理事件后保存最后一个 sequence。重连时通过 `--since` 续读，以减少遗漏或重复处理。
-JSONL 依次输出 stream header、数据项，并在流结束时输出唯一 summary。
-
-## 取消、重跑、forget 与 prune
-
-```text
-trajecta job cancel JOB_ID
-trajecta job cancel JOB_ID --force
-trajecta job rerun JOB_ID
-trajecta job forget JOB_ID
-trajecta job prune
-```
-
-安全取消请求 worker 在安全点停止。Worker 无法到达安全点时，才考虑 force cancel。
-Rerun 创建新 attempt 并保留旧 attempt。Daemon 恢复时不会重跑已经完成的任务。
-
-当前版本的 `job prune` **只执行 dry-run**。它返回确定性计划，不删除结果、任务行、
-forensic 资料和 attempt。请在事故处理之外审阅该计划。
-
-## 读取结果
-
-优先使用产品命令：
-
-```text
-trajecta result inspect RESULT
-trajecta result verify RESULT --full
-trajecta result trajectory RESULT --particle-id 42
-trajecta run report --result RESULT
-```
-
-SQLite 结构用于高级只读分析。不要原地修改数据库、manifest、provenance bundle 或结果
-目录。
-
-## AI-assisted configuration companion
-
-向 AI 提供人类审阅所使用的同一组 Case、Profile、project index、data-plan 和公开 schema。
-请让 AI 提议 `config set` 或 `project set` 命令，避免创建第二份配置。不得提供 CDS 凭据
-或与任务无关的私有路径。
-
-接收 AI 辅助设置前执行：
-
-```text
-trajecta config validate
-trajecta --project PROJECT project validate
-trajecta --project PROJECT doctor --deep
-```
-
-Diagnostics 和 resolved documents 是最终验收证据。
+Finalized 项目将解析后的配置与一份资料清单绑定。Case、Profile、资料映射或气象文件发生
+变化后，在下一次提交前重新执行 `project finalize`。已经生成的 attempt 会在自己的结果
+目录中保留当时使用的 resolved document 和 provenance。

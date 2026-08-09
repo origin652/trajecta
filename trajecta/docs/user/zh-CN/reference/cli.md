@@ -7,58 +7,94 @@ description: 由真实二进制帮助生成，并与冻结 CLI 合同校验的 T
 
 # CLI 命令树
 
-本页由当前二进制的 `trajecta --help` 输出生成。冻结命令同时与
-`testdata/M5_CLI_CONTRACT.v1.json` 交叉校验。`run report` 是 M5-A3 已实现命令，
-其实现时间晚于冻结的 35 条命令合同。
+本页由当前二进制的 `trajecta --help` 输出生成。全部命令与
+`testdata/M5_CLI_CONTRACT.v1.json` 交叉校验；已经实现的 `run report` 会与该冻结合同一同
+检查。
 
-## 全局规则
+## 命令形式
 
-- 全局选项可以位于命令前后。
-- 默认输出供人类阅读。单个机器结果使用 `--format json`，流式结果使用
-  `--format jsonl`。
-- `run` 默认在前台等待；`--detach` 用于提交后返回。
-- 当前 alpha 版本的 `job prune` 只生成 dry-run 计划。
+```text
+trajecta [GLOBAL OPTIONS] COMMAND [ARGUMENTS]
+```
+
+Global option 可以位于命令前后。`--config PATH` 选择机器配置，进而确定本地 daemon
+endpoint 与 job catalog。`--project PATH` 为 project-aware command 选择项目根或 index。
+
+| Option | 含义 |
+| --- | --- |
+| `--format human` | Human-readable output，也是默认格式 |
+| `--format json` | 一个 `trajecta.cli-output/v1` envelope |
+| `--format jsonl` | Stream-capable command 每行一个 `trajecta.cli-stream-item/v1` object |
+| `--json` | `--format json` 的 alias |
+| `--config PATH` | 显式机器配置，优先于环境变量和平台默认路径 |
+| `--project PATH` | 显式 project root 或 `trajecta-project.yaml` 路径 |
+| `-h`、`--help` | 显示 command help |
+
+## 参数名称
+
+| Placeholder | 接受的值 |
+| --- | --- |
+| `PATH`、`FILE`、`DIR` | 文件系统路径；项目文档路径保持在 project jail 内 |
+| `KEY`、`SELECTOR` | Dotted configuration 或 project selector |
+| `JOB_ID` | Run admission 返回的 job-series identifier |
+| `RESULT` | Result command 接受的 job-series ID、run ID 或结果目录路径 |
+| `UNIX` | 以秒表示的 UTC Unix timestamp integer |
+| `JSONL` | Newline-delimited JSON file path；指定 meteorological command 还可使用 `-` 表示 standard input 或 output |
+
+## Runtime 行为
+
+- `run` 默认在前台等待；`--detach` 在任务持久化接收后返回。
+- Foreground run 会等待 attempt 进入终态。另一个终端可通过 `job status`、`job wait` 或
+  `job events` 重新连接。
+- `job events`、meteorological stream 与 trajectory output 可以使用 JSONL，最后一个 stream
+  item 为 summary。
+- 当前 alpha 版本的 `job prune` 返回 dry-run plan，没有 delete 或 apply option。
+- Machine mode 中的 application error 与成功命令使用相同 envelope shape。Shell script
+  仍可读取 process exit code。
 
 ## 命令
 
-| 概要 | 引入阶段 | 流式输出 |
+| 概要 | 用途 | Machine output |
 | --- | --- | --- |
-| `config init` | `m5_a1` | 否 |
-| `config path` | `m5_a1` | 否 |
-| `config list` | `m5_a1` | 否 |
-| `config get KEY` | `m5_a1` | 否 |
-| `config set KEY VALUE` | `m5_a1` | 否 |
-| `config unset KEY` | `m5_a1` | 否 |
-| `config validate` | `m5_a1` | 否 |
-| `project init [PATH] --name NAME` | `m5_a1` | 否 |
-| `project status` | `m5_a1` | 否 |
-| `project show` | `m5_a1` | 否 |
-| `project get SELECTOR` | `m5_a1` | 否 |
-| `project set SELECTOR VALUE` | `m5_a1` | 否 |
-| `project unset SELECTOR` | `m5_a1` | 否 |
-| `project validate` | `m5_a1` | 否 |
-| `project data-plan [--output PATH]` | `m5_a1` | 否 |
-| `project finalize` | `m5_a1` | 否 |
-| `case validate PATH [--intent simulation|met-probe|migration]` | `m5_a1` | 否 |
-| `case resolve PATH` | `m5_a1` | 否 |
-| `data inspect FILE` | `m5_a1` | 否 |
-| `data lock --root DIR --profile NAME --case FILE --output PATH [--replace]` | `m5_a1` | 否 |
-| `met probe --data-root DIR --profile NAME --time UNIX [options]` | `m5_a1` | 是 |
-| `met replay --data-root DIR --profile NAME --input JSONL [options]` | `m5_a1` | 是 |
-| `doctor [--deep]` | `m5_a1` | 否 |
-| `run (--project PATH --profile NAME | --case FILE --run-profile FILE) [--detach]` | `m5_a2` | 是 |
-| `job list` | `m5_a2` | 否 |
-| `job status JOB_ID` | `m5_a2` | 否 |
-| `job wait JOB_ID` | `m5_a2` | 是 |
-| `job events [JOB_ID] [--since SEQUENCE] [--follow]` | `m5_a2` | 是 |
-| `job cancel JOB_ID [--force]` | `m5_a2` | 否 |
-| `job rerun JOB_ID` | `m5_a3` | 否 |
-| `job forget JOB_ID` | `m5_a3` | 否 |
-| `job prune` | `m5_a3` | 否 |
-| `result inspect RESULT` | `m5_a3` | 否 |
-| `result verify RESULT [--full]` | `m5_a3` | 否 |
-| `result trajectory RESULT (--particle-id ID ... | --all)` | `m5_a3` | 是 |
-| `run report --result RESULT` | `m5_a3` | 否 |
+| `config init` | 在所选路径创建机器配置 | 单次响应 |
+| `config path` | 显示当前选择的机器配置路径 | 单次响应 |
+| `config list` | 列出全部配置 leaf 及其值 | 单次响应 |
+| `config get KEY` | 读取一个配置 selector | 单次响应 |
+| `config set KEY VALUE` | 校验并原子更新一个 selector | 单次响应 |
+| `config unset KEY` | 移除一个 optional selector | 单次响应 |
+| `config validate` | 校验完整的所选配置 | 单次响应 |
+| `project init [PATH] --name NAME` | 创建 project index 与初始目录结构 | 单次响应 |
+| `project status` | 报告 draft、configured 或 finalized 项目状态 | 单次响应 |
+| `project show` | 显示 resolved project index 与文档摘要 | 单次响应 |
+| `project get SELECTOR` | 读取一个 project selector | 单次响应 |
+| `project set SELECTOR VALUE` | 校验并更新一个 project selector | 单次响应 |
+| `project unset SELECTOR` | 移除一个 optional project selector | 单次响应 |
+| `project validate` | 校验 index 及其引用的 Case 与 Profile 文档 | 单次响应 |
+| `project data-plan [--output PATH]` | 计算确定性资料需求及其本地状态 | 单次响应 |
+| `project finalize` | 检查已准备资料并原子绑定 DatasetLock | 单次响应 |
+| `case validate PATH [--intent simulation|met-probe|migration]` | 按指定 intent 校验 Case | 单次响应 |
+| `case resolve PATH` | 将 Case 展开为 resolved public document | 单次响应 |
+| `data inspect FILE` | 检查一个受支持的气象资料文件 | 单次响应 |
+| `data lock --root DIR --profile NAME --case FILE --output PATH [--replace]` | 根据 Case、profile 与 data root 构建 DatasetLock | 单次响应 |
+| `met probe --data-root DIR --profile NAME --time UNIX [options]` | 查询指定气象点 | 可使用 JSONL |
+| `met replay --data-root DIR --profile NAME --input JSONL [options]` | 重放 JSONL 气象查询流 | 可使用 JSONL |
+| `doctor [--deep]` | 检查配置、项目、资料、文件系统及可选 deep probe | 单次响应 |
+| `run (--project PATH --profile NAME | --case FILE --run-profile FILE) [--detach]` | 提交 project Profile 或直接 Case/Profile pair | 可使用 JSONL |
+| `job list` | 列出各 job series 的最新可见 attempt | 单次响应 |
+| `job status JOB_ID` | 读取一个 job series 的当前快照 | 单次响应 |
+| `job wait JOB_ID` | 等待 current attempt 进入终态 | 可使用 JSONL |
+| `job events [JOB_ID] [--since SEQUENCE] [--follow]` | 读取或跟随持久化队列事件 | 可使用 JSONL |
+| `job cancel JOB_ID [--force]` | 请求安全取消或强制停止 current attempt | 单次响应 |
+| `job rerun JOB_ID` | 在现有 series 中创建下一个 attempt | 单次响应 |
+| `job forget JOB_ID` | 从日常列表隐藏 terminal series | 单次响应 |
+| `job prune` | 返回 dry-run 存储清理计划 | 单次响应 |
+| `result inspect RESULT` | 汇总 run manifest、artifact 与可用 SQLite count | 单次响应 |
+| `result verify RESULT [--full]` | 执行 quick 或 full product verification | 单次响应 |
+| `result trajectory RESULT (--particle-id ID ... | --all)` | 流式读取指定粒子或全部粒子的 trajectory row | 可使用 JSONL |
+| `run report --result RESULT` | 创建或刷新 RESULT/run-report.md | 单次响应 |
+
+完整操作顺序见[项目准备](../how-to/progressive-configuration.md)、
+[队列运行](../how-to/run-queue.md)与[结果读取](../how-to/results.md)。
 
 ## 二进制原始帮助
 

@@ -26,6 +26,11 @@ on:
         required: true
         default: false
         type: boolean
+      replace_existing_snapshot:
+        description: Replace the existing 0.1.0-alpha.1 snapshot during a manual publish
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -108,8 +113,11 @@ jobs:
         shell: bash
         run: |
           if git cat-file -e "gh-pages:$DOCS_VERSION/index.html" 2>/dev/null; then
-            echo "documentation snapshot already exists: $DOCS_VERSION" >&2
-            exit 1
+            if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" || "${{ inputs.replace_existing_snapshot }}" != "true" ]]; then
+              echo "documentation snapshot already exists: $DOCS_VERSION" >&2
+              exit 1
+            fi
+            echo "replacing documentation snapshot by explicit manual request: $DOCS_VERSION"
           fi
           mike deploy --config-file mkdocs.yml --update-aliases "$DOCS_VERSION" latest
           mike set-default --config-file mkdocs.yml "$DOCS_VERSION"

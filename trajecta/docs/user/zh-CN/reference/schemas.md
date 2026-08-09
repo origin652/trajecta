@@ -7,8 +7,47 @@ description: Trajecta 配置、控制面流、结果、manifest、provenance 和
 
 # JSON 与 JSONL schema
 
-Schema 文件是规范的机器可读定义。示例属于校验 fixture，不能代替 schema。Case 与
-RunProfile 使用公开 YAML 文档合同，详见 [Project、Case 与 Profile](documents.md)。
+Trajecta 为每种 machine-readable disk 或 stream format 单独设置版本。文档中的
+`schema_version` 选择 format contract，software version 则标识读写它的 executable。M5.1
+保持已有 schema identifier。
+
+链接中的 schema file 定义 required field、value type、enumeration、additional-property rule
+与 nested record。Example 展示一份 valid instance，同时用于 validation fixture。Case 与
+RunProfile 使用公开 YAML document contract，详见
+[Project、Case 与 Profile](documents.md)。
+
+## Schema family
+
+| Family | Format | 出现位置 |
+| --- | --- | --- |
+| 配置与项目 | Machine configuration、project index、data plan | 本机与项目设置期间编辑或生成的文件 |
+| CLI response | Single JSON envelope 与 JSONL stream item | Machine mode standard output |
+| Job control | Job record、job event、prune plan | Local daemon query 与 queue history |
+| 结果读取 | Result inspection、trajectory record、trajectory stream | `result inspect` 与 `result trajectory` 输出 |
+| 科学产品 | Run manifest 与 provenance bundle | 每个完成结果目录 |
+| 分发 | Build manifest | Release package root |
+
+## Machine-output envelope
+
+`trajecta.cli-output/v1` 表示一次 command response，其中包含完整 command path、`ok` flag、
+command-specific `data` value 与 structured diagnostic。JSON mode 中的 usage error 使用相同
+outer format，同时保留 process exit code `2`。
+
+`trajecta.cli-stream-item/v1` 表示一行 JSONL。`kind` 用于选择 data item、diagnostic 或最终
+summary。外层 `sequence` 对本次 invocation 中的行排序。`data` 内的 job event 还有自己的
+durable global sequence，用于重新连接。
+
+## 磁盘文档
+
+Configuration 与 project-index schema 会拒绝 unknown property 和 invalid value type。Product
+command 在 atomic update 前校验完整文档。Data plan 根据 resolved project requirement 与
+local status 生成，可以写入文件，并在准备资料前审阅。
+
+Run manifest 与 provenance bundle 在成功收尾后成为 immutable result identity。通常可通过
+`result inspect` 与 `result verify` 打开，因为这两条命令还会检查它们与 SQLite、selected
+attempt 的关系。
+
+## Schema 索引
 
 | 产品 | Schema | 示例 | 顶层必填字段 |
 | --- | --- | --- | --- |
@@ -27,4 +66,6 @@ RunProfile 使用公开 YAML 文档合同，详见 [Project、Case 与 Profile](
 | Trajecta M4 particle-state provenance bundle | [M4_PROVENANCE_BUNDLE.schema.json](https://github.com/origin652/trajecta/blob/main/trajecta/testdata/M4_PROVENANCE_BUNDLE.schema.json) | — | `schema_version`, `run_id`, `sqlite`, `record_hash_algorithm`, `records`, `field_sets`, `samples` |
 | Trajecta product build manifest | [M5_BUILD_MANIFEST.schema.json](https://github.com/origin652/trajecta/blob/main/trajecta/testdata/M5_BUILD_MANIFEST.schema.json) | [M5_BUILD_MANIFEST.example.json](https://github.com/origin652/trajecta/blob/main/trajecta/testdata/M5_BUILD_MANIFEST.example.json) | `schema_version`, `product`, `version`, `platform`, `source`, `build`, `archive`, `binary`, `sbom`, `license_inventory`, `native_components`, `payload` |
 
-Schema 版本独立标识磁盘或流格式，不随软件版本自动增加。M5.1 不引入新的 schema 版本。
+Schema version 独立标识磁盘或流格式，不随 software version 自动增加。Automation 可以先
+根据 `schema_version` 选择 parser，再读取 command-specific field。[Exit code 参考](exit-codes.md)
+说明 schema-valid machine output 与 process status 的关系。

@@ -8,58 +8,100 @@ description: Complete Trajecta 0.1.0-alpha.1 command synopsis generated from the
 # CLI command tree
 
 This page is generated from the `trajecta --help` output produced by the current
-binary. Every frozen command is cross-checked against
-`testdata/M5_CLI_CONTRACT.v1.json`. `run report` is an implemented M5-A3 command
-that post-dates the frozen 35-command contract.
+binary. Every command is cross-checked against
+`testdata/M5_CLI_CONTRACT.v1.json`; the implemented `run report` command is
+checked alongside that frozen contract.
 
-## Global rules
+## Command form
 
-- Global options may appear before or after a command.
-- Human output is the default. Use `--format json` for one envelope and
-  `--format jsonl` for streams.
-- `run` waits in the foreground unless `--detach` is supplied.
-- `job prune` is dry-run only in this alpha release.
+```text
+trajecta [GLOBAL OPTIONS] COMMAND [ARGUMENTS]
+```
+
+Global options may appear before or after a command. `--config PATH` selects
+the machine configuration and therefore the local daemon endpoint and job
+catalog. `--project PATH` selects a project root or its index for project-aware
+commands.
+
+| Option | Meaning |
+| --- | --- |
+| `--format human` | Human-readable output; this is the default |
+| `--format json` | One `trajecta.cli-output/v1` envelope |
+| `--format jsonl` | One `trajecta.cli-stream-item/v1` object per line for a stream-capable command |
+| `--json` | Alias for `--format json` |
+| `--config PATH` | Explicit machine configuration, ahead of environment and platform defaults |
+| `--project PATH` | Explicit project root or `trajecta-project.yaml` path |
+| `-h`, `--help` | Display command help |
+
+## Argument conventions
+
+| Placeholder | Accepted value |
+| --- | --- |
+| `PATH`, `FILE`, `DIR` | Filesystem path; project document paths remain inside the project jail |
+| `KEY`, `SELECTOR` | Dotted configuration or project selector |
+| `JOB_ID` | Job-series identifier returned by run admission |
+| `RESULT` | Job-series ID, run ID, or result-directory path accepted by result commands |
+| `UNIX` | Integer UTC Unix timestamp in seconds |
+| `JSONL` | Newline-delimited JSON file path; selected meteorology commands also accept `-` for standard input or output |
+
+## Runtime behavior
+
+- `run` waits in the foreground unless `--detach` is supplied. Detached mode
+  returns after durable queue admission.
+- A foreground run exits after the attempt becomes terminal. Use `job status`,
+  `job wait`, or `job events` to reconnect from another terminal.
+- `job events`, meteorological streams, and trajectory output can use JSONL.
+  Their final stream item is a summary.
+- `job prune` returns a dry-run plan in this alpha release. It has no delete or
+  apply option.
+- Application errors in machine mode use the same envelope shape as successful
+  commands. Process exit codes remain available to shell scripts.
 
 ## Commands
 
-| Synopsis | Introduced | Streaming |
+| Synopsis | Purpose | Machine output |
 | --- | --- | --- |
-| `config init` | `m5_a1` | no |
-| `config path` | `m5_a1` | no |
-| `config list` | `m5_a1` | no |
-| `config get KEY` | `m5_a1` | no |
-| `config set KEY VALUE` | `m5_a1` | no |
-| `config unset KEY` | `m5_a1` | no |
-| `config validate` | `m5_a1` | no |
-| `project init [PATH] --name NAME` | `m5_a1` | no |
-| `project status` | `m5_a1` | no |
-| `project show` | `m5_a1` | no |
-| `project get SELECTOR` | `m5_a1` | no |
-| `project set SELECTOR VALUE` | `m5_a1` | no |
-| `project unset SELECTOR` | `m5_a1` | no |
-| `project validate` | `m5_a1` | no |
-| `project data-plan [--output PATH]` | `m5_a1` | no |
-| `project finalize` | `m5_a1` | no |
-| `case validate PATH [--intent simulation|met-probe|migration]` | `m5_a1` | no |
-| `case resolve PATH` | `m5_a1` | no |
-| `data inspect FILE` | `m5_a1` | no |
-| `data lock --root DIR --profile NAME --case FILE --output PATH [--replace]` | `m5_a1` | no |
-| `met probe --data-root DIR --profile NAME --time UNIX [options]` | `m5_a1` | yes |
-| `met replay --data-root DIR --profile NAME --input JSONL [options]` | `m5_a1` | yes |
-| `doctor [--deep]` | `m5_a1` | no |
-| `run (--project PATH --profile NAME | --case FILE --run-profile FILE) [--detach]` | `m5_a2` | yes |
-| `job list` | `m5_a2` | no |
-| `job status JOB_ID` | `m5_a2` | no |
-| `job wait JOB_ID` | `m5_a2` | yes |
-| `job events [JOB_ID] [--since SEQUENCE] [--follow]` | `m5_a2` | yes |
-| `job cancel JOB_ID [--force]` | `m5_a2` | no |
-| `job rerun JOB_ID` | `m5_a3` | no |
-| `job forget JOB_ID` | `m5_a3` | no |
-| `job prune` | `m5_a3` | no |
-| `result inspect RESULT` | `m5_a3` | no |
-| `result verify RESULT [--full]` | `m5_a3` | no |
-| `result trajectory RESULT (--particle-id ID ... | --all)` | `m5_a3` | yes |
-| `run report --result RESULT` | `m5_a3` | no |
+| `config init` | Create a machine configuration at the selected path | single response |
+| `config path` | Print the selected machine-configuration path | single response |
+| `config list` | List every configuration leaf and its value | single response |
+| `config get KEY` | Read one configuration selector | single response |
+| `config set KEY VALUE` | Validate and atomically update one selector | single response |
+| `config unset KEY` | Remove an optional selector | single response |
+| `config validate` | Validate the complete selected configuration | single response |
+| `project init [PATH] --name NAME` | Create a project index and initial directory layout | single response |
+| `project status` | Report draft, configured, or finalized project state | single response |
+| `project show` | Show the resolved project index and document summary | single response |
+| `project get SELECTOR` | Read one project selector | single response |
+| `project set SELECTOR VALUE` | Validate and update one project selector | single response |
+| `project unset SELECTOR` | Remove an optional project selector | single response |
+| `project validate` | Validate the index and referenced Case and Profile documents | single response |
+| `project data-plan [--output PATH]` | Calculate deterministic dataset requirements and local status | single response |
+| `project finalize` | Inspect prepared data and atomically bind DatasetLocks | single response |
+| `case validate PATH [--intent simulation|met-probe|migration]` | Validate a Case for a selected intent | single response |
+| `case resolve PATH` | Expand a Case into its resolved public document | single response |
+| `data inspect FILE` | Inspect one supported meteorological file | single response |
+| `data lock --root DIR --profile NAME --case FILE --output PATH [--replace]` | Build a DatasetLock from a Case, profile, and data root | single response |
+| `met probe --data-root DIR --profile NAME --time UNIX [options]` | Query selected meteorological points | JSONL capable |
+| `met replay --data-root DIR --profile NAME --input JSONL [options]` | Replay a JSONL meteorological query stream | JSONL capable |
+| `doctor [--deep]` | Check configuration, project, data, filesystem, and optional deep probes | single response |
+| `run (--project PATH --profile NAME | --case FILE --run-profile FILE) [--detach]` | Submit a project Profile or direct Case/Profile pair | JSONL capable |
+| `job list` | List the latest visible attempt for each job series | single response |
+| `job status JOB_ID` | Read the current snapshot for one job series | single response |
+| `job wait JOB_ID` | Wait for the current attempt to become terminal | JSONL capable |
+| `job events [JOB_ID] [--since SEQUENCE] [--follow]` | Read or follow durable queue events | JSONL capable |
+| `job cancel JOB_ID [--force]` | Request safe cancellation or force-stop the current attempt | single response |
+| `job rerun JOB_ID` | Create the next attempt in an existing series | single response |
+| `job forget JOB_ID` | Hide a terminal series from routine list output | single response |
+| `job prune` | Return the dry-run storage-prune plan | single response |
+| `result inspect RESULT` | Summarize a run manifest, artifacts, and available SQLite counts | single response |
+| `result verify RESULT [--full]` | Run quick or full product verification | single response |
+| `result trajectory RESULT (--particle-id ID ... | --all)` | Stream trajectory rows for selected or all particles | JSONL capable |
+| `run report --result RESULT` | Create or refresh RESULT/run-report.md | single response |
+
+The procedural guides provide complete sequences for
+[project preparation](../how-to/progressive-configuration.md),
+[queue operation](../how-to/run-queue.md), and
+[result reading](../how-to/results.md).
 
 ## Exact binary help
 
