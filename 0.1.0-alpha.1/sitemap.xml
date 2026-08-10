@@ -323,6 +323,20 @@
         <xhtml:link rel="alternate" hreflang="zh-CN" href="https://origin652.github.io/trajecta/0.1.0-alpha.1zh-CN/tutorials/air-mass/"/>
     </url>
     <url>
+        <loc>https://origin652.github.io/trajecta/0.1.0-alpha.1/tutorials/command-index/</loc>
+        <lastmod>2026-08-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://origin652.github.io/trajecta/0.1.0-alpha.1/tutorials/command-index/"/>
+        <xhtml:link rel="alternate" hreflang="zh-CN" href="https://origin652.github.io/trajecta/0.1.0-alpha.1zh-CN/tutorials/command-index/"/>
+    </url>
+    <url>
+        <loc>https://origin652.github.io/trajecta/0.1.0-alpha.1/tutorials/command-roadmap/</loc>
+        <lastmod>2026-08-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://origin652.github.io/trajecta/0.1.0-alpha.1/tutorials/command-roadmap/"/>
+        <xhtml:link rel="alternate" hreflang="zh-CN" href="https://origin652.github.io/trajecta/0.1.0-alpha.1zh-CN/tutorials/command-roadmap/"/>
+    </url>
+    <url>
         <loc>https://origin652.github.io/trajecta/0.1.0-alpha.1/tutorials/data-families/</loc>
         <lastmod>2026-08-10</lastmod>
         <changefreq>daily</changefreq>
@@ -706,6 +720,20 @@
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="zh-CN" href="https://origin652.github.io/trajecta/0.1.0-alpha.1/zh-CN/tutorials/air-mass/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://origin652.github.io/trajecta/0.1.0-alpha.1tutorials/air-mass/"/>
+    </url>
+    <url>
+        <loc>https://origin652.github.io/trajecta/0.1.0-alpha.1/zh-CN/tutorials/command-index/</loc>
+        <lastmod>2026-08-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh-CN" href="https://origin652.github.io/trajecta/0.1.0-alpha.1/zh-CN/tutorials/command-index/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://origin652.github.io/trajecta/0.1.0-alpha.1tutorials/command-index/"/>
+    </url>
+    <url>
+        <loc>https://origin652.github.io/trajecta/0.1.0-alpha.1/zh-CN/tutorials/command-roadmap/</loc>
+        <lastmod>2026-08-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh-CN" href="https://origin652.github.io/trajecta/0.1.0-alpha.1/zh-CN/tutorials/command-roadmap/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://origin652.github.io/trajecta/0.1.0-alpha.1tutorials/command-roadmap/"/>
     </url>
     <url>
         <loc>https://origin652.github.io/trajecta/0.1.0-alpha.1/zh-CN/tutorials/data-families/</loc>
