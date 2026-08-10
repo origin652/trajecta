@@ -2259,32 +2259,34 @@ as the pressure-level tutorial.</p>
 <h2 id="read-the-project-and-profile">Read the project and Profile<a class="headerlink" href="#read-the-project-and-profile" title="Permanent link">&para;</a></h2>
 <p>The project index maps logical dataset <code>era5-hybrid</code> to public profile
 <code>era5-cds-hybrid137-v0</code>:</p>
-<p>schema_version: trajecta.project-index/v1
-name: ozone-era5-hybrid
-cases:
-  ozone: cases/ozone.yaml
-profiles:
-  product:
-    path: profiles/product.yaml
-    dataset_profiles:
-      era5-hybrid: era5-cds-hybrid137-v0
-default_profile: product</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">trajecta.project-index/v1</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ozone-era5-hybrid</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">cases</span><span class="p">:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">ozone</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cases/ozone.yaml</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nt">profiles</span><span class="p">:</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nt">product</span><span class="p">:</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">profiles/product.yaml</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="nt">dataset_profiles</span><span class="p">:</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">      </span><span class="nt">era5-hybrid</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">era5-cds-hybrid137-v0</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="nt">default_profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">product</span>
+</code></pre></div>
 <p>The machine-facing Profile selects the Rust reader and local paths:</p>
-<p>schema_version: 0
-kind: run_profile
-metadata: { name: product }
-case_path: ../cases/ozone.yaml
-output_root: ../runs
-datasets:
-  - dataset: era5-hybrid
-    lockfile: ../locks/era5-hybrid.lock.json
-    data_roots: { met: ../data }
-    reader_backend: rust
-execution:
-  worker_threads: 1
-  memory_budget_bytes: 1073741824
-  executor: cpu
-  meteorology_reader: rust</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">run_profile</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nt">metadata</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> name</span><span class="p">:</span><span class="w"> </span><span class="nv">product</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nt">case_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../cases/ozone.yaml</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nt">output_root</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../runs</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="nt">datasets</span><span class="p">:</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">dataset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">era5-hybrid</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="nt">lockfile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../locks/era5-hybrid.lock.json</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="nt">data_roots</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> met</span><span class="p">:</span><span class="w"> </span><span class="nv">../data</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="nt">reader_backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rust</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="nt">execution</span><span class="p">:</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">  </span><span class="nt">worker_threads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">  </span><span class="nt">memory_budget_bytes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1073741824</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">  </span><span class="nt">executor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cpu</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">  </span><span class="nt">meteorology_reader</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rust</span>
+</code></pre></div>
 <p>The Case is stored at <code>examples/ozone-era5-hybrid/cases/ozone.yaml</code>. Its key
 settings are:</p>
 <table>
@@ -2398,8 +2400,8 @@ carried mass with the particle. The population mass ledger follows dry-air
 carrier mass through limited-domain inflow, outflow, and terminations.</p>
 <h2 id="plan-data-before-downloading">Plan data before downloading<a class="headerlink" href="#plan-data-before-downloading" title="Permanent link">&para;</a></h2>
 <p>Validate the project and save its data-plan:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project examples/ozone-era5-hybrid project validate
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --project examples/ozone-era5-hybrid project data-plan --output hybrid-plan.json
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trajecta --project examples/ozone-era5-hybrid project validate
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>trajecta --project examples/ozone-era5-hybrid project data-plan --output hybrid-plan.json
 </code></pre></div>
 <p>The single requirement selects:</p>
 <table>
@@ -2439,8 +2441,8 @@ carrier mass through limited-domain inflow, outflow, and terminations.</p>
 <p>Coverage remains chronological in the plan even though numerical execution is
 backward. The direction stays in the resolved Case.</p>
 <p>Install the data-tool dependencies and preview the request:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python -m pip install -r requirements-data.txt
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>python tools/fetch_trajecta_data.py --project examples/ozone-era5-hybrid --plan hybrid-plan.json
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>python -m pip install -r requirements-data.txt
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>python tools/fetch_trajecta_data.py --project examples/ozone-era5-hybrid --plan hybrid-plan.json
 </code></pre></div>
 <p>The preview lists each Climate Data Store request, model levels, variable
 codes, surface companions, area, anchors, and local target. Credentials are
@@ -2448,7 +2450,7 @@ read by the provider client from its standard configuration or environment;
 the printed plan contains request parameters only.</p>
 <h2 id="download-and-prepare-anchors">Download and prepare anchors<a class="headerlink" href="#download-and-prepare-anchors" title="Permanent link">&para;</a></h2>
 <p>Start the complete provider and preparation pipeline:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python tools/fetch_trajecta_data.py --project examples/ozone-era5-hybrid --plan hybrid-plan.json --execute
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>python tools/fetch_trajecta_data.py --project examples/ozone-era5-hybrid --plan hybrid-plan.json --execute
 </code></pre></div>
 <p>Raw service files and derived coefficient material are assembled under
 <code>data/.trajecta-fetch/</code>. Preparation checks dimensions, variables, valid times,
@@ -2460,26 +2462,26 @@ The provider may stage the model-level request asynchronously. Re-running the
 same command reuses matching work already present in the provider utilities.</p>
 <h2 id="finalize-and-run">Finalize and run<a class="headerlink" href="#finalize-and-run" title="Permanent link">&para;</a></h2>
 <p>Inspect one ready anchor, create the lock, and check local I/O:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta data inspect examples/ozone-era5-hybrid/data/ready/ERA5_HYBRID_READY_FILE.nc
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>trajecta --project examples/ozone-era5-hybrid project finalize
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>trajecta --project examples/ozone-era5-hybrid doctor --deep
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta data inspect examples/ozone-era5-hybrid/data/ready/ERA5_HYBRID_READY_FILE.nc
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>trajecta --project examples/ozone-era5-hybrid project finalize
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>trajecta --project examples/ozone-era5-hybrid doctor --deep
 </code></pre></div>
 <p>The inspection response identifies <code>era5_cds_hybrid137</code>, 137 model levels,
 valid times, source roles, and the prepared grid. Finalization brings the main
 fields, logarithmic surface pressure, surface files, and coefficient metadata
 together in one DatasetLock.</p>
 <p>Run the Profile in the foreground:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta --project examples/ozone-era5-hybrid run --profile product
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>trajecta --project examples/ozone-era5-hybrid run --profile product
 </code></pre></div>
 <p>Population initialization reads the 06:00 UTC snapshot, derives potential
 vorticity, selects eligible dry-air strata, and assigns ozone. The worker then
 steps toward 05:50 UTC and writes the endpoint result.</p>
 <h2 id="read-a-backward-result">Read a backward result<a class="headerlink" href="#read-a-backward-result" title="Permanent link">&para;</a></h2>
 <p>Verify and summarize the completed directory:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta result verify RESULT --full
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>trajecta result inspect RESULT
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>trajecta result trajectory RESULT --particle-id 0
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>trajecta run report --result RESULT
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>trajecta result verify RESULT --full
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>trajecta result inspect RESULT
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>trajecta result trajectory RESULT --particle-id 0
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>trajecta run report --result RESULT
 </code></pre></div>
 <p>Event sequence follows execution: the first scheduled event is 06:00 and the
 second is 05:50 UTC. <code>integration_offset_ns</code> becomes negative as the trajectory
