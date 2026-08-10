@@ -192,6 +192,19 @@ def local_link_target(source: Path, raw: str) -> Path | None:
     return (source.parent / path).resolve(strict=False)
 
 
+def enclosing_fence_language(text: str, offset: int) -> str | None:
+    language: str | None = None
+    for line in text[:offset].splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("```"):
+            continue
+        if language is None:
+            language = stripped[3:].split(maxsplit=1)[0].lower()
+        else:
+            language = None
+    return language
+
+
 def validate_links_and_snippets(failures: list[str]) -> None:
     for locale in LOCALES:
         for page in markdown_files(locale):
@@ -211,7 +224,14 @@ def validate_links_and_snippets(failures: list[str]) -> None:
     for tutorial in ("domain-fill.md", "release.md", "air-mass.md", "ozone.md"):
         for locale in LOCALES:
             text = (DOCS / locale / "tutorials" / tutorial).read_text(encoding="utf-8")
-            require(bool(SNIPPET.search(text)), f"tutorial has no executable example snippet: {locale}/{tutorial}", failures)
+            snippets = list(SNIPPET.finditer(text))
+            require(bool(snippets), f"tutorial has no executable example snippet: {locale}/{tutorial}", failures)
+            for snippet in snippets:
+                require(
+                    enclosing_fence_language(text, snippet.start()) in {"yaml", "yml"},
+                    f"tutorial snippet is not inside a YAML code fence: {locale}/{tutorial}",
+                    failures,
+                )
 
 
 def command_paths() -> set[str]:

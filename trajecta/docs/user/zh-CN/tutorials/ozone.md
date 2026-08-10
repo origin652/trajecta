@@ -16,11 +16,15 @@ description: 准备 ERA5 混合模式层资料，按 PV60 规则生成平流层�
 项目索引把逻辑资料 `era5-hybrid` 映射到内置资料配置
 `era5-cds-hybrid137-v0`：
 
+```yaml
 --8<-- "examples/ozone-era5-hybrid/trajecta-project.yaml"
+```
 
 运行配置选择纯 Rust 读取器和本机目录：
 
+```yaml
 --8<-- "examples/ozone-era5-hybrid/profiles/product.yaml"
+```
 
 案例位于 `examples/ozone-era5-hybrid/cases/ozone.yaml`。主要设置如下：
 

@@ -17,7 +17,9 @@ CFSR 风场中正向积分十分钟。
 
 完整配置直接取自示例项目：
 
+```yaml
 --8<-- "examples/release-cfsr/cases/release.yaml"
+```
 
 数值步长、全球边界规则、端点输出和气象时段与区域填充示例相同，主要差别位于
 `particle_population`：

@@ -20,15 +20,21 @@ particles are initialized by dry-air mass inside the safe core of that grid.
 The project index connects logical dataset `era5-pressure` with public profile
 `era5-cf-pressure-netcdf-v0`:
 
+```yaml
 --8<-- "examples/air-mass-era5-pressure/trajecta-project.yaml"
+```
 
 The Case selects the limited domain and dry-air population:
 
+```yaml
 --8<-- "examples/air-mass-era5-pressure/cases/air-mass.yaml"
+```
 
 The RunProfile contains the machine-facing paths and execution request:
 
+```yaml
 --8<-- "examples/air-mass-era5-pressure/profiles/product.yaml"
+```
 
 The three files divide the study cleanly. The Case supplies time, direction,
 population, boundary rules, and output. The index selects the dataset profile.

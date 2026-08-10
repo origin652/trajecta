@@ -37,7 +37,9 @@ description: 使用 CFSR 资料建立区域填充粒子群，运行一个小型�
 
 以下内容直接来自示例案例：
 
+```yaml
 --8<-- "examples/domain-fill-cfsr/cases/moisture.yaml"
+```
 
 配置可以按下表理解：
 

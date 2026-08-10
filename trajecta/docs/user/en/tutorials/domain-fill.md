@@ -44,7 +44,9 @@ binds logical dataset `cfsr` to `data/`, selects the Rust reader, writes under
 
 The scientific Case is included below from the executable example:
 
+```yaml
 --8<-- "examples/domain-fill-cfsr/cases/moisture.yaml"
+```
 
 The main choices are easier to read as a study description:
 

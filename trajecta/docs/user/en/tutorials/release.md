@@ -19,7 +19,9 @@ ten minutes through global CFSR meteorology.
 
 The complete scientific source comes directly from the example project:
 
+```yaml
 --8<-- "examples/release-cfsr/cases/release.yaml"
+```
 
 The Case uses the same numerical step, global boundary policies, endpoint
 output, and CFSR interval as the domain-fill example. Its population section is

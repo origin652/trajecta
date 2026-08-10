@@ -20,15 +20,21 @@ description: 准备 ERA5 气压层资料，在有限区域内生成等干空气�
 项目索引把逻辑资料 `era5-pressure` 映射到内置资料配置
 `era5-cf-pressure-netcdf-v0`：
 
+```yaml
 --8<-- "examples/air-mass-era5-pressure/trajecta-project.yaml"
+```
 
 案例选择有限区域和等干空气质量粒子群：
 
+```yaml
 --8<-- "examples/air-mass-era5-pressure/cases/air-mass.yaml"
+```
 
 运行配置保存本机路径和资源请求：
 
+```yaml
 --8<-- "examples/air-mass-era5-pressure/profiles/product.yaml"
+```
 
 三个文件各自承担一类信息：
 

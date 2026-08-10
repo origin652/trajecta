@@ -20,11 +20,15 @@ as the pressure-level tutorial.
 The project index maps logical dataset `era5-hybrid` to public profile
 `era5-cds-hybrid137-v0`:
 
+```yaml
 --8<-- "examples/ozone-era5-hybrid/trajecta-project.yaml"
+```
 
 The machine-facing Profile selects the Rust reader and local paths:
 
+```yaml
 --8<-- "examples/ozone-era5-hybrid/profiles/product.yaml"
+```
 
 The Case is stored at `examples/ozone-era5-hybrid/cases/ozone.yaml`. Its key
 settings are:
