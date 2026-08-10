@@ -16,7 +16,7 @@
         <link rel="prev" href="../getting-started/demo-data/">
       
       
-        <link rel="next" href="domain-fill/">
+        <link rel="next" href="command-roadmap/">
       
       
       <link rel="icon" href="../../assets/logo.svg">
@@ -552,7 +552,7 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      四个教程
+      命令导航
     </span>
   </a>
   
@@ -561,7 +561,7 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      如何选择
+      四个教程
     </span>
   </a>
   
@@ -570,7 +570,7 @@
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      各项目共用的流程
+      如何选择
     </span>
   </a>
   
@@ -579,7 +579,7 @@
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      示例项目的文件
+      各项目共用的流程
     </span>
   </a>
   
@@ -587,6 +587,15 @@
       
         <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      示例项目的文件
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       从教程扩展到正式研究
     </span>
@@ -598,6 +607,52 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="command-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    常用命令路线图
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="command-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    完整命令索引
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -2116,7 +2171,7 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      四个教程
+      命令导航
     </span>
   </a>
   
@@ -2125,7 +2180,7 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      如何选择
+      四个教程
     </span>
   </a>
   
@@ -2134,7 +2189,7 @@
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
-      各项目共用的流程
+      如何选择
     </span>
   </a>
   
@@ -2143,7 +2198,7 @@
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
-      示例项目的文件
+      各项目共用的流程
     </span>
   </a>
   
@@ -2151,6 +2206,15 @@
       
         <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      示例项目的文件
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       从教程扩展到正式研究
     </span>
@@ -2185,7 +2249,34 @@
 先完整运行一个项目，再修改时段、粒子数量或输出频率。这样更容易区分配置变化与资料问题。</p>
 <p>示例项目位于源码仓库和发行包的 <code>examples/</code> 目录。配置片段直接从这些文件引入，页面所示内容
 就是命令行程序读取的内容。</p>
-<h2 id="_2">四个教程<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h2 id="_2">命令导航<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>入口</th>
+<th>适合何时使用</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="command-roadmap/">常用命令路线图</a></td>
+<td>第一次运行项目，或需要快速找到下一步操作</td>
+<td>按本机准备、项目定稿、队列运行和结果读取的顺序整理常用命令</td>
+</tr>
+<tr>
+<td><a href="command-index/">完整命令索引</a></td>
+<td>已经知道要完成的任务，希望浏览全部可用命令</td>
+<td>按六类任务列出当前命令行程序的每一条命令</td>
+</tr>
+<tr>
+<td><a href="../reference/cli/">CLI 命令树</a></td>
+<td>需要核对完整参数、输出格式和运行行为</td>
+<td>提供命令概要、全局参数、参数占位符和二进制原始帮助</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">四个教程<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -2230,7 +2321,7 @@
 <p>四个示例均使用 1,000 个粒子，积分步长为 300 秒，只在物理时段两端输出粒子状态。运行配置
 为工作进程预留 1 GiB 内存。十分钟的模拟区间便于快速检查资料和结果，也足以看清各种粒子群
 和资料系列之间的差别。</p>
-<h2 id="_3">如何选择<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h2 id="_4">如何选择<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <p>完成快速入门后，可以继续阅读区域填充教程。它详细解释如何把一个气象快照转换成等干空气
 质量粒子，以及如何从结果中读取干空气载体质量和水汽状态。开展水汽来源、去向或停留时间
 分析时，这一工作流通常最合适。</p>
@@ -2245,7 +2336,7 @@
 <p>先保留教程的短时段和 1,000 个粒子。确认资料准备、项目定稿和结果读取均可完成后，再扩大
 区域或延长时段。</p>
 </div>
-<h2 id="_4">各项目共用的流程<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_5">各项目共用的流程<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <p>四个项目采用同一套操作顺序：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>project validate
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>      ↓
@@ -2275,7 +2366,7 @@
 <li><code>result inspect</code> 汇总运行 ID、粒子、终止原因和产物；</li>
 <li><code>result trajectory</code> 按时间读取指定粒子的轨迹记录。</li>
 </ul>
-<h2 id="_5">示例项目的文件<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h2 id="_6">示例项目的文件<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <p>每个教程项目都由以下几部分组成：</p>
 <table>
 <thead>
@@ -2308,7 +2399,7 @@
 <p>需要修改教程时，直接编辑示例项目中的文件，然后重新运行 <code>project validate</code> 和
 <code>project data-plan</code>。这样可以让案例文件始终作为唯一配置来源，避免笔记本、脚本和文档各自
 保存一份逐渐分叉的配置。</p>
-<h2 id="_6">从教程扩展到正式研究<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<h2 id="_7">从教程扩展到正式研究<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <p>扩大案例时，可以一次调整一个维度：</p>
 <table>
 <thead>

@@ -323,6 +323,20 @@
         <xhtml:link rel="alternate" hreflang="zh-CN" href="https://origin652.github.io/trajecta/dev/devzh-CN/tutorials/air-mass/"/>
     </url>
     <url>
+        <loc>https://origin652.github.io/trajecta/dev/dev/tutorials/command-index/</loc>
+        <lastmod>2026-08-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://origin652.github.io/trajecta/dev/dev/tutorials/command-index/"/>
+        <xhtml:link rel="alternate" hreflang="zh-CN" href="https://origin652.github.io/trajecta/dev/devzh-CN/tutorials/command-index/"/>
+    </url>
+    <url>
+        <loc>https://origin652.github.io/trajecta/dev/dev/tutorials/command-roadmap/</loc>
+        <lastmod>2026-08-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://origin652.github.io/trajecta/dev/dev/tutorials/command-roadmap/"/>
+        <xhtml:link rel="alternate" hreflang="zh-CN" href="https://origin652.github.io/trajecta/dev/devzh-CN/tutorials/command-roadmap/"/>
+    </url>
+    <url>
         <loc>https://origin652.github.io/trajecta/dev/dev/tutorials/data-families/</loc>
         <lastmod>2026-08-10</lastmod>
         <changefreq>daily</changefreq>
@@ -706,6 +720,20 @@
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="zh-CN" href="https://origin652.github.io/trajecta/dev/dev/zh-CN/tutorials/air-mass/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://origin652.github.io/trajecta/dev/devtutorials/air-mass/"/>
+    </url>
+    <url>
+        <loc>https://origin652.github.io/trajecta/dev/dev/zh-CN/tutorials/command-index/</loc>
+        <lastmod>2026-08-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh-CN" href="https://origin652.github.io/trajecta/dev/dev/zh-CN/tutorials/command-index/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://origin652.github.io/trajecta/dev/devtutorials/command-index/"/>
+    </url>
+    <url>
+        <loc>https://origin652.github.io/trajecta/dev/dev/zh-CN/tutorials/command-roadmap/</loc>
+        <lastmod>2026-08-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh-CN" href="https://origin652.github.io/trajecta/dev/dev/zh-CN/tutorials/command-roadmap/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://origin652.github.io/trajecta/dev/devtutorials/command-roadmap/"/>
     </url>
     <url>
         <loc>https://origin652.github.io/trajecta/dev/dev/zh-CN/tutorials/data-families/</loc>
