@@ -2262,62 +2262,65 @@
 <h2 id="_1">项目如何连接三个文件<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <p>项目索引把逻辑资料 <code>era5-pressure</code> 映射到内置资料配置
 <code>era5-cf-pressure-netcdf-v0</code>：</p>
-<p>schema_version: trajecta.project-index/v1
-name: air-mass-era5-pressure
-cases:
-  air-mass: cases/air-mass.yaml
-profiles:
-  product:
-    path: profiles/product.yaml
-    dataset_profiles:
-      era5-pressure: era5-cf-pressure-netcdf-v0
-default_profile: product</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">trajecta.project-index/v1</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">air-mass-era5-pressure</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">cases</span><span class="p">:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">air-mass</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cases/air-mass.yaml</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nt">profiles</span><span class="p">:</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nt">product</span><span class="p">:</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">profiles/product.yaml</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="nt">dataset_profiles</span><span class="p">:</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">      </span><span class="nt">era5-pressure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">era5-cf-pressure-netcdf-v0</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="nt">default_profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">product</span>
+</code></pre></div>
 <p>案例选择有限区域和等干空气质量粒子群：</p>
-<p>schema_version: 0
-kind: case
-metadata: { name: air-mass-era5-pressure }
-time:
-  start: { seconds_since_unix_epoch: 1543644000, nanosecond: 0 }
-  end: { seconds_since_unix_epoch: 1543644600, nanosecond: 0 }
-  direction: forward
-meteorology:
-  domains:
-    - id: limited
-      dataset: era5-pressure
-      priority: 1
-      horizontal_halo_cells: 1
-particle_population:
-  strategy: domain_fill_air_mass
-  id: air
-  domain_id: limited
-  target_particle_count: 1000
-substances: []
-numerics:
-  time_step: { value: 300, unit: s }
-  integrator: { model: rk2_spherical/v0 }
-  boundaries:
-    policies: [surface_reflect/v0, model_top_terminate/v0, limited_domain_terminate/v0]
-  random_seed: 4202
-outputs:
-  - product: particle_state/v1
-    schedule: { mode: endpoints }
-    sink: { model: particle_state_sqlite/v1 }</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">case</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nt">metadata</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> name</span><span class="p">:</span><span class="w"> </span><span class="nv">air-mass-era5-pressure</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nt">time</span><span class="p">:</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">start</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> seconds_since_unix_epoch</span><span class="p">:</span><span class="w"> </span><span class="nv">1543644000</span><span class="p p-Indicator">,</span><span class="nt"> nanosecond</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">end</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> seconds_since_unix_epoch</span><span class="p">:</span><span class="w"> </span><span class="nv">1543644600</span><span class="p p-Indicator">,</span><span class="nt"> nanosecond</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="nt">direction</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">forward</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="nt">meteorology</span><span class="p">:</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span><span class="nt">domains</span><span class="p">:</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">limited</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">      </span><span class="nt">dataset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">era5-pressure</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">      </span><span class="nt">priority</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">      </span><span class="nt">horizontal_halo_cells</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="nt">particle_population</span><span class="p">:</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">domain_fill_air_mass</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">  </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">air</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">  </span><span class="nt">domain_id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">limited</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">  </span><span class="nt">target_particle_count</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="nt">substances</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="nt">numerics</span><span class="p">:</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">  </span><span class="nt">time_step</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> value</span><span class="p">:</span><span class="w"> </span><span class="nv">300</span><span class="p p-Indicator">,</span><span class="nt"> unit</span><span class="p">:</span><span class="w"> </span><span class="nv">s</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">  </span><span class="nt">integrator</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> model</span><span class="p">:</span><span class="w"> </span><span class="nv">rk2_spherical/v0</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">  </span><span class="nt">boundaries</span><span class="p">:</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">    </span><span class="nt">policies</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">surface_reflect/v0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">model_top_terminate/v0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">limited_domain_terminate/v0</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">  </span><span class="nt">random_seed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4202</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="nt">outputs</span><span class="p">:</span>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">product</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">particle_state/v1</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="w">    </span><span class="nt">schedule</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> mode</span><span class="p">:</span><span class="w"> </span><span class="nv">endpoints</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">    </span><span class="nt">sink</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> model</span><span class="p">:</span><span class="w"> </span><span class="nv">particle_state_sqlite/v1</span><span class="w"> </span><span class="p p-Indicator">}</span>
+</code></pre></div>
 <p>运行配置保存本机路径和资源请求：</p>
-<p>schema_version: 0
-kind: run_profile
-metadata: { name: product }
-case_path: ../cases/air-mass.yaml
-output_root: ../runs
-datasets:
-  - dataset: era5-pressure
-    lockfile: ../locks/era5-pressure.lock.json
-    data_roots: { met: ../data }
-    reader_backend: rust
-execution:
-  worker_threads: 1
-  memory_budget_bytes: 1073741824
-  executor: cpu
-  meteorology_reader: rust</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">run_profile</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">metadata</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> name</span><span class="p">:</span><span class="w"> </span><span class="nv">product</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="nt">case_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../cases/air-mass.yaml</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">output_root</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../runs</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="nt">datasets</span><span class="p">:</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">dataset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">era5-pressure</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="nt">lockfile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../locks/era5-pressure.lock.json</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="nt">data_roots</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> met</span><span class="p">:</span><span class="w"> </span><span class="nv">../data</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="nt">reader_backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rust</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="nt">execution</span><span class="p">:</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">  </span><span class="nt">worker_threads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">  </span><span class="nt">memory_budget_bytes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1073741824</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">  </span><span class="nt">executor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cpu</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span><span class="nt">meteorology_reader</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rust</span>
+</code></pre></div>
 <p>三个文件各自承担一类信息：</p>
 <table>
 <thead>
@@ -2373,8 +2376,8 @@ execution:
 运行配置选择纯 Rust 或原生 NetCDF 读取路径。</p>
 <h2 id="_2">先生成计划，稍后下载<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>资料目录为空时，项目仍可完成文档校验并进入 <code>configured</code> 状态：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trajecta --project examples/air-mass-era5-pressure project validate
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>trajecta --project examples/air-mass-era5-pressure project data-plan --output era5-plan.json
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>trajecta --project examples/air-mass-era5-pressure project validate
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>trajecta --project examples/air-mass-era5-pressure project data-plan --output era5-plan.json
 </code></pre></div>
 <p>本例生成的要求应包含：</p>
 <table>
@@ -2423,17 +2426,17 @@ execution:
 并要求重新生成计划。这样可以避免根据旧时段或旧区域继续下载。</p>
 <h2 id="_3">预览和下载资料<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <p>先为 Python 资料工具安装依赖：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python -m pip install -r requirements-data.txt
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>python -m pip install -r requirements-data.txt
 </code></pre></div>
 <p>不加 <code>--execute</code> 时，助手只显示将要发出的请求和目标文件：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python tools/fetch_trajecta_data.py --project examples/air-mass-era5-pressure --plan era5-plan.json
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python tools/fetch_trajecta_data.py --project examples/air-mass-era5-pressure --plan era5-plan.json
 </code></pre></div>
 <p>JSON 预览先列出区域、资料锚点和服务方数据集名称，再给出变量、气压层、目标路径及现有文件
 状态。区域采用“北、西、南、东”顺序，本例为 <code>[53, 0, 45, 10]</code>。</p>
 <p>哥白尼气候数据存储（CDS）客户端从官方配置文件或环境变量读取账户凭据。请求预览和
 <code>TRAJECTA_FETCH_MANIFEST.json</code> 只保存请求参数及文件散列。</p>
 <p>确认预览后开始下载和准备：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>python tools/fetch_trajecta_data.py --project examples/air-mass-era5-pressure --plan era5-plan.json --execute
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>python tools/fetch_trajecta_data.py --project examples/air-mass-era5-pressure --plan era5-plan.json --execute
 </code></pre></div>
 <p>CDS 可能需要一段时间准备请求。匹配的已有目标会被复用；下载中的文件和中间转换结果保存在
 <code>data/.trajecta-fetch/</code>。全部文件通过检查后，助手将它们移入 <code>data/ready/</code>，清理工作目录，
@@ -2444,9 +2447,9 @@ execution:
 </div>
 <h2 id="_4">完成项目定稿<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <p>从助手输出中选择一个准备好的文件，先查看它的资料信息：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>trajecta data inspect examples/air-mass-era5-pressure/data/ready/ERA5_READY_FILE.nc
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>trajecta --project examples/air-mass-era5-pressure project finalize
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>trajecta --project examples/air-mass-era5-pressure doctor --deep
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>trajecta data inspect examples/air-mass-era5-pressure/data/ready/ERA5_READY_FILE.nc
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>trajecta --project examples/air-mass-era5-pressure project finalize
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>trajecta --project examples/air-mass-era5-pressure doctor --deep
 </code></pre></div>
 <p>将 <code>ERA5_READY_FILE.nc</code> 换成实际文件名。<code>data inspect</code> 会报告资料系列标记、有效时次、网格、
 气压层和源角色。</p>
@@ -2455,13 +2458,13 @@ SHA-256、大小和时间覆盖，也记录网格签名、垂直签名、内置�
 <code>configured</code> 变为 <code>finalized</code>。</p>
 <h2 id="_5">运行有限区域案例<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <p>以前台方式提交：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>trajecta --project examples/air-mass-era5-pressure run --profile product
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>trajecta --project examples/air-mass-era5-pressure run --profile product
 </code></pre></div>
 <p>完成后读取结果：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>trajecta result verify RESULT --full
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>trajecta result inspect RESULT
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>trajecta result trajectory RESULT --particle-id 0
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>trajecta run report --result RESULT
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>trajecta result verify RESULT --full
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>trajecta result inspect RESULT
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>trajecta result trajectory RESULT --particle-id 0
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>trajecta run report --result RESULT
 </code></pre></div>
 <p>初始输出事件包含 1,000 个干空气载体粒子。终点仍有多少粒子，取决于十分钟内是否有轨迹到达
 网格的安全边界。粒子与水平边界相交时，会在精确交点和时刻写入终止状态，终止原因为正常的
@@ -2471,7 +2474,7 @@ SHA-256、大小和时间覆盖，也记录网格签名、垂直签名、内置�
 活跃的载体质量。</p>
 <h2 id="_6">阅读边界附近的运动<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <p>用 JSONL 读取一个粒子的计划状态和可能出现的终止状态：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>trajecta --format jsonl result trajectory RESULT --particle-id 0
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>trajecta --format jsonl result trajectory RESULT --particle-id 0
 </code></pre></div>
 <p><code>physical_time</code> 是实际气象时刻。正向案例中的 <code>integration_offset_ns</code> 为正，
 <code>elapsed_age_ns</code> 表示粒子自生成以来经历的时间。粒子若在两个端点事件之间穿出区域，最后一条
@@ -2481,7 +2484,7 @@ SHA-256、大小和时间覆盖，也记录网格签名、垂直签名、内置�
 <h2 id="_7">换成自己的区域<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <p>含释放几何的案例可以由助手推导下载范围。区域填充案例没有源几何，本教程使用内置的
 53–45° N、0–10° E 范围。准备其他有限区域时，可以直接使用底层 ERA5 气压层工具：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>python tools/fetch_era5_pressure_cds.py --out-dir PROJECT_DATA_WORK --date YYYY-MM-DD --times 00:00 06:00 12:00 --area NORTH WEST SOUTH EAST
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>python tools/fetch_era5_pressure_cds.py --out-dir PROJECT_DATA_WORK --date YYYY-MM-DD --times 00:00 06:00 12:00 --area NORTH WEST SOUTH EAST
 </code></pre></div>
 <p>然后对工作目录运行 <code>prepare_era5_pressure_anchors.py</code>，把准备好的文件放到运行配置所指向的
 资料目录，再执行 <code>project finalize</code>。准备后网格的安全内部范围就是
