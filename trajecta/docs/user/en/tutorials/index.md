@@ -15,6 +15,14 @@ The projects are stored under `examples/` in both the repository and product
 package. Their files are included directly in these pages, so the configuration
 shown in the manual is the configuration accepted by the command-line program.
 
+## Command navigation
+
+| Entry | When to use it | Contents |
+| --- | --- | --- |
+| [Everyday command roadmap](command-roadmap.md) | Running a first project or finding the next routine step | Common commands ordered from machine setup through project finalization, queue execution, and result reading |
+| [Complete command index](command-index.md) | Browsing every available command for a known task | Every current command grouped under six task areas |
+| [CLI command tree](../reference/cli.md) | Checking full arguments, output modes, and runtime behavior | Command synopses, global options, placeholder conventions, and exact binary help |
+
 ## What the tutorials use
 
 | Tutorial | Scientific population | Meteorology | Direction | Data preparation |

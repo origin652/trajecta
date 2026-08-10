@@ -56,6 +56,8 @@ plugins:
             Home: 首页
             Getting Started: 入门
             Tutorials: 教程
+            Everyday command roadmap: 常用命令路线图
+            Complete command index: 完整命令索引
             How-to Guides: 操作指南
             Concepts: 概念
             Operations: 运维
@@ -100,6 +102,8 @@ nav:
       - Demonstration data: getting-started/demo-data.md
   - Tutorials:
       - Overview: tutorials/index.md
+      - Everyday command roadmap: tutorials/command-roadmap.md
+      - Complete command index: tutorials/command-index.md
       - Domain-fill moisture: tutorials/domain-fill.md
       - Release workflow: tutorials/release.md
       - Air-mass workflow: tutorials/air-mass.md

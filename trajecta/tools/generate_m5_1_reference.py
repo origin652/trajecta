@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate source-backed M5.1 CLI, schema, and diagnostic reference pages."""
+"""Generate source-backed M5.1 command, schema, and diagnostic pages."""
 
 from __future__ import annotations
 
@@ -126,6 +126,45 @@ COMMAND_PURPOSES = {
     "run report": ("Create or refresh RESULT/run-report.md", "创建或刷新 RESULT/run-report.md"),
 }
 
+COMMAND_GROUPS = (
+    (
+        "configuration",
+        "Machine configuration",
+        "本机配置",
+        {"config"},
+    ),
+    (
+        "project",
+        "Project preparation",
+        "项目准备",
+        {"project"},
+    ),
+    (
+        "data",
+        "Cases and meteorological data",
+        "案例与气象资料",
+        {"case", "data", "met"},
+    ),
+    (
+        "runtime",
+        "Environment checks and runs",
+        "环境检查与运行",
+        {"doctor", "run"},
+    ),
+    (
+        "jobs",
+        "Job queue",
+        "任务队列",
+        {"job"},
+    ),
+    (
+        "results",
+        "Results and reports",
+        "结果与报告",
+        {"result", "run report"},
+    ),
+)
+
 
 def default_binary() -> Path:
     suffix = ".exe" if sys.platform == "win32" else ""
@@ -165,7 +204,7 @@ def command_path(synopsis: str, known: set[str]) -> str:
     return max(matches, key=len)
 
 
-def cli_pages(help_text: str) -> dict[Path, str]:
+def command_catalog(help_text: str) -> list[tuple[str, str, dict[str, object]]]:
     contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
     entries = {entry["path"]: entry for entry in contract["commands"]}
     entries["run report"] = {
@@ -188,10 +227,18 @@ def cli_pages(help_text: str) -> dict[Path, str]:
         extra = sorted(set(COMMAND_PURPOSES) - set(entries))
         raise RuntimeError(f"CLI purpose drift: missing={missing}, extra={extra}")
 
+    return [
+        (synopsis, path, entries[path])
+        for synopsis, path in zip(synopses, paths, strict=True)
+    ]
+
+
+def cli_pages(help_text: str) -> dict[Path, str]:
+    catalog = command_catalog(help_text)
+
     rows = []
     zh_rows = []
-    for synopsis, path in zip(synopses, paths, strict=True):
-        entry = entries[path]
+    for synopsis, path, entry in catalog:
         output = "JSONL capable" if entry["streaming"] else "single response"
         zh_output = "可使用 JSONL" if entry["streaming"] else "单次响应"
         rows.append(f"| `{synopsis}` | {COMMAND_PURPOSES[path][0]} | {output} |")
@@ -341,6 +388,108 @@ trajecta [GLOBAL OPTIONS] COMMAND [ARGUMENTS]
     return {
         DOCS / "en" / "reference" / "cli.md": en,
         DOCS / "zh-CN" / "reference" / "cli.md": zh,
+    }
+
+
+def tutorial_command_index_pages(help_text: str) -> dict[Path, str]:
+    catalog = command_catalog(help_text)
+    grouped: dict[str, list[tuple[str, str]]] = {
+        key: [] for key, *_ in COMMAND_GROUPS
+    }
+    for synopsis, path, _entry in catalog:
+        selector = path if path == "run report" else path.split(maxsplit=1)[0]
+        matches = [
+            key
+            for key, _en_title, _zh_title, selectors in COMMAND_GROUPS
+            if selector in selectors
+        ]
+        if len(matches) != 1:
+            raise RuntimeError(f"command has no unique tutorial group: {path}")
+        grouped[matches[0]].append((synopsis, path))
+
+    en_sections = []
+    zh_sections = []
+    for key, en_title, zh_title, _selectors in COMMAND_GROUPS:
+        en_rows = [
+            f"| `trajecta {synopsis}` | {COMMAND_PURPOSES[path][0]} |"
+            for synopsis, path in grouped[key]
+        ]
+        zh_rows = [
+            f"| `trajecta {synopsis}` | {COMMAND_PURPOSES[path][1]} |"
+            for synopsis, path in grouped[key]
+        ]
+        en_sections.append(
+            f"## {en_title}\n\n| Command | Use |\n| --- | --- |\n"
+            + "\n".join(en_rows)
+        )
+        zh_sections.append(
+            f"## {zh_title}\n\n| 命令 | 用途 |\n| --- | --- |\n"
+            + "\n".join(zh_rows)
+        )
+
+    en = f"""---
+title: Complete command index
+description: Browse every Trajecta 0.1.0-alpha.1 command by configuration, project, data, runtime, queue, and result task.
+---
+
+{GENERATED_NOTICE}
+
+# Complete command index
+
+This index contains all {len(catalog)} command forms available in the current
+Trajecta command-line program. Commands are grouped by the task they perform,
+so the page can be used as a menu after completing a tutorial. Optional and
+required arguments appear in each synopsis.
+
+Global options such as `--config`, `--project`, and `--format` may be placed
+before the command. The [CLI command tree](../reference/cli.md) explains those
+options, argument placeholders, machine-readable output, and runtime behavior.
+
+!!! tip "Start with the shorter route"
+
+    The [everyday command roadmap](command-roadmap.md) follows one project from
+    setup through a verified result and includes the commands used most often.
+
+{(chr(10) * 2).join(en_sections)}
+
+## Detailed syntax
+
+Open the [CLI command tree](../reference/cli.md) for output modes and the exact
+binary help. The [how-to guides](../how-to/index.md) provide complete procedures
+for configuration, deferred data preparation, queue operation, and result
+reading.
+"""
+    zh = f"""---
+title: 完整命令索引
+description: 按本机配置、项目准备、资料处理、运行、任务队列和结果读取，查找 Trajecta 0.1.0-alpha.1 的全部命令。
+---
+
+{GENERATED_NOTICE}
+
+# 完整命令索引
+
+本页收录当前 Trajecta 命令行程序提供的全部 {len(catalog)} 条命令形式，并按照实际用途分组。
+完成任一教程后，可以从这里查找下一项操作。命令概要会保留必填参数和可选参数，便于直接确认
+所需信息。
+
+`--config`、`--project` 和 `--format` 等全局参数可以写在命令前面。[CLI 命令树](../reference/cli.md)
+详细说明了这些参数、占位符、机器可读输出和运行行为。
+
+!!! tip "先看常用流程"
+
+    [常用命令路线图](command-roadmap.md)按一个项目从准备到结果验收的顺序，整理了日常使用频率
+    较高的命令。
+
+{(chr(10) * 2).join(zh_sections)}
+
+## 查看详细语法
+
+[CLI 命令树](../reference/cli.md)包含输出格式和二进制原始帮助。[操作指南](../how-to/index.md)
+则提供渐进配置、延后准备资料、队列运行和结果读取的完整步骤。
+"""
+    return {
+        DOCS / "en" / "tutorials" / "command-index.md": en,
+        DOCS / "zh-CN" / "tutorials" / "command-index.md": zh,
     }
 
 
@@ -671,7 +820,12 @@ description: 根据源码生成的 Trajecta CLI、守护进程、工作进程、
 
 
 def generated_pages(help_text: str) -> dict[Path, str]:
-    return cli_pages(help_text) | schema_pages() | diagnostics_pages()
+    return (
+        cli_pages(help_text)
+        | tutorial_command_index_pages(help_text)
+        | schema_pages()
+        | diagnostics_pages()
+    )
 
 
 def write_or_check(pages: dict[Path, str], check: bool) -> None:
