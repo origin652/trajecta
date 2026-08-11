@@ -1035,7 +1035,7 @@ particle_population:
       mass: { tracer: { value: 1, unit: kg } }
       geometry: { source: inline, geometry: { type: Point, coordinates: [0, 0] } }
       vertical: { coordinate: above_sea_level, lower: { value: 100, unit: m } }
-substances: [{ id: tracer, display_name: Tracer }]
+substances: [{ kind: water_vapor, id: tracer, display_name: Tracer }]
 numerics:
   time_step: { value: 10, unit: min }
   integrator: { model: rk2_spherical/v0 }
@@ -1081,7 +1081,7 @@ numerics:
     assert_eq!(first.stdout, second.stdout);
     assert_eq!(
         hex::encode(sha2::Sha256::digest(&first.stdout)),
-        "e4aa921372b5412a7c45e4d3b2423c98688170dc6ccab579c89d464f64177714"
+        "88f298caea93c4d3ecd4024262da827c2621a5dd90b004780636969980c38cfd"
     );
     let value: serde_json::Value = serde_json::from_slice(&first.stdout).unwrap();
     assert_eq!(value["data"]["schema_version"], "trajecta.data-plan/v1");
@@ -1166,7 +1166,7 @@ particle_population:
       mass: { tracer: { value: 1, unit: kg } }
       geometry: { source: inline, geometry: { type: Point, coordinates: [0, 0] } }
       vertical: { coordinate: above_sea_level, lower: { value: 100, unit: m } }
-substances: [{ id: tracer, display_name: Tracer }]
+substances: [{ kind: water_vapor, id: tracer, display_name: Tracer }]
 numerics:
   time_step: { value: 10, unit: min }
   integrator: { model: rk2_spherical/v0 }

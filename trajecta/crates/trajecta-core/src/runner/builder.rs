@@ -9,15 +9,18 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use sha2::{Digest, Sha256};
-use trajecta_case::document::{MeteorologyReaderBackend, ResolvedCase, ResolvedRunProfile};
-use trajecta_case::lockfile::{parse_dataset_lock_json, parse_dataset_lock_yaml};
+use trajecta_case::document::{
+    DatasetBinding, MeteorologyReaderBackend, ResolvedCase, ResolvedRunProfile,
+};
+use trajecta_case::lockfile::{DatasetLock, parse_dataset_lock_json, parse_dataset_lock_yaml};
 use trajecta_case::model::meteorology::DomainId;
 use trajecta_case::model::output::{OutputSchedule, PARTICLE_STATE_PRODUCT_ID};
-use trajecta_case::model::physics::ModelId;
+use trajecta_case::model::physics::{ModelId, PhysicsModuleId};
 use trajecta_case::model::population::{
     GeoJsonSource, ParticlePopulationSpec, ReleaseDrivenSpec, ReleaseEventSpec,
 };
 use trajecta_case::model::time::{Direction, Timestamp};
+use trajecta_met::auxiliary::gmted2010::{GMTED2010_DATASET_ID, Gmted2010, open_from_dataset_lock};
 use trajecta_met::field::{Capability, CapabilitySet, FieldRegistry};
 use trajecta_met::io::frame_loader::{FrameLoadRequest, FrameLoader};
 use trajecta_met::io::inventory::{InventoryBuildRequest, InventoryBuilder, MetCatalog};
@@ -45,6 +48,7 @@ use crate::manifest::{
 use crate::manifest_store::AtomicRunManifestStore;
 use crate::output::sqlite::ParticleStateSqliteSink;
 use crate::output::{OutputScheduler, ParticleStateProduct};
+use crate::physics::PhysicsPipeline;
 use crate::population::{
     DirectAslReleaseResolver, DomainFillAirMass, DomainFillStratosphericOzone,
     MetReleaseVerticalResolver, OzoneAssignmentRuleRegistry, ReleaseDrivenPopulation,
@@ -216,65 +220,6 @@ fn build_runner_inner(
         }
     };
 
-    let population: Box<dyn crate::population::PopulationStrategy> = match population_spec {
-        ParticlePopulationSpec::ReleaseDriven(release_spec) => {
-            if release_spec.id.0.trim().is_empty() {
-                return Err(RunError::InvalidConfiguration("population id empty".into()));
-            }
-            let geometry_sampler: Box<dyn crate::release::GeometrySampler> =
-                Box::new(MultiEventGeometrySampler::from_schedule(&schedule)?);
-            let vertical_sampler = Box::new(SpecVerticalSampler);
-            let needs_met_vertical = schedule.events.iter().any(|event| {
-                !matches!(
-                    event.vertical,
-                    trajecta_case::model::population::ReleaseVerticalSpec::AboveSeaLevel { .. }
-                )
-            });
-            let vertical_resolver: Box<dyn crate::population::ReleaseVerticalResolver> =
-                if needs_met_vertical {
-                    Box::new(MetReleaseVerticalResolver)
-                } else {
-                    Box::new(DirectAslReleaseResolver)
-                };
-            Box::new(ReleaseDrivenPopulation::new(
-                release_spec,
-                schedule.clone(),
-                geometry_sampler,
-                vertical_sampler,
-                vertical_resolver,
-            ))
-        }
-        ParticlePopulationSpec::DomainFillAirMass(specification) => {
-            if specification.id.0.trim().is_empty() || specification.domain_id != runtime_domain {
-                return Err(RunError::InvalidConfiguration(
-                    "domain-fill population identity or selected domain is invalid".into(),
-                ));
-            }
-            Box::new(DomainFillAirMass::new(specification))
-        }
-        ParticlePopulationSpec::DomainFillStratosphericOzone(specification) => {
-            if specification.air_mass.id.0.trim().is_empty()
-                || specification.air_mass.domain_id != runtime_domain
-            {
-                return Err(RunError::InvalidConfiguration(
-                    "ozone domain-fill population identity or selected domain is invalid".into(),
-                ));
-            }
-            let registry = OzoneAssignmentRuleRegistry::builtins();
-            let rule = registry.resolve(&specification.ozone_rule).ok_or_else(|| {
-                RunError::InvalidConfiguration(format!(
-                    "unknown ozone assignment rule '{}'",
-                    specification.ozone_rule
-                ))
-            })?;
-            Box::new(
-                DomainFillStratosphericOzone::new(specification, rule)
-                    .map_err(|error| RunError::Population(error.code().into()))?,
-            )
-        }
-    };
-    let population_model_id = population.model_id().to_string();
-
     let (
         meteorology,
         query_plan,
@@ -284,6 +229,7 @@ fn build_runner_inner(
         dataset_profile_sha256,
         dataset_content_sha256,
         reader_backends,
+        gmted2010,
     ) = if let Some(stack) = synthetic {
         (
             stack.engine,
@@ -294,6 +240,7 @@ fn build_runner_inner(
             BTreeMap::new(),
             BTreeMap::new(),
             BTreeMap::new(),
+            stack.gmted2010,
         )
     } else {
         let query_times = collect_meteorology_query_times(&case, &time, &schedule, &numerics)?;
@@ -314,8 +261,69 @@ fn build_runner_inner(
             loaded.dataset_profile_sha256,
             loaded.dataset_content_sha256,
             loaded.reader_backends,
+            loaded.gmted2010,
         )
     };
+
+    let population: Box<dyn crate::population::PopulationStrategy> = match population_spec {
+        ParticlePopulationSpec::ReleaseDriven(release_spec) => {
+            if release_spec.id.0.trim().is_empty() {
+                return Err(RunError::InvalidConfiguration("population id empty".into()));
+            }
+            let geometry_sampler: Box<dyn crate::release::GeometrySampler> =
+                Box::new(MultiEventGeometrySampler::from_schedule(&schedule)?);
+            let vertical_sampler = Box::new(SpecVerticalSampler);
+            let needs_met_vertical = gmted2010.is_some()
+                || schedule.events.iter().any(|event| {
+                    !matches!(
+                        event.vertical,
+                        trajecta_case::model::population::ReleaseVerticalSpec::AboveSeaLevel { .. }
+                    )
+                });
+            let vertical_resolver: Box<dyn crate::population::ReleaseVerticalResolver> =
+                if needs_met_vertical {
+                    Box::new(MetReleaseVerticalResolver::new(gmted2010.clone()))
+                } else {
+                    Box::new(DirectAslReleaseResolver)
+                };
+            Box::new(ReleaseDrivenPopulation::new(
+                release_spec,
+                schedule.clone(),
+                geometry_sampler,
+                vertical_sampler,
+                vertical_resolver,
+            ))
+        }
+        ParticlePopulationSpec::DomainFillAirMass(specification) => {
+            if specification.id.0.trim().is_empty() || specification.domain_id != runtime_domain {
+                return Err(RunError::InvalidConfiguration(
+                    "domain-fill population identity or selected domain is invalid".into(),
+                ));
+            }
+            Box::new(DomainFillAirMass::new(specification, gmted2010.clone()))
+        }
+        ParticlePopulationSpec::DomainFillStratosphericOzone(specification) => {
+            if specification.air_mass.id.0.trim().is_empty()
+                || specification.air_mass.domain_id != runtime_domain
+            {
+                return Err(RunError::InvalidConfiguration(
+                    "ozone domain-fill population identity or selected domain is invalid".into(),
+                ));
+            }
+            let registry = OzoneAssignmentRuleRegistry::builtins();
+            let rule = registry.resolve(&specification.ozone_rule).ok_or_else(|| {
+                RunError::InvalidConfiguration(format!(
+                    "unknown ozone assignment rule '{}'",
+                    specification.ozone_rule
+                ))
+            })?;
+            Box::new(
+                DomainFillStratosphericOzone::new(specification, rule, gmted2010.clone())
+                    .map_err(|error| RunError::Population(error.code().into()))?,
+            )
+        }
+    };
+    let population_model_id = population.model_id().to_string();
 
     let canonical_case = case_with_canonical_geometries(&case, &schedule)?;
     write_resolved_documents(&run_dir, &canonical_case, &run_profile)?;
@@ -330,6 +338,9 @@ fn build_runner_inner(
         Direction::Forward => SignedDuration(time_step_ns),
         Direction::Backward => SignedDuration(-time_step_ns),
     };
+
+    let physics = PhysicsPipeline::build(case.physics.as_ref(), &meteorology, gmted2010.clone())
+        .map_err(RunError::Physics)?;
 
     let outputs = build_outputs(&case, &time, &sqlite_path, &meteorology, &knobs)?;
     let mut numerical_tolerances = BTreeMap::from([
@@ -435,9 +446,10 @@ fn build_runner_inner(
         query_plan,
         execution,
         population,
+        physics,
         integrator: Box::new(Rk2Spherical),
         boundaries,
-        boundary_sampler_factory: Some(Box::new(MetBoundaryPathSamplerFactory::default())),
+        boundary_sampler_factory: Some(Box::new(MetBoundaryPathSamplerFactory::new(gmted2010))),
         outputs,
         manifest,
         manifest_store: manifest_store
@@ -664,12 +676,38 @@ fn build_outputs(
     meteorology: &trajecta_met::query::engine::MetEngine,
     knobs: &RunnerBuildKnobs,
 ) -> Result<Vec<ScheduledOutputProduct>, RunError> {
+    let substance_ids = case
+        .substances
+        .iter()
+        .map(|substance| substance.id().clone())
+        .collect::<Vec<_>>();
+    let continuous_process_modules = case
+        .physics
+        .as_ref()
+        .into_iter()
+        .flat_map(|physics| &physics.modules)
+        .filter(|module| {
+            matches!(
+                module.model,
+                PhysicsModuleId::SubgridOrography
+                    | PhysicsModuleId::BoundaryLayerLangevin
+                    | PhysicsModuleId::MesoscaleMarkov
+            )
+        })
+        .map(|module| module.model)
+        .collect::<Vec<_>>();
     let make_sink = || {
-        ParticleStateSqliteSink::with_time_bounds(time.start, time.end).with_bundle_sort_knobs(
-            knobs.bundle_chunk_lines,
-            knobs.bundle_merge_fan_in,
-            knobs.reverse_particle_scan,
-        )
+        ParticleStateSqliteSink::with_time_bounds(time.start, time.end)
+            .with_process_contract(
+                time.direction,
+                substance_ids.clone(),
+                continuous_process_modules.clone(),
+            )
+            .with_bundle_sort_knobs(
+                knobs.bundle_chunk_lines,
+                knobs.bundle_merge_fan_in,
+                knobs.reverse_particle_scan,
+            )
     };
     let mut outputs = Vec::new();
     for product in &case.outputs {
@@ -1019,6 +1057,7 @@ struct ProductionMeteorology {
     dataset_profile_sha256: BTreeMap<String, String>,
     dataset_content_sha256: BTreeMap<String, String>,
     reader_backends: BTreeMap<String, MeteorologyReaderBackend>,
+    gmted2010: Option<Arc<Gmted2010>>,
 }
 
 fn collect_meteorology_query_times(
@@ -1451,6 +1490,31 @@ fn load_production_meteorology(
         ));
     }
 
+    let requires_gmted2010 = case.physics.as_ref().is_some_and(|physics| {
+        physics
+            .modules
+            .iter()
+            .any(|module| module.model == PhysicsModuleId::SubgridOrography)
+    });
+    let mut required_datasets = meteorology
+        .domains
+        .iter()
+        .map(|domain| domain.dataset.0.clone())
+        .collect::<BTreeSet<_>>();
+    if requires_gmted2010 {
+        required_datasets.insert(GMTED2010_DATASET_ID.into());
+    }
+    let bound_datasets = run_profile
+        .datasets
+        .iter()
+        .map(|binding| binding.dataset.0.clone())
+        .collect::<BTreeSet<_>>();
+    if bound_datasets.len() != run_profile.datasets.len() || bound_datasets != required_datasets {
+        return Err(RunError::InvalidConfiguration(format!(
+            "run_profile.datasets must exactly match Case datasets; required={required_datasets:?}, bound={bound_datasets:?}"
+        )));
+    }
+
     let profiles = ProfileCatalog::load(&run_profile.profile_sources)
         .map_err(|error| RunError::InvalidConfiguration(format!("profile catalog: {error:?}")))?;
     let profiles_for_loader = profiles.clone();
@@ -1481,35 +1545,9 @@ fn load_production_meteorology(
                     domain_spec.dataset.0
                 ))
             })?;
-        let lock_path = if binding.lockfile.is_absolute() {
-            binding.lockfile.clone()
-        } else {
-            run_profile
-                .case_path
-                .parent()
-                .unwrap_or_else(|| Path::new("."))
-                .join(&binding.lockfile)
-        };
-        let lock_text = fs::read_to_string(&lock_path)
-            .map_err(|error| RunError::InvalidConfiguration(error.to_string()))?;
-        let lock = if lock_path
-            .extension()
-            .and_then(|value| value.to_str())
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
-        {
-            parse_dataset_lock_json(&lock_text)
-                .map_err(|error| RunError::InvalidConfiguration(format!("{error:?}")))?
-        } else {
-            parse_dataset_lock_yaml(&lock_text)
-                .map_err(|error| RunError::InvalidConfiguration(format!("{error:?}")))?
-        };
-        let lockfile_dir = lock_path
-            .parent()
-            .ok_or_else(|| RunError::InvalidConfiguration("lockfile has no parent".into()))?;
+        let (lock, lockfile_dir, lock_sha256) = read_bound_dataset_lock(binding)?;
         let dataset_key = binding.dataset.0.clone();
-        let mut lock_digest = Sha256::new();
-        lock_digest.update(lock_text.as_bytes());
-        dataset_lock_sha256.insert(dataset_key.clone(), hex::encode(lock_digest.finalize()));
+        dataset_lock_sha256.insert(dataset_key.clone(), lock_sha256);
         dataset_profile_sha256.insert(dataset_key.clone(), lock.profile.sha256.clone());
         for file in &lock.files {
             dataset_content_sha256.insert(
@@ -1524,7 +1562,7 @@ fn load_production_meteorology(
 
         let inventory = InventoryBuilder::new(&profiles).build(InventoryBuildRequest {
             lock: &lock,
-            lockfile_dir,
+            lockfile_dir: &lockfile_dir,
             data_roots: &binding.data_roots,
             domain: &domain_spec.id,
             required_capabilities: capabilities,
@@ -1558,6 +1596,39 @@ fn load_production_meteorology(
             catalog.domains.insert(domain_id, domain);
         }
     }
+
+    let gmted2010 = if requires_gmted2010 {
+        let binding = run_profile
+            .datasets
+            .iter()
+            .find(|binding| binding.dataset.0 == GMTED2010_DATASET_ID)
+            .ok_or_else(|| {
+                RunError::InvalidConfiguration("missing GMTED2010 dataset binding".into())
+            })?;
+        if binding.reader_backend.is_some() {
+            return Err(RunError::InvalidConfiguration(
+                "GMTED2010 uses its fixed Rust reader and accepts no reader override".into(),
+            ));
+        }
+        let (lock, lockfile_dir, lock_sha256) = read_bound_dataset_lock(binding)?;
+        let dataset_key = binding.dataset.0.clone();
+        dataset_lock_sha256.insert(dataset_key.clone(), lock_sha256);
+        dataset_profile_sha256.insert(dataset_key.clone(), lock.profile.sha256.clone());
+        for file in &lock.files {
+            dataset_content_sha256.insert(
+                format!("{}:{}", dataset_key, file.relative_path.display()),
+                file.sha256.clone(),
+            );
+        }
+        reader_backends.insert(dataset_key, MeteorologyReaderBackend::Rust);
+        Some(Arc::new(
+            open_from_dataset_lock(&lock, &lockfile_dir, &binding.data_roots).map_err(|error| {
+                RunError::InvalidConfiguration(format!("GMTED2010 lock: {error}"))
+            })?,
+        ))
+    } else {
+        None
+    };
 
     if catalog.domains.is_empty() {
         return Err(RunError::InvalidConfiguration(
@@ -1676,7 +1747,35 @@ fn load_production_meteorology(
         dataset_profile_sha256,
         dataset_content_sha256,
         reader_backends,
+        gmted2010,
     })
+}
+
+fn read_bound_dataset_lock(
+    binding: &DatasetBinding,
+) -> Result<(DatasetLock, PathBuf, String), RunError> {
+    let bytes = fs::read(&binding.lockfile)
+        .map_err(|error| RunError::InvalidConfiguration(error.to_string()))?;
+    let text = std::str::from_utf8(&bytes)
+        .map_err(|error| RunError::InvalidConfiguration(error.to_string()))?;
+    let lock = if binding
+        .lockfile
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("json"))
+    {
+        parse_dataset_lock_json(text)
+            .map_err(|error| RunError::InvalidConfiguration(format!("{error:?}")))?
+    } else {
+        parse_dataset_lock_yaml(text)
+            .map_err(|error| RunError::InvalidConfiguration(format!("{error:?}")))?
+    };
+    let lockfile_dir = binding
+        .lockfile
+        .parent()
+        .ok_or_else(|| RunError::InvalidConfiguration("lockfile has no parent".into()))?
+        .to_path_buf();
+    Ok((lock, lockfile_dir, hex::encode(Sha256::digest(&bytes))))
 }
 
 // Silence unused import in some builds.

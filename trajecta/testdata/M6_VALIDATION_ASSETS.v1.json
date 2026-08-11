@@ -1,0 +1,263 @@
+{
+  "schema_version": "trajecta.m6.validation-assets/v1",
+  "registry_id": "trajecta/validation-assets/m6/v1",
+  "policy": {
+    "raw_large_files_in_git": false,
+    "runtime_download": false,
+    "lock_scope": "global_shared_not_case_clipped",
+    "release_asset_requirements": "source_license_recipe_file_manifest_and_sha256",
+    "unknown_license": "external_blocked_no_substitution"
+  },
+  "auxiliary_datasets": [
+    {
+      "id": "gmted2010-30arcsec-mean-std/v1",
+      "stage": "m6_a2",
+      "role": "terrain height anomaly and sub-grid elevation standard deviation",
+      "source": {
+        "provider": "U.S. Geological Survey",
+        "title": "Global Multi-resolution Terrain Elevation Data 2010 (GMTED2010)",
+        "official_url": "https://pubs.usgs.gov/pubs-services/publication/ofr20111073",
+        "doi": "10.3133/ofr20111073"
+      },
+      "selection": "global 30 arc-second mean elevation and standard-deviation products",
+      "processing": "retain native global grid; record source tile identities; normalize height to metres; no Case clipping",
+      "local_use": "allowed_with_attribution",
+      "redistribution": "public_domain_with_attribution",
+      "use_terms_url": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
+      "attribution": "U.S. Geological Survey Global Multi-resolution Terrain Elevation Data 2010 (GMTED2010), DOI 10.3133/ofr20111073",
+      "bundled_with_software": false,
+      "acquisition": "official_public_download",
+      "candidate_file": null,
+      "blocker": null
+    },
+    {
+      "id": "modis-mcd12c1.061-igbp/v1",
+      "stage": "m6_a5",
+      "role": "annual IGBP land cover for dry deposition",
+      "source": {
+        "provider": "NASA LP DAAC",
+        "title": "MODIS/Terra+Aqua Land Cover Type Yearly L3 Global 0.05Deg CMG V061",
+        "official_url": "https://cmr.earthdata.nasa.gov/search/collections.umm_json?short_name=MCD12C1&version=061",
+        "doi": "10.5067/MODIS/MCD12C1.061"
+      },
+      "selection": "Land_Cover_Type_1 IGBP classification for every physical year required by the run",
+      "processing": "validate collection 061 metadata and QA; preserve class values 1-17; apply the frozen IGBP-to-Wesely mapping; reject missing run years",
+      "local_use": "allowed_with_attribution",
+      "redistribution": "nasa_open_data_with_citation",
+      "use_terms_url": "https://earthdata.nasa.gov/earth-observation-data/data-use-policy",
+      "attribution": "NASA LP DAAC MCD12C1.061, DOI 10.5067/MODIS/MCD12C1.061",
+      "bundled_with_software": false,
+      "acquisition": "earthdata_authenticated_download",
+      "candidate_file": null,
+      "blocker": null
+    },
+    {
+      "id": "modis-mcd15a3h.061-lai-climatology-2003-2022/v1",
+      "stage": "m6_a5",
+      "role": "monthly leaf-area-index climatology for deposition resistance",
+      "source": {
+        "provider": "NASA LP DAAC",
+        "title": "MODIS/Terra+Aqua Leaf Area Index/FPAR 4-Day L4 Global 500m SIN Grid V061",
+        "official_url": "https://cmr.earthdata.nasa.gov/search/collections.umm_json?short_name=MCD15A3H&version=061",
+        "doi": "10.5067/MODIS/MCD15A3H.061"
+      },
+      "selection": "Lai_500m observations from 2003-01-01 through 2022-12-31 inclusive",
+      "processing": "decode collection scale metadata; accept mandatory-quality good retrievals; compute area-weighted calendar-month means on the 0.05-degree global grid; store valid count and standard deviation beside each mean",
+      "local_use": "allowed_with_attribution",
+      "redistribution": "nasa_open_data_with_citation",
+      "use_terms_url": "https://earthdata.nasa.gov/earth-observation-data/data-use-policy",
+      "attribution": "NASA LP DAAC MCD15A3H.061, DOI 10.5067/MODIS/MCD15A3H.061; derived climatology processing must also be cited",
+      "bundled_with_software": false,
+      "acquisition": "earthdata_authenticated_download",
+      "candidate_file": null,
+      "blocker": null
+    },
+    {
+      "id": "spivakovsky-2000-oh-monthly-3d/v1",
+      "stage": "m6_a6",
+      "role": "monthly three-dimensional tropospheric OH concentration",
+      "source": {
+        "provider": "Journal of Geophysical Research / source authors",
+        "title": "Three-dimensional climatological distribution of tropospheric OH: Update and evaluation",
+        "official_url": "https://doi.org/10.1029/1999JD901006",
+        "doi": "10.1029/1999JD901006"
+      },
+      "selection": "monthly three-dimensional OH field corresponding to the cited 2000 climatology",
+      "processing": "blocked until grid, units, vertical coordinate, generation chain, and exact relation to the cited climatology are documented",
+      "local_use": "blocked_pending_provenance",
+      "redistribution": "unverified",
+      "use_terms_url": null,
+      "attribution": null,
+      "bundled_with_software": false,
+      "acquisition": "blocked",
+      "candidate_file": {
+        "url": "https://raw.githubusercontent.com/flexpart/flexpart/3d7eebf7c4909f59db5ec32c524f88fb846e9fe5/options.reference/OH_7lev_agl.dat",
+        "size_bytes": 1161216,
+        "sha256": "c8c362df48a525e240c86fbead7b9e78709a26a330ac050ac7676fb53f7110d7"
+      },
+      "blocker": "candidate file has no sufficient provenance for grid, units, generation, or redistribution"
+    }
+  ],
+  "validation_assets": [
+    {
+      "id": "m6-manufactured-process-suite/v1",
+      "stages": ["m6_a1", "m6_a2", "m6_a3", "m6_a4", "m6_a5", "m6_a6", "m6_a7", "m6_a8"],
+      "kind": "analytic",
+      "status": "ready_generated",
+      "source": {
+        "provider": "Trajecta",
+        "title": "M6 manufactured and analytic process suite",
+        "official_url": "https://github.com/origin652/trajecta",
+        "doi": null
+      },
+      "artifact": null,
+      "extraction_recipe": "generate exact constant-field, linear-field, exponential-loss, conservative-matrix, settling, and checkpoint-interruption cases from rational decimal inputs",
+      "gates": ["adjoint_dot_product", "analytic_relative_absolute", "conservation", "resume_identity"]
+    },
+    {
+      "id": "willis-deardorff-cbl-1976/v1",
+      "stages": ["m6_a1"],
+      "kind": "experiment",
+      "status": "source_frozen_derivation_required",
+      "source": {
+        "provider": "Quarterly Journal of the Royal Meteorological Society",
+        "title": "A laboratory model of diffusion into the convective planetary boundary layer",
+        "official_url": "https://doi.org/10.1002/qj.49710243212",
+        "doi": "10.1002/qj.49710243212"
+      },
+      "artifact": null,
+      "extraction_recipe": "digitize the published dimensionless vertical concentration distributions with axis calibration and retain the raw digitization points, transform, and uncertainty notes",
+      "gates": ["external_normalized_bias", "external_normalized_rmse", "well_mixed_stationarity"]
+    },
+    {
+      "id": "ou-exact-moments/v1",
+      "stages": ["m6_a1", "m6_a2"],
+      "kind": "analytic",
+      "status": "ready_generated",
+      "source": {
+        "provider": "Trajecta",
+        "title": "Ornstein-Uhlenbeck exact transition moments",
+        "official_url": "https://github.com/origin652/trajecta",
+        "doi": null
+      },
+      "artifact": null,
+      "extraction_recipe": "evaluate exact mean, variance, and lag-one correlation for frozen sigma, correlation time, partition, seeds, and one million samples",
+      "gates": ["ou_correlation", "ou_mean", "ou_variance"]
+    },
+    {
+      "id": "arm-twp-ice-convective-column/v1",
+      "stages": ["m6_a3"],
+      "kind": "observation",
+      "status": "source_frozen_derivation_required",
+      "source": {
+        "provider": "U.S. Department of Energy Atmospheric Radiation Measurement user facility",
+        "title": "Tropical Warm Pool International Cloud Experiment",
+        "official_url": "https://www.arm.gov/research/campaigns/twp2006twp-ice",
+        "doi": null
+      },
+      "artifact": null,
+      "extraction_recipe": "freeze the campaign single-column forcing period and vertical profiles in a release asset; preserve ARM file identities, units, time conversion, missing-value masks, and pressure-layer integration weights",
+      "gates": ["adjoint_dot_product", "column_mass_conservation", "external_normalized_bias", "external_normalized_rmse"]
+    },
+    {
+      "id": "wesely-zhang-deposition-curves/v1",
+      "stages": ["m6_a5"],
+      "kind": "analytic",
+      "status": "source_frozen_derivation_required",
+      "source": {
+        "provider": "Atmospheric Environment",
+        "title": "Wesely gas resistance and Zhang size-segregated aerosol deposition curves",
+        "official_url": "https://doi.org/10.1016/S1352-2310(00)00326-5",
+        "doi": "10.1016/S1352-2310(00)00326-5"
+      },
+      "artifact": null,
+      "extraction_recipe": "generate gas resistance tables from Wesely 1989 and digitize Zhang 2001 deposition-velocity curves at the frozen land-cover, stability, particle-density, and diameter coordinates",
+      "gates": ["analytic_relative_absolute", "external_normalized_bias", "external_normalized_rmse", "settling_no_double_count"]
+    },
+    {
+      "id": "laakso-2003-aerosol-scavenging/v1",
+      "stages": ["m6_a6"],
+      "kind": "observation",
+      "status": "source_frozen_derivation_required",
+      "source": {
+        "provider": "Atmospheric Environment",
+        "title": "Ultrafine particle scavenging coefficients calculated from 6 years field measurements",
+        "official_url": "https://doi.org/10.1016/S1352-2310(03)00326-1",
+        "doi": "10.1016/S1352-2310(03)00326-1"
+      },
+      "artifact": null,
+      "extraction_recipe": "digitize published scavenging coefficient envelopes by particle diameter and rainfall intensity; retain coordinates and uncertainty interpretation",
+      "gates": ["external_normalized_bias", "external_normalized_rmse", "phase_partition"]
+    },
+    {
+      "id": "epa-kincaid-sf6/v1",
+      "stages": ["m6_a7"],
+      "kind": "experiment",
+      "status": "download_identity_frozen",
+      "source": {
+        "provider": "U.S. Environmental Protection Agency",
+        "title": "Kincaid SF6 evaluation database",
+        "official_url": "https://gaftp.epa.gov/aqmg/SCRAM/models/preferred/aermod/eval_databases/",
+        "doi": null
+      },
+      "artifact": {
+        "url": "https://gaftp.epa.gov/aqmg/SCRAM/models/preferred/aermod/eval_databases/kinsf6.zip",
+        "size_bytes": 3129058,
+        "sha256": "8b645ac7c4dbbc126a315124d4bf7bb8863077b25f06155bca17bc00d2445470"
+      },
+      "extraction_recipe": "read Obs_Conc/KINSF6.SUM and the accompanying AERMET/AERMOD inputs; retain archive member names and SHA-256 values; convert no observations in place",
+      "gates": ["external_normalized_bias", "external_normalized_rmse", "plume_height", "total_emission_normalization"]
+    },
+    {
+      "id": "m5-pure-advection-regression/v1",
+      "stages": ["m6_a1", "m6_a9"],
+      "kind": "regression",
+      "status": "existing_regression",
+      "source": {
+        "provider": "Trajecta M5 formal artifacts",
+        "title": "M5 pure-advection normalized scientific outputs",
+        "official_url": "https://github.com/origin652/trajecta",
+        "doi": null
+      },
+      "artifact": null,
+      "extraction_recipe": "use the frozen M5 normalized SQLite SQL, provenance content, and canonical-output digest triplets for matching Case, Profile, lock, platform, seed, and worker count",
+      "gates": ["pure_advection_normalized_bytes"]
+    },
+    {
+      "id": "flexpart-11.1-m6-comparison/v1",
+      "stages": ["m6_a9"],
+      "kind": "reference_model",
+      "status": "existing_regression",
+      "source": {
+        "provider": "FLEXPART project",
+        "title": "FLEXPART v11.1 reference source at dace3affa2ba71677f12f3858b04aaf59f8ee51e",
+        "official_url": "https://github.com/flexpart/flexpart/tree/dace3affa2ba71677f12f3858b04aaf59f8ee51e",
+        "doi": "10.5194/gmd-12-4955-2019"
+      },
+      "artifact": null,
+      "extraction_recipe": "reuse the M5 isolated GPL build boundary; compare the same host, meteorology, domain, duration, particles, CPU set, physical modules, and alternating execution order",
+      "gates": ["performance_ratio", "scientific_comparability_matrix"]
+    }
+  ],
+  "formal_matrix": {
+    "platforms": ["ubuntu-24.04-x86_64", "windows-x86_64"],
+    "meteorology": ["cfsr-pressure", "era5-hybrid", "era5-pressure"],
+    "directions": ["backward", "forward"],
+    "tasks": ["aerosol-transport", "buoyant-release", "gas-transport", "water-vapor-tracking"],
+    "worker_counts": [1, 4],
+    "fault_injection": ["checkpoint_torn", "database_corrupt", "disk_full", "lock_mismatch", "meteorology_field_missing", "out_of_memory", "worker_lost"]
+  },
+  "stage_gates": [
+    {"stage": "m6_a0", "status": "contract_ready", "blocker": null},
+    {"stage": "m6_a1", "status": "contract_ready", "blocker": null},
+    {"stage": "m6_a2", "status": "contract_ready", "blocker": null},
+    {"stage": "m6_a3", "status": "contract_ready", "blocker": null},
+    {"stage": "m6_a4", "status": "contract_ready", "blocker": null},
+    {"stage": "m6_a5", "status": "contract_ready", "blocker": null},
+    {"stage": "m6_a6", "status": "external_blocked", "blocker": "Spivakovsky OH grid/provenance and redistribution terms unresolved"},
+    {"stage": "m6_a7", "status": "contract_ready", "blocker": null},
+    {"stage": "m6_a8", "status": "contract_ready", "blocker": null},
+    {"stage": "m6_a9", "status": "contract_ready", "blocker": null}
+  ],
+  "a0_disposition": "passed_with_a6_oh_external_blocker_declared"
+}

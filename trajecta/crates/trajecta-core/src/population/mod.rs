@@ -22,6 +22,7 @@ use trajecta_case::model::population::{
     DomainFillAirMassSpec, DomainFillStratosphericOzoneSpec, ReleaseDrivenSpec, ReleaseVerticalSpec,
 };
 use trajecta_case::model::time::{Direction, Timestamp};
+use trajecta_met::auxiliary::gmted2010::Gmted2010;
 use trajecta_met::derive::domain_fill::AirMassDeriver;
 use trajecta_met::field::{CanonicalField, FieldQuality};
 use trajecta_met::query::engine::{ExecutionContext, MetEngine};
@@ -331,6 +332,7 @@ pub struct DomainFillAirMass {
     next_boundary_lifecycle_event_index: u64,
     opening_step: Option<DomainFillStepOpening>,
     pending_emissions: ParticleBatch,
+    gmted2010: Option<Arc<Gmted2010>>,
 }
 
 #[derive(Clone, Debug)]
@@ -350,7 +352,7 @@ struct DomainFillStepOpening {
 impl DomainFillAirMass {
     /// Constructs an uninitialized dry-air domain-fill lifecycle.
     #[must_use]
-    pub fn new(specification: DomainFillAirMassSpec) -> Self {
+    pub fn new(specification: DomainFillAirMassSpec, gmted2010: Option<Arc<Gmted2010>>) -> Self {
         Self {
             specification,
             state: PopulationState::Uninitialized,
@@ -363,6 +365,7 @@ impl DomainFillAirMass {
             next_boundary_lifecycle_event_index: 0,
             opening_step: None,
             pending_emissions: ParticleBatch::default(),
+            gmted2010,
         }
     }
 
@@ -403,13 +406,14 @@ impl DomainFillStratosphericOzone {
     pub fn new(
         specification: DomainFillStratosphericOzoneSpec,
         rule: Arc<dyn OzoneAssignmentRule>,
+        gmted2010: Option<Arc<Gmted2010>>,
     ) -> Result<Self, PopulationError> {
         if specification.ozone_rule != rule.model_id()
             || specification.ozone_substance.0.trim().is_empty()
         {
             return Err(PopulationError::InvalidConfiguration);
         }
-        let inner = DomainFillAirMass::new(specification.air_mass.clone());
+        let inner = DomainFillAirMass::new(specification.air_mass.clone(), gmted2010);
         Ok(Self {
             specification,
             state: PopulationState::Uninitialized,
@@ -496,6 +500,7 @@ impl PopulationStrategy for DomainFillStratosphericOzone {
             requested,
             self.inner.next_boundary_lifecycle_event_index,
             context.random_seed,
+            self.inner.gmted2010.as_deref(),
         )?;
         self.inner.next_boundary_lifecycle_event_index = self
             .inner
@@ -569,6 +574,7 @@ impl PopulationStrategy for DomainFillStratosphericOzone {
             &snapshot,
             self.rule.as_ref(),
             context.random_seed,
+            self.inner.gmted2010.as_deref(),
         )?;
         let seeded_particles = u64::try_from(
             seeded
@@ -703,6 +709,7 @@ impl PopulationStrategy for DomainFillAirMass {
             requested,
             self.next_boundary_lifecycle_event_index,
             context.random_seed,
+            self.gmted2010.as_deref(),
         )
         .map_err(map_air_mass_error)?;
         self.next_boundary_lifecycle_event_index = self
@@ -938,8 +945,13 @@ impl PopulationStrategy for DomainFillAirMass {
         let snapshot = AirMassDeriver
             .derive_window(&window)
             .map_err(|error| PopulationError::AirMassDerivation(error.code().into()))?;
-        let seeded = seed_initial_air_mass(&self.specification, &snapshot, context.random_seed)
-            .map_err(map_air_mass_error)?;
+        let seeded = seed_initial_air_mass(
+            &self.specification,
+            &snapshot,
+            context.random_seed,
+            self.gmted2010.as_deref(),
+        )
+        .map_err(map_air_mass_error)?;
         let seeded_particles = u64::try_from(
             seeded
                 .particles
@@ -1956,7 +1968,7 @@ mod tests {
             true,
         )
         .unwrap();
-        let mut population = DomainFillAirMass::new(domain_fill_spec("global", 8));
+        let mut population = DomainFillAirMass::new(domain_fill_spec("global", 8), None);
         let mut particles = ParticleBatch::default();
         {
             let mut context = PopulationContext {
@@ -2053,7 +2065,7 @@ mod tests {
         let rule = OzoneAssignmentRuleRegistry::builtins()
             .resolve(&specification.ozone_rule)
             .unwrap();
-        let mut population = DomainFillStratosphericOzone::new(specification, rule).unwrap();
+        let mut population = DomainFillStratosphericOzone::new(specification, rule, None).unwrap();
         let mut particles = ParticleBatch::default();
         {
             let mut context = PopulationContext {
@@ -2169,7 +2181,7 @@ mod tests {
             false,
         )
         .unwrap();
-        let mut population = DomainFillAirMass::new(domain_fill_spec("finite", 4));
+        let mut population = DomainFillAirMass::new(domain_fill_spec("finite", 4), None);
         let mut particles = ParticleBatch::default();
         {
             let mut context = PopulationContext {

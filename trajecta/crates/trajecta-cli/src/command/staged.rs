@@ -4,6 +4,8 @@
 
 use std::path::PathBuf;
 
+use trajecta_case::model::time::Timestamp;
+
 /// Parsed run input mode.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RunInput {
@@ -90,6 +92,13 @@ pub enum ResultCommand {
         /// Explicit bounded selection or the complete particle set.
         selection: TrajectorySelection,
     },
+    /// Query physical-process summaries and optional event rows.
+    Processes {
+        /// Job-series id, run id, or run-directory path.
+        result: String,
+        /// Stable filter and streaming selection.
+        selection: ProcessSelection,
+    },
     /// Write the deterministic `run-report.md` product for a result id/path.
     Report {
         /// Job-series id, run id, or run-directory path.
@@ -104,4 +113,23 @@ pub enum TrajectorySelection {
     ParticleIds(Vec<u64>),
     /// Every particle, streamed without whole-result buffering.
     All,
+}
+
+/// Filters for `result processes`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProcessSelection {
+    /// Sorted unique particle identities.
+    pub particle_ids: Vec<u64>,
+    /// Sorted unique physical module identifiers.
+    pub module_ids: Vec<String>,
+    /// Sorted unique substance identifiers.
+    pub substance_ids: Vec<String>,
+    /// Inclusive UTC lower bound.
+    pub start: Option<Timestamp>,
+    /// Inclusive UTC upper bound.
+    pub end: Option<Timestamp>,
+    /// Include discrete process-event rows.
+    pub events: bool,
+    /// Optional maximum number of event rows to return.
+    pub max_records: Option<u64>,
 }

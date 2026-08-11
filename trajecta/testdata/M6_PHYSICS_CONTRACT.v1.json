@@ -1,0 +1,503 @@
+{
+  "schema_version": "trajecta.m6.physics-contract/v1",
+  "contract_id": "trajecta/physics/m6/v1",
+  "versions": {
+    "software": "0.1.0-alpha.1",
+    "case_schema": 0,
+    "sqlite_user_version": 2
+  },
+  "configuration": {
+    "absent_physics": "pure_advection",
+    "merge_order": [
+      "expand_preset",
+      "apply_remove",
+      "apply_sparse_overrides",
+      "append_modules",
+      "validate_uniqueness_order_and_dependencies"
+    ],
+    "legacy_fields_rejected": ["enabled", "parameters"],
+    "explicit_order_policy": "all_or_none_unique_contiguous_dependency_valid",
+    "unknown_remove_policy": "error_with_field_path",
+    "unknown_override_policy": "error_with_field_path",
+    "duplicate_module_policy": "error_with_field_path",
+    "quantity_policy": "explicit_unit_normalized_to_si_no_bare_dimensional_number",
+    "configuration_shape": {
+      "preset": "water_vapor_tracking",
+      "remove": [],
+      "overrides": [
+        {
+          "model": "boundary_layer_langevin",
+          "maximum_substep": "30 s"
+        }
+      ],
+      "modules": []
+    }
+  },
+  "substances": {
+    "kinds": ["water_vapor", "gas", "aerosol"],
+    "water_vapor_required_fields": ["display_name", "id", "kind"],
+    "gas_required_fields": [
+      "display_name",
+      "henry_constant",
+      "id",
+      "kind",
+      "molar_mass",
+      "surface_reactivity"
+    ],
+    "gas_optional_fields": [
+      "half_life",
+      "oh_reaction"
+    ],
+    "aerosol_required_fields": [
+      "diameter",
+      "display_name",
+      "id",
+      "kind",
+      "material_density",
+      "shape"
+    ],
+    "diameter_range_micrometre": {
+      "minimum": 0.01,
+      "maximum": 100.0
+    },
+    "diameter_distribution": "truncated_lognormal_mass_basis/v1",
+    "diameter_sample_policy": "once_at_birth_counter_rng_then_immutable",
+    "forward_state": "per_substance_mass_kg",
+    "backward_state": "per_substance_adjoint_weight",
+    "oh_rate_formula": "A*(T/300K)^n*exp(-activation_temperature/T)*OH"
+  },
+  "modules": [
+    {
+      "id": "emission_time_profile",
+      "stage": "m6_a7",
+      "phase": "source_schedule",
+      "algorithm_id": "normalized_emission_calendar/v1",
+      "stochastic": false,
+      "event_policy": "aggregate_particle_module_substance_macro_step",
+      "substance_kinds": ["aerosol", "gas", "water_vapor"],
+      "requires_modules": [],
+      "requires_capabilities": ["case.emission_source", "time.iana_zone"],
+      "override_fields": ["hourly_factors", "monthly_factors", "normalization", "time_series", "time_zone", "weekday_factors"],
+      "parameter_contracts": [
+        {"name": "time_zone", "wire_type": "enum", "unit": null, "required": true, "default": null, "minimum_si": null, "maximum_si": null, "allowed_values": ["iana_time_zone", "utc"]},
+        {"name": "normalization", "wire_type": "enum", "unit": null, "required": true, "default": null, "minimum_si": null, "maximum_si": null, "allowed_values": ["preserve_declared_total", "preserve_rate_amplitude"]},
+        {"name": "monthly_factors", "wire_type": "factor_array", "unit": "1", "required": false, "default": [], "minimum_si": 0.0, "maximum_si": null},
+        {"name": "weekday_factors", "wire_type": "factor_array", "unit": "1", "required": false, "default": [], "minimum_si": 0.0, "maximum_si": null},
+        {"name": "hourly_factors", "wire_type": "factor_array", "unit": "1", "required": false, "default": [], "minimum_si": 0.0, "maximum_si": null},
+        {"name": "time_series", "wire_type": "time_series", "unit": "kg/s", "required": false, "default": [], "minimum_si": 0.0, "maximum_si": null}
+      ],
+      "scientific_references": [
+        {"citation": "Trajecta M6 normalized source-schedule contract", "doi": null, "role": "calendar composition and exact total normalization"}
+      ]
+    },
+    {
+      "id": "buoyant_plume_rise",
+      "stage": "m6_a7",
+      "phase": "birth_column",
+      "algorithm_id": "entraining_buoyant_plume_column/v1",
+      "stochastic": false,
+      "event_policy": "aggregate_particle_module_substance_macro_step",
+      "substance_kinds": ["aerosol", "gas", "water_vapor"],
+      "requires_modules": ["emission_time_profile"],
+      "requires_capabilities": ["met.air_density", "met.air_temperature", "met.horizontal_wind", "met.pressure", "source.buoyancy"],
+      "override_fields": ["entrainment_coefficient", "maximum_substep"],
+      "parameter_contracts": [
+        {"name": "entrainment_coefficient", "wire_type": "finite_number", "unit": "1", "required": false, "default": 0.1, "minimum_si": 0.01, "maximum_si": 0.3},
+        {"name": "maximum_substep", "wire_type": "quantity", "unit": "s", "required": false, "default": "30 s", "minimum_si": 0.001, "maximum_si": 300.0}
+      ],
+      "scientific_references": [
+        {"citation": "Morton, Taylor and Turner (1956), Turbulent gravitational convection from maintained and instantaneous sources", "doi": "10.1098/rspa.1956.0011", "role": "entraining plume equations"},
+        {"citation": "Freitas et al. (2007), Including the sub-grid scale plume rise of vegetation fires in low resolution atmospheric transport models", "doi": "10.5194/acp-7-3385-2007", "role": "atmospheric plume-column application"}
+      ]
+    },
+    {
+      "id": "subgrid_orography",
+      "stage": "m6_a2",
+      "phase": "field_modifier",
+      "algorithm_id": "gmted2010_grid_anomaly_and_mixing_enhancement/v1",
+      "stochastic": false,
+      "event_policy": "none_continuous_summary_only",
+      "substance_kinds": ["aerosol", "gas", "water_vapor"],
+      "requires_modules": [],
+      "requires_capabilities": ["aux.gmted2010_mean", "aux.gmted2010_standard_deviation", "met.boundary_layer_height", "met.brunt_vaisala_frequency", "met.terrain_height", "met.wind_speed"],
+      "override_fields": ["maximum_substep"],
+      "parameter_contracts": [
+        {"name": "maximum_substep", "wire_type": "quantity", "unit": "s", "required": false, "default": "300 s", "minimum_si": 0.001, "maximum_si": 900.0}
+      ],
+      "scientific_references": [
+        {"citation": "Stohl et al. (2005), Technical note: The Lagrangian particle dispersion model FLEXPART version 6.2", "doi": "10.5194/acp-5-2461-2005", "role": "sub-grid terrain and mixing-height formulation"}
+      ]
+    },
+    {
+      "id": "boundary_layer_langevin",
+      "stage": "m6_a1",
+      "phase": "motion_velocity",
+      "algorithm_id": "thomson_hanna_skewed_cbl_langevin/v1",
+      "stochastic": true,
+      "event_policy": "none_continuous_summary_only",
+      "substance_kinds": ["aerosol", "gas", "water_vapor"],
+      "requires_modules": [],
+      "requires_capabilities": ["met.boundary_layer_height", "met.friction_velocity", "met.monin_obukhov_length", "met.sensible_heat_flux", "met.surface_roughness", "met.temperature"],
+      "override_fields": ["maximum_substep"],
+      "parameter_contracts": [
+        {"name": "maximum_substep", "wire_type": "quantity", "unit": "s", "required": false, "default": "30 s", "minimum_si": 0.001, "maximum_si": 120.0}
+      ],
+      "scientific_references": [
+        {"citation": "Thomson (1987), Criteria for the selection of stochastic models of particle trajectories in turbulent flows", "doi": "10.1017/S0022112087001940", "role": "well-mixed stochastic model"},
+        {"citation": "Luhar and Britter (1989), A random walk model for dispersion in inhomogeneous turbulence in a convective boundary layer", "doi": "10.1016/0004-6981(89)90516-7", "role": "skewed convective boundary-layer velocity"},
+        {"citation": "Cassiani et al. (2015), Stochastic Lagrangian models of turbulent dispersion in convective boundary layers", "doi": "10.1007/s10546-014-9976-5", "role": "non-Gaussian convective boundary-layer evaluation"}
+      ]
+    },
+    {
+      "id": "mesoscale_markov",
+      "stage": "m6_a2",
+      "phase": "motion_velocity",
+      "algorithm_id": "three_dimensional_local_variance_ou/v1",
+      "stochastic": true,
+      "event_policy": "none_continuous_summary_only",
+      "substance_kinds": ["aerosol", "gas", "water_vapor"],
+      "requires_modules": [],
+      "requires_capabilities": ["met.native_time_interval", "met.wind_local_spacetime_variance"],
+      "override_fields": ["correlation_interval_fraction", "maximum_substep"],
+      "parameter_contracts": [
+        {"name": "correlation_interval_fraction", "wire_type": "finite_number", "unit": "1", "required": false, "default": 0.5, "minimum_si": 0.05, "maximum_si": 1.0},
+        {"name": "maximum_substep", "wire_type": "quantity", "unit": "s", "required": false, "default": "300 s", "minimum_si": 0.001, "maximum_si": 900.0}
+      ],
+      "scientific_references": [
+        {"citation": "Stohl et al. (2005), Technical note: The Lagrangian particle dispersion model FLEXPART version 6.2", "doi": "10.5194/acp-5-2461-2005", "role": "mesoscale velocity perturbation structure"}
+      ]
+    },
+    {
+      "id": "gravitational_settling",
+      "stage": "m6_a5",
+      "phase": "motion_velocity",
+      "algorithm_id": "cunningham_cross_reynolds_terminal_velocity/v1",
+      "stochastic": false,
+      "event_policy": "none_continuous_summary_only",
+      "substance_kinds": ["aerosol"],
+      "requires_modules": [],
+      "requires_capabilities": ["met.air_density", "met.air_temperature", "met.pressure"],
+      "override_fields": ["maximum_substep"],
+      "parameter_contracts": [
+        {"name": "maximum_substep", "wire_type": "quantity", "unit": "s", "required": false, "default": "60 s", "minimum_si": 0.001, "maximum_si": 300.0}
+      ],
+      "scientific_references": [
+        {"citation": "Clift, Grace and Weber (1978), Bubbles, Drops, and Particles", "doi": null, "role": "cross-Reynolds-number drag law"},
+        {"citation": "Seinfeld and Pandis (2016), Atmospheric Chemistry and Physics, third edition", "doi": null, "role": "Cunningham slip correction and aerosol settling"}
+      ]
+    },
+    {
+      "id": "deep_convection_column",
+      "stage": "m6_a3",
+      "phase": "column_transfer",
+      "algorithm_id": "emanuel_zivkovic_rothman_conservative_column/v1",
+      "stochastic": true,
+      "event_policy": "aggregate_particle_module_substance_macro_step",
+      "substance_kinds": ["aerosol", "gas", "water_vapor"],
+      "requires_modules": [],
+      "requires_capabilities": ["met.column_geopotential", "met.column_humidity", "met.column_pressure", "met.column_temperature", "met.surface_pressure"],
+      "override_fields": ["maximum_substep"],
+      "parameter_contracts": [
+        {"name": "maximum_substep", "wire_type": "quantity", "unit": "s", "required": false, "default": "300 s", "minimum_si": 0.001, "maximum_si": 900.0}
+      ],
+      "scientific_references": [
+        {"citation": "Emanuel and Živković-Rothman (1999), Development and evaluation of a convection scheme for use in climate models", "doi": "10.1175/1520-0469(1999)056<1766:DAEOAC>2.0.CO;2", "role": "convective column diagnosis"}
+      ]
+    },
+    {
+      "id": "water_vapor_exchange",
+      "stage": "m6_a4",
+      "phase": "local_mass",
+      "algorithm_id": "dry_air_specific_humidity_conservative_exchange/v1",
+      "stochastic": false,
+      "event_policy": "aggregate_particle_module_substance_macro_step",
+      "substance_kinds": ["water_vapor"],
+      "requires_modules": [],
+      "requires_capabilities": ["met.evaporation_flux", "met.precipitation_flux", "met.specific_humidity"],
+      "override_fields": ["maximum_substep"],
+      "parameter_contracts": [
+        {"name": "maximum_substep", "wire_type": "quantity", "unit": "s", "required": false, "default": "300 s", "minimum_si": 0.001, "maximum_si": 900.0}
+      ],
+      "scientific_references": [
+        {"citation": "Trajecta M6 dry-air mass and non-negative allocation contract", "doi": null, "role": "water-vapor mass definition and grid-time conservation"}
+      ]
+    },
+    {
+      "id": "dry_deposition",
+      "stage": "m6_a5",
+      "phase": "local_mass",
+      "algorithm_id": "wesely_gas_zhang_aerosol_surface_resistance/v1",
+      "stochastic": false,
+      "event_policy": "aggregate_particle_module_substance_macro_step",
+      "substance_kinds": ["aerosol", "gas"],
+      "requires_modules": [],
+      "requires_capabilities": ["aux.mcd12c1_igbp", "aux.mcd15a3h_lai_climatology", "met.friction_velocity", "met.precipitation", "met.snow_water_equivalent", "met.surface_temperature"],
+      "override_fields": ["maximum_substep"],
+      "parameter_contracts": [
+        {"name": "maximum_substep", "wire_type": "quantity", "unit": "s", "required": false, "default": "60 s", "minimum_si": 0.001, "maximum_si": 300.0}
+      ],
+      "scientific_references": [
+        {"citation": "Wesely (1989), Parameterization of surface resistances to gaseous dry deposition in regional-scale numerical models", "doi": "10.1016/0004-6981(89)90153-4", "role": "gas dry-deposition resistance network"},
+        {"citation": "Zhang et al. (2001), A size-segregated particle dry deposition scheme for an atmospheric aerosol module", "doi": "10.1016/S1352-2310(00)00326-5", "role": "size-dependent aerosol deposition"}
+      ]
+    },
+    {
+      "id": "wet_scavenging",
+      "stage": "m6_a6",
+      "phase": "local_mass",
+      "algorithm_id": "phase_resolved_incloud_belowcloud_scavenging/v1",
+      "stochastic": false,
+      "event_policy": "aggregate_particle_module_substance_macro_step",
+      "substance_kinds": ["aerosol", "gas"],
+      "requires_modules": [],
+      "requires_capabilities": ["met.cloud_ice_water", "met.cloud_liquid_water", "met.precipitation_rain", "met.precipitation_snow", "met.temperature"],
+      "override_fields": ["maximum_substep"],
+      "parameter_contracts": [
+        {"name": "maximum_substep", "wire_type": "quantity", "unit": "s", "required": false, "default": "60 s", "minimum_si": 0.001, "maximum_si": 300.0}
+      ],
+      "scientific_references": [
+        {"citation": "Grythe et al. (2017), The FLEXPART aerosol wet deposition scheme", "doi": "10.5194/gmd-10-1447-2017", "role": "phase-resolved in-cloud and below-cloud removal"},
+        {"citation": "Laakso et al. (2003), Ultrafine particle scavenging coefficients calculated from 6 years field measurements", "doi": "10.1016/S1352-2310(03)00326-1", "role": "below-cloud aerosol observation gate"}
+      ]
+    },
+    {
+      "id": "first_order_decay",
+      "stage": "m6_a6",
+      "phase": "local_mass",
+      "algorithm_id": "exponential_half_life_decay/v1",
+      "stochastic": false,
+      "event_policy": "aggregate_particle_module_substance_macro_step",
+      "substance_kinds": ["gas"],
+      "requires_modules": [],
+      "requires_capabilities": ["substance.half_life"],
+      "override_fields": [],
+      "parameter_contracts": [],
+      "scientific_references": [
+        {"citation": "Trajecta M6 exact first-order exponential integration contract", "doi": null, "role": "half-life loss operator"}
+      ]
+    },
+    {
+      "id": "oh_oxidation",
+      "stage": "m6_a6",
+      "phase": "local_mass",
+      "algorithm_id": "spivakovsky_monthly_oh_first_order_loss/v1",
+      "stochastic": false,
+      "event_policy": "aggregate_particle_module_substance_macro_step",
+      "substance_kinds": ["gas"],
+      "requires_modules": [],
+      "requires_capabilities": ["aux.spivakovsky_oh_monthly", "met.temperature", "substance.oh_rate"],
+      "override_fields": [],
+      "parameter_contracts": [],
+      "scientific_references": [
+        {"citation": "Spivakovsky et al. (2000), Three-dimensional climatological distribution of tropospheric OH: Update and evaluation", "doi": "10.1029/1999JD901006", "role": "monthly three-dimensional OH climatology"},
+        {"citation": "Pisso et al. (2019), The Lagrangian particle dispersion model FLEXPART version 10.4", "doi": "10.5194/gmd-12-4955-2019", "role": "temperature-dependent OH loss formulation"}
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "id": "water_vapor_tracking",
+      "modules": ["subgrid_orography", "boundary_layer_langevin", "mesoscale_markov", "deep_convection_column", "water_vapor_exchange"],
+      "allowed_substance_kinds": ["water_vapor"]
+    },
+    {
+      "id": "gas_transport",
+      "modules": ["subgrid_orography", "boundary_layer_langevin", "mesoscale_markov", "deep_convection_column", "dry_deposition", "wet_scavenging", "first_order_decay", "oh_oxidation"],
+      "allowed_substance_kinds": ["gas"]
+    },
+    {
+      "id": "aerosol_transport",
+      "modules": ["subgrid_orography", "boundary_layer_langevin", "mesoscale_markov", "gravitational_settling", "deep_convection_column", "dry_deposition", "wet_scavenging"],
+      "allowed_substance_kinds": ["aerosol"]
+    },
+    {
+      "id": "buoyant_release",
+      "modules": ["emission_time_profile", "buoyant_plume_rise", "subgrid_orography", "boundary_layer_langevin", "mesoscale_markov", "deep_convection_column"],
+      "allowed_substance_kinds": ["aerosol", "gas", "water_vapor"]
+    }
+  ],
+  "pipeline": {
+    "substep_partition": "integer_nanosecond_common_partition/v1",
+    "local_process_split": "symmetric_second_order_strang/v1",
+    "motion_composition": "resolved_plus_bl_plus_mesoscale_plus_settling_midpoint/v1",
+    "batch_boundary": "all_particles_share_substep_boundaries",
+    "sequence": [
+      "source_schedule_and_birth",
+      "local_process_half_step_before_motion",
+      "compose_midpoint_velocity_and_advance",
+      "conservative_column_transfer",
+      "local_process_half_step_after_motion",
+      "coalesce_process_events",
+      "publish_macro_step_boundary"
+    ],
+    "determinism": "same_seed_w1_wn_normalized_science_byte_identical",
+    "backward_operator": "transpose_local_jacobians_and_column_transfer_kernel"
+  },
+  "randomness": {
+    "algorithm": "philox4x32-10/v1",
+    "key_algorithm": "m6_process_random_key/v1",
+    "key_fields": ["seed", "particle_stable_id", "module_id", "macro_step", "substep", "sampling_dimension", "draw_index"],
+    "birth_indices": {"macro_step": 0, "substep": 0},
+    "dimensions": {
+      "aerosol_birth_log_diameter": 32,
+      "boundary_layer_horizontal_u": 64,
+      "boundary_layer_horizontal_v": 65,
+      "boundary_layer_vertical_branch": 66,
+      "boundary_layer_vertical_value": 67,
+      "deep_convection_destination": 96,
+      "mesoscale_u": 128,
+      "mesoscale_v": 129,
+      "mesoscale_w": 130
+    },
+    "gaussian_transform": "box_muller_open_interval_fixed_pair/v1"
+  },
+  "module_constants": {
+    "boundary_layer_langevin": {
+      "convective_transition_minus_zeta": -0.2,
+      "friction_velocity_floor_m_s-1": 0.01,
+      "mixing_height_floor_m": 10.0,
+      "sigma_velocity_floor_m_s-1": 0.01
+    },
+    "buoyant_plume_rise": {
+      "default_entrainment_coefficient": 0.1,
+      "neutral_buoyancy_relative_tolerance": 1e-10
+    },
+    "deep_convection_column": {
+      "autoconversion_threshold_kg_kg-1": 0.0011,
+      "autoconversion_critical_temperature_c": -55.0,
+      "entrainment_coefficient": 1.5,
+      "unsaturated_downdraft_area_fraction": 0.05,
+      "precipitation_outside_cloud_fraction": 0.12,
+      "rain_fall_speed_pa_s-1": 50.0,
+      "snow_fall_speed_pa_s-1": 5.5,
+      "rain_evaporation_coefficient": 1.0,
+      "snow_evaporation_coefficient": 0.8,
+      "convective_momentum_transport_coefficient": 0.7,
+      "beta": 10.0,
+      "maximum_negative_temperature_perturbation_k": 0.9,
+      "quasi_equilibrium_alpha": 0.2,
+      "quasi_equilibrium_damping": 0.1,
+      "matrix_column_sum_tolerance": 1e-12,
+      "negative_probability_tolerance": 1e-14
+    },
+    "dry_deposition": {
+      "snow_water_equivalent_threshold_m": 0.001,
+      "surface_resistance_floor_s_m-1": 1e-6
+    },
+    "emission_time_profile": {
+      "normalization_relative_tolerance": 1e-12,
+      "seconds_per_day": 86400.0
+    },
+    "first_order_decay": {
+      "natural_logarithm_two": 0.6931471805599453
+    },
+    "gravitational_settling": {
+      "cunningham_a1": 1.257,
+      "cunningham_a2": 0.4,
+      "cunningham_a3": 1.1,
+      "standard_air_mean_free_path_m": 6.6e-8
+    },
+    "mesoscale_markov": {
+      "default_correlation_interval_fraction": 0.5,
+      "variance_floor_m2_s-2": 0.0
+    },
+    "oh_oxidation": {
+      "temperature_reference_k": 300.0
+    },
+    "subgrid_orography": {
+      "buoyancy_frequency_floor_s-1": 0.0001,
+      "stable_kinetic_cap_multiplier": 2.0
+    },
+    "water_vapor_exchange": {
+      "allocation_relative_tolerance": 1e-10,
+      "specific_humidity_upper_exclusive": 1.0
+    },
+    "wet_scavenging": {
+      "mixed_phase_upper_temperature_k": 273.15,
+      "mixed_phase_lower_temperature_k": 253.15
+    }
+  },
+  "land_cover_mapping": {
+    "1": 5,
+    "2": 13,
+    "3": 4,
+    "4": 4,
+    "5": 6,
+    "6": 11,
+    "7": 11,
+    "8": 11,
+    "9": 11,
+    "10": 3,
+    "11": 9,
+    "12": 2,
+    "13": 1,
+    "14": 10,
+    "15": 12,
+    "16": 8,
+    "17": 7
+  },
+  "artifacts": {
+    "checkpoint": "trajecta.checkpoint/v1",
+    "process_query": "trajecta.process-query/v1",
+    "sqlite_schema": "trajecta.particle-state-sqlite/v2"
+  },
+  "commands": [
+    {"path": "job resume", "stage": "m6_a8", "streaming": false, "options": []},
+    {"path": "result processes", "stage": "m6_a1", "streaming": true, "options": ["--end", "--events", "--max-records", "--module", "--particle", "--start", "--substance"]}
+  ],
+  "checkpoint": {
+    "wall_interval_seconds": 1800,
+    "retained_generations": 2,
+    "boundary": "complete_macro_step_only",
+    "publish": "temporary_sync_sha_validate_atomic_rename",
+    "payload": [
+      "database_cursor_and_high_water",
+      "module_persistent_state",
+      "output_high_water",
+      "particle_soa",
+      "physical_clock",
+      "random_draw_counters",
+      "resolved_identity",
+      "substance_state"
+    ],
+    "resume_database": "sqlite_backup_then_trim_after_high_water",
+    "source_identity_policy": "exact_match_no_migration",
+    "completed_job_policy": "reject_resume_and_do_not_rerun"
+  },
+  "automatic_recovery": {
+    "maximum_automatic_recoveries": 3,
+    "automatic_reasons": ["graceful_host_shutdown", "process_interrupted", "worker_lease_lost"],
+    "manual_reasons": ["checkpoint_corrupt", "disk_full", "out_of_memory", "scientific_error"],
+    "new_attempt": true,
+    "parent_preservation": "immutable_forensic_lineage"
+  },
+  "performance": {
+    "comparison_particles": 50000,
+    "comparison_duration_hours": 24,
+    "flexpart_ratio_gate": 1.25,
+    "flexpart_ratio_target": 1.0,
+    "formal_particles": 100000,
+    "formal_duration_hours": 24,
+    "peak_rss_gib": 4.0,
+    "sqlite_gib": 4.0,
+    "scaling_ratio": 2.4,
+    "checkpoint_overhead_fraction": 0.05,
+    "instrumentation_overhead_fraction": 0.03
+  },
+  "failure_policy": {
+    "missing_auxiliary_data": "preflight_error_no_runtime_download",
+    "invalid_nonnegative_allocation": "run_fatal",
+    "substep_underflow": "run_fatal",
+    "unsupported_legacy_physics": "configuration_error_with_field_path"
+  },
+  "excluded_scope": [
+    "aerosol_ageing",
+    "canopy_exchange",
+    "complex_chemical_networks",
+    "mountain_waves",
+    "multiphase_chemistry",
+    "resuspension",
+    "sea_salt_generation",
+    "wakes"
+  ]
+}

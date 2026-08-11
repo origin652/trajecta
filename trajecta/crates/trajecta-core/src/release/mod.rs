@@ -216,7 +216,6 @@ impl ReleaseAllocator {
             integration_offset_ns: vec![0; count],
             elapsed_age_ns: vec![0; count],
             dry_air_mass_kg: vec![0.0; count],
-            sensitivity_weight: vec![None; count],
             status: vec![ParticleStatus::Alive; count],
             termination: vec![None; count],
             mass: SubstanceMassStore {
@@ -228,6 +227,8 @@ impl ReleaseAllocator {
                     .map(|substance| (substance, Vec::with_capacity(count)))
                     .collect(),
             },
+            adjoint: Default::default(),
+            motion: Default::default(),
         };
 
         for (local_index, ((longitude, latitude), height)) in request

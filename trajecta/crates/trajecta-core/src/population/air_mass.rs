@@ -11,8 +11,10 @@ use trajecta_case::model::population::{
     DomainFillAirMassSpec, DomainFillStratosphericOzoneSpec, PopulationId,
 };
 use trajecta_case::model::time::{Direction, Timestamp};
+use trajecta_met::auxiliary::gmted2010::Gmted2010;
 use trajecta_met::derive::domain_fill::{
-    AirMassColumn, AirMassLayer, AirMassSnapshot, BoundaryFaceLayer, BoundarySide,
+    AirMassColumn, AirMassLayer, AirMassLocalVerticalBounds, AirMassSnapshot, BoundaryFaceLayer,
+    BoundarySide,
 };
 
 use crate::clock::{SignedDuration, add_timestamp};
@@ -74,6 +76,7 @@ pub fn seed_initial_air_mass(
     specification: &DomainFillAirMassSpec,
     snapshot: &AirMassSnapshot,
     random_seed: u64,
+    gmted2010: Option<&Gmted2010>,
 ) -> Result<InitialAirMassSeeding, AirMassPopulationError> {
     validate_identity(specification, snapshot)?;
     let total = snapshot.total_dry_air_mass_kg;
@@ -126,21 +129,33 @@ pub fn seed_initial_air_mass(
         let latitude_degrees = sin_latitude.clamp(-1.0, 1.0).asin().to_degrees();
         let pressure_fraction = random(DOMAIN_FILL_PRESSURE_DIMENSION);
         let source_height_asl_m = sample_height_from_pressure_fraction(layer, pressure_fraction)?;
-        let local_bounds = snapshot
+        let raw_local_bounds = snapshot
             .local_vertical_bounds_at(longitude_degrees, latitude_degrees)
             .map_err(|_| AirMassPopulationError::InvalidSample)?;
+        let local_bounds = corrected_local_vertical_bounds(
+            snapshot,
+            raw_local_bounds,
+            longitude_degrees,
+            latitude_degrees,
+            gmted2010,
+        )?;
         let local_terrain_height_asl_m = local_bounds.terrain_height_asl_m;
         let local_transport_floor_height_asl_m = local_bounds.transport_floor_height_asl_m;
         let local_available_top_height_asl_m = local_bounds.available_top_height_asl_m;
         let transport_floor_displacement_m =
-            local_transport_floor_height_asl_m - column.transport_floor_height_asl_m;
-        let local_lower_height_asl_m = layer.lower_height_asl_m + transport_floor_displacement_m;
+            raw_local_bounds.transport_floor_height_asl_m - column.transport_floor_height_asl_m;
+        let displaced_lower_height_asl_m =
+            layer.lower_height_asl_m + transport_floor_displacement_m;
+        let local_lower_height_asl_m =
+            displaced_lower_height_asl_m.max(local_transport_floor_height_asl_m);
         let displaced_upper_height_asl_m =
             layer.upper_height_asl_m + transport_floor_displacement_m;
         let local_upper_height_asl_m =
             displaced_upper_height_asl_m.min(local_available_top_height_asl_m);
         let displaced_height_asl_m = source_height_asl_m + transport_floor_displacement_m;
-        let height_asl_m = if local_upper_height_asl_m == displaced_upper_height_asl_m {
+        let height_asl_m = if local_lower_height_asl_m == displaced_lower_height_asl_m
+            && local_upper_height_asl_m == displaced_upper_height_asl_m
+        {
             displaced_height_asl_m
         } else {
             remap_height_between_bounds(
@@ -197,6 +212,42 @@ pub fn seed_initial_air_mass(
         residual_mass_kg,
         total_dry_air_mass_kg: total,
     })
+}
+
+fn corrected_local_vertical_bounds(
+    snapshot: &AirMassSnapshot,
+    bounds: AirMassLocalVerticalBounds,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+    gmted2010: Option<&Gmted2010>,
+) -> Result<AirMassLocalVerticalBounds, AirMassPopulationError> {
+    let Some(dataset) = gmted2010 else {
+        return Ok(bounds);
+    };
+    let anomaly = dataset
+        .sample_for_meteorology_cell(&snapshot.grid, longitude_degrees, latitude_degrees)
+        .map_err(|_| AirMassPopulationError::InvalidSample)?
+        .terrain_anomaly_m();
+    apply_terrain_anomaly(bounds, anomaly)
+}
+
+fn apply_terrain_anomaly(
+    mut bounds: AirMassLocalVerticalBounds,
+    anomaly_m: f64,
+) -> Result<AirMassLocalVerticalBounds, AirMassPopulationError> {
+    if !anomaly_m.is_finite() {
+        return Err(AirMassPopulationError::InvalidSample);
+    }
+    bounds.terrain_height_asl_m += anomaly_m;
+    bounds.transport_floor_height_asl_m += anomaly_m.max(0.0);
+    if !bounds.terrain_height_asl_m.is_finite()
+        || !bounds.transport_floor_height_asl_m.is_finite()
+        || bounds.transport_floor_height_asl_m <= bounds.terrain_height_asl_m
+        || bounds.available_top_height_asl_m <= bounds.transport_floor_height_asl_m
+    {
+        return Err(AirMassPopulationError::InvalidSample);
+    }
+    Ok(bounds)
 }
 
 fn resolve_mass_target(
@@ -275,6 +326,7 @@ pub fn seed_initial_stratospheric_ozone(
     snapshot: &AirMassSnapshot,
     rule: &dyn OzoneAssignmentRule,
     random_seed: u64,
+    gmted2010: Option<&Gmted2010>,
 ) -> Result<InitialOzoneSeeding, PopulationError> {
     validate_identity(&specification.air_mass, snapshot).map_err(PopulationError::AirMass)?;
     if specification.ozone_rule != rule.model_id()
@@ -344,13 +396,21 @@ pub fn seed_initial_stratospheric_ozone(
             random(DOMAIN_FILL_PRESSURE_DIMENSION),
         )
         .map_err(PopulationError::AirMass)?;
-        let local_transport_floor_height_asl_m = snapshot
-            .transport_floor_height_asl_m_at(longitude_degrees, latitude_degrees)
+        let raw_local_bounds = snapshot
+            .local_vertical_bounds_at(longitude_degrees, latitude_degrees)
             .map_err(|_| PopulationError::AirMass(AirMassPopulationError::InvalidSample))?;
+        let local_bounds = corrected_local_vertical_bounds(
+            snapshot,
+            raw_local_bounds,
+            longitude_degrees,
+            latitude_degrees,
+            gmted2010,
+        )
+        .map_err(PopulationError::AirMass)?;
         if !longitude_degrees.is_finite()
             || !latitude_degrees.is_finite()
             || !height_asl_m.is_finite()
-            || height_asl_m <= local_transport_floor_height_asl_m
+            || height_asl_m <= local_bounds.transport_floor_height_asl_m
         {
             return Err(PopulationError::AirMass(
                 AirMassPopulationError::InvalidSample,
@@ -593,7 +653,6 @@ fn reserve_batch(
         .and_then(|_| particles.integration_offset_ns.try_reserve_exact(count))
         .and_then(|_| particles.elapsed_age_ns.try_reserve_exact(count))
         .and_then(|_| particles.dry_air_mass_kg.try_reserve_exact(count))
-        .and_then(|_| particles.sensitivity_weight.try_reserve_exact(count))
         .and_then(|_| particles.status.try_reserve_exact(count))
         .and_then(|_| particles.termination.try_reserve_exact(count))
         .map_err(|_| AirMassPopulationError::ResourceLimit)
@@ -623,7 +682,6 @@ fn push_particle(
     particles.integration_offset_ns.push(0);
     particles.elapsed_age_ns.push(0);
     particles.dry_air_mass_kg.push(dry_air_mass_kg);
-    particles.sensitivity_weight.push(None);
     particles.status.push(ParticleStatus::Alive);
     particles.termination.push(None);
 }
@@ -926,6 +984,7 @@ pub(super) fn plan_boundary_inflow(
     step: SignedDuration,
     lifecycle_event_index: u64,
     random_seed: u64,
+    gmted2010: Option<&Gmted2010>,
 ) -> Result<BoundaryInflowPlan, AirMassPopulationError> {
     validate_identity(specification, snapshot)?;
     if snapshot.boundary_faces.is_empty()
@@ -996,12 +1055,16 @@ pub(super) fn plan_boundary_inflow(
                 face_id: face.face_id,
                 particle: boundary_particle(
                     specification,
+                    snapshot,
                     face,
                     carrier_mass_per_particle_kg,
-                    birth_time,
-                    lifecycle_event_index,
-                    ordinal,
-                    random_seed,
+                    BoundaryBirthKey {
+                        birth_time,
+                        lifecycle_event_index,
+                        ordinal,
+                        random_seed,
+                    },
+                    gmted2010,
                 )?,
             });
         }
@@ -1037,6 +1100,7 @@ pub(super) fn plan_ozone_boundary_inflow(
     step: SignedDuration,
     lifecycle_event_index: u64,
     random_seed: u64,
+    gmted2010: Option<&Gmted2010>,
 ) -> Result<BoundaryInflowPlan, PopulationError> {
     validate_identity(&specification.air_mass, snapshot).map_err(PopulationError::AirMass)?;
     if specification.ozone_rule != rule.model_id()
@@ -1112,13 +1176,17 @@ pub(super) fn plan_ozone_boundary_inflow(
                 face_id: face.face_id,
                 particle: ozone_boundary_particle(
                     specification,
+                    snapshot,
                     &eligible,
                     rule,
                     carrier_mass_per_particle_kg,
-                    birth_time,
-                    lifecycle_event_index,
-                    ordinal,
-                    random_seed,
+                    BoundaryBirthKey {
+                        birth_time,
+                        lifecycle_event_index,
+                        ordinal,
+                        random_seed,
+                    },
+                    gmted2010,
                 )?,
             });
         }
@@ -1240,16 +1308,22 @@ fn eligible_boundary_face(
     }))
 }
 
-#[allow(clippy::too_many_arguments)]
-fn ozone_boundary_particle(
-    specification: &DomainFillStratosphericOzoneSpec,
-    eligible: &EligibleBoundaryFace<'_>,
-    rule: &dyn OzoneAssignmentRule,
-    carrier_mass_per_particle_kg: f64,
+#[derive(Clone, Copy)]
+struct BoundaryBirthKey {
     birth_time: Timestamp,
     lifecycle_event_index: u64,
     ordinal: u64,
     random_seed: u64,
+}
+
+fn ozone_boundary_particle(
+    specification: &DomainFillStratosphericOzoneSpec,
+    snapshot: &AirMassSnapshot,
+    eligible: &EligibleBoundaryFace<'_>,
+    rule: &dyn OzoneAssignmentRule,
+    carrier_mass_per_particle_kg: f64,
+    birth: BoundaryBirthKey,
+    gmted2010: Option<&Gmted2010>,
 ) -> Result<ParticleState, PopulationError> {
     let face = eligible.face;
     let boundary_face_id = BoundaryFaceId(face.face_id);
@@ -1257,14 +1331,15 @@ fn ozone_boundary_particle(
         &specification.air_mass.id,
         &specification.air_mass.domain_id,
         boundary_face_id,
-        lifecycle_event_index,
-        ordinal,
+        birth.lifecycle_event_index,
+        birth.ordinal,
     );
     let lifecycle = StableRandomId::from_text(&format!(
-        "{DOMAIN_BOUNDARY_LIFECYCLE_EVENT_ID}/{lifecycle_event_index}"
+        "{DOMAIN_BOUNDARY_LIFECYCLE_EVENT_ID}/{}",
+        birth.lifecycle_event_index
     ));
     let key = |dimension| RandomKey {
-        seed: random_seed,
+        seed: birth.random_seed,
         population: StableRandomId::from_text(&specification.air_mass.id.0),
         lifecycle_event: lifecycle,
         particle: id,
@@ -1286,8 +1361,29 @@ fn ozone_boundary_particle(
             face.latitude_degrees,
         ),
     };
-    let height_asl_m = face.upper_height_asl_m
-        - vertical * (face.upper_height_asl_m - eligible.eligible_lower_height_asl_m);
+    let raw_local_bounds = snapshot
+        .local_vertical_bounds_at(longitude_degrees, latitude_degrees)
+        .map_err(|_| PopulationError::AirMass(AirMassPopulationError::InvalidSample))?;
+    let local_bounds = corrected_local_vertical_bounds(
+        snapshot,
+        raw_local_bounds,
+        longitude_degrees,
+        latitude_degrees,
+        gmted2010,
+    )
+    .map_err(PopulationError::AirMass)?;
+    let lower_height_asl_m = eligible
+        .eligible_lower_height_asl_m
+        .max(local_bounds.transport_floor_height_asl_m);
+    let upper_height_asl_m = face
+        .upper_height_asl_m
+        .min(local_bounds.available_top_height_asl_m);
+    if upper_height_asl_m <= lower_height_asl_m {
+        return Err(PopulationError::AirMass(
+            AirMassPopulationError::InvalidSample,
+        ));
+    }
+    let height_asl_m = upper_height_asl_m - vertical * (upper_height_asl_m - lower_height_asl_m);
     let assignment = rule.assign(OzoneAssignmentInput {
         carrier_dry_air_mass_kg: carrier_mass_per_particle_kg,
         height_asl_m,
@@ -1304,7 +1400,7 @@ fn ozone_boundary_particle(
             domain_id: specification.air_mass.domain_id.clone(),
             boundary_face_id,
         },
-        birth_time,
+        birth_time: birth.birth_time,
         longitude_degrees,
         latitude_degrees,
         height_asl_m,
@@ -1315,7 +1411,7 @@ fn ozone_boundary_particle(
             specification.ozone_substance.clone(),
             assignment.ozone_mass_kg,
         )]),
-        sensitivity_weight: None,
+        adjoint_weight: BTreeMap::new(),
         status: ParticleStatus::Alive,
         termination: None,
     };
@@ -1327,26 +1423,26 @@ fn ozone_boundary_particle(
 
 fn boundary_particle(
     specification: &DomainFillAirMassSpec,
+    snapshot: &AirMassSnapshot,
     face: &BoundaryFaceLayer,
     carrier_mass_per_particle_kg: f64,
-    birth_time: Timestamp,
-    lifecycle_event_index: u64,
-    ordinal: u64,
-    random_seed: u64,
+    birth: BoundaryBirthKey,
+    gmted2010: Option<&Gmted2010>,
 ) -> Result<ParticleState, AirMassPopulationError> {
     let boundary_face_id = BoundaryFaceId(face.face_id);
     let id = ParticleId::for_domain_boundary(
         &specification.id,
         &specification.domain_id,
         boundary_face_id,
-        lifecycle_event_index,
-        ordinal,
+        birth.lifecycle_event_index,
+        birth.ordinal,
     );
     let lifecycle = StableRandomId::from_text(&format!(
-        "{DOMAIN_BOUNDARY_LIFECYCLE_EVENT_ID}/{lifecycle_event_index}"
+        "{DOMAIN_BOUNDARY_LIFECYCLE_EVENT_ID}/{}",
+        birth.lifecycle_event_index
     ));
     let key = |dimension| RandomKey {
-        seed: random_seed,
+        seed: birth.random_seed,
         population: StableRandomId::from_text(&specification.id.0),
         lifecycle_event: lifecycle,
         particle: id,
@@ -1369,8 +1465,30 @@ fn boundary_particle(
             face.latitude_degrees,
         ),
     };
-    let height_asl_m = (face.upper_height_asl_m - face.lower_height_asl_m)
-        .mul_add(vertical, face.lower_height_asl_m);
+    let raw_local_bounds = snapshot
+        .local_vertical_bounds_at(longitude_degrees, latitude_degrees)
+        .map_err(|_| AirMassPopulationError::InvalidSample)?;
+    let local_bounds = corrected_local_vertical_bounds(
+        snapshot,
+        raw_local_bounds,
+        longitude_degrees,
+        latitude_degrees,
+        gmted2010,
+    )?;
+    let lower_height_asl_m = face
+        .lower_height_asl_m
+        .max(local_bounds.transport_floor_height_asl_m);
+    let upper_height_asl_m = face
+        .upper_height_asl_m
+        .min(local_bounds.available_top_height_asl_m);
+    if upper_height_asl_m <= lower_height_asl_m {
+        return Err(AirMassPopulationError::InvalidSample);
+    }
+    let height_asl_m =
+        (upper_height_asl_m - lower_height_asl_m).mul_add(vertical, lower_height_asl_m);
+    if height_asl_m <= local_bounds.terrain_height_asl_m {
+        return Err(AirMassPopulationError::InvalidSample);
+    }
     let state = ParticleState {
         id,
         population_id: specification.id.clone(),
@@ -1378,7 +1496,7 @@ fn boundary_particle(
             domain_id: specification.domain_id.clone(),
             boundary_face_id,
         },
-        birth_time,
+        birth_time: birth.birth_time,
         longitude_degrees,
         latitude_degrees,
         height_asl_m,
@@ -1386,7 +1504,7 @@ fn boundary_particle(
         elapsed_age_ns: 0,
         dry_air_mass_kg: carrier_mass_per_particle_kg,
         mass_kg: BTreeMap::new(),
-        sensitivity_weight: None,
+        adjoint_weight: BTreeMap::new(),
         status: ParticleStatus::Alive,
         termination: None,
     };
@@ -1414,7 +1532,6 @@ pub(super) fn particle_batch_from_states(
             .push(state.integration_offset_ns);
         batch.elapsed_age_ns.push(state.elapsed_age_ns);
         batch.dry_air_mass_kg.push(state.dry_air_mass_kg);
-        batch.sensitivity_weight.push(state.sensitivity_weight);
         batch.status.push(state.status);
         batch.termination.push(state.termination);
         for (substance, mass) in state.mass_kg {
@@ -1426,6 +1543,19 @@ pub(super) fn particle_batch_from_states(
                 .push(mass);
         }
         for values in batch.mass.mass_kg.values_mut() {
+            if values.len() < batch.id.len() {
+                values.push(0.0);
+            }
+        }
+        for (substance, weight) in state.adjoint_weight {
+            batch
+                .adjoint
+                .adjoint_weight
+                .entry(substance)
+                .or_insert_with(|| vec![0.0; batch.id.len() - 1])
+                .push(weight);
+        }
+        for values in batch.adjoint.adjoint_weight.values_mut() {
             if values.len() < batch.id.len() {
                 values.push(0.0);
             }
@@ -1742,6 +1872,7 @@ mod tests {
         let mut snapshot = snapshot();
         snapshot.grid.latitude_origin_degrees = -1.0;
         snapshot.grid.latitude_spacing_degrees = 2.0;
+        snapshot.available_top_height_grid_asl_m.fill(4_000.0);
         let column = &mut snapshot.columns[0];
         column.latitude_degrees = 0.0;
         column.south_degrees = -1.0;
@@ -1802,7 +1933,7 @@ mod tests {
 
     #[test]
     fn target_count_is_exact_equal_mass_and_order_independent() {
-        let seeded = seed_initial_air_mass(&count_spec(5), &snapshot(), 7).unwrap();
+        let seeded = seed_initial_air_mass(&count_spec(5), &snapshot(), 7, None).unwrap();
         assert_eq!(seeded.particles.len().unwrap(), 5);
         assert_eq!(seeded.carrier_mass_per_particle_kg, 2.0);
         assert_eq!(seeded.residual_mass_kg, 0.0);
@@ -1813,7 +1944,7 @@ mod tests {
                 .iter()
                 .all(|mass| *mass == 2.0)
         );
-        let again = seed_initial_air_mass(&count_spec(5), &snapshot(), 7).unwrap();
+        let again = seed_initial_air_mass(&count_spec(5), &snapshot(), 7, None).unwrap();
         assert_eq!(seeded, again);
         let mut reversed = seeded.particles.clone();
         reversed.id.reverse();
@@ -1833,7 +1964,7 @@ mod tests {
             target_dry_air_mass_per_particle: Some(Quantity::<Mass>::new(3.0, unit).unwrap()),
             target_particle_count: None,
         };
-        let seeded = seed_initial_air_mass(&specification, &snapshot(), 11).unwrap();
+        let seeded = seed_initial_air_mass(&specification, &snapshot(), 11, None).unwrap();
         assert_eq!(seeded.particles.len().unwrap(), 3);
         assert_eq!(seeded.carrier_mass_per_particle_kg, 3.0);
         assert_eq!(seeded.residual_mass_kg, 1.0);
@@ -1847,6 +1978,7 @@ mod tests {
             &snapshot,
             &super::super::FlexpartPv60OzoneRule,
             17,
+            None,
         )
         .unwrap();
         assert_eq!(seeded.particles.len().unwrap(), 3);
@@ -1888,6 +2020,7 @@ mod tests {
             &snapshot,
             &super::super::FlexpartPv60OzoneRule,
             19,
+            None,
         )
         .unwrap();
         assert!(
@@ -1907,6 +2040,7 @@ mod tests {
                 &ozone_snapshot(None),
                 &super::super::FlexpartPv60OzoneRule,
                 23,
+                None,
             ),
             Err(PopulationError::MissingOzoneDiagnostic)
         );
@@ -1916,6 +2050,7 @@ mod tests {
                 &ozone_snapshot(Some(2.0)),
                 &super::super::FlexpartPv60OzoneRule,
                 23,
+                None,
             ),
             Err(PopulationError::NoEligibleOzoneMass)
         );
@@ -1943,6 +2078,7 @@ mod tests {
             &snapshot,
             &super::super::FlexpartPv60OzoneRule,
             29,
+            None,
         )
         .unwrap();
         assert_eq!(seeded.particles.len().unwrap(), 3);
@@ -1964,6 +2100,7 @@ mod tests {
             SignedDuration(1_000_000_000),
             0,
             31,
+            None,
         )
         .unwrap();
         assert_eq!(plan.rates.len(), 1);
@@ -1995,6 +2132,7 @@ mod tests {
             SignedDuration(1_000_000_000),
             1,
             31,
+            None,
         )
         .unwrap();
         assert_eq!(empty.rates[0].rate_kg_s, 0.0);
@@ -2018,6 +2156,7 @@ mod tests {
             SignedDuration(1_000_000_000),
             0,
             31,
+            None,
         )
         .unwrap();
         assert_eq!(below_plan.rates[0].rate_kg_s, 0.0);
@@ -2036,6 +2175,7 @@ mod tests {
             SignedDuration(1_000_000_000),
             1,
             31,
+            None,
         )
         .unwrap();
         assert_eq!(no_inflow_plan.rates[0].rate_kg_s, 0.0);
@@ -2082,9 +2222,38 @@ mod tests {
 
     #[test]
     fn backward_and_forward_seed_the_same_initial_mass_distribution() {
-        let forward = seed_initial_air_mass(&count_spec(8), &snapshot(), 42).unwrap();
-        let backward = seed_initial_air_mass(&count_spec(8), &snapshot(), 42).unwrap();
+        let forward = seed_initial_air_mass(&count_spec(8), &snapshot(), 42, None).unwrap();
+        let backward = seed_initial_air_mass(&count_spec(8), &snapshot(), 42, None).unwrap();
         assert_eq!(forward, backward);
+    }
+
+    #[test]
+    fn positive_terrain_anomaly_raises_the_birth_floor_without_lowering_support() {
+        let bounds = AirMassLocalVerticalBounds {
+            terrain_height_asl_m: 100.0,
+            transport_floor_height_asl_m: 101.0,
+            available_top_height_asl_m: 1_000.0,
+        };
+        assert_eq!(
+            apply_terrain_anomaly(bounds, 50.0).unwrap(),
+            AirMassLocalVerticalBounds {
+                terrain_height_asl_m: 150.0,
+                transport_floor_height_asl_m: 151.0,
+                available_top_height_asl_m: 1_000.0,
+            }
+        );
+        assert_eq!(
+            apply_terrain_anomaly(bounds, -50.0).unwrap(),
+            AirMassLocalVerticalBounds {
+                terrain_height_asl_m: 50.0,
+                transport_floor_height_asl_m: 101.0,
+                available_top_height_asl_m: 1_000.0,
+            }
+        );
+        assert_eq!(
+            apply_terrain_anomaly(bounds, 1_000.0),
+            Err(AirMassPopulationError::InvalidSample)
+        );
     }
 
     #[test]
@@ -2127,12 +2296,12 @@ mod tests {
     #[test]
     fn horizontal_relocation_preserves_transport_floor_offset() {
         let flat_snapshot = snapshot();
-        let flat = seed_initial_air_mass(&count_spec(64), &flat_snapshot, 4_202).unwrap();
+        let flat = seed_initial_air_mass(&count_spec(64), &flat_snapshot, 4_202, None).unwrap();
         let mut sloped_snapshot = flat_snapshot.clone();
         sloped_snapshot.terrain_height_grid_asl_m = vec![0.0, 100.0, 200.0, 300.0];
         sloped_snapshot.aerodynamic_roughness_length_grid_m = vec![0.1, 0.4, 0.8, 1.2];
         sloped_snapshot.available_top_height_grid_asl_m = vec![10_000.0; 4];
-        let sloped = seed_initial_air_mass(&count_spec(64), &sloped_snapshot, 4_202).unwrap();
+        let sloped = seed_initial_air_mass(&count_spec(64), &sloped_snapshot, 4_202, None).unwrap();
 
         assert_eq!(flat.particles.id, sloped.particles.id);
         assert_eq!(
@@ -2171,10 +2340,11 @@ mod tests {
     #[test]
     fn horizontal_relocation_respects_bilinear_available_top() {
         let flat_snapshot = snapshot();
-        let flat = seed_initial_air_mass(&count_spec(512), &flat_snapshot, 91_337).unwrap();
+        let flat = seed_initial_air_mass(&count_spec(512), &flat_snapshot, 91_337, None).unwrap();
         let mut sloped_snapshot = flat_snapshot.clone();
         sloped_snapshot.available_top_height_grid_asl_m = vec![3_000.0, 2_350.0, 3_000.0, 2_350.0];
-        let sloped = seed_initial_air_mass(&count_spec(512), &sloped_snapshot, 91_337).unwrap();
+        let sloped =
+            seed_initial_air_mass(&count_spec(512), &sloped_snapshot, 91_337, None).unwrap();
 
         assert_eq!(flat.particles.id, sloped.particles.id);
         assert_eq!(

@@ -759,7 +759,7 @@ mod tests {
             elapsed_age_ns: 0,
             dry_air_mass_kg: 0.0,
             mass_kg: BTreeMap::new(),
-            sensitivity_weight: None,
+            adjoint_weight: BTreeMap::new(),
             status: ParticleStatus::Alive,
             termination: None,
         }

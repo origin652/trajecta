@@ -66,6 +66,9 @@ pub const TWO_METRE_ANCHORED_SURFACE_SCALAR_ALGORITHM_ID: &str =
 pub const LOWEST_COMPLETE_TRANSPORT_ANCHOR_ALGORITHM_ID: &str =
     "lowest_complete_transport_anchor/v1";
 
+/// Stable identity for surface-exchange scales diagnosed from near-surface fields.
+pub const SURFACE_EXCHANGE_SCALES_ALGORITHM_ID: &str = "surface_exchange_scales/v1";
+
 /// Positive replacement for exact zero source roughness in physical surface-layer consumers.
 ///
 /// The frozen CFSR SFCR messages use a `1e-4 m` decimal quantum and encode open-water points as

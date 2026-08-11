@@ -16,16 +16,18 @@ use trajecta_case::document::{
 use trajecta_case::expand::{expand_case_file, expand_run_profile_file};
 use trajecta_case::intent::{IntentValidator, ValidationIntent};
 use trajecta_case::lockfile::parse_dataset_lock_json;
+use trajecta_case::model::physics::PhysicsModuleId;
 use trajecta_case::model::time::Timestamp;
 use trajecta_case::resolver::LocalRefResolver;
 use trajecta_case::schema::{CURRENT_SCHEMA_VERSION, SchemaDocument, SchemaError};
+use trajecta_met::auxiliary::gmted2010::{GMTED2010_DATASET_ID, GMTED2010_PROFILE_NAME};
 use trajecta_met::io::lock_builder::{ReaderMetadataInspector, SourceMetadataInspector};
 use trajecta_met::io::reader::{SourceFormat, detect_source_format};
 
 use crate::command::project::ProjectCommand;
 use crate::command_result::{CommandError as ProjectError, CommandOutcome as ProjectOutcome};
 use crate::data_lock::{
-    LockArtifact, LockSpec, build_lock, persist_lock, requirements_from_case,
+    LockArtifact, LockRequirement, LockSpec, build_lock, persist_lock, requirements_from_case,
     validate_existing_lock,
 };
 
@@ -690,6 +692,29 @@ struct ProjectLockGroup {
     consumers: Vec<(String, String)>,
 }
 
+fn required_project_datasets(case: &ResolvedCase) -> BTreeSet<String> {
+    let mut datasets = case
+        .meteorology
+        .as_ref()
+        .into_iter()
+        .flat_map(|meteorology| &meteorology.domains)
+        .map(|domain| domain.dataset.0.clone())
+        .collect::<BTreeSet<_>>();
+    if case_requires_gmted2010(case) {
+        datasets.insert(GMTED2010_DATASET_ID.into());
+    }
+    datasets
+}
+
+fn case_requires_gmted2010(case: &ResolvedCase) -> bool {
+    case.physics.as_ref().is_some_and(|physics| {
+        physics
+            .modules
+            .iter()
+            .any(|module| module.model == PhysicsModuleId::SubgridOrography)
+    })
+}
+
 fn project_lock_uses(project: &Project) -> Result<Vec<ProjectLockUse>, ProjectError> {
     let mut cases = Vec::new();
     for (case_name, relative) in &project.index.cases {
@@ -737,15 +762,38 @@ fn project_lock_uses(project: &Project) -> Result<Vec<ProjectLockUse>, ProjectEr
                         ),
                     )
                 })?;
-            let domain = requirements.domains.get(&binding.dataset).ok_or_else(|| {
-                ProjectError::new(
+            let requirement = if let Some(domain) = requirements.domains.get(&binding.dataset) {
+                LockRequirement::Meteorology {
+                    profile_name: dataset_profile.clone(),
+                    profile_sources: profile.profile_sources.clone(),
+                    backend: binding.reader_backend.unwrap_or(profile.reader_backend),
+                    coverage: requirements.coverage,
+                    capabilities: requirements.capabilities,
+                    domain: domain.clone(),
+                }
+            } else if binding.dataset.0 == GMTED2010_DATASET_ID && case_requires_gmted2010(case) {
+                if dataset_profile != GMTED2010_PROFILE_NAME {
+                    return Err(ProjectError::new(
+                        "project.dataset_profiles_mismatch",
+                        format!("GMTED2010 requires dataset Profile `{GMTED2010_PROFILE_NAME}`"),
+                    ));
+                }
+                if binding.reader_backend.is_some() {
+                    return Err(ProjectError::new(
+                        "project.auxiliary_reader_backend_unsupported",
+                        "GMTED2010 uses its fixed pure-Rust reader and accepts no reader override",
+                    ));
+                }
+                LockRequirement::Gmted2010
+            } else {
+                return Err(ProjectError::new(
                     "project.dataset_profiles_mismatch",
                     format!(
                         "dataset `{}` is not used by Case `{case_name}`",
                         binding.dataset.0
                     ),
-                )
-            })?;
+                ));
+            };
             uses.push(ProjectLockUse {
                 project_profile: project_profile.clone(),
                 case_name: case_name.clone(),
@@ -755,12 +803,7 @@ fn project_lock_uses(project: &Project) -> Result<Vec<ProjectLockUse>, ProjectEr
                     dataset: binding.dataset.clone(),
                     source: format!("local data for {}", binding.dataset.0),
                     data_roots: binding.data_roots.clone(),
-                    profile_name: dataset_profile.clone(),
-                    profile_sources: profile.profile_sources.clone(),
-                    backend: binding.reader_backend.unwrap_or(profile.reader_backend),
-                    coverage: requirements.coverage,
-                    capabilities: requirements.capabilities,
-                    domain: domain.clone(),
+                    requirement,
                 },
             });
         }
@@ -799,16 +842,63 @@ fn group_lock_uses(uses: &[ProjectLockUse]) -> Result<Vec<ProjectLockGroup>, Pro
             Some(group) => {
                 let conflict = if group.spec.dataset != item.spec.dataset {
                     Some("dataset")
-                } else if group.spec.profile_name != item.spec.profile_name {
-                    Some("dataset Profile")
                 } else if group.spec.data_roots != item.spec.data_roots {
                     Some("data roots")
-                } else if group.spec.profile_sources != item.spec.profile_sources {
-                    Some("Profile sources")
-                } else if group.spec.backend != item.spec.backend {
-                    Some("reader backend")
                 } else {
-                    None
+                    match (&group.spec.requirement, &item.spec.requirement) {
+                        (LockRequirement::Gmted2010, LockRequirement::Gmted2010) => None,
+                        (
+                            LockRequirement::Meteorology {
+                                profile_name: left_profile,
+                                profile_sources: left_sources,
+                                backend: left_backend,
+                                domain: left_domain,
+                                ..
+                            },
+                            LockRequirement::Meteorology {
+                                profile_name: right_profile,
+                                profile_sources: right_sources,
+                                backend: right_backend,
+                                domain: right_domain,
+                                ..
+                            },
+                        ) if left_profile != right_profile => Some("dataset Profile"),
+                        (
+                            LockRequirement::Meteorology {
+                                profile_sources: left_sources,
+                                ..
+                            },
+                            LockRequirement::Meteorology {
+                                profile_sources: right_sources,
+                                ..
+                            },
+                        ) if left_sources != right_sources => Some("Profile sources"),
+                        (
+                            LockRequirement::Meteorology {
+                                backend: left_backend,
+                                ..
+                            },
+                            LockRequirement::Meteorology {
+                                backend: right_backend,
+                                ..
+                            },
+                        ) if left_backend != right_backend => Some("reader backend"),
+                        (
+                            LockRequirement::Meteorology {
+                                domain: left_domain,
+                                ..
+                            },
+                            LockRequirement::Meteorology {
+                                domain: right_domain,
+                                ..
+                            },
+                        ) if left_domain != right_domain => Some("meteorology domain"),
+                        (
+                            LockRequirement::Meteorology { .. },
+                            LockRequirement::Meteorology { .. },
+                        ) => None,
+                        _ => Some("dataset kind"),
+                    }
                 };
                 if let Some(field) = conflict {
                     return Err(ProjectError::new(
@@ -819,20 +909,30 @@ fn group_lock_uses(uses: &[ProjectLockUse]) -> Result<Vec<ProjectLockGroup>, Pro
                         ),
                     ));
                 }
-                group.spec.coverage.start = group.spec.coverage.start.min(item.spec.coverage.start);
-                group.spec.coverage.end = group.spec.coverage.end.max(item.spec.coverage.end);
-                group.spec.coverage.interpolation_before_frames = group
-                    .spec
-                    .coverage
-                    .interpolation_before_frames
-                    .max(item.spec.coverage.interpolation_before_frames);
-                group.spec.coverage.interpolation_after_frames = group
-                    .spec
-                    .coverage
-                    .interpolation_after_frames
-                    .max(item.spec.coverage.interpolation_after_frames);
-                for capability in item.spec.capabilities.iter() {
-                    group.spec.capabilities.insert(capability);
+                if let (
+                    LockRequirement::Meteorology {
+                        coverage: group_coverage,
+                        capabilities: group_capabilities,
+                        ..
+                    },
+                    LockRequirement::Meteorology {
+                        coverage: item_coverage,
+                        capabilities: item_capabilities,
+                        ..
+                    },
+                ) = (&mut group.spec.requirement, &item.spec.requirement)
+                {
+                    group_coverage.start = group_coverage.start.min(item_coverage.start);
+                    group_coverage.end = group_coverage.end.max(item_coverage.end);
+                    group_coverage.interpolation_before_frames = group_coverage
+                        .interpolation_before_frames
+                        .max(item_coverage.interpolation_before_frames);
+                    group_coverage.interpolation_after_frames = group_coverage
+                        .interpolation_after_frames
+                        .max(item_coverage.interpolation_after_frames);
+                    for capability in item_capabilities.iter() {
+                        group_capabilities.insert(capability);
+                    }
                 }
                 if !group.consumers.contains(&consumer) {
                     group.consumers.push(consumer);
@@ -887,17 +987,7 @@ fn validate_project(project: &Project) -> Result<ProjectStatus, ProjectError> {
                     .iter()
                     .map(|binding| binding.dataset.0.clone())
                     .collect::<BTreeSet<_>>();
-                let case_datasets = case
-                    .meteorology
-                    .as_ref()
-                    .map(|meteorology| {
-                        meteorology
-                            .domains
-                            .iter()
-                            .map(|domain| domain.dataset.0.clone())
-                            .collect::<BTreeSet<_>>()
-                    })
-                    .unwrap_or_default();
+                let case_datasets = required_project_datasets(case);
                 if expected != actual || actual != case_datasets {
                     has_errors = true;
                     diagnostics.push(diagnostic("error", "project.dataset_profiles_mismatch", format!("profile `{name}` dataset_profiles and RunProfile bindings must exactly match Case `{case_name}` datasets")));
@@ -1784,9 +1874,11 @@ fn data_plan(project: &Project) -> Result<Value, ProjectError> {
                 .map(|(key, value)| Ok((key.0.clone(), relative_string(&project.root, value)?)))
                 .collect::<Result<BTreeMap<_, _>, ProjectError>>()?;
             let status = lock_status(&lock_use.spec)?;
+            let coverage = lock_use.spec.requirement.coverage();
             let mut required_capabilities = lock_use
                 .spec
-                .capabilities
+                .requirement
+                .capabilities()
                 .iter()
                 .map(|value| serde_json::to_value(value).map_err(json_error))
                 .collect::<Result<Vec<_>, _>>()?;
@@ -1797,15 +1889,15 @@ fn data_plan(project: &Project) -> Result<Value, ProjectError> {
             requirement.insert("dataset_id".into(), Value::String(dataset_id));
             requirement.insert(
                 "dataset_profile".into(),
-                Value::String(lock_use.spec.profile_name.clone()),
+                Value::String(lock_use.spec.requirement.profile_name().into()),
             );
             requirement.insert(
                 "coverage_start".into(),
-                serde_json::to_value(lock_use.spec.coverage.start).map_err(json_error)?,
+                serde_json::to_value(coverage.start).map_err(json_error)?,
             );
             requirement.insert(
                 "coverage_end".into(),
-                serde_json::to_value(lock_use.spec.coverage.end).map_err(json_error)?,
+                serde_json::to_value(coverage.end).map_err(json_error)?,
             );
             requirement.insert("lockfile".into(), Value::String(lockfile));
             if let Some(cache_root) = &binding.cache_root {
@@ -1820,7 +1912,7 @@ fn data_plan(project: &Project) -> Result<Value, ProjectError> {
             );
             requirement.insert(
                 "reader_backend".into(),
-                serde_json::to_value(lock_use.spec.backend).map_err(json_error)?,
+                serde_json::to_value(lock_use.spec.requirement.backend()).map_err(json_error)?,
             );
             requirement.insert(
                 "required_capabilities".into(),
@@ -2192,7 +2284,9 @@ mod tests {
     use trajecta_met::field::{Capability, CapabilitySet};
     use trajecta_met::io::lock_builder::LockCoverageRequest;
 
-    use super::{LockSpec, ProjectLockUse, group_lock_uses, validate_data_plan_shape};
+    use super::{
+        LockRequirement, LockSpec, ProjectLockUse, group_lock_uses, validate_data_plan_shape,
+    };
 
     fn lock_use(
         project_profile: &str,
@@ -2212,17 +2306,19 @@ mod tests {
                 dataset: DatasetRef("met".into()),
                 source: "local data for met".into(),
                 data_roots: BTreeMap::from([(DataRootId("raw".into()), PathBuf::from("data"))]),
-                profile_name: "era5-flex-extract-hybrid-v0".into(),
-                profile_sources: Vec::new(),
-                backend: MeteorologyReaderBackend::Rust,
-                coverage: LockCoverageRequest {
-                    start: Timestamp::new(start, 0).unwrap(),
-                    end: Timestamp::new(end, 0).unwrap(),
-                    interpolation_before_frames: 1,
-                    interpolation_after_frames: 1,
+                requirement: LockRequirement::Meteorology {
+                    profile_name: "era5-flex-extract-hybrid-v0".into(),
+                    profile_sources: Vec::new(),
+                    backend: MeteorologyReaderBackend::Rust,
+                    coverage: LockCoverageRequest {
+                        start: Timestamp::new(start, 0).unwrap(),
+                        end: Timestamp::new(end, 0).unwrap(),
+                        interpolation_before_frames: 1,
+                        interpolation_after_frames: 1,
+                    },
+                    capabilities,
+                    domain: DomainId("global".into()),
                 },
-                capabilities,
-                domain: DomainId("global".into()),
             },
         }
     }
@@ -2234,14 +2330,25 @@ mod tests {
         let groups = group_lock_uses(&[first.clone(), second.clone()]).unwrap();
         assert_eq!(groups.len(), 1);
         let group = &groups[0];
-        assert_eq!(group.spec.coverage.start, Timestamp::new(5, 0).unwrap());
-        assert_eq!(group.spec.coverage.end, Timestamp::new(30, 0).unwrap());
-        assert!(group.spec.capabilities.contains(Capability::Transport));
-        assert!(group.spec.capabilities.contains(Capability::WetDeposition));
+        let LockRequirement::Meteorology {
+            coverage,
+            capabilities,
+            ..
+        } = &group.spec.requirement
+        else {
+            panic!("expected meteorology lock")
+        };
+        assert_eq!(coverage.start, Timestamp::new(5, 0).unwrap());
+        assert_eq!(coverage.end, Timestamp::new(30, 0).unwrap());
+        assert!(capabilities.contains(Capability::Transport));
+        assert!(capabilities.contains(Capability::WetDeposition));
         assert_eq!(group.consumers.len(), 2);
 
         let mut conflicting = second;
-        conflicting.spec.backend = MeteorologyReaderBackend::Native;
+        let LockRequirement::Meteorology { backend, .. } = &mut conflicting.spec.requirement else {
+            panic!("expected meteorology lock")
+        };
+        *backend = MeteorologyReaderBackend::Native;
         let error = group_lock_uses(&[first, conflicting]).unwrap_err();
         assert_eq!(error.code, "project.lock_binding_conflict");
     }

@@ -30,7 +30,7 @@ use std::path::{Component, Path, PathBuf};
 
 use serde::de::DeserializeOwned;
 
-use crate::diagnostic::DiagnosticBag;
+use crate::diagnostic::{Diagnostic, DiagnosticBag, DiagnosticPath};
 use crate::document::{
     CaseDocument, DatasetBinding, ProfileSource, ResolvedCase, ResolvedRunProfile,
     RunProfileDocument,
@@ -38,7 +38,7 @@ use crate::document::{
 use crate::model::meteorology::MeteorologySpec;
 use crate::model::numerics::NumericsSpec;
 use crate::model::output::{OutputProductSpec, default_particle_state_output};
-use crate::model::physics::PhysicsModuleSpec;
+use crate::model::physics::{PhysicsSelectionSpec, resolve_physics};
 use crate::model::population::ParticlePopulationSpec;
 use crate::model::substance::SubstanceSpec;
 use crate::model::time::TimeSpec;
@@ -161,7 +161,23 @@ pub fn expand_case_document(
         &mut graph,
         &mut sources,
     )?
-    .unwrap_or_default();
+    .unwrap_or_default()
+    .into_iter()
+    .enumerate()
+    .map(|(index, substance): (usize, SubstanceSpec)| {
+        substance.normalized_to_si().map_err(|error| {
+            let mut diagnostics = DiagnosticBag::new();
+            diagnostics.push(
+                Diagnostic::error(
+                    "case.substance.normalization_failed",
+                    format!("substance quantity normalization failed: {error}"),
+                )
+                .at(DiagnosticPath::root().field("substances").index(index)),
+            );
+            ExpandError::Shape(diagnostics)
+        })
+    })
+    .collect::<Result<Vec<_>, _>>()?;
     let numerics = expand_component(
         &document.numerics,
         case_path,
@@ -169,14 +185,23 @@ pub fn expand_case_document(
         &mut graph,
         &mut sources,
     )?;
-    let physics = expand_component(
+    let physics_selection = expand_component(
         &document.physics,
         case_path,
         resolver,
         &mut graph,
         &mut sources,
-    )?
-    .unwrap_or_default();
+    )?;
+    let physics = physics_selection
+        .as_ref()
+        .map(|selection| {
+            resolve_physics(
+                selection,
+                crate::diagnostic::DiagnosticPath::root().field("physics"),
+            )
+        })
+        .transpose()
+        .map_err(ExpandError::Shape)?;
     let outputs = expand_component(
         &document.outputs,
         case_path,
@@ -509,7 +534,7 @@ type _ComponentTypes = (
     ParticlePopulationSpec,
     Vec<SubstanceSpec>,
     NumericsSpec,
-    Vec<PhysicsModuleSpec>,
+    PhysicsSelectionSpec,
     Vec<OutputProductSpec>,
 );
 

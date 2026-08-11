@@ -1,0 +1,1173 @@
+{
+  "schema_version": "trajecta.m6.wd76-cbl/v1",
+  "asset_id": "willis-deardorff-cbl-1976/v1",
+  "primary_source": {
+    "title": "A laboratory model of diffusion into the convective planetary boundary layer",
+    "authors": [
+      "G. E. Willis",
+      "J. W. Deardorff"
+    ],
+    "doi": "10.1002/qj.49710243212"
+  },
+  "digitized_reproduction": {
+    "title": "Statistical Variability of Dispersion in the Convective Boundary Layer: Ensembles of Simulations and Observations",
+    "authors": [
+      "Jeffrey C. Weil",
+      "Peter P. Sullivan",
+      "Edward G. Patton",
+      "Chin-Hoh Moeng"
+    ],
+    "doi": "10.1007/s10546-012-9704-y",
+    "repository_pdf_url": "https://www2.mmm.ucar.edu/people/sullivan/talks/papers/weil_blm.pdf",
+    "pdf_size_bytes": 1549241,
+    "pdf_sha256": "38d084754c806ec6772aeca44d901115a1faa72ae0214371981d47b57e9bb61f",
+    "pdf_page": 12,
+    "figure": "4"
+  },
+  "digitization": {
+    "method": "extract filled laboratory-marker glyph bounding boxes from the PDF content stream and apply the published panel-axis transforms",
+    "pdf_coordinate_system": "points from page top-left",
+    "height_axis_max": 1.25,
+    "point_count": 71,
+    "excluded_legend_marker_pdf_center_points": [
+      147.8578118,
+      152.89223846
+    ],
+    "coordinate_uncertainty": "raw glyph bounding boxes are retained; half the plotted marker width and height bound the reading precision",
+    "normalization": "each profile uses its maximum observed dimensionless concentration because the publication reports no pointwise uncertainty"
+  },
+  "profiles": [
+    {
+      "dimensionless_time": 0.12,
+      "source_height_fraction": 0.07,
+      "panel_pdf_bbox_points": [
+        140.45499058,
+        111.347518,
+        207.658519,
+        245.8376122
+      ],
+      "axis": {
+        "height_fraction": [
+          0.0,
+          1.25
+        ],
+        "dimensionless_concentration": [
+          0.0,
+          12.5
+        ]
+      },
+      "normalization_scale": 7.37938086,
+      "points": [
+        {
+          "pdf_bbox_points": [
+            176.0989126,
+            237.0213166,
+            184.15833754,
+            244.9227136
+          ],
+          "pdf_center_points": [
+            180.12862507,
+            240.9720151
+          ],
+          "height_fraction": 0.04522263,
+          "dimensionless_concentration": 7.37938086
+        },
+        {
+          "pdf_bbox_points": [
+            165.28660984,
+            230.45055272,
+            173.34603478,
+            238.35194972
+          ],
+          "pdf_center_points": [
+            169.31632231,
+            234.40125122
+          ],
+          "height_fraction": 0.10629371,
+          "dimensionless_concentration": 5.36826942
+        },
+        {
+          "pdf_bbox_points": [
+            146.57277484,
+            222.79867352,
+            154.63219978,
+            230.70007052
+          ],
+          "pdf_center_points": [
+            150.60248731,
+            226.74937202
+          ],
+          "height_fraction": 0.17741307,
+          "dimensionless_concentration": 1.88745609
+        },
+        {
+          "pdf_bbox_points": [
+            138.17234224,
+            215.31320714,
+            146.23176718,
+            223.21460414
+          ],
+          "pdf_center_points": [
+            142.20205471,
+            219.26390564
+          ],
+          "height_fraction": 0.24698572,
+          "dimensionless_concentration": 0.32495766
+        },
+        {
+          "pdf_bbox_points": [
+            136.84160093,
+            207.91091336,
+            144.90102587,
+            215.81231036
+          ],
+          "pdf_center_points": [
+            140.8713134,
+            211.86161186
+          ],
+          "height_fraction": 0.31578534,
+          "dimensionless_concentration": 0.07743693
+        }
+      ]
+    },
+    {
+      "dimensionless_time": 0.25,
+      "source_height_fraction": 0.07,
+      "panel_pdf_bbox_points": [
+        221.2156528,
+        111.347518,
+        288.4191136,
+        245.8376122
+      ],
+      "axis": {
+        "height_fraction": [
+          0.0,
+          1.25
+        ],
+        "dimensionless_concentration": [
+          0.0,
+          10.0
+        ]
+      },
+      "normalization_scale": 6.00248028,
+      "points": [
+        {
+          "pdf_bbox_points": [
+            257.52468514,
+            237.0213166,
+            265.58411008,
+            244.9227136
+          ],
+          "pdf_center_points": [
+            261.55439761,
+            240.9720151
+          ],
+          "height_fraction": 0.04522263,
+          "dimensionless_concentration": 6.00248028
+        },
+        {
+          "pdf_bbox_points": [
+            244.13382892,
+            230.45055272,
+            252.19325386,
+            238.35194972
+          ],
+          "pdf_center_points": [
+            248.16354139,
+            234.40125122
+          ],
+          "height_fraction": 0.10629371,
+          "dimensionless_concentration": 4.00989596
+        },
+        {
+          "pdf_bbox_points": [
+            232.48973254,
+            222.79867352,
+            240.54915748,
+            230.70007052
+          ],
+          "pdf_center_points": [
+            236.51944501,
+            226.74937202
+          ],
+          "height_fraction": 0.17741307,
+          "dimensionless_concentration": 2.27723275
+        },
+        {
+          "pdf_bbox_points": [
+            227.08330392,
+            215.31320714,
+            235.14272886,
+            223.21460414
+          ],
+          "pdf_center_points": [
+            231.11301639,
+            219.26390564
+          ],
+          "height_fraction": 0.24698572,
+          "dimensionless_concentration": 1.47274612
+        },
+        {
+          "pdf_bbox_points": [
+            223.00788033,
+            207.91091336,
+            231.06730527,
+            215.81231036
+          ],
+          "pdf_center_points": [
+            227.0375928,
+            211.86161186
+          ],
+          "height_fraction": 0.31578534,
+          "dimensionless_concentration": 0.8663155
+        },
+        {
+          "pdf_bbox_points": [
+            219.84743648,
+            201.17374343,
+            227.90686142,
+            209.07514043
+          ],
+          "pdf_center_points": [
+            223.87714895,
+            205.12444193
+          ],
+          "height_fraction": 0.37840306,
+          "dimensionless_concentration": 0.39603558
+        },
+        {
+          "pdf_bbox_points": [
+            218.10067664,
+            193.68827705,
+            226.16010158,
+            201.58967405
+          ],
+          "pdf_center_points": [
+            222.13038911,
+            197.63897555
+          ],
+          "height_fraction": 0.44797571,
+          "dimensionless_concentration": 0.13611447
+        },
+        {
+          "pdf_bbox_points": [
+            217.68491913,
+            186.61853843,
+            225.74434407,
+            194.51993543
+          ],
+          "pdf_center_points": [
+            221.7146316,
+            190.56923693
+          ],
+          "height_fraction": 0.51368444,
+          "dimensionless_concentration": 0.07424897
+        }
+      ]
+    },
+    {
+      "dimensionless_time": 0.38,
+      "source_height_fraction": 0.07,
+      "panel_pdf_bbox_points": [
+        301.9762474,
+        111.347518,
+        369.1797082,
+        245.8376122
+      ],
+      "axis": {
+        "height_fraction": [
+          0.0,
+          1.25
+        ],
+        "dimensionless_concentration": [
+          0.0,
+          7.0
+        ]
+      },
+      "normalization_scale": 3.83786777,
+      "points": [
+        {
+          "pdf_bbox_points": [
+            334.79196292,
+            237.0213166,
+            342.85138786,
+            244.9227136
+          ],
+          "pdf_center_points": [
+            338.82167539,
+            240.9720151
+          ],
+          "height_fraction": 0.04522263,
+          "dimensionless_concentration": 3.83786777
+        },
+        {
+          "pdf_bbox_points": [
+            325.72614952,
+            230.45055272,
+            333.78557446,
+            238.35194972
+          ],
+          "pdf_center_points": [
+            329.75586199,
+            234.40125122
+          ],
+          "height_fraction": 0.10629371,
+          "dimensionless_concentration": 2.89356083
+        },
+        {
+          "pdf_bbox_points": [
+            323.1478733,
+            222.79867352,
+            331.20729824,
+            230.70007052
+          ],
+          "pdf_center_points": [
+            327.17758577,
+            226.74937202
+          ],
+          "height_fraction": 0.17741307,
+          "dimensionless_concentration": 2.62500423
+        },
+        {
+          "pdf_bbox_points": [
+            315.16316846,
+            215.31320714,
+            323.2225934,
+            223.21460414
+          ],
+          "pdf_center_points": [
+            319.19288093,
+            219.26390564
+          ],
+          "height_fraction": 0.24698572,
+          "dimensionless_concentration": 1.79330697
+        },
+        {
+          "pdf_bbox_points": [
+            312.08593103,
+            207.91091336,
+            320.14535597,
+            215.81231036
+          ],
+          "pdf_center_points": [
+            316.1156435,
+            211.86161186
+          ],
+          "height_fraction": 0.31578534,
+          "dimensionless_concentration": 1.47277791
+        },
+        {
+          "pdf_bbox_points": [
+            308.25985619,
+            201.17374343,
+            316.31928113,
+            209.07514043
+          ],
+          "pdf_center_points": [
+            312.28956866,
+            205.12444193
+          ],
+          "height_fraction": 0.37840306,
+          "dimensionless_concentration": 1.07424897
+        },
+        {
+          "pdf_bbox_points": [
+            304.35083865,
+            193.68827705,
+            312.41026359,
+            201.58967405
+          ],
+          "pdf_center_points": [
+            308.38055112,
+            197.63897555
+          ],
+          "height_fraction": 0.44797571,
+          "dimensionless_concentration": 0.66708062
+        },
+        {
+          "pdf_bbox_points": [
+            301.77256244,
+            186.61853843,
+            309.83198738,
+            194.51993543
+          ],
+          "pdf_center_points": [
+            305.80227491,
+            190.56923693
+          ],
+          "height_fraction": 0.51368444,
+          "dimensionless_concentration": 0.39852401
+        },
+        {
+          "pdf_bbox_points": [
+            299.94259619,
+            179.21624465,
+            308.00202113,
+            187.11764165
+          ],
+          "pdf_center_points": [
+            303.97230866,
+            183.16694315
+          ],
+          "height_fraction": 0.58248406,
+          "dimensionless_concentration": 0.20791234
+        },
+        {
+          "pdf_bbox_points": [
+            298.44544881,
+            172.06333343,
+            306.50487375,
+            179.96473043
+          ],
+          "pdf_center_points": [
+            302.47516128,
+            176.01403193
+          ],
+          "height_fraction": 0.64896583,
+          "dimensionless_concentration": 0.05196752
+        },
+        {
+          "pdf_bbox_points": [
+            298.44544881,
+            165.32642721,
+            306.50487375,
+            173.22782421
+          ],
+          "pdf_center_points": [
+            302.47516128,
+            169.27712571
+          ],
+          "height_fraction": 0.71158109,
+          "dimensionless_concentration": 0.05196752
+        }
+      ]
+    },
+    {
+      "dimensionless_time": 0.5,
+      "source_height_fraction": 0.07,
+      "panel_pdf_bbox_points": [
+        140.45499058,
+        272.7855346,
+        207.658519,
+        407.27549356
+      ],
+      "axis": {
+        "height_fraction": [
+          0.0,
+          1.25
+        ],
+        "dimensionless_concentration": [
+          0.0,
+          5.0
+        ]
+      },
+      "normalization_scale": 2.49381692,
+      "points": [
+        {
+          "pdf_bbox_points": [
+            169.94393734,
+            398.4593332,
+            178.00336228,
+            406.3607302
+          ],
+          "pdf_center_points": [
+            173.97364981,
+            402.4100317
+          ],
+          "height_fraction": 0.04522142,
+          "dimensionless_concentration": 2.49381692
+        },
+        {
+          "pdf_bbox_points": [
+            168.1971775,
+            391.88856932,
+            176.25660244,
+            399.78996632
+          ],
+          "pdf_center_points": [
+            172.22688997,
+            395.83926782
+          ],
+          "height_fraction": 0.10629256,
+          "dimensionless_concentration": 2.36385649
+        },
+        {
+          "pdf_bbox_points": [
+            165.20314647,
+            384.23669012,
+            173.26257141,
+            392.13808712
+          ],
+          "pdf_center_points": [
+            169.23285894,
+            388.18738862
+          ],
+          "height_fraction": 0.17741199,
+          "dimensionless_concentration": 2.14109802
+        },
+        {
+          "pdf_bbox_points": [
+            163.04062506,
+            376.75122374,
+            171.10005,
+            384.65262074
+          ],
+          "pdf_center_points": [
+            167.07033753,
+            380.70192224
+          ],
+          "height_fraction": 0.24698471,
+          "dimensionless_concentration": 1.98020458
+        },
+        {
+          "pdf_bbox_points": [
+            157.30164128,
+            369.34892996,
+            165.36106622,
+            377.25032696
+          ],
+          "pdf_center_points": [
+            161.33135375,
+            373.29962846
+          ],
+          "height_fraction": 0.3157844,
+          "dimensionless_concentration": 1.55321928
+        },
+        {
+          "pdf_bbox_points": [
+            154.4737526,
+            362.61176003,
+            162.53317754,
+            370.51315703
+          ],
+          "pdf_center_points": [
+            158.50346507,
+            366.56245853
+          ],
+          "height_fraction": 0.37840218,
+          "dimensionless_concentration": 1.34282194
+        },
+        {
+          "pdf_bbox_points": [
+            150.81408381,
+            355.12629365,
+            158.87350875,
+            363.02769065
+          ],
+          "pdf_center_points": [
+            154.84379628,
+            359.07699215
+          ],
+          "height_fraction": 0.44797491,
+          "dimensionless_concentration": 1.07053945
+        },
+        {
+          "pdf_bbox_points": [
+            145.82393744,
+            348.05655503,
+            153.88336238,
+            355.95795203
+          ],
+          "pdf_center_points": [
+            149.85364991,
+            352.00725353
+          ],
+          "height_fraction": 0.5136837,
+          "dimensionless_concentration": 0.69926829
+        },
+        {
+          "pdf_bbox_points": [
+            143.66141603,
+            340.65426125,
+            151.72084097,
+            348.55565825
+          ],
+          "pdf_center_points": [
+            147.6911285,
+            344.60495975
+          ],
+          "height_fraction": 0.58248339,
+          "dimensionless_concentration": 0.53837485
+        },
+        {
+          "pdf_bbox_points": [
+            140.08495365,
+            333.50135003,
+            148.14437859,
+            341.40274703
+          ],
+          "pdf_center_points": [
+            144.11466612,
+            337.45204853
+          ],
+          "height_fraction": 0.64896522,
+          "dimensionless_concentration": 0.27228299
+        },
+        {
+          "pdf_bbox_points": [
+            139.25317356,
+            326.76444381,
+            147.3125985,
+            334.66584081
+          ],
+          "pdf_center_points": [
+            143.28288603,
+            330.71514231
+          ],
+          "height_fraction": 0.71158055,
+          "dimensionless_concentration": 0.21039784
+        },
+        {
+          "pdf_bbox_points": [
+            138.17204471,
+            319.86111801,
+            146.23146965,
+            327.76251501
+          ],
+          "pdf_center_points": [
+            142.20175718,
+            323.81181651
+          ],
+          "height_fraction": 0.77574264,
+          "dimensionless_concentration": 0.12996093
+        },
+        {
+          "pdf_bbox_points": [
+            137.17385856,
+            313.04103243,
+            145.2332835,
+            320.94242943
+          ],
+          "pdf_center_points": [
+            141.20357103,
+            316.99173093
+          ],
+          "height_fraction": 0.83913107,
+          "dimensionless_concentration": 0.05569503
+        }
+      ]
+    },
+    {
+      "dimensionless_time": 1.55,
+      "source_height_fraction": 0.07,
+      "panel_pdf_bbox_points": [
+        221.2156528,
+        272.7855346,
+        288.4191136,
+        407.27549356
+      ],
+      "axis": {
+        "height_fraction": [
+          0.0,
+          1.25
+        ],
+        "dimensionless_concentration": [
+          0.0,
+          2.5
+        ]
+      },
+      "normalization_scale": 1.5006256,
+      "points": [
+        {
+          "pdf_bbox_points": [
+            231.57483394,
+            398.4593332,
+            239.63425888,
+            406.3607302
+          ],
+          "pdf_center_points": [
+            235.60454641,
+            402.4100317
+          ],
+          "height_fraction": 0.04522142,
+          "dimensionless_concentration": 0.53527353
+        },
+        {
+          "pdf_bbox_points": [
+            231.57483394,
+            391.88856932,
+            239.63425888,
+            399.78996632
+          ],
+          "pdf_center_points": [
+            235.60454641,
+            395.83926782
+          ],
+          "height_fraction": 0.10629256,
+          "dimensionless_concentration": 0.53527353
+        },
+        {
+          "pdf_bbox_points": [
+            235.23450272,
+            384.23669012,
+            243.29392766,
+            392.13808712
+          ],
+          "pdf_center_points": [
+            239.26421519,
+            388.18738862
+          ],
+          "height_fraction": 0.17741199,
+          "dimensionless_concentration": 0.67141492
+        },
+        {
+          "pdf_bbox_points": [
+            235.23450272,
+            376.75122374,
+            243.29392766,
+            384.65262074
+          ],
+          "pdf_center_points": [
+            239.26421519,
+            380.70192224
+          ],
+          "height_fraction": 0.24698471,
+          "dimensionless_concentration": 0.67141492
+        },
+        {
+          "pdf_bbox_points": [
+            240.89028009,
+            369.34892996,
+            248.94970503,
+            377.25032696
+          ],
+          "pdf_center_points": [
+            244.91999256,
+            373.29962846
+          ],
+          "height_fraction": 0.3157844,
+          "dimensionless_concentration": 0.88181246
+        },
+        {
+          "pdf_bbox_points": [
+            240.89028009,
+            362.61176003,
+            248.94970503,
+            370.51315703
+          ],
+          "pdf_center_points": [
+            244.91999256,
+            366.56245853
+          ],
+          "height_fraction": 0.37840218,
+          "dimensionless_concentration": 0.88181246
+        },
+        {
+          "pdf_bbox_points": [
+            243.05253779,
+            355.12629365,
+            251.11196273,
+            363.02769065
+          ],
+          "pdf_center_points": [
+            247.08225026,
+            359.07699215
+          ],
+          "height_fraction": 0.44797491,
+          "dimensionless_concentration": 0.96224946
+        },
+        {
+          "pdf_bbox_points": [
+            244.63289157,
+            348.05655503,
+            252.69231651,
+            355.95795203
+          ],
+          "pdf_center_points": [
+            248.66260404,
+            352.00725353
+          ],
+          "height_fraction": 0.5136837,
+          "dimensionless_concentration": 1.02103935
+        },
+        {
+          "pdf_bbox_points": [
+            247.2943742,
+            340.65426125,
+            255.35379914,
+            348.55565825
+          ],
+          "pdf_center_points": [
+            251.32408667,
+            344.60495975
+          ],
+          "height_fraction": 0.58248339,
+          "dimensionless_concentration": 1.12004774
+        },
+        {
+          "pdf_bbox_points": [
+            250.28866894,
+            333.50135003,
+            258.34809388,
+            341.40274703
+          ],
+          "pdf_center_points": [
+            254.31838141,
+            337.45204853
+          ],
+          "height_fraction": 0.64896522,
+          "dimensionless_concentration": 1.2314369
+        },
+        {
+          "pdf_bbox_points": [
+            249.45688884,
+            326.76444381,
+            257.51631378,
+            334.66584081
+          ],
+          "pdf_center_points": [
+            253.48660131,
+            330.71514231
+          ],
+          "height_fraction": 0.71158055,
+          "dimensionless_concentration": 1.20049429
+        },
+        {
+          "pdf_bbox_points": [
+            257.5248339,
+            319.86111801,
+            265.58425884,
+            327.76251501
+          ],
+          "pdf_center_points": [
+            261.55454637,
+            323.81181651
+          ],
+          "height_fraction": 0.77574264,
+          "dimensionless_concentration": 1.5006256
+        },
+        {
+          "pdf_bbox_points": [
+            253.28299749,
+            313.04103243,
+            261.34242243,
+            320.94242943
+          ],
+          "pdf_center_points": [
+            257.31270996,
+            316.99173093
+          ],
+          "height_fraction": 0.83913107,
+          "dimensionless_concentration": 1.34282732
+        },
+        {
+          "pdf_bbox_points": [
+            248.12618134,
+            305.63873865,
+            256.18560628,
+            313.54013565
+          ],
+          "pdf_center_points": [
+            252.15589381,
+            309.58943715
+          ],
+          "height_fraction": 0.90793076,
+          "dimensionless_concentration": 1.15099136
+        },
+        {
+          "pdf_bbox_points": [
+            242.47040397,
+            298.73541285,
+            250.52982891,
+            306.63680985
+          ],
+          "pdf_center_points": [
+            246.50011644,
+            302.68611135
+          ],
+          "height_fraction": 0.97209285,
+          "dimensionless_concentration": 0.94059381
+        },
+        {
+          "pdf_bbox_points": [
+            224.42194977,
+            291.41608881,
+            232.48137471,
+            299.31748581
+          ],
+          "pdf_center_points": [
+            228.45166224,
+            295.36678731
+          ],
+          "height_fraction": 1.04012139,
+          "dimensionless_concentration": 0.26918292
+        },
+        {
+          "pdf_bbox_points": [
+            219.34860374,
+            284.51276301,
+            227.40802868,
+            292.41416001
+          ],
+          "pdf_center_points": [
+            223.37831621,
+            288.46346151
+          ],
+          "height_fraction": 1.10428348,
+          "dimensionless_concentration": 0.08045208
+        }
+      ]
+    },
+    {
+      "dimensionless_time": 2.95,
+      "source_height_fraction": 0.07,
+      "panel_pdf_bbox_points": [
+        301.9762474,
+        272.7855346,
+        369.1797082,
+        407.27549356
+      ],
+      "axis": {
+        "height_fraction": [
+          0.0,
+          1.25
+        ],
+        "dimensionless_concentration": [
+          0.0,
+          2.0
+        ]
+      },
+      "normalization_scale": 1.12128572,
+      "points": [
+        {
+          "pdf_bbox_points": [
+            330.38365283,
+            398.4593332,
+            338.44307777,
+            406.3607302
+          ],
+          "pdf_center_points": [
+            334.4133653,
+            402.4100317
+          ],
+          "height_fraction": 0.04522142,
+          "dimensionless_concentration": 0.9653407
+        },
+        {
+          "pdf_bbox_points": [
+            334.95830136,
+            391.88856932,
+            343.0177263,
+            399.78996632
+          ],
+          "pdf_center_points": [
+            338.98801383,
+            395.83926782
+          ],
+          "height_fraction": 0.10629256,
+          "dimensionless_concentration": 1.10148394
+        },
+        {
+          "pdf_bbox_points": [
+            332.96219277,
+            384.23669012,
+            341.02161771,
+            392.13808712
+          ],
+          "pdf_center_points": [
+            336.99190524,
+            388.18738862
+          ],
+          "height_fraction": 0.17741199,
+          "dimensionless_concentration": 1.04207901
+        },
+        {
+          "pdf_bbox_points": [
+            328.5539503,
+            376.75122374,
+            336.61337524,
+            384.65262074
+          ],
+          "pdf_center_points": [
+            332.58366277,
+            380.70192224
+          ],
+          "height_fraction": 0.24698471,
+          "dimensionless_concentration": 0.91088807
+        },
+        {
+          "pdf_bbox_points": [
+            333.9601152,
+            369.34892996,
+            342.01954014,
+            377.25032696
+          ],
+          "pdf_center_points": [
+            337.98982767,
+            373.29962846
+          ],
+          "height_fraction": 0.3157844,
+          "dimensionless_concentration": 1.07177755
+        },
+        {
+          "pdf_bbox_points": [
+            330.38365283,
+            362.61176003,
+            338.44307777,
+            370.51315703
+          ],
+          "pdf_center_points": [
+            334.4133653,
+            366.56245853
+          ],
+          "height_fraction": 0.37840218,
+          "dimensionless_concentration": 0.9653407
+        },
+        {
+          "pdf_bbox_points": [
+            333.9601152,
+            355.12629365,
+            342.01954014,
+            363.02769065
+          ],
+          "pdf_center_points": [
+            337.98982767,
+            359.07699215
+          ],
+          "height_fraction": 0.44797491,
+          "dimensionless_concentration": 1.07177755
+        },
+        {
+          "pdf_bbox_points": [
+            333.9601152,
+            348.05655503,
+            342.01954014,
+            355.95795203
+          ],
+          "pdf_center_points": [
+            337.98982767,
+            352.00725353
+          ],
+          "height_fraction": 0.5136837,
+          "dimensionless_concentration": 1.07177755
+        },
+        {
+          "pdf_bbox_points": [
+            335.6236754,
+            340.65426125,
+            343.68310034,
+            348.55565825
+          ],
+          "pdf_center_points": [
+            339.65338787,
+            344.60495975
+          ],
+          "height_fraction": 0.58248339,
+          "dimensionless_concentration": 1.12128572
+        },
+        {
+          "pdf_bbox_points": [
+            333.9601152,
+            333.50135003,
+            342.01954014,
+            341.40274703
+          ],
+          "pdf_center_points": [
+            337.98982767,
+            337.45204853
+          ],
+          "height_fraction": 0.64896522,
+          "dimensionless_concentration": 1.07177755
+        },
+        {
+          "pdf_bbox_points": [
+            333.9601152,
+            326.76444381,
+            342.01954014,
+            334.66584081
+          ],
+          "pdf_center_points": [
+            337.98982767,
+            330.71514231
+          ],
+          "height_fraction": 0.71158055,
+          "dimensionless_concentration": 1.07177755
+        },
+        {
+          "pdf_bbox_points": [
+            331.21543293,
+            319.86111801,
+            339.27485787,
+            327.76251501
+          ],
+          "pdf_center_points": [
+            335.2451454,
+            323.81181651
+          ],
+          "height_fraction": 0.77574264,
+          "dimensionless_concentration": 0.99009478
+        },
+        {
+          "pdf_bbox_points": [
+            327.55576415,
+            313.04103243,
+            335.61518909,
+            320.94242943
+          ],
+          "pdf_center_points": [
+            331.58547662,
+            316.99173093
+          ],
+          "height_fraction": 0.83913107,
+          "dimensionless_concentration": 0.88118168
+        },
+        {
+          "pdf_bbox_points": [
+            327.55576415,
+            305.63873865,
+            335.61518909,
+            313.54013565
+          ],
+          "pdf_center_points": [
+            331.58547662,
+            309.58943715
+          ],
+          "height_fraction": 0.90793076,
+          "dimensionless_concentration": 0.88118168
+        },
+        {
+          "pdf_bbox_points": [
+            324.89428152,
+            298.73541285,
+            332.95370646,
+            306.63680985
+          ],
+          "pdf_center_points": [
+            328.92399399,
+            302.68611135
+          ],
+          "height_fraction": 0.97209285,
+          "dimensionless_concentration": 0.80197497
+        },
+        {
+          "pdf_bbox_points": [
+            311.42045556,
+            291.41608881,
+            319.4798805,
+            299.31748581
+          ],
+          "pdf_center_points": [
+            315.45016803,
+            295.36678731
+          ],
+          "height_fraction": 1.04012139,
+          "dimensionless_concentration": 0.40098889
+        },
+        {
+          "pdf_bbox_points": [
+            300.27532716,
+            284.51276301,
+            308.3347521,
+            292.41416001
+          ],
+          "pdf_center_points": [
+            304.30503963,
+            288.46346151
+          ],
+          "height_fraction": 1.10428348,
+          "dimensionless_concentration": 0.06930572
+        }
+      ]
+    }
+  ]
+}

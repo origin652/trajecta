@@ -4,7 +4,7 @@
   "identity": {"job_series_id":"018f00aa-0000-7000-8000-000000000001","run_id":"018f00aa-0000-7000-8000-000000000002","attempt":1,"case_name":"case"},
   "lifecycle": {"status":"complete","run_success":true,"started_at":{"seconds_since_unix_epoch":0,"nanosecond":0},"finished_at":{"seconds_since_unix_epoch":1,"nanosecond":0},"failure":null},
   "software": {}, "inputs": {}, "execution": {}, "numerical": {},
-  "particles": {"particle_count":0,"particle_mass_count":0,"state_count":0,"output_event_count":0,"termination_count":0,"normal_termination_count":0,"abnormal_termination_count":0,"termination_by_reason":{}},
+  "particles": {"particle_count":0,"particle_mass_count":0,"particle_adjoint_count":0,"state_count":0,"output_event_count":0,"process_summary_count":0,"process_event_count":0,"termination_count":0,"normal_termination_count":0,"abnormal_termination_count":0,"termination_by_reason":{}},
   "quality": {"wind":[],"pressure":[],"temperature":[]},
   "mass_ledger": {"record_count":0,"maximum_absolute_imbalance_kg":0.0,"maximum_tolerance_fraction":0.0},
   "artifacts": [], "catalog": null

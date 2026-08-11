@@ -9,12 +9,13 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 use trajecta_case::document::MeteorologyReaderBackend;
+use trajecta_case::model::time::Timestamp;
 
 use crate::command::case::CaseCommand;
 use crate::command::config::ConfigCommand;
 use crate::command::project::ProjectCommand;
 use crate::command::staged::{
-    JobCommand, ResultCommand, RunInput, StagedRunCommand, TrajectorySelection,
+    JobCommand, ProcessSelection, ResultCommand, RunInput, StagedRunCommand, TrajectorySelection,
 };
 use crate::command::{Command, DataCommand, DoctorCommand, MetCommand};
 
@@ -760,10 +761,222 @@ fn parse_result(args: &[OsString]) -> Result<ResultCommand, CliParseError> {
             })
         }
         "trajectory" => parse_result_trajectory(&args[1..]),
+        "processes" => parse_result_processes(&args[1..]),
         _ => Err(CliParseError::InvalidArgument(
             "invalid result command arguments".into(),
         )),
     }
+}
+
+fn parse_result_processes(args: &[OsString]) -> Result<ResultCommand, CliParseError> {
+    let result = require_utf8(args, 0, "RESULT")?;
+    let mut particle_ids = BTreeSet::new();
+    let mut module_ids = BTreeSet::new();
+    let mut substance_ids = BTreeSet::new();
+    let mut start = None;
+    let mut end = None;
+    let mut events = false;
+    let mut max_records = None;
+    let mut index = 1;
+    while index < args.len() {
+        let option = require_utf8(args, index, "result processes option")?;
+        match option.as_str() {
+            "--particle" => {
+                index += 1;
+                let value = require_utf8(args, index, "--particle")?;
+                let particle_id = value.parse::<u64>().map_err(|_| {
+                    CliParseError::InvalidArgument(
+                        "--particle must be a non-negative integer".into(),
+                    )
+                })?;
+                if particle_id > i64::MAX as u64 {
+                    return Err(CliParseError::InvalidArgument(
+                        "--particle exceeds the SQLite identity range".into(),
+                    ));
+                }
+                if !particle_ids.insert(particle_id) {
+                    return Err(CliParseError::InvalidArgument(format!(
+                        "duplicate --particle {particle_id}"
+                    )));
+                }
+            }
+            "--module" => {
+                index += 1;
+                let value = require_utf8(args, index, "--module")?;
+                insert_nonempty_filter(&mut module_ids, value, "--module")?;
+            }
+            "--substance" => {
+                index += 1;
+                let value = require_utf8(args, index, "--substance")?;
+                insert_nonempty_filter(&mut substance_ids, value, "--substance")?;
+            }
+            "--start" if start.is_none() => {
+                index += 1;
+                start = Some(parse_utc_filter(&require_utf8(args, index, "--start")?)?);
+            }
+            "--end" if end.is_none() => {
+                index += 1;
+                end = Some(parse_utc_filter(&require_utf8(args, index, "--end")?)?);
+            }
+            "--events" if !events => events = true,
+            "--max-records" if max_records.is_none() => {
+                index += 1;
+                let value = require_utf8(args, index, "--max-records")?;
+                let limit = value.parse::<u64>().map_err(|_| {
+                    CliParseError::InvalidArgument(
+                        "--max-records must be a positive integer".into(),
+                    )
+                })?;
+                if limit == 0 || limit > i64::MAX as u64 {
+                    return Err(CliParseError::InvalidArgument(
+                        "--max-records must be within 1..=9223372036854775807".into(),
+                    ));
+                }
+                max_records = Some(limit);
+            }
+            _ => {
+                return Err(CliParseError::InvalidArgument(format!(
+                    "invalid result processes option `{option}`"
+                )));
+            }
+        }
+        index += 1;
+    }
+    if start.zip(end).is_some_and(|(start, end)| start > end) {
+        return Err(CliParseError::InvalidArgument(
+            "--start must not be later than --end".into(),
+        ));
+    }
+    if max_records.is_some() && !events {
+        return Err(CliParseError::InvalidArgument(
+            "--max-records requires --events".into(),
+        ));
+    }
+    Ok(ResultCommand::Processes {
+        result,
+        selection: ProcessSelection {
+            particle_ids: particle_ids.into_iter().collect(),
+            module_ids: module_ids.into_iter().collect(),
+            substance_ids: substance_ids.into_iter().collect(),
+            start,
+            end,
+            events,
+            max_records,
+        },
+    })
+}
+
+fn insert_nonempty_filter(
+    values: &mut BTreeSet<String>,
+    value: String,
+    option: &str,
+) -> Result<(), CliParseError> {
+    if value.trim().is_empty() || value != value.trim() {
+        return Err(CliParseError::InvalidArgument(format!(
+            "{option} must be a non-empty identifier"
+        )));
+    }
+    if !values.insert(value.clone()) {
+        return Err(CliParseError::InvalidArgument(format!(
+            "duplicate {option} {value}"
+        )));
+    }
+    Ok(())
+}
+
+fn parse_utc_filter(value: &str) -> Result<Timestamp, CliParseError> {
+    if let Ok(seconds) = value.parse::<i64>() {
+        return Timestamp::new(seconds, 0).map_err(|error| {
+            CliParseError::InvalidArgument(format!("invalid UTC timestamp: {error}"))
+        });
+    }
+    let text = value.strip_suffix('Z').ok_or_else(|| {
+        CliParseError::InvalidArgument(
+            "UTC time must be Unix seconds or YYYY-MM-DDTHH:MM:SS[.nnnnnnnnn]Z".into(),
+        )
+    })?;
+    let (date, time) = text
+        .split_once('T')
+        .ok_or_else(|| CliParseError::InvalidArgument("UTC time must contain `T`".into()))?;
+    let mut date_parts = date.split('-');
+    let year = parse_time_part(date_parts.next(), "year")?;
+    let month = parse_time_part(date_parts.next(), "month")?;
+    let day = parse_time_part(date_parts.next(), "day")?;
+    if date_parts.next().is_some() || year < 0 {
+        return Err(CliParseError::InvalidArgument("invalid UTC date".into()));
+    }
+    let (whole_time, fraction) = time
+        .split_once('.')
+        .map_or((time, None), |(whole, fraction)| (whole, Some(fraction)));
+    let mut time_parts = whole_time.split(':');
+    let hour = parse_time_part(time_parts.next(), "hour")?;
+    let minute = parse_time_part(time_parts.next(), "minute")?;
+    let second = parse_time_part(time_parts.next(), "second")?;
+    if time_parts.next().is_some()
+        || !(1..=12).contains(&month)
+        || day < 1
+        || day > days_in_month(year, month)
+        || !(0..=23).contains(&hour)
+        || !(0..=59).contains(&minute)
+        || !(0..=59).contains(&second)
+    {
+        return Err(CliParseError::InvalidArgument(
+            "invalid UTC timestamp".into(),
+        ));
+    }
+    let nanosecond = match fraction {
+        None => 0,
+        Some(value)
+            if !value.is_empty()
+                && value.len() <= 9
+                && value.bytes().all(|byte| byte.is_ascii_digit()) =>
+        {
+            let parsed = value.parse::<u32>().map_err(|_| {
+                CliParseError::InvalidArgument("invalid UTC fractional second".into())
+            })?;
+            parsed * 10_u32.pow(u32::try_from(9 - value.len()).unwrap_or(0))
+        }
+        Some(_) => {
+            return Err(CliParseError::InvalidArgument(
+                "UTC fractional second must contain 1 to 9 digits".into(),
+            ));
+        }
+    };
+    let days = days_from_civil(year, month, day);
+    let seconds = days
+        .checked_mul(86_400)
+        .and_then(|value| value.checked_add(hour * 3_600 + minute * 60 + second))
+        .ok_or_else(|| CliParseError::InvalidArgument("UTC timestamp is out of range".into()))?;
+    Timestamp::new(seconds, nanosecond)
+        .map_err(|error| CliParseError::InvalidArgument(format!("invalid UTC timestamp: {error}")))
+}
+
+fn parse_time_part(value: Option<&str>, name: &str) -> Result<i64, CliParseError> {
+    value
+        .filter(|value| !value.is_empty() && value.bytes().all(|byte| byte.is_ascii_digit()))
+        .ok_or_else(|| CliParseError::InvalidArgument(format!("invalid UTC {name}")))?
+        .parse::<i64>()
+        .map_err(|_| CliParseError::InvalidArgument(format!("invalid UTC {name}")))
+}
+
+const fn days_in_month(year: i64, month: i64) -> i64 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
+        2 => 28,
+        _ => 0,
+    }
+}
+
+const fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
+    let adjusted_year = year - if month <= 2 { 1 } else { 0 };
+    let era = adjusted_year.div_euclid(400);
+    let year_of_era = adjusted_year - era * 400;
+    let adjusted_month = month + if month > 2 { -3 } else { 9 };
+    let day_of_year = (153 * adjusted_month + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    era * 146_097 + day_of_era - 719_468
 }
 
 fn parse_result_trajectory(args: &[OsString]) -> Result<ResultCommand, CliParseError> {
@@ -929,6 +1142,8 @@ Commands:
   result inspect RESULT
   result verify RESULT [--full]
   result trajectory RESULT (--particle-id ID ... | --all)
+  result processes RESULT [--particle ID ...] [--module ID ...] [--substance ID ...]
+                    [--start UTC] [--end UTC] [--events [--max-records N]]
   run report --result RESULT
 
 met probe options:
@@ -1088,6 +1303,119 @@ mod tests {
                 "run",
                 "--particle-id",
                 "9223372036854775808",
+            ],
+        ] {
+            assert!(parse(arguments).is_err(), "{arguments:?}");
+        }
+    }
+
+    #[test]
+    fn process_selection_is_typed_sorted_and_directionally_bounded() {
+        let parsed = parse(&[
+            "trajecta",
+            "--format",
+            "jsonl",
+            "result",
+            "processes",
+            "run",
+            "--particle",
+            "9",
+            "--particle",
+            "2",
+            "--module",
+            "water_vapor_exchange",
+            "--module",
+            "boundary_layer_langevin",
+            "--substance",
+            "water",
+            "--start",
+            "2009-01-01T00:00:00.125Z",
+            "--end",
+            "1230768001",
+            "--events",
+            "--max-records",
+            "17",
+        ])
+        .unwrap();
+        assert_eq!(parsed.output, OutputMode::Jsonl);
+        assert_eq!(
+            parsed.command,
+            Command::Result(ResultCommand::Processes {
+                result: "run".into(),
+                selection: ProcessSelection {
+                    particle_ids: vec![2, 9],
+                    module_ids: vec![
+                        "boundary_layer_langevin".into(),
+                        "water_vapor_exchange".into(),
+                    ],
+                    substance_ids: vec!["water".into()],
+                    start: Some(Timestamp::new(1_230_768_000, 125_000_000).unwrap()),
+                    end: Some(Timestamp::new(1_230_768_001, 0).unwrap()),
+                    events: true,
+                    max_records: Some(17),
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn process_selection_rejects_ambiguous_or_invalid_filters() {
+        for arguments in [
+            &["trajecta", "result", "processes"][..],
+            &[
+                "trajecta",
+                "result",
+                "processes",
+                "run",
+                "--particle",
+                "1",
+                "--particle",
+                "1",
+            ],
+            &[
+                "trajecta",
+                "result",
+                "processes",
+                "run",
+                "--module",
+                "boundary_layer_langevin",
+                "--module",
+                "boundary_layer_langevin",
+            ],
+            &[
+                "trajecta",
+                "result",
+                "processes",
+                "run",
+                "--start",
+                "2009-01-01T00:00:01Z",
+                "--end",
+                "2009-01-01T00:00:00Z",
+            ],
+            &[
+                "trajecta",
+                "result",
+                "processes",
+                "run",
+                "--start",
+                "2009-02-29T00:00:00Z",
+            ],
+            &[
+                "trajecta",
+                "result",
+                "processes",
+                "run",
+                "--max-records",
+                "1",
+            ],
+            &[
+                "trajecta",
+                "result",
+                "processes",
+                "run",
+                "--events",
+                "--max-records",
+                "0",
             ],
         ] {
             assert!(parse(arguments).is_err(), "{arguments:?}");

@@ -40,7 +40,7 @@
           "required": [
             "schema_version", "record_kind", "job_series_id", "run_id", "attempt",
             "particle_id", "population_id", "origin", "birth_time", "dry_air_mass_kg",
-            "sensitivity_weight", "substance_mass_kg"
+            "substance_mass_kg", "substance_adjoint_weight"
           ],
           "properties": {
             "schema_version": {"const": "trajecta.trajectory-record/v1"},
@@ -63,10 +63,13 @@
             },
             "birth_time": {"$ref": "#/$defs/timestamp"},
             "dry_air_mass_kg": {"type": "number", "minimum": 0},
-            "sensitivity_weight": {"type": ["number", "null"]},
             "substance_mass_kg": {
               "type": "object",
               "additionalProperties": {"type": "number", "minimum": 0}
+            },
+            "substance_adjoint_weight": {
+              "type": "object",
+              "additionalProperties": {"type": "number"}
             }
           }
         }
@@ -82,7 +85,7 @@
             "schema_version", "record_kind", "job_series_id", "run_id", "attempt",
             "particle_id", "sample_sequence", "event_sequence", "event_kind", "time",
             "integration_offset_ns", "elapsed_age_ns", "position", "particle_status",
-            "termination", "meteorology", "provenance_id"
+            "termination", "meteorology", "process_velocity_m_s", "provenance_id"
           ],
           "properties": {
             "schema_version": {"const": "trajecta.trajectory-record/v1"},
@@ -93,7 +96,7 @@
             "particle_id": {"type": "integer", "minimum": 0},
             "sample_sequence": {"type": "integer", "minimum": 0},
             "event_sequence": {"type": "integer", "minimum": 0},
-            "event_kind": {"enum": ["birth", "start", "interval", "end", "termination"]},
+            "event_kind": {"enum": ["birth", "start", "interval", "end", "termination", "checkpoint"]},
             "time": {"$ref": "#/$defs/timestamp"},
             "integration_offset_ns": {"type": "integer"},
             "elapsed_age_ns": {"type": "integer", "minimum": 0},
@@ -147,10 +150,30 @@
                 "temperature_quality": {"type": ["string", "null"]}
               }
             },
+            "process_velocity_m_s": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["boundary_layer", "mesoscale", "gravitational_settling"],
+              "properties": {
+                "boundary_layer": {"$ref": "#/$defs/vector3"},
+                "mesoscale": {"$ref": "#/$defs/vector3"},
+                "gravitational_settling": {"type": ["number", "null"]}
+              }
+            },
             "provenance_id": {"type": ["integer", "null"], "minimum": 0}
           }
         }
       ]
+    },
+    "vector3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eastward", "northward", "vertical"],
+      "properties": {
+        "eastward": {"type": ["number", "null"]},
+        "northward": {"type": ["number", "null"]},
+        "vertical": {"type": ["number", "null"]}
+      }
     }
   }
 }

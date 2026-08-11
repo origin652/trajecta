@@ -314,6 +314,7 @@ pub(crate) fn execute_result(
 ) -> i32 {
     if let ResultCommand::Inspect(result)
     | ResultCommand::Trajectory { result, .. }
+    | ResultCommand::Processes { result, .. }
     | ResultCommand::Report { result, .. } = command
     {
         let resolved = match resolve_result(result, config_path) {
@@ -359,6 +360,17 @@ pub(crate) fn execute_result(
                     Err(error) if error.stream_started => 1,
                     Err(error) => write_runtime_error(
                         "result trajectory",
+                        RuntimeError::product(error.code, error.message),
+                        output,
+                    ),
+                }
+            }
+            ResultCommand::Processes { selection, .. } => {
+                match crate::result_products::processes(&input, selection, output) {
+                    Ok(exit_code) => exit_code,
+                    Err(error) if error.stream_started => 1,
+                    Err(error) => write_runtime_error(
+                        "result processes",
                         RuntimeError::product(error.code, error.message),
                         output,
                     ),
@@ -939,6 +951,14 @@ fn finish_stream_error(
 }
 
 fn write_runtime_error(command: &str, error: RuntimeError, output: OutputMode) -> i32 {
+    if output == OutputMode::Human {
+        let mut stderr = io::stderr().lock();
+        let _ = writeln!(stderr, "{}: {}", error.code, error.message);
+        if !error.hint.is_empty() {
+            let _ = writeln!(stderr, "hint: {}", error.hint);
+        }
+        return error.exit_code;
+    }
     crate::write_outcome(
         &AppOutcome::error(command, &error.code, error.message, error.hint)
             .with_exit_code(error.exit_code),
@@ -1993,7 +2013,7 @@ mod tests {
                 "sink": {"model": "particle_state_sqlite/v1"}
             }],
             "sqlite": {
-                "schema_version": 1,
+                "schema_version": 2,
                 "relative_path": "particles.sqlite",
                 "journal_mode": "WAL",
                 "synchronous": "NORMAL",

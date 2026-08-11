@@ -76,7 +76,7 @@ fn ozone_case(rule: &str, target_particle_count: u64) -> ResolvedCase {
             },
             random_seed: Some(83),
         }),
-        physics: Vec::new(),
+        physics: None,
         outputs: vec![default_particle_state_output()],
         sources: Vec::new(),
     }

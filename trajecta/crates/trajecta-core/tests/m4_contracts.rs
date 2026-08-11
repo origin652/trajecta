@@ -28,7 +28,7 @@ use trajecta_core::science::{
     PRESSURE_LOG_INTERFACE_ID, PROVENANCE_BUNDLE_FILE_NAME, PROVENANCE_BUNDLE_SCHEMA_ID,
     PROVENANCE_RECORD_HASH_ALGORITHM, RELEASE_BIRTH_STRATA_ID, RELEASE_DRIVEN_POPULATION_ID,
     RK2_DOMAIN_EXIT_BRIDGE_ID, RK2_MINIMUM_CONVERGENCE_ORDER, RK2_SPHERICAL_ID,
-    RUN_MANIFEST_SCHEMA_ID, SPHERICAL_CELL_AREA_ID, SQLITE_SCHEMA_VERSION, SURFACE_REFLECT_ID,
+    RUN_MANIFEST_SCHEMA_ID, SPHERICAL_CELL_AREA_ID, SURFACE_REFLECT_ID,
 };
 use trajecta_met::derive::domain_fill::{
     AIR_MASS_GRID_ALGORITHM_ID, BOUNDARY_MASS_FLUX_ALGORITHM_ID,
@@ -336,7 +336,7 @@ fn sqlite_schema_freezes_wal_transactions_and_public_tables() {
     assert!(sql.contains("PRAGMA journal_mode = WAL"));
     assert!(sql.contains("PRAGMA synchronous = NORMAL"));
     assert!(sql.contains("PRAGMA wal_autocheckpoint = 0"));
-    assert!(sql.contains(&format!("PRAGMA user_version = {SQLITE_SCHEMA_VERSION}")));
+    assert!(sql.contains("PRAGMA user_version = 1"));
     for table in [
         "run",
         "particle",

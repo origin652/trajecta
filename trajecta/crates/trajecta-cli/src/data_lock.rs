@@ -11,6 +11,9 @@ use trajecta_case::lockfile::{
     DatasetIdentity, DatasetLock, GeneratorInfo, parse_dataset_lock_json,
 };
 use trajecta_case::model::meteorology::{DatasetRef, DomainId};
+use trajecta_met::auxiliary::gmted2010::{
+    GMTED2010_DATASET_ID, build_global_dataset_lock, open_from_dataset_lock,
+};
 use trajecta_met::field::CapabilitySet;
 use trajecta_met::io::inventory::{InventoryBuildRequest, InventoryBuilder};
 use trajecta_met::io::lock_builder::{
@@ -35,12 +38,55 @@ pub(crate) struct LockSpec {
     pub(crate) dataset: DatasetRef,
     pub(crate) source: String,
     pub(crate) data_roots: BTreeMap<DataRootId, PathBuf>,
-    pub(crate) profile_name: String,
-    pub(crate) profile_sources: Vec<ProfileSource>,
-    pub(crate) backend: MeteorologyReaderBackend,
-    pub(crate) coverage: LockCoverageRequest,
-    pub(crate) capabilities: CapabilitySet,
-    pub(crate) domain: DomainId,
+    pub(crate) requirement: LockRequirement,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum LockRequirement {
+    Meteorology {
+        profile_name: String,
+        profile_sources: Vec<ProfileSource>,
+        backend: MeteorologyReaderBackend,
+        coverage: LockCoverageRequest,
+        capabilities: CapabilitySet,
+        domain: DomainId,
+    },
+    Gmted2010,
+}
+
+impl LockRequirement {
+    pub(crate) fn profile_name(&self) -> &str {
+        match self {
+            Self::Meteorology { profile_name, .. } => profile_name,
+            Self::Gmted2010 => trajecta_met::auxiliary::gmted2010::GMTED2010_PROFILE_NAME,
+        }
+    }
+
+    pub(crate) fn backend(&self) -> MeteorologyReaderBackend {
+        match self {
+            Self::Meteorology { backend, .. } => *backend,
+            Self::Gmted2010 => MeteorologyReaderBackend::Rust,
+        }
+    }
+
+    pub(crate) fn coverage(&self) -> LockCoverageRequest {
+        match self {
+            Self::Meteorology { coverage, .. } => *coverage,
+            Self::Gmted2010 => LockCoverageRequest {
+                start: trajecta_case::model::time::Timestamp::UNIX_EPOCH,
+                end: trajecta_case::model::time::Timestamp::UNIX_EPOCH,
+                interpolation_before_frames: 0,
+                interpolation_after_frames: 0,
+            },
+        }
+    }
+
+    pub(crate) fn capabilities(&self) -> CapabilitySet {
+        match self {
+            Self::Meteorology { capabilities, .. } => *capabilities,
+            Self::Gmted2010 => CapabilitySet::new(),
+        }
+    }
 }
 
 pub(crate) struct LockArtifact {
@@ -100,45 +146,81 @@ pub(crate) fn requirements_from_case(
 }
 
 pub(crate) fn build_lock(spec: &LockSpec) -> Result<LockArtifact, DataLockError> {
-    let profiles = load_profiles(spec)?;
     if spec.data_roots.is_empty() {
         return Err(DataLockError::new(
             "data.lock_roots_missing",
             "at least one named data root is required",
         ));
     }
-    let inspector = ReaderMetadataInspector::new(spec.backend);
-    let mut hash_cache = FileHashCache::new();
-    let request = DatasetLockRequest {
-        identity: DatasetIdentity {
-            id: spec.dataset.clone(),
-            source: spec.source.clone(),
-            source_url: None,
-            attribution: None,
-        },
-        generator: GeneratorInfo {
-            tool: "trajecta-cli".into(),
-            version: env!("CARGO_PKG_VERSION").into(),
-        },
-        data_roots: spec.data_roots.clone(),
-        coverage: spec.coverage,
-        required_capabilities: spec.capabilities,
-        force_rehash: false,
-        preferred_profile: Some(spec.profile_name.clone()),
+    let generator = GeneratorInfo {
+        tool: "trajecta-cli".into(),
+        version: env!("CARGO_PKG_VERSION").into(),
     };
-    let outcome = DatasetLockBuilder::new(&profiles, &inspector, &mut hash_cache).build(&request);
-    if !outcome.is_success() {
-        return Err(DataLockError::new(
-            "data.lock_build_failed",
-            format_lock_diagnostics(&outcome.diagnostics),
-        ));
-    }
-    let lock = outcome.lock.ok_or_else(|| {
-        DataLockError::new(
-            "data.lock_build_failed",
-            "lock builder reported success without a lock",
-        )
-    })?;
+    let (lock, notes) = match &spec.requirement {
+        LockRequirement::Meteorology {
+            profile_name,
+            profile_sources,
+            backend,
+            coverage,
+            capabilities,
+            ..
+        } => {
+            let profiles = load_profiles(profile_sources, profile_name)?;
+            let inspector = ReaderMetadataInspector::new(*backend);
+            let mut hash_cache = FileHashCache::new();
+            let request = DatasetLockRequest {
+                identity: DatasetIdentity {
+                    id: spec.dataset.clone(),
+                    source: spec.source.clone(),
+                    source_url: None,
+                    attribution: None,
+                },
+                generator,
+                data_roots: spec.data_roots.clone(),
+                coverage: *coverage,
+                required_capabilities: *capabilities,
+                force_rehash: false,
+                preferred_profile: Some(profile_name.clone()),
+            };
+            let outcome =
+                DatasetLockBuilder::new(&profiles, &inspector, &mut hash_cache).build(&request);
+            if !outcome.is_success() {
+                return Err(DataLockError::new(
+                    "data.lock_build_failed",
+                    format_lock_diagnostics(&outcome.diagnostics),
+                ));
+            }
+            let lock = outcome.lock.ok_or_else(|| {
+                DataLockError::new(
+                    "data.lock_build_failed",
+                    "lock builder reported success without a lock",
+                )
+            })?;
+            let notes = outcome
+                .notes
+                .into_iter()
+                .map(|note| {
+                    let message = match note.path {
+                        Some(path) => format!("{} ({})", note.message, path.display()),
+                        None => note.message,
+                    };
+                    Diagnostic::info(note.code, message)
+                })
+                .collect();
+            (lock, notes)
+        }
+        LockRequirement::Gmted2010 => {
+            if spec.dataset.0 != GMTED2010_DATASET_ID {
+                return Err(DataLockError::new(
+                    "data.lock_requirements_mismatch",
+                    "GMTED2010 lock requirement has the wrong dataset identity",
+                ));
+            }
+            let lock = build_global_dataset_lock(&spec.data_roots, generator)
+                .map_err(|error| DataLockError::new("data.lock_build_failed", error.to_string()))?;
+            (lock, Vec::new())
+        }
+    };
     let mut bytes = serde_json::to_vec_pretty(&lock)
         .map_err(|error| DataLockError::new("data.lock_serialize_failed", error.to_string()))?;
     bytes.push(b'\n');
@@ -153,17 +235,6 @@ pub(crate) fn build_lock(spec: &LockSpec) -> Result<LockArtifact, DataLockError>
         ));
     }
     let sha256 = hex::encode(Sha256::digest(&bytes));
-    let notes = outcome
-        .notes
-        .into_iter()
-        .map(|note| {
-            let message = match note.path {
-                Some(path) => format!("{} ({})", note.message, path.display()),
-                None => note.message,
-            };
-            Diagnostic::info(note.code, message)
-        })
-        .collect();
     Ok(LockArtifact {
         lock,
         bytes,
@@ -185,37 +256,53 @@ pub(crate) fn validate_existing_lock(
         .map_err(|error| DataLockError::new("data.lock_invalid", error.to_string()))?;
     let lock = parse_dataset_lock_json(text)
         .map_err(|error| DataLockError::new("data.lock_invalid", error.to_string()))?;
-    let profiles = load_profiles(spec)?;
-    let requirements = DatasetLockRequirements {
-        dataset: spec.dataset.clone(),
-        coverage: spec.coverage,
-        required_capabilities: spec.capabilities,
-        preferred_profile: spec.profile_name.clone(),
-    };
-    let requirement_diagnostics =
-        validate_dataset_lock_requirements(&profiles, &lock, &requirements);
-    if !requirement_diagnostics.is_empty() {
-        return Err(DataLockError::new(
-            "data.lock_requirements_mismatch",
-            format_lock_diagnostics(&requirement_diagnostics),
-        ));
-    }
     let lockfile_dir = spec.output.parent().unwrap_or_else(|| Path::new("."));
-    let inventory = InventoryBuilder::new(&profiles).build(InventoryBuildRequest {
-        lock: &lock,
-        lockfile_dir,
-        data_roots: &spec.data_roots,
-        domain: &spec.domain,
-        required_capabilities: spec.capabilities,
-    });
-    if !inventory.is_success() {
-        let diagnostics = inventory.diagnostics.into_sorted();
-        return Err(DataLockError::new(
-            "data.lock_invalid",
-            format_diagnostics(&diagnostics),
-        ));
+    match &spec.requirement {
+        LockRequirement::Meteorology {
+            profile_name,
+            profile_sources,
+            coverage,
+            capabilities,
+            domain,
+            ..
+        } => {
+            let profiles = load_profiles(profile_sources, profile_name)?;
+            let requirements = DatasetLockRequirements {
+                dataset: spec.dataset.clone(),
+                coverage: *coverage,
+                required_capabilities: *capabilities,
+                preferred_profile: profile_name.clone(),
+            };
+            let requirement_diagnostics =
+                validate_dataset_lock_requirements(&profiles, &lock, &requirements);
+            if !requirement_diagnostics.is_empty() {
+                return Err(DataLockError::new(
+                    "data.lock_requirements_mismatch",
+                    format_lock_diagnostics(&requirement_diagnostics),
+                ));
+            }
+            let inventory = InventoryBuilder::new(&profiles).build(InventoryBuildRequest {
+                lock: &lock,
+                lockfile_dir,
+                data_roots: &spec.data_roots,
+                domain,
+                required_capabilities: *capabilities,
+            });
+            if !inventory.is_success() {
+                let diagnostics = inventory.diagnostics.into_sorted();
+                return Err(DataLockError::new(
+                    "data.lock_invalid",
+                    format_diagnostics(&diagnostics),
+                ));
+            }
+            Ok((lock, inventory.diagnostics.into_sorted()))
+        }
+        LockRequirement::Gmted2010 => {
+            open_from_dataset_lock(&lock, lockfile_dir, &spec.data_roots)
+                .map_err(|error| DataLockError::new("data.lock_invalid", error.to_string()))?;
+            Ok((lock, Vec::new()))
+        }
     }
-    Ok((lock, inventory.diagnostics.into_sorted()))
 }
 
 pub(crate) fn persist_lock(
@@ -288,20 +375,20 @@ pub(crate) fn persist_lock(
     }
 }
 
-fn load_profiles(spec: &LockSpec) -> Result<ProfileCatalog, DataLockError> {
-    let profiles = ProfileCatalog::load(&spec.profile_sources).map_err(|error| {
+fn load_profiles(
+    profile_sources: &[ProfileSource],
+    profile_name: &str,
+) -> Result<ProfileCatalog, DataLockError> {
+    let profiles = ProfileCatalog::load(profile_sources).map_err(|error| {
         DataLockError::new(
             "data.profile_load_failed",
             format!("load Profile catalog: {error:?}"),
         )
     })?;
-    if profiles
-        .get(&ProfileName(spec.profile_name.clone()))
-        .is_none()
-    {
+    if profiles.get(&ProfileName(profile_name.into())).is_none() {
         return Err(DataLockError::new(
             "data.profile_unknown",
-            format!("unknown Profile '{}'", spec.profile_name),
+            format!("unknown Profile '{profile_name}'"),
         ));
     }
     Ok(profiles)

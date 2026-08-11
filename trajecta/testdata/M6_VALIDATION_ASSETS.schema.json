@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m6-validation-assets-v1.json",
+  "title": "Trajecta M6 auxiliary-data and validation-asset registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "registry_id", "policy", "auxiliary_datasets", "validation_assets", "formal_matrix", "stage_gates", "a0_disposition"],
+  "properties": {
+    "schema_version": { "const": "trajecta.m6.validation-assets/v1" },
+    "registry_id": { "const": "trajecta/validation-assets/m6/v1" },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw_large_files_in_git", "runtime_download", "lock_scope", "release_asset_requirements", "unknown_license"],
+      "properties": {
+        "raw_large_files_in_git": { "const": false },
+        "runtime_download": { "const": false },
+        "lock_scope": { "const": "global_shared_not_case_clipped" },
+        "release_asset_requirements": { "const": "source_license_recipe_file_manifest_and_sha256" },
+        "unknown_license": { "const": "external_blocked_no_substitution" }
+      }
+    },
+    "auxiliary_datasets": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/auxiliaryDataset" }
+    },
+    "validation_assets": {
+      "type": "array",
+      "minItems": 8,
+      "items": { "$ref": "#/$defs/validationAsset" }
+    },
+    "formal_matrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platforms", "meteorology", "directions", "tasks", "worker_counts", "fault_injection"],
+      "properties": {
+        "platforms": { "const": ["ubuntu-24.04-x86_64", "windows-x86_64"] },
+        "meteorology": { "const": ["cfsr-pressure", "era5-hybrid", "era5-pressure"] },
+        "directions": { "const": ["backward", "forward"] },
+        "tasks": { "const": ["aerosol-transport", "buoyant-release", "gas-transport", "water-vapor-tracking"] },
+        "worker_counts": { "type": "array", "prefixItems": [{"const": 1}, {"type": "integer", "minimum": 2}], "items": false, "minItems": 2, "maxItems": 2 },
+        "fault_injection": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "stage_gates": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": { "$ref": "#/$defs/stageGate" }
+    },
+    "a0_disposition": { "const": "passed_with_a6_oh_external_blocker_declared" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "stringArray": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "title", "official_url", "doi"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "official_url": { "type": "string", "pattern": "^https://" },
+        "doi": { "type": ["string", "null"], "pattern": "^10\\..+/.+$" }
+      }
+    },
+    "fileIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "size_bytes", "sha256"],
+      "properties": {
+        "url": { "type": "string", "pattern": "^https://" },
+        "size_bytes": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "auxiliaryDataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "stage", "role", "source", "selection", "processing", "local_use", "redistribution", "use_terms_url", "attribution", "bundled_with_software", "acquisition", "candidate_file", "blocker"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9._-]+/v1$" },
+        "stage": { "pattern": "^m6_a[0-9]$" },
+        "role": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/$defs/source" },
+        "selection": { "type": "string", "minLength": 1 },
+        "processing": { "type": "string", "minLength": 1 },
+        "local_use": { "enum": ["allowed_with_attribution", "blocked_pending_provenance"] },
+        "redistribution": { "enum": ["public_domain_with_attribution", "nasa_open_data_with_citation", "unverified"] },
+        "use_terms_url": { "type": ["string", "null"], "pattern": "^https://" },
+        "attribution": { "type": ["string", "null"] },
+        "bundled_with_software": { "const": false },
+        "acquisition": { "enum": ["official_public_download", "earthdata_authenticated_download", "blocked"] },
+        "candidate_file": { "oneOf": [{"type": "null"}, {"$ref": "#/$defs/fileIdentity"}] },
+        "blocker": { "type": ["string", "null"] }
+      }
+    },
+    "validationAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "stages", "kind", "status", "source", "artifact", "extraction_recipe", "gates"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9._-]+/v1$" },
+        "stages": { "type": "array", "minItems": 1, "items": { "pattern": "^m6_a[0-9]$" }, "uniqueItems": true },
+        "kind": { "enum": ["analytic", "experiment", "observation", "reference_model", "regression"] },
+        "status": { "enum": ["ready_generated", "source_frozen_derivation_required", "download_identity_frozen", "existing_regression"] },
+        "source": { "$ref": "#/$defs/source" },
+        "artifact": { "oneOf": [{"type": "null"}, {"$ref": "#/$defs/fileIdentity"}] },
+        "extraction_recipe": { "type": "string", "minLength": 1 },
+        "gates": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "stageGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "status", "blocker"],
+      "properties": {
+        "stage": { "pattern": "^m6_a[0-9]$" },
+        "status": { "enum": ["contract_ready", "external_blocked"] },
+        "blocker": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

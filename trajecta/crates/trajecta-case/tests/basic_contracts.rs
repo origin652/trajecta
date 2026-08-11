@@ -47,7 +47,7 @@ fn simulation_intent_reports_missing_runtime_components() {
         particle_population: None,
         substances: Vec::new(),
         numerics: None,
-        physics: Vec::new(),
+        physics: None,
         outputs: Vec::new(),
         sources: Vec::new(),
     };
@@ -95,6 +95,7 @@ particle_population:
 substances:
   - id: tracer
     display_name: Tracer
+    kind: water_vapor
 numerics:
   time_step: { value: 10, unit: min }
   integrator:
@@ -125,7 +126,7 @@ numerics:
             Some(ComponentRef::Inline(v)) => Some(v),
             _ => None,
         },
-        physics: Vec::new(),
+        physics: None,
         outputs: Vec::new(),
         sources: Vec::new(),
     };
@@ -308,10 +309,9 @@ fn population_and_domain_specs_roundtrip() {
             boundaries: BoundarySpec { policies: vec![] },
             random_seed: None,
         })),
-        substances: Some(ComponentRef::Inline(vec![SubstanceSpec {
+        substances: Some(ComponentRef::Inline(vec![SubstanceSpec::WaterVapor {
             id: SubstanceId("tracer".into()),
             display_name: "Tracer".into(),
-            properties: Default::default(),
         }])),
         physics: None,
         outputs: None,

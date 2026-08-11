@@ -65,15 +65,19 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "particle_count", "particle_mass_count", "state_count",
-            "output_event_count", "termination_count", "normal_termination_count",
+            "particle_count", "particle_mass_count", "particle_adjoint_count", "state_count",
+            "output_event_count", "process_summary_count", "process_event_count",
+            "termination_count", "normal_termination_count",
             "abnormal_termination_count", "termination_by_reason"
           ],
           "properties": {
             "particle_count": {"type": "integer", "minimum": 0},
             "particle_mass_count": {"type": "integer", "minimum": 0},
+            "particle_adjoint_count": {"type": "integer", "minimum": 0},
             "state_count": {"type": "integer", "minimum": 0},
             "output_event_count": {"type": "integer", "minimum": 0},
+            "process_summary_count": {"type": "integer", "minimum": 0},
+            "process_event_count": {"type": "integer", "minimum": 0},
             "termination_count": {"type": "integer", "minimum": 0},
             "normal_termination_count": {"type": "integer", "minimum": 0},
             "abnormal_termination_count": {"type": "integer", "minimum": 0},

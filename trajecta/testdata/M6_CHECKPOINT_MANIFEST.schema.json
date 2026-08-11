@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m6-checkpoint-manifest-v1.json",
+  "title": "Trajecta resumable checkpoint manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "checkpoint_id",
+    "job_series_id",
+    "run_id",
+    "attempt",
+    "generation",
+    "parent_checkpoint_id",
+    "source_identity_sha256",
+    "resolved_identity",
+    "created_at",
+    "boundary",
+    "physical_clock",
+    "particle_state",
+    "module_states",
+    "random_state",
+    "high_water",
+    "database",
+    "payload",
+    "publication"
+  ],
+  "properties": {
+    "schema_version": { "const": "trajecta.checkpoint/v1" },
+    "checkpoint_id": { "$ref": "#/$defs/uuid" },
+    "job_series_id": { "$ref": "#/$defs/uuid" },
+    "run_id": { "$ref": "#/$defs/uuid" },
+    "attempt": { "type": "integer", "minimum": 1 },
+    "generation": { "type": "integer", "minimum": 1 },
+    "parent_checkpoint_id": { "oneOf": [{"type": "null"}, {"$ref": "#/$defs/uuid"}] },
+    "source_identity_sha256": { "$ref": "#/$defs/sha256" },
+    "resolved_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case_sha256", "run_profile_sha256", "dataset_lock_sha256", "physics_contract", "tolerance_registry"],
+      "properties": {
+        "case_sha256": { "$ref": "#/$defs/sha256" },
+        "run_profile_sha256": { "$ref": "#/$defs/sha256" },
+        "dataset_lock_sha256": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/sha256" }
+        },
+        "physics_contract": { "const": "trajecta/physics/m6/v1" },
+        "tolerance_registry": { "const": "trajecta/tolerances/m6/v1" }
+      }
+    },
+    "created_at": { "$ref": "#/$defs/timestamp" },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "macro_step", "substep_complete"],
+      "properties": {
+        "kind": { "const": "complete_macro_step" },
+        "macro_step": { "type": "integer", "minimum": 0 },
+        "substep_complete": { "const": true }
+      }
+    },
+    "physical_clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["physical_time", "integration_offset_ns", "next_macro_step"],
+      "properties": {
+        "physical_time": { "$ref": "#/$defs/timestamp" },
+        "integration_offset_ns": { "type": "integer" },
+        "next_macro_step": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "particle_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layout", "particle_count", "alive_count", "terminated_count", "substance_count", "direction"],
+      "properties": {
+        "layout": { "const": "trajecta.particle-soa/v1" },
+        "particle_count": { "type": "integer", "minimum": 0 },
+        "alive_count": { "type": "integer", "minimum": 0 },
+        "terminated_count": { "type": "integer", "minimum": 0 },
+        "substance_count": { "type": "integer", "minimum": 0 },
+        "direction": { "enum": ["forward", "backward"] }
+      }
+    },
+    "module_states": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["module_id", "state_schema", "relative_path", "size_bytes", "sha256"],
+        "properties": {
+          "module_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "state_schema": { "type": "string", "pattern": "^trajecta\\.[a-z0-9._-]+/v1$" },
+          "relative_path": { "$ref": "#/$defs/relativePath" },
+          "size_bytes": { "type": "integer", "minimum": 0 },
+          "sha256": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    },
+    "random_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "key_algorithm", "seed", "next_macro_step", "draw_high_water"],
+      "properties": {
+        "algorithm": { "const": "philox4x32-10/v1" },
+        "key_algorithm": { "const": "m6_process_random_key/v1" },
+        "seed": { "type": "integer", "minimum": 0 },
+        "next_macro_step": { "type": "integer", "minimum": 0 },
+        "draw_high_water": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["module_id", "sampling_dimension", "draw_index_exclusive"],
+            "properties": {
+              "module_id": { "type": "string", "minLength": 1 },
+              "sampling_dimension": { "type": "integer", "minimum": 0 },
+              "draw_index_exclusive": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "high_water": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["output_event_sequence_exclusive", "process_event_sequence_exclusive", "particle_sample_counts_sha256", "database_cursor"],
+      "properties": {
+        "output_event_sequence_exclusive": { "type": "integer", "minimum": 0 },
+        "process_event_sequence_exclusive": { "type": "integer", "minimum": 0 },
+        "particle_sample_counts_sha256": { "$ref": "#/$defs/sha256" },
+        "database_cursor": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relative_path", "size_bytes", "sha256", "user_version", "integrity_check", "wal_bytes"],
+      "properties": {
+        "relative_path": { "$ref": "#/$defs/relativePath" },
+        "size_bytes": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "user_version": { "const": 2 },
+        "integrity_check": { "const": "ok" },
+        "wal_bytes": { "const": 0 }
+      }
+    },
+    "payload": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/$defs/fileIdentity" }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["temporary_write_complete", "files_synced", "directory_synced", "sha256_verified", "structure_validated", "atomic_rename_complete"],
+      "properties": {
+        "temporary_write_complete": { "const": true },
+        "files_synced": { "const": true },
+        "directory_synced": { "const": true },
+        "sha256_verified": { "const": true },
+        "structure_validated": { "const": true },
+        "atomic_rename_complete": { "const": true }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "uuid": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "timestamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seconds_since_unix_epoch", "nanosecond"],
+      "properties": {
+        "seconds_since_unix_epoch": { "type": "integer" },
+        "nanosecond": { "type": "integer", "minimum": 0, "maximum": 999999999 }
+      }
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+    },
+    "fileIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "relative_path", "size_bytes", "sha256"],
+      "properties": {
+        "role": { "enum": ["database", "particle_soa", "module_state", "sample_high_water"] },
+        "relative_path": { "$ref": "#/$defs/relativePath" },
+        "size_bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

@@ -69,6 +69,25 @@ pub struct RandomKey {
     pub draw_index: u32,
 }
 
+/// Complete deterministic key for one M6 physical-process draw.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ProcessRandomKey {
+    /// User-provided or manifest-generated run seed.
+    pub seed: u64,
+    /// Stable particle identity.
+    pub particle: ParticleId,
+    /// Stable digest of the physical-process module identifier.
+    pub module: StableRandomId,
+    /// Zero-based macro-step index.
+    pub macro_step: u64,
+    /// Zero-based common-substep index within the macro step.
+    pub substep: u32,
+    /// Independent sampling dimension.
+    pub sampling_dimension: u32,
+    /// Repeated draw index within that dimension.
+    pub draw_index: u32,
+}
+
 /// Counter-based random-number generator independent of execution order.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CounterRng;
@@ -88,6 +107,64 @@ impl CounterRng {
         const SCALE: f64 = 1.0 / ((1_u64 << 53) as f64);
         ((Self::sample_u64(key) >> 11) as f64) * SCALE
     }
+
+    /// Produces one deterministic value in `[0, 1)` for an M6 process key.
+    #[must_use]
+    pub fn sample_process_unit(key: ProcessRandomKey) -> f64 {
+        const SCALE: f64 = 1.0 / ((1_u64 << 53) as f64);
+        ((sample_process_u64(key) >> 11) as f64) * SCALE
+    }
+
+    /// Produces a deterministic standard-normal pair using fixed Box-Muller draws.
+    #[must_use]
+    pub fn sample_process_normal_pair(key: ProcessRandomKey) -> [f64; 2] {
+        let first = Self::sample_process_unit(key);
+        let second = Self::sample_process_unit(ProcessRandomKey {
+            draw_index: key.draw_index.wrapping_add(1),
+            ..key
+        });
+        // Mapping the half-open uniform onto the open interval prevents ln(0)
+        // while preserving every other representable sample unchanged.
+        let u1 = if first == 0.0 { f64::EPSILON } else { first };
+        let radius = (-2.0 * u1.ln()).sqrt();
+        let angle = std::f64::consts::TAU * second;
+        [radius * angle.cos(), radius * angle.sin()]
+    }
+}
+
+fn sample_process_u64(key: ProcessRandomKey) -> u64 {
+    let mut hasher = Sha256::new();
+    hasher.update(b"trajecta/m6-process-random-key/v1\0");
+    hasher.update(key.seed.to_be_bytes());
+    hasher.update(key.particle.0.to_be_bytes());
+    hasher.update(key.module.0.to_be_bytes());
+    hasher.update(key.macro_step.to_be_bytes());
+    hasher.update(key.substep.to_be_bytes());
+    hasher.update(key.sampling_dimension.to_be_bytes());
+    hasher.update(key.draw_index.to_be_bytes());
+    let digest = hasher.finalize();
+    let mut counter = [0_u32; 4];
+    let mut philox_key = [0_u32; 2];
+    for (index, word) in counter.iter_mut().enumerate() {
+        let offset = index * 4;
+        *word = u32::from_be_bytes([
+            digest[offset],
+            digest[offset + 1],
+            digest[offset + 2],
+            digest[offset + 3],
+        ]);
+    }
+    for (index, word) in philox_key.iter_mut().enumerate() {
+        let offset = 16 + index * 4;
+        *word = u32::from_be_bytes([
+            digest[offset],
+            digest[offset + 1],
+            digest[offset + 2],
+            digest[offset + 3],
+        ]);
+    }
+    let words = philox4x32_10(counter, philox_key);
+    (u64::from(words[0]) << 32) | u64::from(words[1])
 }
 
 /// Deterministic unshifted Halton sampler for geometric fixtures and strata.
@@ -243,6 +320,29 @@ mod tests {
         assert_eq!(
             LowDiscrepancySampler::sample(0, 3),
             Ok(vec![0.5, 1.0 / 3.0, 0.2])
+        );
+    }
+
+    #[test]
+    fn process_key_is_order_independent_and_normal_pair_is_finite() {
+        let key = ProcessRandomKey {
+            seed: 3,
+            particle: ParticleId(19),
+            module: StableRandomId::from_text("boundary_layer_langevin"),
+            macro_step: 7,
+            substep: 2,
+            sampling_dimension: 64,
+            draw_index: 0,
+        };
+        assert_eq!(
+            CounterRng::sample_process_unit(key),
+            CounterRng::sample_process_unit(key)
+        );
+        let pair = CounterRng::sample_process_normal_pair(key);
+        assert!(pair.into_iter().all(f64::is_finite));
+        assert_ne!(
+            CounterRng::sample_process_unit(key),
+            CounterRng::sample_process_unit(ProcessRandomKey { substep: 3, ..key })
         );
     }
 }

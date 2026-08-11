@@ -216,7 +216,7 @@ fn cfsr_03utc_runnerbuilder_loads_00_06_and_writes_sqlite() {
             },
             random_seed: Some(7),
         }),
-        physics: Vec::new(),
+        physics: None,
         outputs: vec![default_particle_state_output()],
         sources: Vec::new(),
     };

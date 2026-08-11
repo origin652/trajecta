@@ -83,7 +83,7 @@ fn case(direction: Direction, target_particle_count: u64) -> ResolvedCase {
             },
             random_seed: Some(71),
         }),
-        physics: Vec::new(),
+        physics: None,
         outputs: vec![default_particle_state_output()],
         sources: Vec::new(),
     }

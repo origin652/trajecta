@@ -28,6 +28,7 @@ meteorology:
 substances:
   - id: tracer
     display_name: Tracer
+    kind: water_vapor
 particle_population:
   strategy: release_driven
   id: releases

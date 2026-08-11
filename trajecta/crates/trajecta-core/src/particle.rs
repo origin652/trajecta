@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 use trajecta_case::model::meteorology::DomainId;
 use trajecta_case::model::population::{PopulationId, ReleaseEventId};
 use trajecta_case::model::substance::SubstanceId;
-use trajecta_case::model::time::Timestamp;
+use trajecta_case::model::time::{Direction, Timestamp};
 
 /// Stable particle identifier independent of storage order.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
@@ -223,9 +223,9 @@ pub struct ParticleState {
     pub dry_air_mass_kg: f64,
     /// Substance mass in kilograms by stable substance identifier.
     pub mass_kg: BTreeMap<SubstanceId, f64>,
-    /// Optional signed source-receptor sensitivity weight, separate from mass.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sensitivity_weight: Option<f64>,
+    /// Backward adjoint weight by stable substance identifier.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub adjoint_weight: BTreeMap<SubstanceId, f64>,
     /// Current transport status.
     pub status: ParticleStatus,
     /// Exact terminal lifecycle metadata, when transport has stopped.
@@ -234,7 +234,7 @@ pub struct ParticleState {
 }
 
 impl ParticleState {
-    /// Validates finite coordinates, physical mass, and optional weight.
+    /// Validates finite coordinates and direction-specific substance state.
     pub fn validate(&self) -> Result<(), ParticleError> {
         if !self.longitude_degrees.is_finite()
             || !self.latitude_degrees.is_finite()
@@ -253,11 +253,15 @@ impl ParticleState {
         {
             return Err(ParticleError::InvalidMass);
         }
+        if self.adjoint_weight.values().any(|value| !value.is_finite()) {
+            return Err(ParticleError::InvalidAdjointWeight);
+        }
         if self
-            .sensitivity_weight
-            .is_some_and(|value| !value.is_finite())
+            .mass_kg
+            .keys()
+            .any(|substance| self.adjoint_weight.contains_key(substance))
         {
-            return Err(ParticleError::InvalidSensitivityWeight);
+            return Err(ParticleError::InvalidDirectionalSubstanceState);
         }
         if self.termination.is_some() && self.status == ParticleStatus::Alive {
             return Err(ParticleError::InvalidTermination);
@@ -275,6 +279,175 @@ impl ParticleState {
 pub struct SubstanceMassStore {
     /// Mass columns by stable substance identifier.
     pub mass_kg: BTreeMap<SubstanceId, Vec<f64>>,
+}
+
+/// Substance-major backward adjoint arrays with one value per particle.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SubstanceAdjointStore {
+    /// Adjoint-weight columns by stable substance identifier.
+    pub adjoint_weight: BTreeMap<SubstanceId, Vec<f64>>,
+}
+
+/// Continuous motion-process state stored alongside the particle SoA.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MotionProcessStore {
+    /// Boundary-layer random eastward velocity in metres per second.
+    pub boundary_layer_eastward_m_s: Vec<f64>,
+    /// Boundary-layer random northward velocity in metres per second.
+    pub boundary_layer_northward_m_s: Vec<f64>,
+    /// Boundary-layer random vertical velocity in metres per second.
+    pub boundary_layer_vertical_m_s: Vec<f64>,
+    /// Mesoscale random eastward velocity in metres per second.
+    pub mesoscale_eastward_m_s: Vec<f64>,
+    /// Mesoscale random northward velocity in metres per second.
+    pub mesoscale_northward_m_s: Vec<f64>,
+    /// Mesoscale random vertical velocity in metres per second.
+    pub mesoscale_vertical_m_s: Vec<f64>,
+}
+
+impl MotionProcessStore {
+    fn validate(&self, particle_count: usize) -> Result<(), ParticleError> {
+        if component_lengths_are_valid(
+            [
+                &self.boundary_layer_eastward_m_s,
+                &self.boundary_layer_northward_m_s,
+                &self.boundary_layer_vertical_m_s,
+            ],
+            particle_count,
+        ) && component_lengths_are_valid(
+            [
+                &self.mesoscale_eastward_m_s,
+                &self.mesoscale_northward_m_s,
+                &self.mesoscale_vertical_m_s,
+            ],
+            particle_count,
+        ) {
+            Ok(())
+        } else {
+            Err(ParticleError::LengthMismatch)
+        }
+    }
+
+    fn ensure_boundary_layer_len(&mut self, particle_count: usize) {
+        ensure_component_lengths(
+            [
+                &mut self.boundary_layer_eastward_m_s,
+                &mut self.boundary_layer_northward_m_s,
+                &mut self.boundary_layer_vertical_m_s,
+            ],
+            particle_count,
+        );
+    }
+
+    fn ensure_mesoscale_len(&mut self, particle_count: usize) {
+        ensure_component_lengths(
+            [
+                &mut self.mesoscale_eastward_m_s,
+                &mut self.mesoscale_northward_m_s,
+                &mut self.mesoscale_vertical_m_s,
+            ],
+            particle_count,
+        );
+    }
+
+    fn select(&self, indices: &[usize]) -> Self {
+        Self {
+            boundary_layer_eastward_m_s: select_component(
+                &self.boundary_layer_eastward_m_s,
+                indices,
+            ),
+            boundary_layer_northward_m_s: select_component(
+                &self.boundary_layer_northward_m_s,
+                indices,
+            ),
+            boundary_layer_vertical_m_s: select_component(
+                &self.boundary_layer_vertical_m_s,
+                indices,
+            ),
+            mesoscale_eastward_m_s: select_component(&self.mesoscale_eastward_m_s, indices),
+            mesoscale_northward_m_s: select_component(&self.mesoscale_northward_m_s, indices),
+            mesoscale_vertical_m_s: select_component(&self.mesoscale_vertical_m_s, indices),
+        }
+    }
+
+    fn append(&mut self, other: &Self, original_len: usize, added_len: usize) {
+        append_components(
+            [
+                &mut self.boundary_layer_eastward_m_s,
+                &mut self.boundary_layer_northward_m_s,
+                &mut self.boundary_layer_vertical_m_s,
+            ],
+            [
+                &other.boundary_layer_eastward_m_s,
+                &other.boundary_layer_northward_m_s,
+                &other.boundary_layer_vertical_m_s,
+            ],
+            original_len,
+            added_len,
+        );
+        append_components(
+            [
+                &mut self.mesoscale_eastward_m_s,
+                &mut self.mesoscale_northward_m_s,
+                &mut self.mesoscale_vertical_m_s,
+            ],
+            [
+                &other.mesoscale_eastward_m_s,
+                &other.mesoscale_northward_m_s,
+                &other.mesoscale_vertical_m_s,
+            ],
+            original_len,
+            added_len,
+        );
+    }
+}
+
+fn component_lengths_are_valid(components: [&Vec<f64>; 3], particle_count: usize) -> bool {
+    components.iter().all(|component| component.is_empty())
+        || components
+            .iter()
+            .all(|component| component.len() == particle_count)
+}
+
+fn ensure_component_lengths(mut components: [&mut Vec<f64>; 3], particle_count: usize) {
+    if components[0].is_empty() {
+        for component in &mut components {
+            **component = vec![0.0; particle_count];
+        }
+    }
+}
+
+fn select_component(component: &[f64], indices: &[usize]) -> Vec<f64> {
+    if component.is_empty() {
+        Vec::new()
+    } else {
+        indices.iter().map(|index| component[*index]).collect()
+    }
+}
+
+fn append_components(
+    mut target: [&mut Vec<f64>; 3],
+    source: [&Vec<f64>; 3],
+    original_len: usize,
+    added_len: usize,
+) {
+    if target[0].is_empty() && source[0].is_empty() {
+        return;
+    }
+    if target[0].is_empty() {
+        for component in &mut target {
+            **component = vec![0.0; original_len];
+        }
+    }
+    for (target, source) in target.into_iter().zip(source) {
+        if source.is_empty() {
+            target.extend(std::iter::repeat_n(0.0, added_len));
+        } else {
+            target.extend_from_slice(source);
+        }
+    }
 }
 
 /// Structure-of-arrays particle storage used by hot execution paths.
@@ -301,14 +474,18 @@ pub struct ParticleBatch {
     pub elapsed_age_ns: Vec<u64>,
     /// Dry-air carrier mass in kilograms.
     pub dry_air_mass_kg: Vec<f64>,
-    /// Optional signed sensitivity weight per particle.
-    pub sensitivity_weight: Vec<Option<f64>>,
     /// Typed particle status.
     pub status: Vec<ParticleStatus>,
     /// Exact terminal lifecycle metadata per particle.
     pub termination: Vec<Option<ParticleTermination>>,
     /// Substance-major mass arrays.
     pub mass: SubstanceMassStore,
+    /// Substance-major backward adjoint arrays.
+    #[serde(default)]
+    pub adjoint: SubstanceAdjointStore,
+    /// Persistent continuous motion-process state.
+    #[serde(default)]
+    pub motion: MotionProcessStore,
 }
 
 impl ParticleBatch {
@@ -325,15 +502,20 @@ impl ParticleBatch {
             self.integration_offset_ns.len(),
             self.elapsed_age_ns.len(),
             self.dry_air_mass_kg.len(),
-            self.sensitivity_weight.len(),
             self.status.len(),
             self.termination.len(),
         ];
         if primary_lengths.into_iter().any(|value| value != len)
             || self.mass.mass_kg.values().any(|values| values.len() != len)
+            || self
+                .adjoint
+                .adjoint_weight
+                .values()
+                .any(|values| values.len() != len)
         {
             return Err(ParticleError::LengthMismatch);
         }
+        self.motion.validate(len)?;
         Ok(len)
     }
 
@@ -355,9 +537,6 @@ impl ParticleBatch {
             if !self.dry_air_mass_kg[index].is_finite() || self.dry_air_mass_kg[index] < 0.0 {
                 return Err(ParticleError::InvalidMass);
             }
-            if self.sensitivity_weight[index].is_some_and(|value| !value.is_finite()) {
-                return Err(ParticleError::InvalidSensitivityWeight);
-            }
             if self.termination[index].is_some() && self.status[index] == ParticleStatus::Alive {
                 return Err(ParticleError::InvalidTermination);
             }
@@ -373,6 +552,36 @@ impl ParticleBatch {
             .any(|value| !value.is_finite() || *value < 0.0)
         {
             return Err(ParticleError::InvalidMass);
+        }
+        if self
+            .adjoint
+            .adjoint_weight
+            .values()
+            .flatten()
+            .any(|value| !value.is_finite())
+        {
+            return Err(ParticleError::InvalidAdjointWeight);
+        }
+        if self
+            .mass
+            .mass_kg
+            .keys()
+            .any(|substance| self.adjoint.adjoint_weight.contains_key(substance))
+        {
+            return Err(ParticleError::InvalidDirectionalSubstanceState);
+        }
+        if self
+            .motion
+            .boundary_layer_eastward_m_s
+            .iter()
+            .chain(&self.motion.boundary_layer_northward_m_s)
+            .chain(&self.motion.boundary_layer_vertical_m_s)
+            .chain(&self.motion.mesoscale_eastward_m_s)
+            .chain(&self.motion.mesoscale_northward_m_s)
+            .chain(&self.motion.mesoscale_vertical_m_s)
+            .any(|value| !value.is_finite())
+        {
+            return Err(ParticleError::InvalidMotionProcessState);
         }
         Ok(len)
     }
@@ -400,7 +609,12 @@ impl ParticleBatch {
                 .iter()
                 .map(|(substance, values)| (substance.clone(), values[index]))
                 .collect(),
-            sensitivity_weight: self.sensitivity_weight[index],
+            adjoint_weight: self
+                .adjoint
+                .adjoint_weight
+                .iter()
+                .map(|(substance, values)| (substance.clone(), values[index]))
+                .collect(),
             status: self.status[index].clone(),
             termination: self.termination[index].clone(),
         })
@@ -443,6 +657,22 @@ impl ParticleBatch {
             column[index] = state.mass_kg.get(&substance).copied().unwrap_or(0.0);
         }
 
+        let all_adjoint_substances = self
+            .adjoint
+            .adjoint_weight
+            .keys()
+            .cloned()
+            .chain(state.adjoint_weight.keys().cloned())
+            .collect::<BTreeSet<_>>();
+        for substance in all_adjoint_substances {
+            let column = self
+                .adjoint
+                .adjoint_weight
+                .entry(substance.clone())
+                .or_insert_with(|| vec![0.0; len]);
+            column[index] = state.adjoint_weight.get(&substance).copied().unwrap_or(0.0);
+        }
+
         self.id[index] = state.id;
         self.population_id[index] = state.population_id;
         self.origin[index] = state.origin;
@@ -453,7 +683,6 @@ impl ParticleBatch {
         self.integration_offset_ns[index] = state.integration_offset_ns;
         self.elapsed_age_ns[index] = state.elapsed_age_ns;
         self.dry_air_mass_kg[index] = state.dry_air_mass_kg;
-        self.sensitivity_weight[index] = state.sensitivity_weight;
         self.status[index] = state.status;
         self.termination[index] = state.termination;
         Ok(())
@@ -508,10 +737,6 @@ impl ParticleBatch {
                 .iter()
                 .map(|index| self.dry_air_mass_kg[*index])
                 .collect(),
-            sensitivity_weight: indices
-                .iter()
-                .map(|index| self.sensitivity_weight[*index])
-                .collect(),
             status: indices
                 .iter()
                 .map(|index| self.status[*index].clone())
@@ -533,6 +758,20 @@ impl ParticleBatch {
                     })
                     .collect(),
             },
+            adjoint: SubstanceAdjointStore {
+                adjoint_weight: self
+                    .adjoint
+                    .adjoint_weight
+                    .iter()
+                    .map(|(substance, values)| {
+                        (
+                            substance.clone(),
+                            indices.iter().map(|index| values[*index]).collect(),
+                        )
+                    })
+                    .collect(),
+            },
+            motion: self.motion.select(indices),
         };
         selected.validate()?;
         Ok(selected)
@@ -574,6 +813,33 @@ impl ParticleBatch {
                 .extend(incoming);
         }
 
+        let all_adjoint_substances = self
+            .adjoint
+            .adjoint_weight
+            .keys()
+            .cloned()
+            .chain(other.adjoint.adjoint_weight.keys().cloned())
+            .collect::<BTreeSet<_>>();
+        for substance in all_adjoint_substances {
+            self.adjoint
+                .adjoint_weight
+                .entry(substance.clone())
+                .or_insert_with(|| vec![0.0; original_len]);
+            let incoming = other
+                .adjoint
+                .adjoint_weight
+                .get(&substance)
+                .cloned()
+                .unwrap_or_else(|| vec![0.0; added_len]);
+            self.adjoint
+                .adjoint_weight
+                .get_mut(&substance)
+                .ok_or(ParticleError::LengthMismatch)?
+                .extend(incoming);
+        }
+
+        self.motion.append(&other.motion, original_len, added_len);
+
         self.id.extend(other.id);
         self.population_id.extend(other.population_id);
         self.origin.extend(other.origin);
@@ -585,7 +851,6 @@ impl ParticleBatch {
             .extend(other.integration_offset_ns);
         self.elapsed_age_ns.extend(other.elapsed_age_ns);
         self.dry_air_mass_kg.extend(other.dry_air_mass_kg);
-        self.sensitivity_weight.extend(other.sensitivity_weight);
         self.status.extend(other.status);
         self.termination.extend(other.termination);
         Ok(())
@@ -604,10 +869,141 @@ impl ParticleBatch {
             && self.integration_offset_ns.is_empty()
             && self.elapsed_age_ns.is_empty()
             && self.dry_air_mass_kg.is_empty()
-            && self.sensitivity_weight.is_empty()
             && self.status.is_empty()
             && self.termination.is_empty()
             && self.mass.mass_kg.values().all(Vec::is_empty)
+            && self.adjoint.adjoint_weight.values().all(Vec::is_empty)
+            && self.motion.boundary_layer_eastward_m_s.is_empty()
+            && self.motion.boundary_layer_northward_m_s.is_empty()
+            && self.motion.boundary_layer_vertical_m_s.is_empty()
+            && self.motion.mesoscale_eastward_m_s.is_empty()
+            && self.motion.mesoscale_northward_m_s.is_empty()
+            && self.motion.mesoscale_vertical_m_s.is_empty()
+    }
+
+    /// Converts the birth state into the direction-specific substance layout.
+    /// Forward batches retain mass; backward batches use those declared
+    /// release values as initial per-substance adjoint weights.
+    pub fn select_directional_substance_state(
+        &mut self,
+        direction: Direction,
+    ) -> Result<(), ParticleError> {
+        match direction {
+            Direction::Forward if !self.adjoint.adjoint_weight.is_empty() => {
+                Err(ParticleError::InvalidDirectionalSubstanceState)
+            }
+            Direction::Forward => Ok(()),
+            Direction::Backward if !self.adjoint.adjoint_weight.is_empty() => {
+                if self.mass.mass_kg.is_empty() {
+                    Ok(())
+                } else {
+                    Err(ParticleError::InvalidDirectionalSubstanceState)
+                }
+            }
+            Direction::Backward => {
+                self.adjoint.adjoint_weight = std::mem::take(&mut self.mass.mass_kg);
+                Ok(())
+            }
+        }
+    }
+
+    /// Ensures boundary-layer state columns exist and contain one zero per particle.
+    pub fn initialize_boundary_layer_state(&mut self) -> Result<(), ParticleError> {
+        let len = self.len()?;
+        self.motion.ensure_boundary_layer_len(len);
+        Ok(())
+    }
+
+    /// Returns the current boundary-layer velocity, or exact zero when disabled.
+    pub fn boundary_layer_velocity(&self, index: usize) -> Result<[f64; 3], ParticleError> {
+        let len = self.len()?;
+        if index >= len {
+            return Err(ParticleError::IndexOutOfBounds { index, len });
+        }
+        if self.motion.boundary_layer_eastward_m_s.is_empty() {
+            return Ok([0.0; 3]);
+        }
+        Ok([
+            self.motion.boundary_layer_eastward_m_s[index],
+            self.motion.boundary_layer_northward_m_s[index],
+            self.motion.boundary_layer_vertical_m_s[index],
+        ])
+    }
+
+    /// Stores one finite boundary-layer velocity row.
+    pub fn set_boundary_layer_velocity(
+        &mut self,
+        index: usize,
+        velocity_m_s: [f64; 3],
+    ) -> Result<(), ParticleError> {
+        let len = self.len()?;
+        if index >= len {
+            return Err(ParticleError::IndexOutOfBounds { index, len });
+        }
+        if !velocity_m_s.into_iter().all(f64::is_finite) {
+            return Err(ParticleError::InvalidMotionProcessState);
+        }
+        self.motion.ensure_boundary_layer_len(len);
+        self.motion.boundary_layer_eastward_m_s[index] = velocity_m_s[0];
+        self.motion.boundary_layer_northward_m_s[index] = velocity_m_s[1];
+        self.motion.boundary_layer_vertical_m_s[index] = velocity_m_s[2];
+        Ok(())
+    }
+
+    /// Ensures mesoscale state columns exist and contain one zero per particle.
+    pub fn initialize_mesoscale_state(&mut self) -> Result<(), ParticleError> {
+        let len = self.len()?;
+        self.motion.ensure_mesoscale_len(len);
+        Ok(())
+    }
+
+    /// Returns the current mesoscale velocity, or exact zero when disabled.
+    pub fn mesoscale_velocity(&self, index: usize) -> Result<[f64; 3], ParticleError> {
+        let len = self.len()?;
+        if index >= len {
+            return Err(ParticleError::IndexOutOfBounds { index, len });
+        }
+        if self.motion.mesoscale_eastward_m_s.is_empty() {
+            return Ok([0.0; 3]);
+        }
+        Ok([
+            self.motion.mesoscale_eastward_m_s[index],
+            self.motion.mesoscale_northward_m_s[index],
+            self.motion.mesoscale_vertical_m_s[index],
+        ])
+    }
+
+    /// Stores one finite mesoscale velocity row.
+    pub fn set_mesoscale_velocity(
+        &mut self,
+        index: usize,
+        velocity_m_s: [f64; 3],
+    ) -> Result<(), ParticleError> {
+        let len = self.len()?;
+        if index >= len {
+            return Err(ParticleError::IndexOutOfBounds { index, len });
+        }
+        if !velocity_m_s.into_iter().all(f64::is_finite) {
+            return Err(ParticleError::InvalidMotionProcessState);
+        }
+        self.motion.ensure_mesoscale_len(len);
+        self.motion.mesoscale_eastward_m_s[index] = velocity_m_s[0];
+        self.motion.mesoscale_northward_m_s[index] = velocity_m_s[1];
+        self.motion.mesoscale_vertical_m_s[index] = velocity_m_s[2];
+        Ok(())
+    }
+
+    /// Returns the summed continuous random-motion velocity used by transport.
+    pub fn random_motion_velocity(&self, index: usize) -> Result<[f64; 3], ParticleError> {
+        let boundary_layer = self.boundary_layer_velocity(index)?;
+        let mesoscale = self.mesoscale_velocity(index)?;
+        let velocity =
+            std::array::from_fn(|component| boundary_layer[component] + mesoscale[component]);
+        if velocity.into_iter().all(f64::is_finite) {
+            Ok(velocity)
+        } else {
+            Err(ParticleError::InvalidMotionProcessState)
+        }
     }
 }
 
@@ -622,8 +1018,12 @@ pub enum ParticleError {
     InvalidCoordinate,
     /// A carrier or substance mass is negative or non-finite.
     InvalidMass,
-    /// A separate sensitivity weight is non-finite.
-    InvalidSensitivityWeight,
+    /// A backward per-substance adjoint weight is non-finite.
+    InvalidAdjointWeight,
+    /// Forward mass and backward adjoint layouts are mixed.
+    InvalidDirectionalSubstanceState,
+    /// A continuous motion-process value is non-finite.
+    InvalidMotionProcessState,
     /// Termination metadata is non-finite, outside the local step, or attached
     /// to an active particle.
     InvalidTermination,
@@ -661,7 +1061,11 @@ impl ParticleError {
             Self::DuplicateParticleId(_) => "particle.duplicate_id",
             Self::InvalidCoordinate => "particle.invalid_coordinate",
             Self::InvalidMass => "particle.invalid_mass",
-            Self::InvalidSensitivityWeight => "particle.invalid_sensitivity_weight",
+            Self::InvalidAdjointWeight => "particle.invalid_adjoint_weight",
+            Self::InvalidDirectionalSubstanceState => {
+                "particle.invalid_directional_substance_state"
+            }
+            Self::InvalidMotionProcessState => "particle.invalid_motion_process_state",
             Self::InvalidTermination => "particle.invalid_termination",
             Self::IndexOutOfBounds { .. } => "particle.index_out_of_bounds",
         }
@@ -709,12 +1113,13 @@ mod tests {
             integration_offset_ns: vec![0],
             elapsed_age_ns: vec![0],
             dry_air_mass_kg: vec![1.0],
-            sensitivity_weight: vec![None],
             status: vec![ParticleStatus::Alive],
             termination: vec![None],
             mass: SubstanceMassStore {
                 mass_kg: BTreeMap::from([(substance.clone(), vec![2.0])]),
             },
+            adjoint: SubstanceAdjointStore::default(),
+            motion: MotionProcessStore::default(),
         };
         let state = batch.state(0).unwrap();
         assert_eq!(state.mass_kg.get(&substance), Some(&2.0));
@@ -743,10 +1148,11 @@ mod tests {
             integration_offset_ns: vec![0; 2],
             elapsed_age_ns: vec![0; 2],
             dry_air_mass_kg: vec![1.0; 2],
-            sensitivity_weight: vec![None; 2],
             status: vec![ParticleStatus::Alive; 2],
             termination: vec![None; 2],
             mass: SubstanceMassStore::default(),
+            adjoint: SubstanceAdjointStore::default(),
+            motion: MotionProcessStore::default(),
         };
 
         let mut same_identity = batch.state(0).unwrap();

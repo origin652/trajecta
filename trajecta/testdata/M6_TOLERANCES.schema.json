@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m6-tolerances-v1.json",
+  "title": "Trajecta M6 frozen tolerance registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "registry_id",
+    "frozen_before_optimization",
+    "analytic_and_manufactured",
+    "conservation",
+    "adjoint",
+    "stochastic",
+    "external_validation",
+    "determinism",
+    "performance"
+  ],
+  "properties": {
+    "schema_version": { "const": "trajecta.m6.tolerances/v1" },
+    "registry_id": { "const": "trajecta/tolerances/m6/v1" },
+    "frozen_before_optimization": { "const": true },
+    "analytic_and_manufactured": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relative", "absolute_floors"],
+      "properties": {
+        "relative": { "const": 1e-10 },
+        "absolute_floors": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["dimensionless", "mass_kg", "position_m", "velocity_m_s-1", "rate_s-1", "temperature_k", "pressure_pa", "probability"],
+          "properties": {
+            "dimensionless": { "const": 1e-12 },
+            "mass_kg": { "const": 1e-15 },
+            "position_m": { "const": 1e-8 },
+            "velocity_m_s-1": { "const": 1e-10 },
+            "rate_s-1": { "const": 1e-14 },
+            "temperature_k": { "const": 1e-10 },
+            "pressure_pa": { "const": 1e-8 },
+            "probability": { "const": 1e-14 }
+          }
+        }
+      }
+    },
+    "conservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relative", "forward_mass_absolute_kg", "backward_adjoint_absolute", "matrix_column_sum_absolute", "negative_roundoff_floor"],
+      "properties": {
+        "relative": { "const": 1e-10 },
+        "forward_mass_absolute_kg": { "const": 1e-15 },
+        "backward_adjoint_absolute": { "const": 1e-14 },
+        "matrix_column_sum_absolute": { "const": 1e-12 },
+        "negative_roundoff_floor": { "const": 1e-14 }
+      }
+    },
+    "adjoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dot_product_relative", "dot_product_absolute"],
+      "properties": {
+        "dot_product_relative": { "const": 1e-8 },
+        "dot_product_absolute": { "const": 1e-12 }
+      }
+    },
+    "stochastic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ou", "minimum_samples", "minimum_independent_seeds", "confidence_reporting"],
+      "properties": {
+        "ou": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mean_sigma", "variance_relative", "lag_one_correlation_absolute"],
+          "properties": {
+            "mean_sigma": { "const": 0.02 },
+            "variance_relative": { "const": 0.03 },
+            "lag_one_correlation_absolute": { "const": 0.02 }
+          }
+        },
+        "minimum_samples": { "const": 1000000 },
+        "minimum_independent_seeds": { "const": 8 },
+        "confidence_reporting": { "const": "two_sided_95_percent_with_raw_moments" }
+      }
+    },
+    "external_validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["normalized_bias_absolute", "normalized_rmse", "normalization", "minimum_observations"],
+      "properties": {
+        "normalized_bias_absolute": { "const": 0.20 },
+        "normalized_rmse": { "const": 0.30 },
+        "normalization": { "const": "published_uncertainty_else_predeclared_observed_scale" },
+        "minimum_observations": { "const": 20 }
+      }
+    },
+    "determinism": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["worker_count", "resume", "pure_advection_regression"],
+      "properties": {
+        "worker_count": { "const": "normalized_scientific_bytes_identical" },
+        "resume": { "const": "normalized_scientific_bytes_identical" },
+        "pure_advection_regression": { "const": "normalized_scientific_bytes_identical_to_m5" }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["measurement", "comparison", "formal_resource"],
+      "properties": {
+        "measurement": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["warmups", "formal_repetitions", "statistic", "host_policy"],
+          "properties": {
+            "warmups": { "const": 1 },
+            "formal_repetitions": { "const": 3 },
+            "statistic": { "const": "median" },
+            "host_policy": { "const": "same_host_same_input_same_cpu_set_alternating_order" }
+          }
+        },
+        "comparison": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["particles", "duration_hours", "trajecta_over_flexpart_gate", "trajecta_over_flexpart_target"],
+          "properties": {
+            "particles": { "const": 50000 },
+            "duration_hours": { "const": 24 },
+            "trajecta_over_flexpart_gate": { "const": 1.25 },
+            "trajecta_over_flexpart_target": { "const": 1.0 }
+          }
+        },
+        "formal_resource": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["particles", "duration_hours", "peak_rss_bytes", "sqlite_bytes", "scaling_50k_to_100k", "checkpoint_overhead", "instrumentation_overhead"],
+          "properties": {
+            "particles": { "const": 100000 },
+            "duration_hours": { "const": 24 },
+            "peak_rss_bytes": { "const": 4294967296 },
+            "sqlite_bytes": { "const": 4294967296 },
+            "scaling_50k_to_100k": { "const": 2.4 },
+            "checkpoint_overhead": { "const": 0.05 },
+            "instrumentation_overhead": { "const": 0.03 }
+          }
+        }
+      }
+    }
+  }
+}

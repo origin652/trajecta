@@ -1,0 +1,395 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m6-physics-contract-v1.json",
+  "title": "Trajecta M6 physics and recovery contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_id",
+    "versions",
+    "configuration",
+    "substances",
+    "modules",
+    "presets",
+    "pipeline",
+    "randomness",
+    "module_constants",
+    "land_cover_mapping",
+    "artifacts",
+    "commands",
+    "checkpoint",
+    "automatic_recovery",
+    "performance",
+    "failure_policy",
+    "excluded_scope"
+  ],
+  "properties": {
+    "schema_version": { "const": "trajecta.m6.physics-contract/v1" },
+    "contract_id": { "const": "trajecta/physics/m6/v1" },
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["software", "case_schema", "sqlite_user_version"],
+      "properties": {
+        "software": { "const": "0.1.0-alpha.1" },
+        "case_schema": { "const": 0 },
+        "sqlite_user_version": { "const": 2 }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "absent_physics",
+        "merge_order",
+        "legacy_fields_rejected",
+        "explicit_order_policy",
+        "unknown_remove_policy",
+        "unknown_override_policy",
+        "duplicate_module_policy",
+        "quantity_policy",
+        "configuration_shape"
+      ],
+      "properties": {
+        "absent_physics": { "const": "pure_advection" },
+        "merge_order": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "legacy_fields_rejected": {
+          "type": "array",
+          "items": { "enum": ["enabled", "parameters"] },
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true
+        },
+        "explicit_order_policy": { "const": "all_or_none_unique_contiguous_dependency_valid" },
+        "unknown_remove_policy": { "const": "error_with_field_path" },
+        "unknown_override_policy": { "const": "error_with_field_path" },
+        "duplicate_module_policy": { "const": "error_with_field_path" },
+        "quantity_policy": { "const": "explicit_unit_normalized_to_si_no_bare_dimensional_number" },
+        "configuration_shape": { "$ref": "#/$defs/configurationShape" }
+      }
+    },
+    "substances": { "$ref": "#/$defs/substanceContract" },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/module" }
+    },
+    "presets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/preset" }
+    },
+    "pipeline": { "$ref": "#/$defs/pipeline" },
+    "randomness": { "$ref": "#/$defs/randomness" },
+    "module_constants": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/numberMap" }
+    },
+    "land_cover_mapping": {
+      "type": "object",
+      "minProperties": 17,
+      "maxProperties": 17,
+      "additionalProperties": { "type": "integer", "minimum": 1, "maximum": 13 }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkpoint", "process_query", "sqlite_schema"],
+      "properties": {
+        "checkpoint": { "const": "trajecta.checkpoint/v1" },
+        "process_query": { "const": "trajecta.process-query/v1" },
+        "sqlite_schema": { "const": "trajecta.particle-state-sqlite/v2" }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "$ref": "#/$defs/command" }
+    },
+    "checkpoint": { "$ref": "#/$defs/checkpoint" },
+    "automatic_recovery": { "$ref": "#/$defs/recovery" },
+    "performance": { "$ref": "#/$defs/performance" },
+    "failure_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["missing_auxiliary_data", "invalid_nonnegative_allocation", "substep_underflow", "unsupported_legacy_physics"],
+      "properties": {
+        "missing_auxiliary_data": { "const": "preflight_error_no_runtime_download" },
+        "invalid_nonnegative_allocation": { "const": "run_fatal" },
+        "substep_underflow": { "const": "run_fatal" },
+        "unsupported_legacy_physics": { "const": "configuration_error_with_field_path" }
+      }
+    },
+    "excluded_scope": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "numberMap": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "number" }
+    },
+    "configurationShape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preset", "remove", "overrides", "modules"],
+      "properties": {
+        "preset": { "type": "string", "minLength": 1 },
+        "remove": { "$ref": "#/$defs/stringArray" },
+        "overrides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/moduleConfiguration" }
+        },
+        "modules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/moduleConfiguration" }
+        }
+      }
+    },
+    "moduleConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model"],
+      "properties": {
+        "model": { "type": "string", "minLength": 1 },
+        "order": { "type": "integer", "minimum": 0 },
+        "maximum_substep": { "$ref": "#/$defs/quantityText" }
+      }
+    },
+    "substanceContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kinds",
+        "water_vapor_required_fields",
+        "gas_required_fields",
+        "gas_optional_fields",
+        "aerosol_required_fields",
+        "diameter_range_micrometre",
+        "diameter_distribution",
+        "diameter_sample_policy",
+        "forward_state",
+        "backward_state",
+        "oh_rate_formula"
+      ],
+      "properties": {
+        "kinds": { "const": ["water_vapor", "gas", "aerosol"] },
+        "water_vapor_required_fields": { "$ref": "#/$defs/stringArray" },
+        "gas_required_fields": { "$ref": "#/$defs/stringArray" },
+        "gas_optional_fields": { "$ref": "#/$defs/stringArray" },
+        "aerosol_required_fields": { "$ref": "#/$defs/stringArray" },
+        "diameter_range_micrometre": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["minimum", "maximum"],
+          "properties": {
+            "minimum": { "const": 0.01 },
+            "maximum": { "const": 100.0 }
+          }
+        },
+        "diameter_distribution": { "const": "truncated_lognormal_mass_basis/v1" },
+        "diameter_sample_policy": { "const": "once_at_birth_counter_rng_then_immutable" },
+        "forward_state": { "const": "per_substance_mass_kg" },
+        "backward_state": { "const": "per_substance_adjoint_weight" },
+        "oh_rate_formula": { "const": "A*(T/300K)^n*exp(-activation_temperature/T)*OH" }
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "stage",
+        "phase",
+        "algorithm_id",
+        "stochastic",
+        "event_policy",
+        "substance_kinds",
+        "requires_modules",
+        "requires_capabilities",
+        "override_fields",
+        "parameter_contracts",
+        "scientific_references"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "stage": { "pattern": "^m6_a[1-7]$" },
+        "phase": { "enum": ["source_schedule", "birth_column", "field_modifier", "motion_velocity", "column_transfer", "local_mass"] },
+        "algorithm_id": { "type": "string", "pattern": "^[a-z0-9_/-]+/v1$" },
+        "stochastic": { "type": "boolean" },
+        "event_policy": { "enum": ["none_continuous_summary_only", "aggregate_particle_module_substance_macro_step"] },
+        "substance_kinds": { "$ref": "#/$defs/stringArray" },
+        "requires_modules": { "$ref": "#/$defs/stringArray" },
+        "requires_capabilities": { "$ref": "#/$defs/stringArray" },
+        "override_fields": { "$ref": "#/$defs/stringArray" },
+        "parameter_contracts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/parameterContract" }
+        },
+        "scientific_references": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scientificReference" }
+        }
+      }
+    },
+    "quantityText": {
+      "type": "string",
+      "pattern": "^[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)? [^\\s]+$"
+    },
+    "parameterContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "wire_type", "unit", "required", "default", "minimum_si", "maximum_si"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "wire_type": { "enum": ["quantity", "finite_number", "positive_integer", "enum", "boolean", "factor_array", "time_series"] },
+        "unit": { "type": ["string", "null"] },
+        "required": { "type": "boolean" },
+        "default": {},
+        "minimum_si": { "type": ["number", "null"] },
+        "maximum_si": { "type": ["number", "null"] },
+        "allowed_values": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "scientificReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["citation", "doi", "role"],
+      "properties": {
+        "citation": { "type": "string", "minLength": 1 },
+        "doi": { "type": ["string", "null"], "pattern": "^10\\..+/.+$" },
+        "role": { "type": "string", "minLength": 1 }
+      }
+    },
+    "preset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "modules", "allowed_substance_kinds"],
+      "properties": {
+        "id": { "enum": ["water_vapor_tracking", "gas_transport", "aerosol_transport", "buoyant_release"] },
+        "modules": { "$ref": "#/$defs/stringArray" },
+        "allowed_substance_kinds": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "pipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["substep_partition", "local_process_split", "motion_composition", "batch_boundary", "sequence", "determinism", "backward_operator"],
+      "properties": {
+        "substep_partition": { "const": "integer_nanosecond_common_partition/v1" },
+        "local_process_split": { "const": "symmetric_second_order_strang/v1" },
+        "motion_composition": { "const": "resolved_plus_bl_plus_mesoscale_plus_settling_midpoint/v1" },
+        "batch_boundary": { "const": "all_particles_share_substep_boundaries" },
+        "sequence": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "determinism": { "const": "same_seed_w1_wn_normalized_science_byte_identical" },
+        "backward_operator": { "const": "transpose_local_jacobians_and_column_transfer_kernel" }
+      }
+    },
+    "randomness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "key_algorithm", "key_fields", "birth_indices", "dimensions", "gaussian_transform"],
+      "properties": {
+        "algorithm": { "const": "philox4x32-10/v1" },
+        "key_algorithm": { "const": "m6_process_random_key/v1" },
+        "key_fields": {
+          "const": ["seed", "particle_stable_id", "module_id", "macro_step", "substep", "sampling_dimension", "draw_index"]
+        },
+        "birth_indices": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["macro_step", "substep"],
+          "properties": {
+            "macro_step": { "const": 0 },
+            "substep": { "const": 0 }
+          }
+        },
+        "dimensions": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": "integer", "minimum": 32 }
+        },
+        "gaussian_transform": { "const": "box_muller_open_interval_fixed_pair/v1" }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "stage", "streaming", "options"],
+      "properties": {
+        "path": { "enum": ["job resume", "result processes"] },
+        "stage": { "enum": ["m6_a1", "m6_a8"] },
+        "streaming": { "type": "boolean" },
+        "options": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wall_interval_seconds", "retained_generations", "boundary", "publish", "payload", "resume_database", "source_identity_policy", "completed_job_policy"],
+      "properties": {
+        "wall_interval_seconds": { "const": 1800 },
+        "retained_generations": { "const": 2 },
+        "boundary": { "const": "complete_macro_step_only" },
+        "publish": { "const": "temporary_sync_sha_validate_atomic_rename" },
+        "payload": { "$ref": "#/$defs/stringArray" },
+        "resume_database": { "const": "sqlite_backup_then_trim_after_high_water" },
+        "source_identity_policy": { "const": "exact_match_no_migration" },
+        "completed_job_policy": { "const": "reject_resume_and_do_not_rerun" }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maximum_automatic_recoveries", "automatic_reasons", "manual_reasons", "new_attempt", "parent_preservation"],
+      "properties": {
+        "maximum_automatic_recoveries": { "const": 3 },
+        "automatic_reasons": { "$ref": "#/$defs/stringArray" },
+        "manual_reasons": { "$ref": "#/$defs/stringArray" },
+        "new_attempt": { "const": true },
+        "parent_preservation": { "const": "immutable_forensic_lineage" }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["comparison_particles", "comparison_duration_hours", "flexpart_ratio_gate", "flexpart_ratio_target", "formal_particles", "formal_duration_hours", "peak_rss_gib", "sqlite_gib", "scaling_ratio", "checkpoint_overhead_fraction", "instrumentation_overhead_fraction"],
+      "properties": {
+        "comparison_particles": { "const": 50000 },
+        "comparison_duration_hours": { "const": 24 },
+        "flexpart_ratio_gate": { "const": 1.25 },
+        "flexpart_ratio_target": { "const": 1.0 },
+        "formal_particles": { "const": 100000 },
+        "formal_duration_hours": { "const": 24 },
+        "peak_rss_gib": { "const": 4.0 },
+        "sqlite_gib": { "const": 4.0 },
+        "scaling_ratio": { "const": 2.4 },
+        "checkpoint_overhead_fraction": { "const": 0.05 },
+        "instrumentation_overhead_fraction": { "const": 0.03 }
+      }
+    }
+  }
+}

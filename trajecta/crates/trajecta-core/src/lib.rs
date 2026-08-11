@@ -15,6 +15,7 @@ pub mod manifest;
 pub mod manifest_store;
 pub mod output;
 pub mod particle;
+pub mod physics;
 pub mod population;
 pub mod reference;
 pub mod release;

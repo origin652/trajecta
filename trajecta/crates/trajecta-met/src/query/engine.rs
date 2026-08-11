@@ -13,6 +13,7 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 use trajecta_case::model::meteorology::DomainId;
 use trajecta_case::model::time::Timestamp;
 
+use crate::derive::pv::potential_temperature_k;
 use crate::derive::surface::{
     SurfaceExchangeInput, SurfaceExchangeScales, SurfaceMomentumInput, surface_exchange_scales,
 };
@@ -21,7 +22,7 @@ use crate::derive::vertical_velocity::{
     KinematicVerticalVelocityInput, geometric_vertical_velocity_m_s,
     native_coordinate_velocity_from_omega, terrain_following_surface_velocity_m_s,
 };
-use crate::field::{CanonicalField, FieldKey, FieldQuality, FieldRegistry};
+use crate::field::{CanonicalField, Capability, FieldKey, FieldQuality, FieldRegistry};
 use crate::frame::{
     ArrayLayout, FrameCache, FrameError, PreparedWindow, RawField, RawMetFrame, WindowManager,
 };
@@ -42,6 +43,7 @@ use crate::query::cache::{
     ExactTransportWindowKey, LastTransportQueryCache, MemoryBudget, PinGuard, TileCache,
 };
 use crate::query::layout::{BatchLayout, ChunkMemoryModel, LayoutError, PointPlacement};
+use crate::query::mesoscale::{MesoscaleStatisticsOutput, WeightedVelocity, weighted_variance};
 use crate::query::metrics::{
     ExactQueryKey, QueryCallCounters, active_query_counters, active_query_origin,
 };
@@ -55,10 +57,12 @@ use crate::query::request::{
     ExplainMode, QueryBatch, QueryPlan, QueryPlanBuilder, QueryPlanError, QueryPlanRequest,
     TransportPlan, TransportPlanRequest, VerticalQuery,
 };
+use crate::query::stability::StabilityOutput;
+use crate::science::M3_CONSTANTS;
 use crate::science::{
     AERODYNAMIC_ROUGHNESS_ZERO_PROJECTION_ALGORITHM_ID,
     LOWEST_COMPLETE_TRANSPORT_ANCHOR_ALGORITHM_ID, M3_MET_QUERY_ALGORITHM_ID,
-    SPECIFIC_HUMIDITY_NONNEGATIVE_PROJECTION_ALGORITHM_ID,
+    SPECIFIC_HUMIDITY_NONNEGATIVE_PROJECTION_ALGORITHM_ID, SURFACE_EXCHANGE_SCALES_ALGORITHM_ID,
     TEN_METRE_ANCHORED_SURFACE_WIND_ALGORITHM_ID, TWO_METRE_ANCHORED_SURFACE_SCALAR_ALGORITHM_ID,
 };
 use crate::surface_layer::{
@@ -452,6 +456,72 @@ impl PreparedWindow {
             transport_cache: self.transport_cache(),
             transport_cache_key,
             populate_transport_cache: query_origin.populates_transport_cache(),
+        })
+    }
+
+    /// Pins the two-time, four-corner, two-level support used by M6 mesoscale motion.
+    pub fn prepare_mesoscale_batch(
+        &self,
+        batch: QueryBatch,
+        _workspace: &mut BatchWorkspace,
+    ) -> Result<PreparedMesoscaleBatch, EngineError> {
+        let point_count = batch.validate().map_err(EngineError::QueryPlan)?;
+        self.validate_transport_time_support()
+            .map_err(EngineError::Frame)?;
+        let (placements, initial_status, horizontal_support) =
+            locate_points_with_weights(self, &batch)?;
+        let capabilities = crate::field::CapabilitySet::new().with(Capability::Transport);
+        let stencils = prepare_stencils(self, &batch, &placements, capabilities, true)?;
+        let layout = BatchLayout::build(
+            point_count,
+            placements,
+            self.execution_budget_bytes,
+            ChunkMemoryModel {
+                fixed_bytes: stencils.resident_bytes,
+                bytes_per_point: 256,
+                preferred_chunk_points: 65_536,
+            },
+        )
+        .map_err(EngineError::Layout)?;
+        Ok(PreparedMesoscaleBatch {
+            window: self.clone(),
+            batch,
+            layout,
+            initial_status,
+            horizontal_support,
+            stencils,
+        })
+    }
+
+    /// Pins complete local thermodynamic columns for M6 terrain stability.
+    pub fn prepare_stability_batch(
+        &self,
+        batch: QueryBatch,
+        _workspace: &mut BatchWorkspace,
+    ) -> Result<PreparedStabilityBatch, EngineError> {
+        let point_count = batch.validate().map_err(EngineError::QueryPlan)?;
+        let (placements, initial_status, horizontal_support) =
+            locate_points_with_weights(self, &batch)?;
+        let capabilities = crate::field::CapabilitySet::new().with(Capability::Transport);
+        let stencils = prepare_stencils(self, &batch, &placements, capabilities, false)?;
+        let layout = BatchLayout::build(
+            point_count,
+            placements,
+            self.execution_budget_bytes,
+            ChunkMemoryModel {
+                fixed_bytes: stencils.resident_bytes,
+                bytes_per_point: 192,
+                preferred_chunk_points: 65_536,
+            },
+        )
+        .map_err(EngineError::Layout)?;
+        Ok(PreparedStabilityBatch {
+            window: self.clone(),
+            batch,
+            layout,
+            initial_status,
+            horizontal_support,
+            stencils,
         })
     }
 
@@ -3858,6 +3928,28 @@ fn surface_input_fields(window: &PreparedWindow) -> Vec<CanonicalField> {
     fields
 }
 
+fn surface_exchange_input_fields(window: &PreparedWindow) -> Vec<CanonicalField> {
+    let mut fields = vec![
+        CanonicalField::SurfacePressure,
+        CanonicalField::TwoMetreAirTemperature,
+        CanonicalField::TwoMetreSpecificHumidity,
+        CanonicalField::SensibleHeatFlux,
+        CanonicalField::LatentHeatFlux,
+    ];
+    if has_field_at_query_time(window, CanonicalField::FrictionVelocity) {
+        fields.push(CanonicalField::FrictionVelocity);
+    } else {
+        fields.extend([
+            CanonicalField::EastwardSurfaceStress,
+            CanonicalField::NorthwardSurfaceStress,
+        ]);
+    }
+    if has_field_at_query_time(window, CanonicalField::MoninObukhovLength) {
+        fields.push(CanonicalField::MoninObukhovLength);
+    }
+    fields
+}
+
 fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) {
     if !values.contains(&value) {
         values.push(value);
@@ -4023,6 +4115,17 @@ fn field_inputs_and_quality(
     field: CanonicalField,
     route: QueryRoute,
 ) -> (Vec<CanonicalField>, FieldQuality, bool) {
+    if matches!(
+        field,
+        CanonicalField::FrictionVelocity | CanonicalField::MoninObukhovLength
+    ) && !has_field_at_query_time(window, field)
+    {
+        return (
+            surface_exchange_input_fields(window),
+            FieldQuality::Derived,
+            false,
+        );
+    }
     if route != QueryRoute::UpperAir
         && matches!(
             field,
@@ -4131,6 +4234,16 @@ fn build_field_metadata(
         }
     }
     append_physical_projection_transforms(&mut transforms, route, field);
+    if matches!(
+        field,
+        CanonicalField::FrictionVelocity | CanonicalField::MoninObukhovLength
+    ) && !has_field_at_query_time(window, field)
+    {
+        transforms.push(TransformRecord {
+            operation: SURFACE_EXCHANGE_SCALES_ALGORITHM_ID.into(),
+            parameters: vec![("output".into(), format!("{field:?}"))],
+        });
+    }
     transforms.push(query_transform(window, route, field));
     let provenance = table
         .intern(ProvenanceRecord {
@@ -4734,6 +4847,41 @@ fn derive_surface_exchange_scales(
                 field,
             )
         },
+    )
+}
+
+fn query_surface_exchange_scales(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    column: &ColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+) -> Result<SurfaceExchangeScales, EngineError> {
+    let two_metre_temperature_k = sample_surface_scalar_time(
+        window,
+        stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        CanonicalField::TwoMetreAirTemperature,
+    )?;
+    let two_metre_specific_humidity = sample_physical_two_metre_specific_humidity_time(
+        window,
+        stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
+    derive_surface_exchange_scales(
+        window,
+        stencils,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+        column.surface_pressure_pa(),
+        two_metre_temperature_k,
+        two_metre_specific_humidity,
     )
 }
 
@@ -6285,6 +6433,39 @@ fn generic_needs_surface_model(plan: &QueryPlan) -> bool {
 }
 
 #[allow(clippy::too_many_arguments)]
+fn requested_surface_exchange_scales(
+    plan: &QueryPlan,
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    column: &ColumnGeometry,
+    cell: crate::grid::CellId,
+    longitude_degrees: f64,
+    latitude_degrees: f64,
+) -> Result<Option<SurfaceExchangeScales>, EngineError> {
+    let needs_derivation = plan.fields().iter().any(|field| {
+        let FieldKey::Canonical(canonical) = field else {
+            return false;
+        };
+        matches!(
+            canonical,
+            CanonicalField::FrictionVelocity | CanonicalField::MoninObukhovLength
+        ) && !has_field_at_query_time(window, *canonical)
+    });
+    needs_derivation
+        .then(|| {
+            query_surface_exchange_scales(
+                window,
+                stencils,
+                column,
+                cell,
+                longitude_degrees,
+                latitude_degrees,
+            )
+        })
+        .transpose()
+}
+
+#[allow(clippy::too_many_arguments)]
 fn sample_generic_surface_point(
     plan: &QueryPlan,
     window: &PreparedWindow,
@@ -6410,6 +6591,15 @@ fn build_generic_surface_like_result(
         query_height_agl_m,
         lowest,
     )?;
+    let surface_exchange = requested_surface_exchange_scales(
+        plan,
+        window,
+        stencils,
+        column,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
     let mut result = GenericPointResult {
         values: vec![0.0; plan.fields().len()],
         valid: vec![false; plan.fields().len()],
@@ -6484,9 +6674,7 @@ fn build_generic_surface_like_result(
             | CanonicalField::EastwardSurfaceStress
             | CanonicalField::NorthwardSurfaceStress
             | CanonicalField::SensibleHeatFlux
-            | CanonicalField::LatentHeatFlux
-            | CanonicalField::FrictionVelocity
-            | CanonicalField::MoninObukhovLength => Some(sample_surface_scalar_time(
+            | CanonicalField::LatentHeatFlux => Some(sample_surface_scalar_time(
                 window,
                 stencils,
                 cell,
@@ -6494,6 +6682,30 @@ fn build_generic_surface_like_result(
                 latitude_degrees,
                 *canonical,
             )?),
+            CanonicalField::FrictionVelocity if !has_field_at_query_time(window, *canonical) => {
+                Some(
+                    surface_exchange
+                        .ok_or(EngineError::InvalidPreparedState)?
+                        .friction_velocity_m_s,
+                )
+            }
+            CanonicalField::MoninObukhovLength if !has_field_at_query_time(window, *canonical) => {
+                Some(
+                    surface_exchange
+                        .ok_or(EngineError::InvalidPreparedState)?
+                        .monin_obukhov_length_m,
+                )
+            }
+            CanonicalField::FrictionVelocity | CanonicalField::MoninObukhovLength => {
+                Some(sample_surface_scalar_time(
+                    window,
+                    stencils,
+                    cell,
+                    longitude_degrees,
+                    latitude_degrees,
+                    *canonical,
+                )?)
+            }
             _ => return Err(EngineError::UnsupportedQueryField(field.clone())),
         };
         if let Some(value) = value {
@@ -6611,6 +6823,15 @@ fn sample_generic_point(
         state.physical_specific_humidity,
     )
     .map_err(|_| EngineError::NumericalFailure)?;
+    let surface_exchange = requested_surface_exchange_scales(
+        plan,
+        window,
+        stencils,
+        &column.geometry,
+        cell,
+        longitude_degrees,
+        latitude_degrees,
+    )?;
     let needs_w = plan
         .fields()
         .iter()
@@ -6711,9 +6932,7 @@ fn sample_generic_point(
             | CanonicalField::EastwardSurfaceStress
             | CanonicalField::NorthwardSurfaceStress
             | CanonicalField::SensibleHeatFlux
-            | CanonicalField::LatentHeatFlux
-            | CanonicalField::FrictionVelocity
-            | CanonicalField::MoninObukhovLength => sample_surface_scalar_time(
+            | CanonicalField::LatentHeatFlux => sample_surface_scalar_time(
                 window,
                 stencils,
                 cell,
@@ -6721,11 +6940,453 @@ fn sample_generic_point(
                 latitude_degrees,
                 *canonical,
             )?,
+            CanonicalField::FrictionVelocity if !has_field_at_query_time(window, *canonical) => {
+                surface_exchange
+                    .ok_or(EngineError::InvalidPreparedState)?
+                    .friction_velocity_m_s
+            }
+            CanonicalField::MoninObukhovLength if !has_field_at_query_time(window, *canonical) => {
+                surface_exchange
+                    .ok_or(EngineError::InvalidPreparedState)?
+                    .monin_obukhov_length_m
+            }
+            CanonicalField::FrictionVelocity | CanonicalField::MoninObukhovLength => {
+                sample_surface_scalar_time(
+                    window,
+                    stencils,
+                    cell,
+                    longitude_degrees,
+                    latitude_degrees,
+                    *canonical,
+                )?
+            }
             _ => return Err(EngineError::UnsupportedQueryField(field.clone())),
         };
         result.values[index] = value;
     }
     Ok(result)
+}
+
+fn mesoscale_native_interval_seconds(window: &PreparedWindow) -> Result<f64, EngineError> {
+    if !window.is_exact_frame() {
+        return seconds_between(
+            window.frames.before.metadata().valid_time,
+            window.frames.after.metadata().valid_time,
+        );
+    }
+    let previous = window
+        .previous
+        .as_ref()
+        .ok_or(EngineError::InvalidPreparedState)?;
+    let next = window
+        .next
+        .as_ref()
+        .ok_or(EngineError::InvalidPreparedState)?;
+    let left = seconds_between(
+        previous.metadata().valid_time,
+        window.frames.before.metadata().valid_time,
+    )?;
+    let right = seconds_between(
+        window.frames.before.metadata().valid_time,
+        next.metadata().valid_time,
+    )?;
+    let interval = 0.5 * (left + right);
+    interval
+        .is_finite()
+        .then_some(interval)
+        .filter(|value| *value > 0.0)
+        .ok_or(EngineError::InvalidPreparedState)
+}
+
+fn mesoscale_vertical_bracket(
+    column: &ColumnShape,
+    coordinate: VerticalQuery,
+    value: f64,
+) -> Result<VerticalBracket, VerticalError> {
+    match vertical_bracket_shape(column, coordinate, value) {
+        Ok(bracket) => Ok(bracket),
+        Err(VerticalError::SurfaceLayerRequired) => {
+            let level = column.last_valid_index()?;
+            Ok(VerticalBracket {
+                first: level,
+                second: level,
+                second_weight: 0.0,
+            })
+        }
+        Err(error) => Err(error),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn mesoscale_corner_velocity(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    endpoint: WindowEndpoint,
+    cell: crate::grid::CellId,
+    query_weights: HorizontalWeights,
+    query_basis: SphericalBasis,
+    corner: usize,
+    level: usize,
+) -> Result<[f64; 3], EngineError> {
+    let frame = match endpoint {
+        WindowEndpoint::Before => &window.frames.before,
+        WindowEndpoint::After => &window.frames.after,
+    };
+    let prepared = frame_stencils(stencils, frame)?;
+    let stencil = prepared.stencil(cell)?;
+    let point = *stencil
+        .points()
+        .get(corner)
+        .ok_or(EngineError::InvalidPreparedState)?;
+    let eastward = frame
+        .fields()
+        .get(&FieldKey::Canonical(CanonicalField::EastwardWind))
+        .ok_or(EngineError::MissingField(FieldKey::Canonical(
+            CanonicalField::EastwardWind,
+        )))?;
+    let northward = frame
+        .fields()
+        .get(&FieldKey::Canonical(CanonicalField::NorthwardWind))
+        .ok_or(EngineError::MissingField(FieldKey::Canonical(
+            CanonicalField::NorthwardWind,
+        )))?;
+    let (source_eastward, eastward_valid) = field_3d_value(eastward, level, point)?;
+    let (source_northward, northward_valid) = field_3d_value(northward, level, point)?;
+    if !eastward_valid || !northward_valid {
+        return Err(EngineError::Vertical(
+            VerticalError::InvalidHorizontalSupport,
+        ));
+    }
+    let horizontal = query_basis
+        .project(stencil.source_bases()[corner].embed(source_eastward, source_northward));
+    let vertical = mesoscale_corner_vertical_velocity(
+        window,
+        stencils,
+        endpoint,
+        cell,
+        query_weights,
+        corner,
+        level,
+        source_eastward,
+        source_northward,
+    )?;
+    let value = [horizontal.0, horizontal.1, vertical];
+    value
+        .into_iter()
+        .all(f64::is_finite)
+        .then_some(value)
+        .ok_or(EngineError::NumericalFailure)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn mesoscale_corner_vertical_velocity(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    endpoint: WindowEndpoint,
+    cell: crate::grid::CellId,
+    query_weights: HorizontalWeights,
+    corner: usize,
+    level: usize,
+    eastward_wind_m_s: f64,
+    northward_wind_m_s: f64,
+) -> Result<f64, EngineError> {
+    let frame = match endpoint {
+        WindowEndpoint::Before => &window.frames.before,
+        WindowEndpoint::After => &window.frames.after,
+    };
+    let prepared = frame_stencils(stencils, frame)?;
+    let point = *prepared
+        .stencil(cell)?
+        .points()
+        .get(corner)
+        .ok_or(EngineError::InvalidPreparedState)?;
+    let mut corner_weights = [0.0; 4];
+    corner_weights[corner] = 1.0;
+    let one_hot = HorizontalWeights {
+        points: query_weights.points,
+        weights: corner_weights,
+        valid: [true; 4],
+    };
+    let latitude_degrees = frame.metadata().grid.latitude_origin_degrees
+        + frame.metadata().grid.latitude_spacing_degrees * point.y as f64;
+    let shape = prepared.shape_with_weights(cell, one_hot)?;
+    if !shape.validity().get(level).copied().unwrap_or(false) {
+        return Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn));
+    }
+    let stencil = prepared.stencil(cell)?;
+    let (coordinate_kind, native_coordinate) = stencil.native_coordinate();
+    if native_coordinate.len() != shape.height_asl_m().len() {
+        return Err(EngineError::InvalidPreparedState);
+    }
+    let vertical_field = vertical_velocity_field(prepared, coordinate_kind);
+    let source_vertical_velocity =
+        sample_level_scalar_with_weights(prepared, cell, level, corner_weights, vertical_field)?;
+    let (geometry, height_time_derivative_m_s, pressure_time_derivative_pa_s) =
+        mesoscale_endpoint_level_geometry(
+            window,
+            stencils,
+            endpoint,
+            cell,
+            one_hot,
+            latitude_degrees,
+            level,
+        )?;
+    let pressure_coordinate_derivative = (coordinate_kind == NativeCoordinateKind::HybridEta)
+        .then(|| derivative_at(shape.pressure_pa(), native_coordinate, level))
+        .transpose()?;
+    derive_geometric_w_at_level(
+        coordinate_kind,
+        vertical_field,
+        geometry,
+        height_time_derivative_m_s,
+        pressure_time_derivative_pa_s,
+        eastward_wind_m_s,
+        northward_wind_m_s,
+        source_vertical_velocity,
+        derivative_at(shape.height_asl_m(), native_coordinate, level)?,
+        pressure_coordinate_derivative,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn mesoscale_endpoint_level_geometry(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    endpoint: WindowEndpoint,
+    cell: crate::grid::CellId,
+    weights: HorizontalWeights,
+    latitude_degrees: f64,
+    level: usize,
+) -> Result<(crate::vertical::NativeLevelGeometry, f64, f64), EngineError> {
+    if window.is_exact_frame() {
+        return target_level_geometry_with_weights(
+            window,
+            stencils,
+            cell,
+            weights,
+            latitude_degrees,
+            level,
+        );
+    }
+    let before = frame_stencils(stencils, &window.frames.before)?;
+    let after = frame_stencils(stencils, &window.frames.after)?;
+    let before_geometry = before
+        .stencil(cell)?
+        .level_geometry_with_weights(&before.frame, cell, weights, latitude_degrees, level)
+        .map_err(EngineError::Vertical)?;
+    let after_geometry = after
+        .stencil(cell)?
+        .level_geometry_with_weights(&after.frame, cell, weights, latitude_degrees, level)
+        .map_err(EngineError::Vertical)?;
+    let seconds = seconds_between(
+        window.frames.before.metadata().valid_time,
+        window.frames.after.metadata().valid_time,
+    )?;
+    let geometry = match endpoint {
+        WindowEndpoint::Before => before_geometry,
+        WindowEndpoint::After => after_geometry,
+    };
+    Ok((
+        geometry,
+        (after_geometry.height_asl_m - before_geometry.height_asl_m) / seconds,
+        (after_geometry.pressure_pa - before_geometry.pressure_pa) / seconds,
+    ))
+}
+
+fn sample_mesoscale_point(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    batch: &QueryBatch,
+    cell: crate::grid::CellId,
+    original_index: usize,
+    query_weights: HorizontalWeights,
+) -> Result<[f64; 3], EngineError> {
+    let longitude_degrees = batch.points.longitude_degrees[original_index];
+    let latitude_degrees = batch.points.latitude_degrees[original_index];
+    let vertical_value = batch.points.vertical[original_index];
+    let query_basis = spherical_vector_query_basis(longitude_degrees, latitude_degrees)
+        .map_err(EngineError::Grid)?;
+    let column = target_transport_column(window, stencils, cell, query_weights)?;
+    let bracket =
+        mesoscale_vertical_bracket(column.geometry(), batch.vertical_coordinate, vertical_value)
+            .map_err(EngineError::Vertical)?;
+    let vertical = [
+        (bracket.first, 1.0 - bracket.second_weight),
+        (bracket.second, bracket.second_weight),
+    ];
+    let endpoints = [
+        (WindowEndpoint::Before, window.before_weight),
+        (WindowEndpoint::After, window.after_weight),
+    ];
+    let mut support = Vec::with_capacity(16);
+    for (endpoint, time_weight) in endpoints {
+        if time_weight == 0.0 {
+            continue;
+        }
+        let frame = match endpoint {
+            WindowEndpoint::Before => &window.frames.before,
+            WindowEndpoint::After => &window.frames.after,
+        };
+        let frame_stencils = frame_stencils(stencils, frame)?;
+        let shape = match endpoint {
+            WindowEndpoint::Before => &column.before,
+            WindowEndpoint::After => column.after(),
+        };
+        for (level, vertical_weight) in vertical {
+            if vertical_weight == 0.0 {
+                continue;
+            }
+            let horizontal_weights = frame_stencils.level_horizontal_weights_with_weights(
+                cell,
+                query_weights,
+                shape,
+                level,
+            )?;
+            for (corner, horizontal_weight) in horizontal_weights.into_iter().enumerate() {
+                let weight = time_weight * vertical_weight * horizontal_weight;
+                if weight == 0.0 {
+                    continue;
+                }
+                support.push(WeightedVelocity {
+                    weight,
+                    velocity_m_s: mesoscale_corner_velocity(
+                        window,
+                        stencils,
+                        endpoint,
+                        cell,
+                        query_weights,
+                        query_basis,
+                        corner,
+                        level,
+                    )?,
+                });
+            }
+        }
+    }
+    weighted_variance(&support).map_err(|_| EngineError::NumericalFailure)
+}
+
+fn stability_target_height_asl_m(
+    column: &ColumnShape,
+    coordinate: VerticalQuery,
+    value: f64,
+) -> Result<f64, EngineError> {
+    match coordinate {
+        VerticalQuery::AboveSeaLevel => match column.locate_height_asl_m(value) {
+            Ok(_) | Err(VerticalError::SurfaceLayerRequired) => Ok(value),
+            Err(error) => Err(EngineError::Vertical(error)),
+        },
+        VerticalQuery::AboveGround => {
+            let height = column.terrain_asl_m() + value;
+            match column.locate_height_agl_m(value) {
+                Ok(_) | Err(VerticalError::SurfaceLayerRequired) => Ok(height),
+                Err(error) => Err(EngineError::Vertical(error)),
+            }
+        }
+        VerticalQuery::Pressure => {
+            let bracket = column
+                .locate_pressure_pa(value)
+                .map_err(EngineError::Vertical)?;
+            bracket
+                .interpolate(column.height_asl_m())
+                .map_err(EngineError::Vertical)
+        }
+    }
+}
+
+fn interpolate_layer_value(
+    target_height_asl_m: f64,
+    midpoint_height_asl_m: &[f64],
+    values: &[f64],
+) -> Result<f64, EngineError> {
+    if midpoint_height_asl_m.is_empty()
+        || midpoint_height_asl_m.len() != values.len()
+        || midpoint_height_asl_m
+            .windows(2)
+            .any(|pair| pair[1] >= pair[0])
+    {
+        return Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn));
+    }
+    if target_height_asl_m >= midpoint_height_asl_m[0] {
+        return Ok(values[0]);
+    }
+    if target_height_asl_m <= midpoint_height_asl_m[midpoint_height_asl_m.len() - 1] {
+        return values
+            .last()
+            .copied()
+            .ok_or(EngineError::InvalidPreparedState);
+    }
+    for (index, heights) in midpoint_height_asl_m.windows(2).enumerate() {
+        if target_height_asl_m <= heights[0] && target_height_asl_m >= heights[1] {
+            let fraction = (heights[0] - target_height_asl_m) / (heights[0] - heights[1]);
+            let value = (values[index + 1] - values[index]).mul_add(fraction, values[index]);
+            return value
+                .is_finite()
+                .then_some(value)
+                .ok_or(EngineError::NumericalFailure);
+        }
+    }
+    Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn))
+}
+
+fn sample_stability_point(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    batch: &QueryBatch,
+    cell: crate::grid::CellId,
+    original_index: usize,
+    weights: HorizontalWeights,
+) -> Result<f64, EngineError> {
+    let column = target_transport_column(window, stencils, cell, weights)?;
+    let geometry = column.geometry();
+    let target_height_asl_m = stability_target_height_asl_m(
+        geometry,
+        batch.vertical_coordinate,
+        batch.points.vertical[original_index],
+    )?;
+    let first = geometry
+        .first_valid_index()
+        .map_err(EngineError::Vertical)?;
+    let last = geometry.last_valid_index().map_err(EngineError::Vertical)?;
+    if last <= first || geometry.validity()[first..=last].iter().any(|valid| !valid) {
+        return Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn));
+    }
+
+    let mut theta = Vec::with_capacity(last - first + 1);
+    for level in first..=last {
+        let temperature_k = time_level_scalar_from_shapes(
+            window,
+            stencils,
+            &column,
+            weights,
+            cell,
+            level,
+            CanonicalField::AirTemperature,
+        )?;
+        theta.push(
+            potential_temperature_k(temperature_k, geometry.pressure_pa()[level])
+                .map_err(|_| EngineError::NumericalFailure)?,
+        );
+    }
+
+    let heights = &geometry.height_asl_m()[first..=last];
+    let mut layer_midpoints = Vec::with_capacity(heights.len() - 1);
+    let mut frequency_squared = Vec::with_capacity(heights.len() - 1);
+    for (level, height_pair) in heights.windows(2).enumerate() {
+        let dz = height_pair[1] - height_pair[0];
+        let theta_mean = 0.5 * (theta[level] + theta[level + 1]);
+        if !dz.is_finite() || dz >= 0.0 || !theta_mean.is_finite() || theta_mean <= 0.0 {
+            return Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn));
+        }
+        let value = M3_CONSTANTS.standard_gravity_m_s2 / theta_mean
+            * ((theta[level + 1] - theta[level]) / dz);
+        if !value.is_finite() {
+            return Err(EngineError::NumericalFailure);
+        }
+        layer_midpoints.push(0.5 * (height_pair[0] + height_pair[1]));
+        frequency_squared.push(value);
+    }
+    interpolate_layer_value(target_height_asl_m, &layer_midpoints, &frequency_squared)
 }
 
 fn validate_execution_state(
@@ -6787,6 +7448,175 @@ fn sample_transport_chunk(
 
     let pool = execution_pool(worker_count)?;
     Ok(pool.install(|| (start..end).into_par_iter().map(sample).collect()))
+}
+
+fn sample_mesoscale_chunk(
+    prepared: &PreparedMesoscaleBatch,
+    start: usize,
+    end: usize,
+    worker_count: usize,
+) -> Result<Vec<Result<[f64; 3], EngineError>>, EngineError> {
+    let sample = |internal_index: usize| {
+        let original_index = prepared.layout.permutation.forward[internal_index];
+        let cell = prepared.layout.cell_ids[internal_index];
+        let weights = prepared
+            .horizontal_support
+            .get(original_index)
+            .copied()
+            .flatten()
+            .ok_or(EngineError::InvalidPreparedState)?;
+        sample_mesoscale_point(
+            &prepared.window,
+            &prepared.stencils,
+            &prepared.batch,
+            cell,
+            original_index,
+            weights,
+        )
+    };
+    let point_count = end.saturating_sub(start);
+    if worker_count == 1 || point_count < PARALLEL_TRANSPORT_MIN_POINTS {
+        return Ok((start..end).map(sample).collect());
+    }
+    let pool = execution_pool(worker_count)?;
+    Ok(pool.install(|| (start..end).into_par_iter().map(sample).collect()))
+}
+
+fn sample_stability_chunk(
+    prepared: &PreparedStabilityBatch,
+    start: usize,
+    end: usize,
+    worker_count: usize,
+) -> Result<Vec<Result<f64, EngineError>>, EngineError> {
+    let sample = |internal_index: usize| {
+        let original_index = prepared.layout.permutation.forward[internal_index];
+        let cell = prepared.layout.cell_ids[internal_index];
+        let weights = prepared
+            .horizontal_support
+            .get(original_index)
+            .copied()
+            .flatten()
+            .ok_or(EngineError::InvalidPreparedState)?;
+        sample_stability_point(
+            &prepared.window,
+            &prepared.stencils,
+            &prepared.batch,
+            cell,
+            original_index,
+            weights,
+        )
+    };
+    let point_count = end.saturating_sub(start);
+    if worker_count == 1 || point_count < PARALLEL_TRANSPORT_MIN_POINTS {
+        return Ok((start..end).map(sample).collect());
+    }
+    let pool = execution_pool(worker_count)?;
+    Ok(pool.install(|| (start..end).into_par_iter().map(sample).collect()))
+}
+
+/// Fully pinned local space-time wind support for M6 mesoscale motion.
+#[derive(Clone, Debug)]
+pub struct PreparedMesoscaleBatch {
+    /// Immutable pinned time window.
+    pub window: PreparedWindow,
+    /// Original query batch.
+    pub batch: QueryBatch,
+    /// Backend-neutral deterministic layout.
+    pub layout: BatchLayout,
+    /// Preparation-time local statuses; executable points remain `Ok`.
+    pub initial_status: Vec<SampleStatus>,
+    horizontal_support: Vec<Option<HorizontalWeights>>,
+    stencils: PreparedStencils,
+}
+
+impl PreparedMesoscaleBatch {
+    /// Computes three-component weighted wind variance without source I/O.
+    pub fn execute(
+        &self,
+        context: &dyn ExecutionContext,
+        _workspace: &mut BatchWorkspace,
+    ) -> Result<MesoscaleStatisticsOutput, EngineError> {
+        validate_execution_state(context, &self.layout, self.initial_status.len())?;
+        if self.horizontal_support.len() != self.initial_status.len() {
+            return Err(EngineError::InvalidPreparedState);
+        }
+        let native_interval_seconds = mesoscale_native_interval_seconds(&self.window)?;
+        let mut status = self.initial_status.clone();
+        let mut variance_m2_s2 = vec![[0.0; 3]; status.len()];
+        for boundaries in self.layout.chunks.boundaries.windows(2) {
+            let sampled =
+                sample_mesoscale_chunk(self, boundaries[0], boundaries[1], context.worker_count())?;
+            for (internal_index, point) in (boundaries[0]..boundaries[1]).zip(sampled) {
+                let original_index = self.layout.permutation.forward[internal_index];
+                match point {
+                    Ok(variance) => variance_m2_s2[original_index] = variance,
+                    Err(error) => {
+                        if let Some(local_status) = local_status_for_error(&error) {
+                            status[original_index] = local_status;
+                        } else {
+                            return Err(error);
+                        }
+                    }
+                }
+            }
+        }
+        MesoscaleStatisticsOutput::new(
+            variance_m2_s2,
+            StatusColumn::new(status),
+            native_interval_seconds,
+        )
+        .map_err(|_| EngineError::InvalidPreparedState)
+    }
+}
+
+/// Fully pinned local thermodynamic columns for M6 terrain stability.
+#[derive(Clone, Debug)]
+pub struct PreparedStabilityBatch {
+    /// Immutable pinned time window.
+    pub window: PreparedWindow,
+    /// Original query batch.
+    pub batch: QueryBatch,
+    /// Backend-neutral deterministic layout.
+    pub layout: BatchLayout,
+    /// Preparation-time local statuses; executable points remain `Ok`.
+    pub initial_status: Vec<SampleStatus>,
+    horizontal_support: Vec<Option<HorizontalWeights>>,
+    stencils: PreparedStencils,
+}
+
+impl PreparedStabilityBatch {
+    /// Computes dry-column Brunt-Vaisala frequency without source I/O.
+    pub fn execute(
+        &self,
+        context: &dyn ExecutionContext,
+        _workspace: &mut BatchWorkspace,
+    ) -> Result<StabilityOutput, EngineError> {
+        validate_execution_state(context, &self.layout, self.initial_status.len())?;
+        if self.horizontal_support.len() != self.initial_status.len() {
+            return Err(EngineError::InvalidPreparedState);
+        }
+        let mut status = self.initial_status.clone();
+        let mut values = vec![0.0; status.len()];
+        for boundaries in self.layout.chunks.boundaries.windows(2) {
+            let sampled =
+                sample_stability_chunk(self, boundaries[0], boundaries[1], context.worker_count())?;
+            for (internal_index, point) in (boundaries[0]..boundaries[1]).zip(sampled) {
+                let original_index = self.layout.permutation.forward[internal_index];
+                match point {
+                    Ok(value) => values[original_index] = value,
+                    Err(error) => {
+                        if let Some(local_status) = local_status_for_error(&error) {
+                            status[original_index] = local_status;
+                        } else {
+                            return Err(error);
+                        }
+                    }
+                }
+            }
+        }
+        StabilityOutput::new(values, StatusColumn::new(status))
+            .map_err(|_| EngineError::InvalidPreparedState)
+    }
 }
 
 /// Fully pinned, I/O-free geometry for continuous boundary policies.
@@ -7310,6 +8140,47 @@ mod tests {
         analytic_pressure_frame_with_estimated(seconds, None)
     }
 
+    fn flat_calm_pressure_frame(seconds: i64) -> Arc<RawMetFrame> {
+        let frame = analytic_pressure_frame(seconds);
+        let mut fields = RawFieldStore::new();
+        for (key, field) in frame.fields().iter() {
+            let values = match key {
+                FieldKey::Canonical(CanonicalField::GeometricHeight) => Some(
+                    vec![6_000.0; 4]
+                        .into_iter()
+                        .chain(vec![1_000.0; 4])
+                        .collect(),
+                ),
+                FieldKey::Canonical(
+                    CanonicalField::EastwardWind
+                    | CanonicalField::NorthwardWind
+                    | CanonicalField::PressureVerticalVelocity,
+                ) => Some(vec![0.0; 8]),
+                FieldKey::Canonical(CanonicalField::GeometricTerrainHeight) => Some(vec![100.0; 4]),
+                _ => None,
+            };
+            let field = if let Some(values) = values {
+                RawField::new(
+                    Arc::from(values),
+                    field.validity().as_arc().clone(),
+                    field.unit().clone(),
+                    field.layout(),
+                    field.temporal(),
+                    field.quality(),
+                    field.provenance(),
+                )
+                .unwrap()
+            } else {
+                field.clone()
+            };
+            fields.insert(key.clone(), field).unwrap();
+        }
+        Arc::new(
+            RawMetFrame::publish(frame.metadata().clone(), fields, frame.provenance().clone())
+                .unwrap(),
+        )
+    }
+
     fn analytic_pressure_frame_with_low_bottom(
         seconds: i64,
         incomplete_bottom_transport: bool,
@@ -7384,6 +8255,35 @@ mod tests {
             if !is_surface_layer_input {
                 fields.insert(key.clone(), field.clone()).unwrap();
             }
+        }
+        Arc::new(
+            RawMetFrame::publish(frame.metadata().clone(), fields, frame.provenance().clone())
+                .unwrap(),
+        )
+    }
+
+    fn analytic_pressure_frame_with_missing_temperature_level(seconds: i64) -> Arc<RawMetFrame> {
+        let frame = analytic_pressure_frame(seconds);
+        let temperature = FieldKey::Canonical(CanonicalField::AirTemperature);
+        let mut fields = RawFieldStore::new();
+        for (key, field) in frame.fields().iter() {
+            let field = if key == &temperature {
+                let mut valid = field.validity().as_arc().to_vec();
+                valid[..4].fill(false);
+                RawField::new(
+                    field.values().clone(),
+                    Arc::from(valid),
+                    field.unit().clone(),
+                    field.layout(),
+                    field.temporal(),
+                    field.quality(),
+                    field.provenance(),
+                )
+                .unwrap()
+            } else {
+                field.clone()
+            };
+            fields.insert(key.clone(), field).unwrap();
         }
         Arc::new(
             RawMetFrame::publish(frame.metadata().clone(), fields, frame.provenance().clone())
@@ -7903,6 +8803,136 @@ mod tests {
             .execute(&RayonExecutionContext { worker_threads: 4 }, &mut workspace)
             .unwrap();
         assert_eq!(output, replay);
+    }
+
+    #[test]
+    fn mesoscale_statistics_keep_calm_uniform_support_exactly_zero() {
+        let mut window = PreparedWindow::at_frame(
+            Some(flat_calm_pressure_frame(0)),
+            flat_calm_pressure_frame(3_600),
+            Some(flat_calm_pressure_frame(7_200)),
+            8 * 1024 * 1024,
+        )
+        .unwrap();
+        let cache = Arc::new(Mutex::new(ColumnCache::new(8 * 1024 * 1024)));
+        window.attach_column_cache(&cache);
+        let batch = QueryBatch {
+            vertical_coordinate: VerticalQuery::Pressure,
+            points: QueryPointArrays {
+                longitude_degrees: vec![0.5, 0.5],
+                latitude_degrees: vec![0.5, 90.0],
+                vertical: vec![70_000.0; 2],
+            },
+        };
+        let mut workspace = BatchWorkspace::default();
+        let output = window
+            .prepare_mesoscale_batch(batch, &mut workspace)
+            .unwrap()
+            .execute(&RayonExecutionContext { worker_threads: 2 }, &mut workspace)
+            .unwrap();
+        assert_eq!(output.native_interval_seconds(), 3_600.0);
+        assert_eq!(output.variance_m2_s2(0), Some([0.0; 3]));
+        assert_eq!(output.status().get(1), Some(SampleStatus::PolarSingularity));
+        assert_eq!(output.variance_m2_s2(1), None);
+    }
+
+    #[test]
+    fn pressure_stability_matches_the_manufactured_dry_column() {
+        let (window, _cache) = attached_exact_window();
+        let mut workspace = BatchWorkspace::default();
+        let output = window
+            .prepare_stability_batch(
+                QueryBatch {
+                    vertical_coordinate: VerticalQuery::Pressure,
+                    points: QueryPointArrays {
+                        longitude_degrees: vec![0.5],
+                        latitude_degrees: vec![0.5],
+                        vertical: vec![70_000.0],
+                    },
+                },
+                &mut workspace,
+            )
+            .unwrap()
+            .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+            .unwrap();
+        let theta_top = potential_temperature_k(250.0, 50_000.0).unwrap();
+        let theta_bottom = potential_temperature_k(285.0, 90_000.0).unwrap();
+        let expected = M3_CONSTANTS.standard_gravity_m_s2 / (0.5 * (theta_top + theta_bottom))
+            * ((theta_bottom - theta_top) / (1_000.0 - 6_000.0));
+        let actual = output.brunt_vaisala_frequency_squared_s2(0).unwrap();
+        assert!((actual - expected).abs() <= 1.0e-12 * expected.abs().max(1.0));
+    }
+
+    #[test]
+    fn hybrid_stability_is_finite_and_worker_deterministic() {
+        let mut window = PreparedWindow::between(
+            analytic_hybrid_frame(0, true),
+            analytic_hybrid_frame(3_600, true),
+            Timestamp::new(1_800, 0).unwrap(),
+            8 * 1024 * 1024,
+        )
+        .unwrap();
+        let cache = Arc::new(Mutex::new(ColumnCache::new(8 * 1024 * 1024)));
+        window.attach_column_cache(&cache);
+        let batch = QueryBatch {
+            vertical_coordinate: VerticalQuery::Pressure,
+            points: QueryPointArrays {
+                longitude_degrees: vec![0.25, 0.75],
+                latitude_degrees: vec![0.25, 0.75],
+                vertical: vec![50_000.0, 70_000.0],
+            },
+        };
+        let mut workspace = BatchWorkspace::default();
+        let prepared = window
+            .prepare_stability_batch(batch, &mut workspace)
+            .unwrap();
+        let serial = prepared
+            .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+            .unwrap();
+        let parallel = prepared
+            .execute(&RayonExecutionContext { worker_threads: 4 }, &mut workspace)
+            .unwrap();
+        assert_eq!(parallel, serial);
+        for index in 0..2 {
+            assert!(
+                serial
+                    .brunt_vaisala_frequency_squared_s2(index)
+                    .is_some_and(f64::is_finite)
+            );
+        }
+    }
+
+    #[test]
+    fn stability_does_not_fill_a_missing_thermodynamic_layer() {
+        let mut window = PreparedWindow::at_frame(
+            Some(analytic_pressure_frame_with_missing_temperature_level(0)),
+            analytic_pressure_frame_with_missing_temperature_level(3_600),
+            Some(analytic_pressure_frame_with_missing_temperature_level(
+                7_200,
+            )),
+            8 * 1024 * 1024,
+        )
+        .unwrap();
+        let cache = Arc::new(Mutex::new(ColumnCache::new(8 * 1024 * 1024)));
+        window.attach_column_cache(&cache);
+        let mut workspace = BatchWorkspace::default();
+        let output = window
+            .prepare_stability_batch(
+                QueryBatch {
+                    vertical_coordinate: VerticalQuery::Pressure,
+                    points: QueryPointArrays {
+                        longitude_degrees: vec![0.5],
+                        latitude_degrees: vec![0.5],
+                        vertical: vec![70_000.0],
+                    },
+                },
+                &mut workspace,
+            )
+            .unwrap()
+            .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+            .unwrap();
+        assert_eq!(output.status().values(), &[SampleStatus::AboveAvailableTop]);
+        assert_eq!(output.brunt_vaisala_frequency_squared_s2(0), None);
     }
 
     #[test]
@@ -8500,6 +9530,77 @@ mod tests {
         assert_eq!(row.status(), SampleStatus::Ok);
         let humidity = row.specific_humidity().unwrap();
         assert!((humidity - 0.005).abs() < 1.0e-15, "humidity={humidity}");
+    }
+
+    #[test]
+    fn generic_query_derives_missing_surface_exchange_scales() {
+        let plan = generic_plan(
+            vec![
+                CanonicalField::FrictionVelocity,
+                CanonicalField::MoninObukhovLength,
+                CanonicalField::AirTemperature,
+                CanonicalField::AirDensity,
+            ],
+            true,
+        );
+        let mut window = PreparedWindow::between(
+            analytic_pressure_frame(0),
+            analytic_pressure_frame(3_600),
+            Timestamp::new(1_800, 0).unwrap(),
+            8 * 1024 * 1024,
+        )
+        .unwrap();
+        let cache = Arc::new(Mutex::new(ColumnCache::new(8 * 1024 * 1024)));
+        window.attach_column_cache(&cache);
+        let mut workspace = BatchWorkspace::default();
+        let output = window
+            .prepare_batch(
+                &plan,
+                QueryBatch {
+                    vertical_coordinate: VerticalQuery::AboveGround,
+                    points: QueryPointArrays {
+                        longitude_degrees: vec![0.5],
+                        latitude_degrees: vec![0.5],
+                        vertical: vec![100.0],
+                    },
+                },
+                &mut workspace,
+            )
+            .unwrap()
+            .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+            .unwrap();
+        let row = output.row(0).unwrap();
+        assert_eq!(row.status(), SampleStatus::Ok);
+
+        let density = moist_air_density_kg_m3(100_000.0, 290.0, 0.005).unwrap();
+        let expected = surface_exchange_scales(SurfaceExchangeInput {
+            air_density_kg_m3: density,
+            air_temperature_k: 290.0,
+            specific_humidity: 0.005,
+            momentum: SurfaceMomentumInput::SurfaceStress {
+                eastward_pa: 0.12,
+                northward_pa: 0.0,
+            },
+            sensible_heat_flux_w_m2: 100.0,
+            latent_heat_flux_w_m2: 50.0,
+        })
+        .unwrap();
+        let friction = FieldKey::Canonical(CanonicalField::FrictionVelocity);
+        let monin_obukhov = FieldKey::Canonical(CanonicalField::MoninObukhovLength);
+        assert_eq!(row.value(&friction), Some(expected.friction_velocity_m_s));
+        assert_eq!(
+            row.value(&monin_obukhov),
+            Some(expected.monin_obukhov_length_m)
+        );
+        for field in [&friction, &monin_obukhov] {
+            let record = row.provenance_record(field).unwrap();
+            assert_eq!(record.quality, FieldQuality::Derived);
+            assert!(
+                record.transforms.iter().any(|transform| {
+                    transform.operation == SURFACE_EXCHANGE_SCALES_ALGORITHM_ID
+                })
+            );
+        }
     }
 
     #[test]

@@ -306,7 +306,7 @@ fn case(family: Family, dataset: DatasetRef, direction: Direction, particles: u6
             },
             random_seed: Some(4_203),
         }),
-        physics: Vec::new(),
+        physics: None,
         outputs: vec![default_particle_state_output()],
         sources: Vec::new(),
     }

@@ -27,7 +27,7 @@ particle_population:
         coordinate: above_sea_level
         lower: { value: 1000, unit: m }
 substances:
-  - { id: water, display_name: Water vapor tracer }
+  - { id: water, display_name: Water vapor tracer, kind: water_vapor }
 numerics:
   time_step: { value: 300, unit: s }
   integrator: { model: rk2_spherical/v0 }

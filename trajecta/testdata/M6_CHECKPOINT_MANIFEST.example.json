@@ -1,0 +1,80 @@
+{
+  "schema_version": "trajecta.checkpoint/v1",
+  "checkpoint_id": "018f0000-0000-7000-8000-000000000010",
+  "job_series_id": "018f0000-0000-7000-8000-000000000001",
+  "run_id": "018f0000-0000-7000-8000-000000000002",
+  "attempt": 1,
+  "generation": 2,
+  "parent_checkpoint_id": "018f0000-0000-7000-8000-000000000009",
+  "source_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "resolved_identity": {
+    "case_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "run_profile_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "dataset_lock_sha256": {
+      "cfsr-pressure": "3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    "physics_contract": "trajecta/physics/m6/v1",
+    "tolerance_registry": "trajecta/tolerances/m6/v1"
+  },
+  "created_at": {"seconds_since_unix_epoch": 1786305600, "nanosecond": 0},
+  "boundary": {"kind": "complete_macro_step", "macro_step": 6, "substep_complete": true},
+  "physical_clock": {
+    "physical_time": {"seconds_since_unix_epoch": 1234567890, "nanosecond": 0},
+    "integration_offset_ns": 3600000000000,
+    "next_macro_step": 7
+  },
+  "particle_state": {
+    "layout": "trajecta.particle-soa/v1",
+    "particle_count": 1000,
+    "alive_count": 987,
+    "terminated_count": 13,
+    "substance_count": 1,
+    "direction": "forward"
+  },
+  "module_states": [
+    {
+      "module_id": "boundary_layer_langevin",
+      "state_schema": "trajecta.boundary-layer-state/v1",
+      "relative_path": "modules/boundary_layer_langevin.bin",
+      "size_bytes": 24000,
+      "sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+    }
+  ],
+  "random_state": {
+    "algorithm": "philox4x32-10/v1",
+    "key_algorithm": "m6_process_random_key/v1",
+    "seed": 42,
+    "next_macro_step": 7,
+    "draw_high_water": [
+      {"module_id": "boundary_layer_langevin", "sampling_dimension": 64, "draw_index_exclusive": 6}
+    ]
+  },
+  "high_water": {
+    "output_event_sequence_exclusive": 7,
+    "process_event_sequence_exclusive": 2048,
+    "particle_sample_counts_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+    "database_cursor": 2048
+  },
+  "database": {
+    "relative_path": "database/particles.sqlite",
+    "size_bytes": 8388608,
+    "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+    "user_version": 2,
+    "integrity_check": "ok",
+    "wal_bytes": 0
+  },
+  "payload": [
+    {"role": "database", "relative_path": "database/particles.sqlite", "size_bytes": 8388608, "sha256": "6666666666666666666666666666666666666666666666666666666666666666"},
+    {"role": "module_state", "relative_path": "modules/boundary_layer_langevin.bin", "size_bytes": 24000, "sha256": "4444444444444444444444444444444444444444444444444444444444444444"},
+    {"role": "sample_high_water", "relative_path": "particles/sample-high-water.bin", "size_bytes": 8000, "sha256": "5555555555555555555555555555555555555555555555555555555555555555"},
+    {"role": "particle_soa", "relative_path": "particles/soa.bin", "size_bytes": 160000, "sha256": "7777777777777777777777777777777777777777777777777777777777777777"}
+  ],
+  "publication": {
+    "temporary_write_complete": true,
+    "files_synced": true,
+    "directory_synced": true,
+    "sha256_verified": true,
+    "structure_validated": true,
+    "atomic_rename_complete": true
+  }
+}

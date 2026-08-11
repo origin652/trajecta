@@ -364,7 +364,7 @@ TABLES: dict[str, dict[str, Any]] = {
             SELECT particle_id, population_id, origin_kind, origin_event_id,
                    origin_domain_id, origin_boundary_face_id,
                    birth_seconds, birth_nanosecond,
-                   dry_air_mass_kg, sensitivity_weight
+                   dry_air_mass_kg
             FROM particle ORDER BY particle_id
         """,
         "keys": 1,
@@ -377,9 +377,8 @@ TABLES: dict[str, dict[str, Any]] = {
             "birth_seconds",
             "birth_nanosecond",
             "dry_air_mass_kg",
-            "sensitivity_weight",
         ],
-        "numeric": ["dry_air_mass_kg", "sensitivity_weight"],
+        "numeric": ["dry_air_mass_kg"],
     },
     "particle_mass": {
         "query": """
@@ -389,6 +388,15 @@ TABLES: dict[str, dict[str, Any]] = {
         "keys": 2,
         "columns": ["mass_kg"],
         "numeric": ["mass_kg"],
+    },
+    "particle_adjoint": {
+        "query": """
+            SELECT particle_id, substance_id, adjoint_weight, source_sensitivity
+            FROM particle_adjoint ORDER BY particle_id, substance_id
+        """,
+        "keys": 2,
+        "columns": ["adjoint_weight", "source_sensitivity"],
+        "numeric": ["adjoint_weight", "source_sensitivity"],
     },
     "output_event": {
         "query": """

@@ -86,7 +86,10 @@ impl DomainGeometry {
         }
         if self.periodic_longitude {
             let circumference = self.longitude_spacing_degrees * self.nx as f64;
-            if (circumference - 360.0).abs() > 1.0e-9 * 360.0 {
+            // Some official rasters store decimal approximations of an exact
+            // angular spacing. Keep the accepted circumference error well
+            // below one source pixel while admitting that metadata rounding.
+            if (circumference - 360.0).abs() > 5.0e-6 {
                 return Err(GridError::InvalidGeometry(
                     "periodic longitude must cover 360 degrees without a duplicate endpoint".into(),
                 ));
@@ -552,6 +555,22 @@ mod tests {
         assert_eq!(west, east);
         assert_eq!(west.points[0].x, 359);
         assert_eq!(west.points[1].x, 0);
+    }
+
+    #[test]
+    fn periodic_geometry_accepts_official_subpixel_spacing_rounding() {
+        let geometry = DomainGeometry {
+            domain: DomainId("official-raster".into()),
+            longitude_origin_degrees: -179.995_972_222_238_94,
+            latitude_origin_degrees: 83.995_693_748_461_33,
+            longitude_spacing_degrees: 0.008_333_333_300_000_011,
+            latitude_spacing_degrees: -0.008_333_333_300_000_011,
+            nx: 43_200,
+            ny: 20_880,
+            periodic_longitude: true,
+            halo_cells: 0,
+        };
+        assert_eq!(geometry.validate(), Ok(()));
     }
 
     #[test]

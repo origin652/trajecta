@@ -26,6 +26,27 @@ DEMO_CFSR = {
     "2009010112": (5452202, "f3cf06669e267fa69ed8d389d9180f0cfe395918a34baa2ab6bdcdf59373c5c5"),
     "2009010118": (5494468, "a10c5bddf9e01a5c519fbb45461ac019e2b3916661467b07c940ea99ee4ddade"),
 }
+GMTED2010_PROFILE = "gmted2010_30arcsec_mean_std"
+GMTED2010_RELEASE_BASE = (
+    "https://github.com/origin652/trajecta/releases/download/m6-gmted2010-v1"
+)
+GMTED2010_FILES = (
+    (
+        "gmted2010-30arcsec-mean.tgrid",
+        274_915_129,
+        "54070d724ab6aee76944b6fc10a029bd865efbf4c90747088c8f6d9404dabe3e",
+    ),
+    (
+        "gmted2010-30arcsec-standard-deviation.tgrid",
+        143_929_399,
+        "f2359a29c5790fbd8bf0298470269453a45b329d1312cab88666c92355fadb97",
+    ),
+    (
+        "gmted2010-source-manifest.json",
+        8_792,
+        "52e81a30ec3cdd44c7202325896bf40f8b6b4a9d0f5f8dd8fd29c4b0d2c97011",
+    ),
+)
 
 
 class FetchError(RuntimeError):
@@ -207,6 +228,8 @@ def request_area(case: dict[str, Any], profile: str) -> tuple[list[float], str]:
 
 def family(profile: str) -> str:
     lowered = profile.casefold()
+    if lowered == GMTED2010_PROFILE:
+        return "gmted2010"
     if lowered.startswith("cfsr-"):
         return "cfsr-pressure"
     if "era5" in lowered and "pressure" in lowered:
@@ -255,12 +278,41 @@ def cfsr_requests(values: list[int], root_relative: str) -> list[dict[str, Any]]
     return requests
 
 
+def gmted2010_requests(root_relative: str) -> list[dict[str, Any]]:
+    return [
+        {
+            "provider": "Trajecta frozen auxiliary-data release",
+            "dataset": "USGS GMTED2010 30 arc-second mean and standard deviation",
+            "urls": [f"{GMTED2010_RELEASE_BASE}/{name}"],
+            "target": f"{root_relative.rstrip('/')}/{name}",
+            "expected_size": size_bytes,
+            "expected_sha256": sha256,
+        }
+        for name, size_bytes, sha256 in GMTED2010_FILES
+    ]
+
+
 def requirement_plan(
     project_root: Path, requirement: dict[str, Any], case: dict[str, Any]
 ) -> dict[str, Any]:
     profile = requirement["dataset_profile"]
     selected_family = family(profile)
     root, root_relative = target_root(project_root, requirement)
+    if selected_family == "gmted2010":
+        return {
+            "profile_name": requirement["profile_name"],
+            "case_name": requirement["case_name"],
+            "dataset_id": requirement["dataset_id"],
+            "dataset_profile": profile,
+            "family": selected_family,
+            "target_root": root_relative,
+            "area_nswe": None,
+            "area_source": "global prepared auxiliary dataset",
+            "anchors_utc": [],
+            "requests": gmted2010_requests(root_relative),
+            "_target_root": root,
+            "_anchor_values": [],
+        }
     start = int(requirement["coverage_start"]["seconds_since_unix_epoch"])
     end = int(requirement["coverage_end"]["seconds_since_unix_epoch"])
     interval = 10_800 if selected_family == "era5-hybrid" else 21_600
@@ -336,7 +388,7 @@ def file_states(project_root: Path, requests: list[dict[str, Any]]) -> list[dict
     return states
 
 
-def fetch_cfsr(project_root: Path, item: dict[str, Any]) -> list[dict[str, Any]]:
+def fetch_fixed_files(project_root: Path, item: dict[str, Any]) -> list[dict[str, Any]]:
     from fetch_cfsr_pgbl import download
 
     completed = []
@@ -368,7 +420,8 @@ def fetch_cfsr(project_root: Path, item: dict[str, Any]) -> list[dict[str, Any]]
             except Exception as error:  # provider candidates are deliberately sequential
                 last_error = error
         if last_error is not None:
-            raise FetchError(f"all CFSR provider URLs failed for {request['stamp']}: {last_error}")
+            label = request.get("stamp", request["target"])
+            raise FetchError(f"all provider URLs failed for {label}: {last_error}")
         completed.append(file_identity(target, project_root))
     return completed
 
@@ -491,9 +544,9 @@ def execute_plan(project_root: Path, planned: list[dict[str, Any]]) -> list[dict
         root = item["_target_root"]
         root.mkdir(parents=True, exist_ok=True)
         files = (
-            fetch_cfsr(project_root, item)
-            if item["family"] == "cfsr-pressure"
-            else fetch_era5(project_root, item)
+            fetch_era5(project_root, item)
+            if item["family"] in {"era5-pressure", "era5-hybrid"}
+            else fetch_fixed_files(project_root, item)
         )
         manifest = {
             "tool": "fetch_trajecta_data.py",

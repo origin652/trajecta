@@ -20,7 +20,12 @@ particle_population:
   ozone_rule: flexpart_stratospheric_ozone_pv60/v1
   ozone_substance: ozone
 substances:
-  - { id: ozone, display_name: Ozone }
+  - id: ozone
+    display_name: Ozone
+    kind: gas
+    molar_mass: 48 g/mol
+    henry_constant: 0 mol/(m3 Pa)
+    surface_reactivity: 0
 numerics:
   time_step: { value: 300, unit: s }
   integrator: { model: rk2_spherical/v0 }

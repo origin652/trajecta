@@ -1,0 +1,73 @@
+{
+  "schema_version": "trajecta.m6.tolerances/v1",
+  "registry_id": "trajecta/tolerances/m6/v1",
+  "frozen_before_optimization": true,
+  "analytic_and_manufactured": {
+    "relative": 1e-10,
+    "absolute_floors": {
+      "dimensionless": 1e-12,
+      "mass_kg": 1e-15,
+      "position_m": 1e-8,
+      "velocity_m_s-1": 1e-10,
+      "rate_s-1": 1e-14,
+      "temperature_k": 1e-10,
+      "pressure_pa": 1e-8,
+      "probability": 1e-14
+    }
+  },
+  "conservation": {
+    "relative": 1e-10,
+    "forward_mass_absolute_kg": 1e-15,
+    "backward_adjoint_absolute": 1e-14,
+    "matrix_column_sum_absolute": 1e-12,
+    "negative_roundoff_floor": 1e-14
+  },
+  "adjoint": {
+    "dot_product_relative": 1e-8,
+    "dot_product_absolute": 1e-12
+  },
+  "stochastic": {
+    "ou": {
+      "mean_sigma": 0.02,
+      "variance_relative": 0.03,
+      "lag_one_correlation_absolute": 0.02
+    },
+    "minimum_samples": 1000000,
+    "minimum_independent_seeds": 8,
+    "confidence_reporting": "two_sided_95_percent_with_raw_moments"
+  },
+  "external_validation": {
+    "normalized_bias_absolute": 0.20,
+    "normalized_rmse": 0.30,
+    "normalization": "published_uncertainty_else_predeclared_observed_scale",
+    "minimum_observations": 20
+  },
+  "determinism": {
+    "worker_count": "normalized_scientific_bytes_identical",
+    "resume": "normalized_scientific_bytes_identical",
+    "pure_advection_regression": "normalized_scientific_bytes_identical_to_m5"
+  },
+  "performance": {
+    "measurement": {
+      "warmups": 1,
+      "formal_repetitions": 3,
+      "statistic": "median",
+      "host_policy": "same_host_same_input_same_cpu_set_alternating_order"
+    },
+    "comparison": {
+      "particles": 50000,
+      "duration_hours": 24,
+      "trajecta_over_flexpart_gate": 1.25,
+      "trajecta_over_flexpart_target": 1.0
+    },
+    "formal_resource": {
+      "particles": 100000,
+      "duration_hours": 24,
+      "peak_rss_bytes": 4294967296,
+      "sqlite_bytes": 4294967296,
+      "scaling_50k_to_100k": 2.4,
+      "checkpoint_overhead": 0.05,
+      "instrumentation_overhead": 0.03
+    }
+  }
+}

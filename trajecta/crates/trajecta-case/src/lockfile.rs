@@ -108,6 +108,8 @@ pub struct GridSignature {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum VerticalSignature {
+    /// Time-invariant two-dimensional surface or auxiliary raster.
+    Surface,
     /// Hybrid pressure coordinate with interface A/B coefficients.
     HybridPressure {
         /// Number of full model layers.
@@ -316,6 +318,7 @@ impl DatasetLock {
             );
         }
         match &self.vertical {
+            VerticalSignature::Surface => {}
             VerticalSignature::HybridPressure {
                 full_level_count,
                 coefficients_sha256,

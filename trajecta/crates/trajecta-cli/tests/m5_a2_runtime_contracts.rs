@@ -467,7 +467,7 @@ particle_population:
       mass: { tracer: { value: 1, unit: kg } }
       geometry: { source: inline, geometry: { type: Point, coordinates: [0, 0] } }
       vertical: { coordinate: above_sea_level, lower: { value: 100, unit: m } }
-substances: [{ id: tracer, display_name: Tracer }]
+substances: [{ kind: water_vapor, id: tracer, display_name: Tracer }]
 numerics:
   time_step: { value: 10, unit: min }
   integrator: { model: rk2_spherical/v0 }
@@ -658,6 +658,9 @@ execution:
     assert!(inspect["data"]["artifacts"].is_array());
     assert!(inspect["data"]["quality"].is_object());
     assert!(inspect["data"]["particles"].is_object());
+    assert_eq!(inspect["data"]["particles"]["particle_adjoint_count"], 0);
+    assert_eq!(inspect["data"]["particles"]["process_summary_count"], 0);
+    assert_eq!(inspect["data"]["particles"]["process_event_count"], 0);
     let catalog_inspect = cli(&[
         "--format",
         "json",
@@ -685,6 +688,64 @@ execution:
             |row| row.get(0),
         )
         .unwrap();
+    let processes = cli(&[
+        "--format",
+        "json",
+        "result",
+        "processes",
+        output_directory.to_str().unwrap(),
+        "--particle",
+        &particle_id.to_string(),
+        "--events",
+        "--max-records",
+        "1",
+    ]);
+    assert!(processes.status.success());
+    let processes: serde_json::Value = serde_json::from_slice(&processes.stdout).unwrap();
+    assert_eq!(processes["command"], "result processes");
+    assert_eq!(
+        processes["data"]["schema_version"],
+        "trajecta.process-query/v1"
+    );
+    assert_eq!(processes["data"]["result"]["sqlite_user_version"], 2);
+    assert_eq!(processes["data"]["filters"]["particle_ids"][0], particle_id);
+    assert_eq!(processes["data"]["groups"], serde_json::json!([]));
+    assert_eq!(processes["data"]["events"], serde_json::json!([]));
+    assert_eq!(processes["data"]["event_count_total"], 0);
+    assert_eq!(processes["data"]["event_count_returned"], 0);
+    assert_eq!(processes["data"]["truncated"], false);
+
+    let processes_jsonl = cli(&[
+        "--format",
+        "jsonl",
+        "result",
+        "processes",
+        output_directory.to_str().unwrap(),
+    ]);
+    assert!(processes_jsonl.status.success());
+    let process_items: Vec<serde_json::Value> = String::from_utf8(processes_jsonl.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert_eq!(process_items.len(), 2);
+    assert_eq!(process_items[0]["kind"], "data");
+    assert_eq!(process_items[0]["sequence"], 1);
+    assert_eq!(process_items[1]["kind"], "summary");
+    assert_eq!(process_items[1]["sequence"], 2);
+    let missing_process = cli(&[
+        "--format",
+        "human",
+        "result",
+        "processes",
+        output_directory.to_str().unwrap(),
+        "--particle",
+        "9223372036854775807",
+    ]);
+    assert_eq!(missing_process.status.code(), Some(1));
+    assert!(missing_process.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&missing_process.stderr).contains("result.particle_not_found"));
+
     let trajectory = cli(&[
         "--format",
         "json",

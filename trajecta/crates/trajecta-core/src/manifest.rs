@@ -477,7 +477,7 @@ impl RunManifest {
                 .tolerances
                 .values()
                 .any(|value| !value.is_finite() || *value < 0.0)
-            || self.sqlite.schema_version != SQLITE_SCHEMA_VERSION
+            || !matches!(self.sqlite.schema_version, 1 | SQLITE_SCHEMA_VERSION)
             || !is_normal_relative_path(&self.sqlite.relative_path)
             || self.sqlite.journal_mode != "WAL"
             || self.sqlite.synchronous != "NORMAL"

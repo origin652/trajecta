@@ -7,6 +7,7 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 
+pub mod auxiliary;
 pub mod data_provider;
 pub mod derive;
 pub mod field;

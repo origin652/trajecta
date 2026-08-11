@@ -13,7 +13,9 @@ use trajecta_met::io::reader::detect_source_format;
 use crate::command::case::CaseCommand;
 use crate::command::data::DataCommand;
 use crate::command_result::{CommandError as CaseDataError, CommandOutcome as CaseDataOutcome};
-use crate::data_lock::{LockSpec, build_lock, persist_lock, requirements_from_case};
+use crate::data_lock::{
+    LockRequirement, LockSpec, build_lock, persist_lock, requirements_from_case,
+};
 
 pub(crate) fn execute_case(command: &CaseCommand) -> Result<CaseDataOutcome, CaseDataError> {
     match command {
@@ -144,12 +146,14 @@ pub(crate) fn execute_data(command: &DataCommand) -> Result<CaseDataOutcome, Cas
                 dataset: dataset.clone(),
                 source: format!("local data for {}", dataset.0),
                 data_roots: std::collections::BTreeMap::from([(DataRootId("met".into()), root)]),
-                profile_name: profile.clone(),
-                profile_sources: Vec::new(),
-                backend: MeteorologyReaderBackend::Rust,
-                coverage: requirements.coverage,
-                capabilities: requirements.capabilities,
-                domain,
+                requirement: LockRequirement::Meteorology {
+                    profile_name: profile.clone(),
+                    profile_sources: Vec::new(),
+                    backend: MeteorologyReaderBackend::Rust,
+                    coverage: requirements.coverage,
+                    capabilities: requirements.capabilities,
+                    domain,
+                },
             };
             let artifact =
                 build_lock(&spec).map_err(|error| CaseDataError::new(error.code, error.message))?;

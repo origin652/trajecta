@@ -14,6 +14,7 @@ native-netcdf = ["dep:netcdf", "dep:trajecta-hdf5-control"]
 
 [dependencies]
 eccodes = { version = "0.13", default-features = false, optional = true }
+flate2 = "1"
 grib-reader = { version = "0.6", default-features = false, features = ["jpeg2000"] }
 hex = "0.4"
 netcdf = { version = "0.11", default-features = false, features = ["ndarray"], optional = true }

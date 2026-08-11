@@ -1274,6 +1274,7 @@ name = "trajecta-met"
 version = "0.1.0-alpha.1"
 dependencies = [
  "eccodes",
+ "flate2",
  "grib-reader",
  "hex",
  "netcdf",

@@ -10,13 +10,14 @@ use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use trajecta_core::manifest::{RunLifecycleStatus, RunManifest};
+use trajecta_core::output::provenance_bundle::file_sha256;
 use trajecta_core::output::sqlite::ParticleStateSqliteSink;
 use trajecta_job::history::JobAttemptHistory;
 use trajecta_job::model::JobState;
 use uuid::Uuid;
 
 use crate::cli::OutputMode;
-use crate::command::staged::TrajectorySelection;
+use crate::command::staged::{ProcessSelection, TrajectorySelection};
 
 const MANIFEST_NAME: &str = "run-manifest.json";
 const REPORT_NAME: &str = "run-report.md";
@@ -410,6 +411,679 @@ pub(crate) fn trajectory(
     }
 }
 
+/// Queries M6 physical-process summaries and optional discrete events.
+pub(crate) fn processes(
+    input: &ResultProductInput,
+    selection: &ProcessSelection,
+    output: OutputMode,
+) -> Result<i32, ProductError> {
+    let root = canonical_run_directory(&input.run_directory)?;
+    let manifest_path = required_artifact(&root, Path::new(MANIFEST_NAME))?;
+    let manifest = read_manifest(&manifest_path)?;
+    catalog_summary(input.catalog.as_ref(), &manifest, &root)?;
+    if matches!(
+        manifest.status,
+        RunLifecycleStatus::Running | RunLifecycleStatus::Failed | RunLifecycleStatus::Interrupted
+    ) {
+        return Err(ProductError::new(
+            "result.processes_not_terminal",
+            "process results require a completed attempt",
+        ));
+    }
+    let sqlite_relative = normal_relative_path(&manifest.sqlite.relative_path)?;
+    let sqlite_path = required_artifact(&root, &sqlite_relative)?;
+    let connection = ParticleStateSqliteSink::open_readonly(&sqlite_path)
+        .map_err(|error| ProductError::new("result.sqlite_invalid", format!("{error:?}")))?;
+    let sqlite_version: u32 = connection
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .map_err(sql_error)?;
+    if sqlite_version != 2 || manifest.sqlite.schema_version != 2 {
+        return Err(ProductError::new(
+            "result.process_schema_unavailable",
+            "result does not use the M6 SQLite v2 process schema",
+        ));
+    }
+    let (sqlite_run_id, direction): (String, String) = connection
+        .query_row(
+            "SELECT run_id, direction FROM run WHERE run_id=?1",
+            [&manifest.run_id.0],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(sql_error)?;
+    if sqlite_run_id != manifest.run_id.0 || !matches!(direction.as_str(), "forward" | "backward") {
+        return Err(ProductError::new(
+            "result.sqlite_identity_mismatch",
+            "process database identity or direction is invalid",
+        ));
+    }
+    validate_requested_particles(&connection, &manifest.run_id.0, &selection.particle_ids)?;
+
+    let groups = load_process_groups(&connection, &manifest.run_id.0, &direction, selection)?;
+    let event_count_total = count_process_events(&connection, &manifest.run_id.0, selection)?;
+    let event_count_returned = if selection.events {
+        selection
+            .max_records
+            .map_or(event_count_total, |limit| event_count_total.min(limit))
+    } else {
+        0
+    };
+    let truncated = selection.events && event_count_returned < event_count_total;
+    let filters = process_filters_value(selection);
+    let identity = json!({
+        "run_id": manifest.run_id,
+        "manifest_sha256": sha256_bytes(&fs::read(&manifest_path).map_err(io_error)?),
+        "sqlite_sha256": file_sha256(&sqlite_path)
+            .map_err(|error| ProductError::new("result.sqlite_invalid", format!("{error:?}")))?,
+        "sqlite_user_version": sqlite_version,
+    });
+    let header = json!({
+        "schema_version": "trajecta.process-query/v1",
+        "result": identity,
+        "filters": filters,
+        "direction": direction.clone(),
+        "groups": groups,
+        "event_count_total": event_count_total,
+        "event_count_returned": event_count_returned,
+        "truncated": truncated,
+    });
+
+    let mut stdout = io::BufWriter::new(io::stdout().lock());
+    let (spool_guard, mut spool) = if output == OutputMode::Json {
+        let (guard, file) = create_temporary_file("process-json")?;
+        (Some(guard), Some(file))
+    } else {
+        (None, None)
+    };
+    match output {
+        OutputMode::Human => render_process_groups(&mut stdout, &header)?,
+        OutputMode::Jsonl => {
+            writeln!(
+                stdout,
+                "{}",
+                crate::app::render_stream_data("result processes", 1, header.clone())
+                    .map_err(json_error)?
+            )
+            .map_err(io_error)?;
+        }
+        OutputMode::Json => {}
+    }
+
+    let result = (|| -> Result<u64, ProductError> {
+        if !selection.events {
+            return Ok(0);
+        }
+        let (sql, parameters) =
+            process_event_query(&manifest.run_id.0, selection, selection.max_records)?;
+        let mut statement = connection.prepare(&sql).map_err(sql_error)?;
+        let mut rows = statement
+            .query(rusqlite::params_from_iter(parameters.iter()))
+            .map_err(sql_error)?;
+        let mut returned = 0_u64;
+        while let Some(row) = rows.next().map_err(sql_error)? {
+            let event = process_event_value(row, &direction)?;
+            match output {
+                OutputMode::Human => render_process_event(&mut stdout, &event)?,
+                OutputMode::Jsonl => {
+                    writeln!(
+                        stdout,
+                        "{}",
+                        crate::app::render_stream_data("result processes", returned + 2, event,)
+                            .map_err(json_error)?
+                    )
+                    .map_err(io_error)?;
+                }
+                OutputMode::Json => {
+                    let file = spool.as_mut().ok_or_else(|| {
+                        ProductError::new("result.temp_spool_failed", "process spool is absent")
+                    })?;
+                    if returned != 0 {
+                        file.write_all(b",").map_err(io_error)?;
+                    }
+                    serde_json::to_writer(file, &event).map_err(json_error)?;
+                }
+            }
+            returned = returned.checked_add(1).ok_or_else(|| {
+                ProductError::new("result.row_count_overflow", "process event count overflow")
+            })?;
+        }
+        Ok(returned)
+    })();
+    let returned = match result {
+        Ok(returned) => returned,
+        Err(error) if output == OutputMode::Json => return Err(error),
+        Err(error) => return Err(error.after_stream_started()),
+    };
+    if returned != event_count_returned {
+        return Err(ProductError::new(
+            "result.process_count_changed",
+            "process event count changed during the read-only query",
+        ));
+    }
+    match output {
+        OutputMode::Json => {
+            let mut file = spool.take().ok_or_else(|| {
+                ProductError::new("result.temp_spool_failed", "process spool is absent")
+            })?;
+            file.flush().map_err(io_error)?;
+            drop(file);
+            let guard = spool_guard.as_ref().ok_or_else(|| {
+                ProductError::new("result.temp_spool_failed", "process spool path is absent")
+            })?;
+            let mut reader = fs::File::open(&guard.path).map_err(io_error)?;
+            write_json_processes(
+                &mut stdout,
+                &header,
+                &mut reader,
+                manifest.status.run_success(),
+            )
+            .map_err(ProductError::after_stream_started)?;
+        }
+        OutputMode::Jsonl => {
+            writeln!(
+                stdout,
+                "{}",
+                crate::app::render_stream_summary(
+                    "result processes",
+                    returned + 2,
+                    true,
+                    Some(manifest.status.run_success()),
+                )
+                .map_err(json_error)?
+            )
+            .map_err(io_error)?;
+        }
+        OutputMode::Human => {
+            writeln!(
+                stdout,
+                "events returned={returned} total={event_count_total} truncated={truncated}"
+            )
+            .map_err(io_error)?;
+        }
+    }
+    stdout.flush().map_err(io_error).map_err(|error| {
+        if output == OutputMode::Json {
+            error.after_stream_started()
+        } else {
+            error
+        }
+    })?;
+    Ok(0)
+}
+
+fn process_filters_value(selection: &ProcessSelection) -> Value {
+    json!({
+        "particle_ids": selection.particle_ids,
+        "module_ids": selection.module_ids,
+        "substance_ids": selection.substance_ids,
+        "start": selection.start,
+        "end": selection.end,
+        "events": selection.events,
+        "max_records": selection.max_records,
+    })
+}
+
+fn load_process_groups(
+    connection: &Connection,
+    run_id: &str,
+    direction: &str,
+    selection: &ProcessSelection,
+) -> Result<Vec<Value>, ProductError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT module_id, substance_id, event_count,
+                    initial_mass_kg, positive_mass_delta_kg, negative_mass_delta_kg,
+                    final_mass_kg, initial_adjoint_weight,
+                    survival_multiplier_product, source_sensitivity,
+                    convection_importance_product, final_adjoint_weight, closure_residual
+             FROM process_summary WHERE run_id=?1 ORDER BY module_id, substance_id",
+        )
+        .map_err(sql_error)?;
+    let mut rows = statement.query([run_id]).map_err(sql_error)?;
+    let mut groups = Vec::new();
+    while let Some(row) = rows.next().map_err(sql_error)? {
+        let module = row.get::<_, String>(0).map_err(sql_error)?;
+        let substance = row.get::<_, String>(1).map_err(sql_error)?;
+        if (!selection.module_ids.is_empty() && !selection.module_ids.contains(&module))
+            || (!selection.substance_ids.is_empty()
+                && !selection.substance_ids.contains(&substance))
+        {
+            continue;
+        }
+        if selection.particle_ids.is_empty() && selection.start.is_none() && selection.end.is_none()
+        {
+            groups.push(process_summary_group(row, direction, module, substance)?);
+            continue;
+        }
+        let particles = if selection.particle_ids.is_empty() {
+            vec![None]
+        } else {
+            selection.particle_ids.iter().copied().map(Some).collect()
+        };
+        for particle in particles {
+            groups.push(recomputed_process_group(
+                connection, run_id, direction, selection, &module, &substance, particle,
+            )?);
+        }
+    }
+    Ok(groups)
+}
+
+fn process_summary_group(
+    row: &rusqlite::Row<'_>,
+    direction: &str,
+    module: String,
+    substance: String,
+) -> Result<Value, ProductError> {
+    let closure = if direction == "forward" {
+        json!({
+            "kind": "forward_mass",
+            "initial_mass_kg": required_sql_value::<f64>(row, 3, "initial_mass_kg")?,
+            "positive_delta_kg": required_sql_value::<f64>(row, 4, "positive_mass_delta_kg")?,
+            "negative_delta_kg": required_sql_value::<f64>(row, 5, "negative_mass_delta_kg")?,
+            "final_mass_kg": required_sql_value::<f64>(row, 6, "final_mass_kg")?,
+            "residual_kg": row.get::<_, f64>(12).map_err(sql_error)?,
+        })
+    } else {
+        json!({
+            "kind": "backward_adjoint",
+            "initial_adjoint_weight": required_sql_value::<f64>(row, 7, "initial_adjoint_weight")?,
+            "survival_product": required_sql_value::<f64>(row, 8, "survival_multiplier_product")?,
+            "source_sensitivity": required_sql_value::<f64>(row, 9, "source_sensitivity")?,
+            "convection_importance_product": required_sql_value::<f64>(row, 10, "convection_importance_product")?,
+            "final_adjoint_weight": required_sql_value::<f64>(row, 11, "final_adjoint_weight")?,
+            "residual": row.get::<_, f64>(12).map_err(sql_error)?,
+        })
+    };
+    Ok(json!({
+        "module_id": module,
+        "substance_id": substance,
+        "particle_id": Value::Null,
+        "event_count": row.get::<_, u64>(2).map_err(sql_error)?,
+        "closure": closure,
+    }))
+}
+
+fn required_sql_value<T: rusqlite::types::FromSql>(
+    row: &rusqlite::Row<'_>,
+    index: usize,
+    name: &str,
+) -> Result<T, ProductError> {
+    row.get::<_, Option<T>>(index)
+        .map_err(sql_error)?
+        .ok_or_else(|| {
+            ProductError::new("result.process_summary_invalid", format!("missing {name}"))
+        })
+}
+
+#[derive(Clone, Copy)]
+struct ProcessAggregate {
+    count: u64,
+    positive: f64,
+    negative: f64,
+    survival: f64,
+    source: f64,
+    importance: f64,
+}
+
+fn recomputed_process_group(
+    connection: &Connection,
+    run_id: &str,
+    direction: &str,
+    selection: &ProcessSelection,
+    module: &str,
+    substance: &str,
+    particle: Option<u64>,
+) -> Result<Value, ProductError> {
+    let aggregate = aggregate_process_events(
+        connection, run_id, selection, module, substance, particle, direction,
+    )?;
+    let (initial, final_value, stored_source) =
+        directional_state_totals(connection, run_id, direction, substance, particle)?;
+    let closure = if direction == "forward" {
+        json!({
+            "kind": "forward_mass",
+            "initial_mass_kg": initial,
+            "positive_delta_kg": aggregate.positive,
+            "negative_delta_kg": aggregate.negative,
+            "final_mass_kg": final_value,
+            "residual_kg": final_value - initial - aggregate.positive - aggregate.negative,
+        })
+    } else {
+        json!({
+            "kind": "backward_adjoint",
+            "initial_adjoint_weight": initial,
+            "survival_product": aggregate.survival,
+            "source_sensitivity": aggregate.source + stored_source,
+            "convection_importance_product": aggregate.importance,
+            "final_adjoint_weight": final_value,
+            "residual": final_value
+                - initial * aggregate.survival * aggregate.importance
+                - aggregate.source
+                - stored_source,
+        })
+    };
+    Ok(json!({
+        "module_id": module,
+        "substance_id": substance,
+        "particle_id": particle,
+        "event_count": aggregate.count,
+        "closure": closure,
+    }))
+}
+
+fn aggregate_process_events(
+    connection: &Connection,
+    run_id: &str,
+    selection: &ProcessSelection,
+    module: &str,
+    substance: &str,
+    particle: Option<u64>,
+    direction: &str,
+) -> Result<ProcessAggregate, ProductError> {
+    let (mut sql, mut parameters) = process_event_where(run_id, selection);
+    sql.push_str(" AND e.module_id=? AND e.substance_id=?");
+    parameters.push(rusqlite::types::Value::Text(module.to_owned()));
+    parameters.push(rusqlite::types::Value::Text(substance.to_owned()));
+    if let Some(particle) = particle {
+        sql.push_str(" AND e.particle_id=?");
+        parameters.push(rusqlite::types::Value::Integer(
+            i64::try_from(particle).map_err(|_| {
+                ProductError::new("result.process_filter_invalid", "particle ID out of range")
+            })?,
+        ));
+    }
+    let query = format!(
+        "SELECT e.mass_delta_kg, e.survival_multiplier,
+                e.source_sensitivity, e.importance_weight FROM process_event e {sql}"
+    );
+    let mut statement = connection.prepare(&query).map_err(sql_error)?;
+    let mut rows = statement
+        .query(rusqlite::params_from_iter(parameters.iter()))
+        .map_err(sql_error)?;
+    let mut aggregate = ProcessAggregate {
+        count: 0,
+        positive: 0.0,
+        negative: 0.0,
+        survival: 1.0,
+        source: 0.0,
+        importance: 1.0,
+    };
+    while let Some(row) = rows.next().map_err(sql_error)? {
+        if direction == "forward" {
+            let delta = required_sql_value::<f64>(row, 0, "mass_delta_kg")?;
+            if delta >= 0.0 {
+                aggregate.positive += delta;
+            } else {
+                aggregate.negative += delta;
+            }
+        } else {
+            aggregate.survival *= required_sql_value::<f64>(row, 1, "survival_multiplier")?;
+            aggregate.source += required_sql_value::<f64>(row, 2, "source_sensitivity")?;
+            aggregate.importance *= required_sql_value::<f64>(row, 3, "importance_weight")?;
+        }
+        aggregate.count = aggregate.count.checked_add(1).ok_or_else(|| {
+            ProductError::new("result.row_count_overflow", "process event count overflow")
+        })?;
+    }
+    Ok(aggregate)
+}
+
+fn directional_state_totals(
+    connection: &Connection,
+    run_id: &str,
+    direction: &str,
+    substance: &str,
+    particle: Option<u64>,
+) -> Result<(f64, f64, f64), ProductError> {
+    let (table, initial, final_value, source) = if direction == "forward" {
+        ("particle_mass", "initial_mass_kg", "mass_kg", "0.0")
+    } else {
+        (
+            "particle_adjoint",
+            "initial_adjoint_weight",
+            "adjoint_weight",
+            "source_sensitivity",
+        )
+    };
+    let mut sql = format!(
+        "SELECT COALESCE(SUM({initial}),0.0), COALESCE(SUM({final_value}),0.0),
+                COALESCE(SUM({source}),0.0)
+         FROM {table} WHERE run_id=? AND substance_id=?"
+    );
+    let mut parameters = vec![
+        rusqlite::types::Value::Text(run_id.to_owned()),
+        rusqlite::types::Value::Text(substance.to_owned()),
+    ];
+    if let Some(particle) = particle {
+        sql.push_str(" AND particle_id=?");
+        parameters.push(rusqlite::types::Value::Integer(
+            i64::try_from(particle).map_err(|_| {
+                ProductError::new("result.process_filter_invalid", "particle ID out of range")
+            })?,
+        ));
+    }
+    connection
+        .query_row(&sql, rusqlite::params_from_iter(parameters.iter()), |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })
+        .map_err(sql_error)
+}
+
+fn process_event_where(
+    run_id: &str,
+    selection: &ProcessSelection,
+) -> (String, Vec<rusqlite::types::Value>) {
+    let mut sql = String::from("WHERE e.run_id=?");
+    let mut parameters = vec![rusqlite::types::Value::Text(run_id.to_owned())];
+    append_integer_filter(
+        &mut sql,
+        &mut parameters,
+        "e.particle_id",
+        &selection.particle_ids,
+    );
+    append_text_filter(
+        &mut sql,
+        &mut parameters,
+        "e.module_id",
+        &selection.module_ids,
+    );
+    append_text_filter(
+        &mut sql,
+        &mut parameters,
+        "e.substance_id",
+        &selection.substance_ids,
+    );
+    if let Some(start) = selection.start {
+        sql.push_str(" AND (e.physical_seconds,e.physical_nanosecond) >= (?,?)");
+        parameters.push(rusqlite::types::Value::Integer(
+            start.seconds_since_unix_epoch(),
+        ));
+        parameters.push(rusqlite::types::Value::Integer(i64::from(
+            start.nanosecond(),
+        )));
+    }
+    if let Some(end) = selection.end {
+        sql.push_str(" AND (e.physical_seconds,e.physical_nanosecond) <= (?,?)");
+        parameters.push(rusqlite::types::Value::Integer(
+            end.seconds_since_unix_epoch(),
+        ));
+        parameters.push(rusqlite::types::Value::Integer(i64::from(end.nanosecond())));
+    }
+    (sql, parameters)
+}
+
+fn append_integer_filter(
+    sql: &mut String,
+    parameters: &mut Vec<rusqlite::types::Value>,
+    column: &str,
+    values: &[u64],
+) {
+    if values.is_empty() {
+        return;
+    }
+    sql.push_str(&format!(
+        " AND {column} IN ({})",
+        placeholders(values.len())
+    ));
+    parameters.extend(
+        values
+            .iter()
+            .map(|value| rusqlite::types::Value::Integer(*value as i64)),
+    );
+}
+
+fn append_text_filter(
+    sql: &mut String,
+    parameters: &mut Vec<rusqlite::types::Value>,
+    column: &str,
+    values: &[String],
+) {
+    if values.is_empty() {
+        return;
+    }
+    sql.push_str(&format!(
+        " AND {column} IN ({})",
+        placeholders(values.len())
+    ));
+    parameters.extend(values.iter().cloned().map(rusqlite::types::Value::Text));
+}
+
+fn placeholders(count: usize) -> String {
+    std::iter::repeat_n("?", count)
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn count_process_events(
+    connection: &Connection,
+    run_id: &str,
+    selection: &ProcessSelection,
+) -> Result<u64, ProductError> {
+    let (where_sql, parameters) = process_event_where(run_id, selection);
+    let query = format!("SELECT COUNT(*) FROM process_event e {where_sql}");
+    connection
+        .query_row(
+            &query,
+            rusqlite::params_from_iter(parameters.iter()),
+            |row| row.get(0),
+        )
+        .map_err(sql_error)
+}
+
+fn process_event_query(
+    run_id: &str,
+    selection: &ProcessSelection,
+    limit: Option<u64>,
+) -> Result<(String, Vec<rusqlite::types::Value>), ProductError> {
+    let (where_sql, mut parameters) = process_event_where(run_id, selection);
+    let mut sql = format!(
+        "SELECT event_sequence, particle_id, macro_step, module_id, substance_id,
+                physical_seconds, physical_nanosecond, detail_kind, mass_delta_kg,
+                survival_multiplier, source_sensitivity, importance_weight
+         FROM process_event e {where_sql}
+         ORDER BY physical_seconds, physical_nanosecond, particle_id,
+                  module_id, substance_id, event_sequence"
+    );
+    if let Some(limit) = limit {
+        sql.push_str(" LIMIT ?");
+        parameters.push(rusqlite::types::Value::Integer(
+            i64::try_from(limit).map_err(|_| {
+                ProductError::new("result.process_filter_invalid", "event limit out of range")
+            })?,
+        ));
+    }
+    Ok((sql, parameters))
+}
+
+fn process_event_value(row: &rusqlite::Row<'_>, direction: &str) -> Result<Value, ProductError> {
+    let (forward, backward) = if direction == "forward" {
+        (
+            json!({"mass_delta_kg": required_sql_value::<f64>(row, 8, "mass_delta_kg")?}),
+            Value::Null,
+        )
+    } else {
+        (
+            Value::Null,
+            json!({
+                "survival_multiplier": required_sql_value::<f64>(row, 9, "survival_multiplier")?,
+                "source_sensitivity": required_sql_value::<f64>(row, 10, "source_sensitivity")?,
+                "importance_weight": required_sql_value::<f64>(row, 11, "importance_weight")?,
+            }),
+        )
+    };
+    Ok(json!({
+        "event_sequence": row.get::<_, u64>(0).map_err(sql_error)?,
+        "particle_id": row.get::<_, u64>(1).map_err(sql_error)?,
+        "macro_step": row.get::<_, u64>(2).map_err(sql_error)?,
+        "module_id": row.get::<_, String>(3).map_err(sql_error)?,
+        "substance_id": row.get::<_, String>(4).map_err(sql_error)?,
+        "physical_time": {
+            "seconds_since_unix_epoch": row.get::<_, i64>(5).map_err(sql_error)?,
+            "nanosecond": row.get::<_, u32>(6).map_err(sql_error)?,
+        },
+        "detail_kind": row.get::<_, String>(7).map_err(sql_error)?,
+        "forward": forward,
+        "backward": backward,
+    }))
+}
+
+fn render_process_groups(output: &mut impl Write, header: &Value) -> Result<(), ProductError> {
+    writeln!(
+        output,
+        "processes run_id={} direction={}",
+        display_value(&header["result"]["run_id"]),
+        display_value(&header["direction"]),
+    )
+    .map_err(io_error)?;
+    for group in header["groups"].as_array().into_iter().flatten() {
+        writeln!(
+            output,
+            "group module={} substance={} particle={} events={} closure={}",
+            display_value(&group["module_id"]),
+            display_value(&group["substance_id"]),
+            display_value(&group["particle_id"]),
+            display_value(&group["event_count"]),
+            serde_json::to_string(&group["closure"]).map_err(json_error)?,
+        )
+        .map_err(io_error)?;
+    }
+    Ok(())
+}
+
+fn render_process_event(output: &mut impl Write, event: &Value) -> Result<(), ProductError> {
+    writeln!(
+        output,
+        "event sequence={} time={}:{} particle={} module={} substance={} kind={}",
+        display_value(&event["event_sequence"]),
+        display_value(&event["physical_time"]["seconds_since_unix_epoch"]),
+        display_value(&event["physical_time"]["nanosecond"]),
+        display_value(&event["particle_id"]),
+        display_value(&event["module_id"]),
+        display_value(&event["substance_id"]),
+        display_value(&event["detail_kind"]),
+    )
+    .map_err(io_error)
+}
+
+fn write_json_processes(
+    output: &mut impl Write,
+    header: &Value,
+    events: &mut fs::File,
+    run_success: bool,
+) -> Result<(), ProductError> {
+    let header = serde_json::to_string(header).map_err(json_error)?;
+    let header = header.strip_suffix('}').ok_or_else(|| {
+        ProductError::new("result.encoding", "process header is not a JSON object")
+    })?;
+    write!(
+        output,
+        "{{\"schema_version\":\"trajecta.cli-output/v1\",\"command\":\"result processes\",\"ok\":true,\"run_success\":{run_success},\"data\":{header},\"events\":["
+    )
+    .map_err(io_error)?;
+    io::copy(events, output).map_err(io_error)?;
+    writeln!(output, "]}},\"diagnostics\":[]}}").map_err(io_error)
+}
+
 const TRAJECTORY_SELECT: &str = "
 SELECT s.run_id,
        p.particle_id,
@@ -421,7 +1095,6 @@ SELECT s.run_id,
        p.birth_seconds,
        p.birth_nanosecond,
        p.dry_air_mass_kg,
-       p.sensitivity_weight,
        s.sample_sequence,
        s.event_sequence,
        s.physical_seconds,
@@ -435,6 +1108,13 @@ SELECT s.run_id,
        s.eastward_wind_m_s,
        s.northward_wind_m_s,
        s.geometric_vertical_velocity_m_s,
+       s.boundary_layer_random_eastward_m_s,
+       s.boundary_layer_random_northward_m_s,
+       s.boundary_layer_random_vertical_m_s,
+       s.mesoscale_random_eastward_m_s,
+       s.mesoscale_random_northward_m_s,
+       s.mesoscale_random_vertical_m_s,
+       s.gravitational_settling_m_s,
        s.air_pressure_pa,
        s.air_temperature_k,
        s.wind_validity,
@@ -523,8 +1203,12 @@ fn particle_record(
             "nanosecond": row.get::<_, i64>("birth_nanosecond").map_err(sql_error)?,
         },
         "dry_air_mass_kg": row.get::<_, f64>("dry_air_mass_kg").map_err(sql_error)?,
-        "sensitivity_weight": row.get::<_, Option<f64>>("sensitivity_weight").map_err(sql_error)?,
         "substance_mass_kg": particle_mass_map(connection, &manifest.run_id.0, particle_id)?,
+        "substance_adjoint_weight": particle_adjoint_map(
+            connection,
+            &manifest.run_id.0,
+            particle_id,
+        )?,
     }))
 }
 
@@ -582,6 +1266,19 @@ fn state_record(
             "pressure_quality": row.get::<_, Option<String>>("pressure_quality").map_err(sql_error)?,
             "temperature_validity": row.get::<_, String>("temperature_validity").map_err(sql_error)?,
             "temperature_quality": row.get::<_, Option<String>>("temperature_quality").map_err(sql_error)?,
+        },
+        "process_velocity_m_s": {
+            "boundary_layer": {
+                "eastward": row.get::<_, Option<f64>>("boundary_layer_random_eastward_m_s").map_err(sql_error)?,
+                "northward": row.get::<_, Option<f64>>("boundary_layer_random_northward_m_s").map_err(sql_error)?,
+                "vertical": row.get::<_, Option<f64>>("boundary_layer_random_vertical_m_s").map_err(sql_error)?,
+            },
+            "mesoscale": {
+                "eastward": row.get::<_, Option<f64>>("mesoscale_random_eastward_m_s").map_err(sql_error)?,
+                "northward": row.get::<_, Option<f64>>("mesoscale_random_northward_m_s").map_err(sql_error)?,
+                "vertical": row.get::<_, Option<f64>>("mesoscale_random_vertical_m_s").map_err(sql_error)?,
+            },
+            "gravitational_settling": row.get::<_, Option<f64>>("gravitational_settling_m_s").map_err(sql_error)?,
         },
         "provenance_id": row.get::<_, Option<i64>>("provenance_id").map_err(sql_error)?,
     }))
@@ -659,6 +1356,30 @@ fn particle_mass_map(
         );
     }
     Ok(masses)
+}
+
+fn particle_adjoint_map(
+    connection: &Connection,
+    run_id: &str,
+    particle_id: i64,
+) -> Result<Map<String, Value>, ProductError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT substance_id, adjoint_weight FROM particle_adjoint
+             WHERE run_id=?1 AND particle_id=?2 ORDER BY substance_id",
+        )
+        .map_err(sql_error)?;
+    let mut rows = statement
+        .query(rusqlite::params![run_id, particle_id])
+        .map_err(sql_error)?;
+    let mut weights = Map::new();
+    while let Some(row) = rows.next().map_err(sql_error)? {
+        weights.insert(
+            row.get::<_, String>(0).map_err(sql_error)?,
+            json!(row.get::<_, f64>(1).map_err(sql_error)?),
+        );
+    }
+    Ok(weights)
 }
 
 fn emit_trajectory_record(
@@ -885,9 +1606,18 @@ fn inspect_sqlite(
         "run",
         "particle",
         "particle_mass",
+        "particle_adjoint",
+        "particle_aerosol_property",
         "output_event",
         "particle_state",
         "termination",
+        "process_summary",
+        "process_event",
+        "water_vapor_event",
+        "deposition_event",
+        "chemistry_event",
+        "emission_event",
+        "convection_event",
     ] {
         let count: i64 = connection
             .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
@@ -977,8 +1707,11 @@ fn particle_summary(summary: &SqliteProductSummary) -> Value {
     json!({
         "particle_count": count("particle"),
         "particle_mass_count": count("particle_mass"),
+        "particle_adjoint_count": count("particle_adjoint"),
         "state_count": count("particle_state"),
         "output_event_count": count("output_event"),
+        "process_summary_count": count("process_summary"),
+        "process_event_count": count("process_event"),
         "termination_count": count("termination"),
         "normal_termination_count": summary.normal_termination_count,
         "abnormal_termination_count": summary.abnormal_termination_count,
@@ -1226,6 +1959,14 @@ mod tests {
     #![allow(clippy::unwrap_used)]
 
     use super::*;
+    use trajecta_case::document::MeteorologyReaderBackend;
+    use trajecta_case::model::output::default_particle_state_output;
+    use trajecta_case::model::time::Timestamp;
+    use trajecta_core::manifest::{
+        ExecutionSummary, InputIdentity, NumericalSummary, RunId, RunManifestStart,
+        SoftwareIdentity,
+    };
+    use trajecta_core::output::ParticleStateSink;
 
     #[test]
     fn report_is_deterministic_markdown_safe_and_excludes_itself() {
@@ -1279,6 +2020,264 @@ mod tests {
         assert_eq!(value["schema_version"], "trajecta.cli-output/v1");
         assert_eq!(value["diagnostics"], json!([]));
         assert_eq!(value["data"]["records"].as_array().unwrap().len(), 1);
+        assert!(value.get("exit_code").is_none());
+    }
+
+    fn process_test_connection() -> Connection {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(include_str!("../../../testdata/M6_SQLITE_SCHEMA.v2.sql"))
+            .unwrap();
+        connection
+    }
+
+    fn insert_process_test_run(connection: &Connection, run_id: &str, direction: &str) {
+        connection
+            .execute(
+                "INSERT INTO run (
+                    run_id, job_series_id, attempt, manifest_schema, case_name,
+                    direction, status, started_seconds, started_nanosecond
+                 ) VALUES (?1,?1,1,'trajecta.run-manifest/v1','process-test',?2,
+                           'running',0,0)",
+                rusqlite::params![run_id, direction],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO particle (
+                    run_id, particle_id, population_id, origin_kind, origin_event_id,
+                    birth_seconds, birth_nanosecond, dry_air_mass_kg
+                 ) VALUES (?1,7,'release','release','source',0,0,1.0)",
+                [run_id],
+            )
+            .unwrap();
+    }
+
+    fn empty_process_selection() -> ProcessSelection {
+        ProcessSelection {
+            particle_ids: Vec::new(),
+            module_ids: Vec::new(),
+            substance_ids: Vec::new(),
+            start: None,
+            end: None,
+            events: false,
+            max_records: None,
+        }
+    }
+
+    fn write_legacy_v1_result(directory: &Path) -> ResultProductInput {
+        let mut manifest = RunManifest::running(RunManifestStart {
+            run_id: RunId("018f0000-0000-7000-8000-000000000103".into()),
+            case_name: "legacy-process-test".into(),
+            started_at: Timestamp::UNIX_EPOCH,
+            software: SoftwareIdentity {
+                crate_versions: BTreeMap::from([("trajecta-core".into(), "0.1.0-alpha.1".into())]),
+                git_commit: None,
+            },
+            inputs: InputIdentity {
+                case_sha256: "0".repeat(64),
+                run_profile_sha256: "1".repeat(64),
+                dataset_lock_sha256: BTreeMap::new(),
+                dataset_profile_sha256: BTreeMap::new(),
+                dataset_content_sha256: BTreeMap::new(),
+            },
+            execution: ExecutionSummary {
+                worker_threads: 1,
+                memory_budget_bytes: 1024 * 1024,
+                executor: "test".into(),
+                reader_backends: BTreeMap::<String, MeteorologyReaderBackend>::new(),
+                wall_time_ns: None,
+                peak_rss_bytes: None,
+                io_counters: BTreeMap::new(),
+            },
+            numerical: NumericalSummary {
+                random_seed: 7,
+                integrator: "test_integrator".into(),
+                boundary_policies: Vec::new(),
+                population: "test_population".into(),
+                ozone_rule: None,
+                particle_state_sink: trajecta_case::model::output::PARTICLE_STATE_SQLITE_SINK_ID
+                    .into(),
+                tolerance_registry: "trajecta.m4.numerical-contract/v1".into(),
+                tolerances: BTreeMap::from([("test".into(), 0.0)]),
+                deterministic: true,
+            },
+            geometries: Vec::new(),
+            effective_outputs: vec![default_particle_state_output()],
+        });
+        let sqlite_path = directory.join("particles.sqlite");
+        let mut sink = ParticleStateSqliteSink::with_time_bounds(
+            Timestamp::UNIX_EPOCH,
+            Timestamp::new(1, 0).unwrap(),
+        );
+        sink.begin(&sqlite_path, &manifest).unwrap();
+        sink.finish().unwrap();
+        manifest.sqlite.row_counts = sink.row_counts().unwrap();
+        manifest.provenance = sink.provenance_identity();
+        manifest.sqlite.schema_version = 1;
+        manifest.status = RunLifecycleStatus::Complete;
+        manifest.finished_at = Some(Timestamp::new(1, 0).unwrap());
+        manifest.validate().unwrap();
+        fs::write(
+            directory.join(MANIFEST_NAME),
+            serde_json::to_vec_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
+        let connection = Connection::open(&sqlite_path).unwrap();
+        connection.pragma_update(None, "user_version", 1).unwrap();
+        drop(connection);
+        ResultProductInput {
+            run_directory: directory.to_path_buf(),
+            catalog: None,
+        }
+    }
+
+    #[test]
+    fn legacy_v1_result_reports_process_schema_unavailable_before_streaming() {
+        let directory = tempfile::TempDir::new().unwrap();
+        let input = write_legacy_v1_result(directory.path());
+
+        let error = processes(&input, &empty_process_selection(), OutputMode::Json).unwrap_err();
+
+        assert_eq!(error.code, "result.process_schema_unavailable");
+        assert!(!error.stream_started);
+    }
+
+    #[test]
+    fn process_queries_preserve_direction_filters_order_and_limit() {
+        let connection = process_test_connection();
+        let forward = "018f0000-0000-7000-8000-000000000101";
+        insert_process_test_run(&connection, forward, "forward");
+        connection
+            .execute(
+                "INSERT INTO particle_mass VALUES (?1,7,'water',1.0,1.1)",
+                [forward],
+            )
+            .unwrap();
+        for (sequence, macro_step, seconds, delta) in
+            [(0_i64, 0_i64, 10_i64, 0.2_f64), (1, 1, 20, -0.1)]
+        {
+            connection
+                .execute(
+                    "INSERT INTO process_event (
+                        run_id,event_sequence,particle_id,macro_step,module_id,substance_id,
+                        physical_seconds,physical_nanosecond,direction,detail_kind,mass_delta_kg
+                     ) VALUES (?1,?2,7,?3,'water_vapor_exchange','water',?4,0,
+                               'forward','water_vapor',?5)",
+                    rusqlite::params![forward, sequence, macro_step, seconds, delta],
+                )
+                .unwrap();
+            connection
+                .execute(
+                    "INSERT INTO water_vapor_event VALUES (?1,?2,?3,0.0,0.0,NULL,NULL,NULL)",
+                    rusqlite::params![forward, sequence, delta],
+                )
+                .unwrap();
+        }
+        connection
+            .execute(
+                "INSERT INTO process_summary (
+                    run_id,module_id,substance_id,direction,event_count,
+                    initial_mass_kg,positive_mass_delta_kg,negative_mass_delta_kg,
+                    final_mass_kg,closure_residual
+                 ) VALUES (?1,'water_vapor_exchange','water','forward',2,
+                           1.0,0.2,-0.1,1.1,0.0)",
+                [forward],
+            )
+            .unwrap();
+
+        let groups =
+            load_process_groups(&connection, forward, "forward", &empty_process_selection())
+                .unwrap();
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0]["event_count"], 2);
+        assert_eq!(groups[0]["closure"]["kind"], "forward_mass");
+
+        let selection = ProcessSelection {
+            particle_ids: vec![7],
+            module_ids: vec!["water_vapor_exchange".into()],
+            substance_ids: vec!["water".into()],
+            start: Some(Timestamp::new(15, 0).unwrap()),
+            end: Some(Timestamp::new(25, 0).unwrap()),
+            events: true,
+            max_records: Some(1),
+        };
+        assert_eq!(
+            count_process_events(&connection, forward, &selection).unwrap(),
+            1
+        );
+        let (sql, parameters) = process_event_query(forward, &selection, Some(1)).unwrap();
+        let mut statement = connection.prepare(&sql).unwrap();
+        let mut rows = statement
+            .query(rusqlite::params_from_iter(parameters.iter()))
+            .unwrap();
+        let event = process_event_value(rows.next().unwrap().unwrap(), "forward").unwrap();
+        assert_eq!(event["event_sequence"], 1);
+        assert_eq!(event["forward"]["mass_delta_kg"], -0.1);
+        assert!(event["backward"].is_null());
+        assert!(rows.next().unwrap().is_none());
+
+        let backward = "018f0000-0000-7000-8000-000000000102";
+        insert_process_test_run(&connection, backward, "backward");
+        connection
+            .execute(
+                "INSERT INTO particle_adjoint VALUES (?1,7,'gas',1.0,0.9,0.1)",
+                [backward],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO process_summary (
+                    run_id,module_id,substance_id,direction,event_count,
+                    initial_adjoint_weight,survival_multiplier_product,source_sensitivity,
+                    convection_importance_product,final_adjoint_weight,closure_residual
+                 ) VALUES (?1,'first_order_decay','gas','backward',1,
+                           1.0,0.8,0.1,1.0,0.9,0.0)",
+                [backward],
+            )
+            .unwrap();
+        let groups = load_process_groups(
+            &connection,
+            backward,
+            "backward",
+            &empty_process_selection(),
+        )
+        .unwrap();
+        assert_eq!(groups[0]["closure"]["kind"], "backward_adjoint");
+        assert_eq!(groups[0]["closure"]["source_sensitivity"], 0.1);
+    }
+
+    #[test]
+    fn process_json_uses_one_standard_envelope_and_embeds_events() {
+        let (guard, mut spool) = create_temporary_file("process-test").unwrap();
+        spool
+            .write_all(br#"{"event_sequence":3,"particle_id":7}"#)
+            .unwrap();
+        spool.flush().unwrap();
+        drop(spool);
+        let mut spool = fs::File::open(&guard.path).unwrap();
+        let mut output = Vec::new();
+        write_json_processes(
+            &mut output,
+            &json!({
+                "schema_version": "trajecta.process-query/v1",
+                "result": {},
+                "filters": {},
+                "direction": "forward",
+                "groups": [],
+                "event_count_total": 1,
+                "event_count_returned": 1,
+                "truncated": false,
+            }),
+            &mut spool,
+            true,
+        )
+        .unwrap();
+        let value: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(value["schema_version"], "trajecta.cli-output/v1");
+        assert_eq!(value["command"], "result processes");
+        assert_eq!(value["data"]["events"][0]["event_sequence"], 3);
+        assert_eq!(value["diagnostics"], json!([]));
         assert!(value.get("exit_code").is_none());
     }
 }

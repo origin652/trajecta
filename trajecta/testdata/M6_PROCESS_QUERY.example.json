@@ -1,0 +1,51 @@
+{
+  "schema_version": "trajecta.process-query/v1",
+  "result": {
+    "run_id": "018f0000-0000-7000-8000-000000000002",
+    "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sqlite_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "sqlite_user_version": 2
+  },
+  "filters": {
+    "particle_ids": [17],
+    "module_ids": ["water_vapor_exchange"],
+    "substance_ids": ["water"],
+    "start": {"seconds_since_unix_epoch": 1234567890, "nanosecond": 0},
+    "end": {"seconds_since_unix_epoch": 1234568490, "nanosecond": 0},
+    "events": true,
+    "max_records": 100
+  },
+  "direction": "forward",
+  "groups": [
+    {
+      "module_id": "water_vapor_exchange",
+      "substance_id": "water",
+      "particle_id": 17,
+      "event_count": 1,
+      "closure": {
+        "kind": "forward_mass",
+        "initial_mass_kg": 1.0,
+        "positive_delta_kg": 0.1,
+        "negative_delta_kg": 0.0,
+        "final_mass_kg": 1.1,
+        "residual_kg": 0.0
+      }
+    }
+  ],
+  "events": [
+    {
+      "event_sequence": 19,
+      "particle_id": 17,
+      "macro_step": 2,
+      "module_id": "water_vapor_exchange",
+      "substance_id": "water",
+      "physical_time": {"seconds_since_unix_epoch": 1234568190, "nanosecond": 0},
+      "detail_kind": "water_vapor",
+      "forward": {"mass_delta_kg": 0.1},
+      "backward": null
+    }
+  ],
+  "event_count_total": 1,
+  "event_count_returned": 1,
+  "truncated": false
+}

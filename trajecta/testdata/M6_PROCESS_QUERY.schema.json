@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trajecta.dev/schema/m6-process-query-v1.json",
+  "title": "Trajecta process result query",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "result", "filters", "direction", "groups", "events", "event_count_total", "event_count_returned", "truncated"],
+  "properties": {
+    "schema_version": { "const": "trajecta.process-query/v1" },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "manifest_sha256", "sqlite_sha256", "sqlite_user_version"],
+      "properties": {
+        "run_id": { "$ref": "#/$defs/uuid" },
+        "manifest_sha256": { "$ref": "#/$defs/sha256" },
+        "sqlite_sha256": { "$ref": "#/$defs/sha256" },
+        "sqlite_user_version": { "const": 2 }
+      }
+    },
+    "filters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["particle_ids", "module_ids", "substance_ids", "start", "end", "events", "max_records"],
+      "properties": {
+        "particle_ids": { "$ref": "#/$defs/integerArray" },
+        "module_ids": { "$ref": "#/$defs/stringArray" },
+        "substance_ids": { "$ref": "#/$defs/stringArray" },
+        "start": { "oneOf": [{"type": "null"}, {"$ref": "#/$defs/timestamp"}] },
+        "end": { "oneOf": [{"type": "null"}, {"$ref": "#/$defs/timestamp"}] },
+        "events": { "type": "boolean" },
+        "max_records": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    },
+    "direction": { "enum": ["forward", "backward"] },
+    "groups": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/processGroup" }
+    },
+    "events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/processEvent" }
+    },
+    "event_count_total": { "type": "integer", "minimum": 0 },
+    "event_count_returned": { "type": "integer", "minimum": 0 },
+    "truncated": { "type": "boolean" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "uuid": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "timestamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seconds_since_unix_epoch", "nanosecond"],
+      "properties": {
+        "seconds_since_unix_epoch": { "type": "integer" },
+        "nanosecond": { "type": "integer", "minimum": 0, "maximum": 999999999 }
+      }
+    },
+    "stringArray": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "integerArray": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "uniqueItems": true },
+    "processGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module_id", "substance_id", "particle_id", "event_count", "closure"],
+      "properties": {
+        "module_id": { "type": "string", "minLength": 1 },
+        "substance_id": { "type": "string", "minLength": 1 },
+        "particle_id": { "type": ["integer", "null"], "minimum": 0 },
+        "event_count": { "type": "integer", "minimum": 0 },
+        "closure": {
+          "oneOf": [
+            { "$ref": "#/$defs/forwardClosure" },
+            { "$ref": "#/$defs/backwardClosure" }
+          ]
+        }
+      }
+    },
+    "forwardClosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "initial_mass_kg", "positive_delta_kg", "negative_delta_kg", "final_mass_kg", "residual_kg"],
+      "properties": {
+        "kind": { "const": "forward_mass" },
+        "initial_mass_kg": { "type": "number", "minimum": 0 },
+        "positive_delta_kg": { "type": "number", "minimum": 0 },
+        "negative_delta_kg": { "type": "number", "maximum": 0 },
+        "final_mass_kg": { "type": "number", "minimum": 0 },
+        "residual_kg": { "type": "number" }
+      }
+    },
+    "backwardClosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "initial_adjoint_weight", "survival_product", "source_sensitivity", "convection_importance_product", "final_adjoint_weight", "residual"],
+      "properties": {
+        "kind": { "const": "backward_adjoint" },
+        "initial_adjoint_weight": { "type": "number" },
+        "survival_product": { "type": "number", "minimum": 0 },
+        "source_sensitivity": { "type": "number" },
+        "convection_importance_product": { "type": "number", "minimum": 0 },
+        "final_adjoint_weight": { "type": "number" },
+        "residual": { "type": "number" }
+      }
+    },
+    "processEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_sequence", "particle_id", "macro_step", "module_id", "substance_id", "physical_time", "detail_kind", "forward", "backward"],
+      "properties": {
+        "event_sequence": { "type": "integer", "minimum": 0 },
+        "particle_id": { "type": "integer", "minimum": 0 },
+        "macro_step": { "type": "integer", "minimum": 0 },
+        "module_id": { "type": "string", "minLength": 1 },
+        "substance_id": { "type": "string", "minLength": 1 },
+        "physical_time": { "$ref": "#/$defs/timestamp" },
+        "detail_kind": { "enum": ["chemistry", "convection", "deposition", "emission", "water_vapor"] },
+        "forward": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["mass_delta_kg"],
+              "properties": {"mass_delta_kg": {"type": "number"}}
+            }
+          ]
+        },
+        "backward": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["survival_multiplier", "source_sensitivity", "importance_weight"],
+              "properties": {
+                "survival_multiplier": {"type": "number", "minimum": 0},
+                "source_sensitivity": {"type": "number"},
+                "importance_weight": {"type": "number", "minimum": 0}
+              }
+            }
+          ]
+        }
+      },
+      "oneOf": [
+        {"properties": {"forward": {"type": "object"}, "backward": {"type": "null"}}},
+        {"properties": {"forward": {"type": "null"}, "backward": {"type": "object"}}}
+      ]
+    }
+  }
+}

@@ -109,7 +109,7 @@ fn base_case(
             },
             random_seed: Some(7),
         }),
-        physics: Vec::new(),
+        physics: None,
         outputs: vec![default_particle_state_output()],
         sources: Vec::new(),
     }

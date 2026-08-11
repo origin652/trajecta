@@ -68,7 +68,7 @@ pub const PROVENANCE_BUNDLE_FILE_NAME: &str = "provenance-bundle.json";
 /// Content-address algorithm for provenance records and five-field sets.
 pub const PROVENANCE_RECORD_HASH_ALGORITHM: &str = "sha256-rfc8785";
 /// Public SQLite schema version.
-pub const SQLITE_SCHEMA_VERSION: u32 = 1;
+pub const SQLITE_SCHEMA_VERSION: u32 = 2;
 
 /// Frozen physical and numerical constants for M4.
 #[derive(Clone, Copy, Debug, PartialEq)]

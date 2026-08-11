@@ -25,12 +25,15 @@ use crate::document::{
 use crate::model::meteorology::{DomainId, MeteorologySpec};
 use crate::model::numerics::NumericsSpec;
 use crate::model::output::{OutputProductSpec, OutputSchedule};
-use crate::model::physics::PhysicsModuleSpec;
+use crate::model::physics::{
+    PhysicsModuleId, PhysicsPreset, PhysicsSelectionSpec, resolve_physics,
+    validate_resolved_physics,
+};
 use crate::model::population::{
     DomainFillAirMassSpec, GeoJsonGeometry, GeoJsonSource, ParticlePopulationSpec,
     ReleaseEventSpec, ReleaseVerticalSpec,
 };
-use crate::model::substance::SubstanceSpec;
+use crate::model::substance::{SubstanceKind, SubstanceSpec};
 use crate::model::time::{Direction, TimeSpec};
 use crate::quantity::Quantity;
 use crate::reference::ComponentRef;
@@ -109,7 +112,7 @@ impl SchemaDocument for CaseDocument {
             );
         }
         if let Some(ComponentRef::Inline(physics)) = &self.physics {
-            validate_physics(
+            validate_physics_selection(
                 physics,
                 DiagnosticPath::root().field("physics"),
                 &mut diagnostics,
@@ -171,11 +174,12 @@ pub fn validate_resolved_case(case: &ResolvedCase) -> DiagnosticBag {
             &mut diagnostics,
         );
     }
-    validate_physics(
-        &case.physics,
-        DiagnosticPath::root().field("physics"),
-        &mut diagnostics,
-    );
+    if let Some(physics) = &case.physics {
+        diagnostics.append(validate_resolved_physics(
+            physics,
+            DiagnosticPath::root().field("physics"),
+        ));
+    }
     validate_outputs(
         &case.outputs,
         DiagnosticPath::root().field("outputs"),
@@ -907,38 +911,158 @@ fn validate_substances(
 ) {
     let mut seen = BTreeSet::new();
     for (index, substance) in substances.iter().enumerate() {
-        if substance.id.0.trim().is_empty() {
+        let item_path = path.clone().index(index);
+        if substance.id().0.trim().is_empty() {
             diagnostics.push(
                 Diagnostic::error("case.substance.id_empty", "substance id must not be empty")
-                    .at(path.clone().index(index).field("id")),
+                    .at(item_path.clone().field("id")),
             );
-        } else if !seen.insert(substance.id.0.clone()) {
+        } else if !seen.insert(substance.id().0.clone()) {
             diagnostics.push(
                 Diagnostic::error(
                     "case.substance.id_duplicate",
-                    format!("duplicate substance id '{}'", substance.id.0),
+                    format!("duplicate substance id '{}'", substance.id().0),
                 )
-                .at(path.clone().index(index).field("id")),
+                .at(item_path.clone().field("id")),
             );
+        }
+        if substance.display_name().trim().is_empty() {
+            diagnostics.push(
+                Diagnostic::error(
+                    "case.substance.display_name_empty",
+                    "substance display_name must not be empty",
+                )
+                .at(item_path.clone().field("display_name")),
+            );
+        }
+        match substance {
+            SubstanceSpec::WaterVapor { .. } => {}
+            SubstanceSpec::Gas {
+                molar_mass,
+                henry_constant,
+                surface_reactivity,
+                half_life,
+                oh_reaction,
+                ..
+            } => {
+                if molar_mass.value_si() <= 0.0 {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            "case.substance.molar_mass_invalid",
+                            "molar_mass must be finite and positive",
+                        )
+                        .at(item_path.clone().field("molar_mass")),
+                    );
+                }
+                if henry_constant.value_si() < 0.0 {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            "case.substance.henry_constant_invalid",
+                            "henry_constant must be finite and non-negative",
+                        )
+                        .at(item_path.clone().field("henry_constant")),
+                    );
+                }
+                if !surface_reactivity.is_finite() || !(0.0..=1.0).contains(surface_reactivity) {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            "case.substance.surface_reactivity_invalid",
+                            "surface_reactivity must be finite and within [0, 1]",
+                        )
+                        .at(item_path.clone().field("surface_reactivity")),
+                    );
+                }
+                if half_life
+                    .as_ref()
+                    .is_some_and(|value| !value.is_positive_finite())
+                {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            "case.substance.half_life_invalid",
+                            "half_life must be finite and positive",
+                        )
+                        .at(item_path.clone().field("half_life")),
+                    );
+                }
+                if let Some(reaction) = oh_reaction {
+                    if reaction.pre_exponential.value_si() < 0.0 {
+                        diagnostics.push(
+                            Diagnostic::error(
+                                "case.substance.oh_pre_exponential_invalid",
+                                "OH pre_exponential must be finite and non-negative",
+                            )
+                            .at(item_path
+                                .clone()
+                                .field("oh_reaction")
+                                .field("pre_exponential")),
+                        );
+                    }
+                    if !reaction.temperature_exponent.is_finite() {
+                        diagnostics.push(
+                            Diagnostic::error(
+                                "case.substance.oh_temperature_exponent_invalid",
+                                "OH temperature_exponent must be finite",
+                            )
+                            .at(item_path
+                                .clone()
+                                .field("oh_reaction")
+                                .field("temperature_exponent")),
+                        );
+                    }
+                }
+            }
+            SubstanceSpec::Aerosol {
+                material_density,
+                diameter,
+                ..
+            } => {
+                if material_density.value_si() <= 0.0 {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            "case.substance.material_density_invalid",
+                            "material_density must be finite and positive",
+                        )
+                        .at(item_path.clone().field("material_density")),
+                    );
+                }
+                let minimum = diameter.minimum.value_si();
+                let mean = diameter.geometric_mean.value_si();
+                let maximum = diameter.maximum.value_si();
+                if minimum < 1.0e-8 || maximum > 1.0e-4 || minimum > mean || mean > maximum {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            "case.substance.diameter_range_invalid",
+                            "diameter must satisfy 0.01 um <= minimum <= geometric_mean <= maximum <= 100 um",
+                        )
+                        .at(item_path.clone().field("diameter")),
+                    );
+                }
+                if !diameter.geometric_standard_deviation.is_finite()
+                    || diameter.geometric_standard_deviation <= 1.0
+                {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            "case.substance.diameter_spread_invalid",
+                            "geometric_standard_deviation must be finite and greater than 1",
+                        )
+                        .at(item_path
+                            .clone()
+                            .field("diameter")
+                            .field("geometric_standard_deviation")),
+                    );
+                }
+            }
         }
     }
 }
 
-fn validate_physics(
-    physics: &[PhysicsModuleSpec],
+fn validate_physics_selection(
+    physics: &PhysicsSelectionSpec,
     path: DiagnosticPath,
     diagnostics: &mut DiagnosticBag,
 ) {
-    for (index, module) in physics.iter().enumerate() {
-        if module.model.0.trim().is_empty() {
-            diagnostics.push(
-                Diagnostic::error(
-                    "case.physics.model_empty",
-                    "physics module model id must not be empty",
-                )
-                .at(path.clone().index(index).field("model")),
-            );
-        }
+    if let Err(physics_diagnostics) = resolve_physics(physics, path) {
+        diagnostics.append(physics_diagnostics);
     }
 }
 
@@ -1002,8 +1126,10 @@ fn validate_cross_component_contracts(case: &ResolvedCase, diagnostics: &mut Dia
     let substance_ids = case
         .substances
         .iter()
-        .map(|substance| substance.id.0.as_str())
+        .map(|substance| substance.id().0.as_str())
         .collect::<BTreeSet<_>>();
+
+    validate_physics_substances(case, diagnostics);
 
     let Some(population) = &case.particle_population else {
         return;
@@ -1077,6 +1203,118 @@ fn validate_cross_component_contracts(case: &ResolvedCase, diagnostics: &mut Dia
                         .field("ozone_substance")),
                 );
             }
+        }
+    }
+}
+
+fn validate_physics_substances(case: &ResolvedCase, diagnostics: &mut DiagnosticBag) {
+    let Some(physics) = &case.physics else {
+        return;
+    };
+    let allowed = match physics.preset {
+        PhysicsPreset::WaterVaporTracking => &[SubstanceKind::WaterVapor][..],
+        PhysicsPreset::GasTransport => &[SubstanceKind::Gas][..],
+        PhysicsPreset::AerosolTransport => &[SubstanceKind::Aerosol][..],
+        PhysicsPreset::BuoyantRelease => &[
+            SubstanceKind::WaterVapor,
+            SubstanceKind::Gas,
+            SubstanceKind::Aerosol,
+        ][..],
+    };
+    if case.substances.is_empty() {
+        diagnostics.push(
+            Diagnostic::error(
+                "case.physics.substance_missing",
+                "an enabled physics preset requires at least one substance",
+            )
+            .at(DiagnosticPath::root().field("substances")),
+        );
+        return;
+    }
+    for (index, substance) in case.substances.iter().enumerate() {
+        if !allowed.contains(&substance.kind()) {
+            diagnostics.push(
+                Diagnostic::error(
+                    "case.physics.substance_kind_mismatch",
+                    format!(
+                        "substance '{}' is incompatible with preset {:?}",
+                        substance.id().0,
+                        physics.preset
+                    ),
+                )
+                .at(DiagnosticPath::root()
+                    .field("substances")
+                    .index(index)
+                    .field("kind")),
+            );
+        }
+    }
+
+    for (index, module) in physics.modules.iter().enumerate() {
+        let supports = |kind| match module.model {
+            PhysicsModuleId::WaterVaporExchange => kind == SubstanceKind::WaterVapor,
+            PhysicsModuleId::GravitationalSettling => kind == SubstanceKind::Aerosol,
+            PhysicsModuleId::DryDeposition | PhysicsModuleId::WetScavenging => {
+                matches!(kind, SubstanceKind::Gas | SubstanceKind::Aerosol)
+            }
+            PhysicsModuleId::FirstOrderDecay | PhysicsModuleId::OhOxidation => {
+                kind == SubstanceKind::Gas
+            }
+            _ => true,
+        };
+        if !case
+            .substances
+            .iter()
+            .any(|substance| supports(substance.kind()))
+        {
+            diagnostics.push(
+                Diagnostic::error(
+                    "case.physics.module_has_no_substance",
+                    format!("module '{}' has no compatible substance", module.model),
+                )
+                .at(DiagnosticPath::root()
+                    .field("physics")
+                    .field("modules")
+                    .index(index)
+                    .field("model")),
+            );
+        }
+        let configured = match module.model {
+            PhysicsModuleId::FirstOrderDecay => case.substances.iter().any(|substance| {
+                matches!(
+                    substance,
+                    SubstanceSpec::Gas {
+                        half_life: Some(_),
+                        ..
+                    }
+                )
+            }),
+            PhysicsModuleId::OhOxidation => case.substances.iter().any(|substance| {
+                matches!(
+                    substance,
+                    SubstanceSpec::Gas {
+                        oh_reaction: Some(_),
+                        ..
+                    }
+                )
+            }),
+            _ => true,
+        };
+        if !configured {
+            diagnostics.push(
+                Diagnostic::error(
+                    "case.physics.module_property_missing",
+                    format!(
+                        "module '{}' has no substance declaring its required property",
+                        module.model
+                    ),
+                )
+                .at(DiagnosticPath::root()
+                    .field("physics")
+                    .field("modules")
+                    .index(index)
+                    .field("model")),
+            );
         }
     }
 }

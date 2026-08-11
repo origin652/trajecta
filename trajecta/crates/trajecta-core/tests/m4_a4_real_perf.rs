@@ -1437,7 +1437,7 @@ fn case(family: Family, dataset: DatasetRef, direction: Direction, particles: u6
             },
             random_seed: Some(4_202),
         }),
-        physics: Vec::new(),
+        physics: None,
         outputs: vec![trajecta_case::model::output::OutputProductSpec {
             product: ModelId(trajecta_case::model::output::PARTICLE_STATE_PRODUCT_ID.into()),
             schedule: OutputSchedule::Interval {

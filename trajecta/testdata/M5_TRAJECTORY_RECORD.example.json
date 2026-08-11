@@ -9,6 +9,6 @@
   "origin":{"kind":"release","event_id":null,"domain_id":null,"boundary_face_id":null},
   "birth_time":{"seconds_since_unix_epoch":0,"nanosecond":0},
   "dry_air_mass_kg":1.0,
-  "sensitivity_weight":null,
-  "substance_mass_kg":{}
+  "substance_mass_kg":{"water":0.01},
+  "substance_adjoint_weight":{}
 }

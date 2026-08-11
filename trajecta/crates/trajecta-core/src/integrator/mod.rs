@@ -245,6 +245,18 @@ impl VelocitySample {
         }
         Some([self.eastward_m_s?, self.northward_m_s?, self.vertical_m_s?])
     }
+
+    fn with_perturbation(mut self, perturbation_m_s: [f64; 3]) -> Self {
+        if perturbation_m_s == [0.0; 3] {
+            return self;
+        }
+        if self.status == SampleStatus::Ok {
+            self.eastward_m_s = self.eastward_m_s.map(|value| value + perturbation_m_s[0]);
+            self.northward_m_s = self.northward_m_s.map(|value| value + perturbation_m_s[1]);
+            self.vertical_m_s = self.vertical_m_s.map(|value| value + perturbation_m_s[2]);
+        }
+        self
+    }
 }
 
 fn query_transport(
@@ -727,6 +739,12 @@ where
             .zip(active_seconds.iter().copied())
             .zip(start_samples)
         {
+            let sample = sample.with_perturbation(
+                input
+                    .particles
+                    .random_motion_velocity(batch_index)
+                    .map_err(|_| IntegratorError::InvalidParticleBatch)?,
+            );
             if sample.boundary_bridge {
                 let Some(advanced) = start.advanced(
                     start.longitude_degrees,
@@ -827,6 +845,12 @@ where
             .zip(midpoint_start_velocities)
             .zip(midpoint_samples)
         {
+            let sample = sample.with_perturbation(
+                input
+                    .particles
+                    .random_motion_velocity(batch_index)
+                    .map_err(|_| IntegratorError::InvalidParticleBatch)?,
+            );
             let start = MotionState::at(input.particles, batch_index);
             if sample.boundary_bridge {
                 let Some((longitude, latitude)) = spherical_displacement(
@@ -1169,7 +1193,7 @@ mod tests {
             elapsed_age_ns: 0,
             dry_air_mass_kg: 0.0,
             mass_kg: BTreeMap::new(),
-            sensitivity_weight: None,
+            adjoint_weight: BTreeMap::new(),
             status: ParticleStatus::Alive,
             termination: None,
         }
@@ -1193,16 +1217,14 @@ mod tests {
                 .collect(),
             elapsed_age_ns: states.iter().map(|state| state.elapsed_age_ns).collect(),
             dry_air_mass_kg: states.iter().map(|state| state.dry_air_mass_kg).collect(),
-            sensitivity_weight: states
-                .iter()
-                .map(|state| state.sensitivity_weight)
-                .collect(),
             status: states.iter().map(|state| state.status.clone()).collect(),
             termination: states
                 .iter()
                 .map(|state| state.termination.clone())
                 .collect(),
             mass: SubstanceMassStore::default(),
+            adjoint: Default::default(),
+            motion: Default::default(),
         }
     }
 

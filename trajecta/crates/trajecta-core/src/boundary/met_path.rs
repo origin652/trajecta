@@ -13,9 +13,11 @@
 )]
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use trajecta_case::model::meteorology::DomainId;
 use trajecta_case::model::time::Timestamp;
+use trajecta_met::auxiliary::gmted2010::Gmted2010;
 use trajecta_met::grid::{CellId, DomainGeometry, GridBackend, GridError, RegularLatLonGrid};
 use trajecta_met::performance::{
     PerformanceDistribution, PerformanceScope, PerformanceStage, record_performance_distribution,
@@ -73,6 +75,7 @@ impl<'a> CornerFieldSession<'a> {
 /// Production factory constructing MetEngine-backed path samplers.
 #[derive(Debug, Default)]
 pub struct MetBoundaryPathSamplerFactory {
+    gmted2010: Option<Arc<Gmted2010>>,
     grid: Option<(DomainId, RegularLatLonGrid)>,
     cell_envelopes: Vec<CellEnvelopeCacheEntry>,
     corner_fields: BTreeMap<CornerFieldCacheKey, Option<CellCornerFields>>,
@@ -82,6 +85,17 @@ pub struct MetBoundaryPathSamplerFactory {
     certified_corner_counts: Vec<u64>,
     build_scope: Option<PerformanceScope>,
     certification_scope: Option<PerformanceScope>,
+}
+
+impl MetBoundaryPathSamplerFactory {
+    /// Creates the production sampler with an optional locked terrain correction.
+    #[must_use]
+    pub fn new(gmted2010: Option<Arc<Gmted2010>>) -> Self {
+        Self {
+            gmted2010,
+            ..Self::default()
+        }
+    }
 }
 
 impl BoundaryPathSamplerFactory for MetBoundaryPathSamplerFactory {
@@ -134,6 +148,11 @@ impl BoundaryPathSamplerFactory for MetBoundaryPathSamplerFactory {
         query_plan: &TransportPlan,
         execution: &dyn ExecutionContext,
     ) -> Result<bool, BoundaryError> {
+        if self.gmted2010.is_some() {
+            // The meteorology-only envelope cannot bound the higher-resolution
+            // corrected terrain. The exact dual-grid path handles this case.
+            return Ok(false);
+        }
         let domain = request.domain.ok_or(BoundaryError::MissingContext)?;
         let Self {
             grid,
@@ -204,6 +223,7 @@ impl BoundaryPathSamplerFactory for MetBoundaryPathSamplerFactory {
             &mut self.corner_fields,
             &mut self.used_corner_fields,
             &mut self.workspace,
+            self.gmted2010.clone(),
         );
         Ok(Box::new(sampler?))
     }
@@ -227,6 +247,7 @@ struct MetBoundaryPathSampler<'a> {
     corner_fields: CornerFieldSession<'a>,
     certification_passes: u64,
     observation_ready: bool,
+    gmted2010: Option<Arc<Gmted2010>>,
 }
 
 const SAFE_BOUNDARY_ENVELOPE_MARGIN_M: f64 = 50.0;
@@ -257,6 +278,7 @@ impl<'a> MetBoundaryPathSampler<'a> {
         corner_fields: &'a mut BTreeMap<CornerFieldCacheKey, Option<CellCornerFields>>,
         used_corner_fields: &'a mut Vec<CornerFieldCacheKey>,
         workspace: &'a mut BatchWorkspace,
+        gmted2010: Option<Arc<Gmted2010>>,
     ) -> Result<Self, BoundaryError> {
         let domain = request
             .domain
@@ -280,6 +302,7 @@ impl<'a> MetBoundaryPathSampler<'a> {
             corner_fields: CornerFieldSession::new(corner_fields, used_corner_fields),
             certification_passes: 0,
             observation_ready: false,
+            gmted2010,
         };
         sampler.rebuild_segments()?;
         Ok(sampler)
@@ -299,6 +322,7 @@ impl<'a> MetBoundaryPathSampler<'a> {
             self.execution,
             self.workspace,
             &mut self.corner_fields,
+            self.gmted2010.as_deref(),
         )?;
         let mut segments = Vec::with_capacity(cuts.len().saturating_sub(1));
         for window in cuts.windows(2) {
@@ -421,6 +445,22 @@ impl<'a> MetBoundaryPathSampler<'a> {
             .map(|value| value.minimum_transport_asl_m())
             .or_else(|| row.terrain_height_asl_m())
             .filter(|value| value.is_finite());
+        let surface = match (surface, &self.gmted2010) {
+            (Some(surface), Some(dataset)) => Some(
+                surface
+                    + dataset
+                        .sample_for_meteorology_cell(
+                            &self.grid,
+                            position.longitude_degrees,
+                            position.latitude_degrees,
+                        )
+                        .map_err(|_| BoundaryError::MissingContext)?
+                        .terrain_anomaly_m(),
+            ),
+            (surface, None) => surface,
+            (None, Some(_)) => None,
+        }
+        .filter(|value| value.is_finite());
         let model_top = bounds
             .map(|value| value.available_top_asl_m())
             .filter(|value| value.is_finite());
@@ -832,6 +872,7 @@ fn certify_path_cuts(
     execution: &dyn ExecutionContext,
     workspace: &mut BatchWorkspace,
     corner_fields: &mut CornerFieldSession<'_>,
+    gmted2010: Option<&Gmted2010>,
 ) -> Result<(Vec<f64>, u32), BoundaryError> {
     let start_position = BoundaryPosition::from(start);
     let proposed_position = BoundaryPosition::from(proposed);
@@ -839,6 +880,14 @@ fn certify_path_cuts(
     let grid_crossings = grid_line_crossings(start_position, proposed_position, grid);
     for fraction in grid_crossings? {
         insert_cut(&mut cuts, fraction);
+    }
+    if let Some(dataset) = gmted2010 {
+        let terrain_grid = dataset
+            .mean_interpolation_geometry()
+            .map_err(|_| BoundaryError::MissingContext)?;
+        for fraction in grid_line_crossings(start_position, proposed_position, &terrain_grid)? {
+            insert_cut(&mut cuts, fraction);
+        }
     }
     let turning_points = gc_turning_point_fractions(start_position, proposed_position);
     for fraction in turning_points? {
@@ -879,6 +928,7 @@ fn certify_path_cuts(
                 workspace,
                 grid,
                 corner_fields,
+                gmted2010,
             );
             for f in extrema? {
                 if f > window[0] + 1.0e-14 && f < window[1] - 1.0e-14 {
@@ -1327,6 +1377,7 @@ fn scalar_field_extremum_cuts(
     workspace: &mut BatchWorkspace,
     grid: &DomainGeometry,
     corner_fields: &mut CornerFieldSession<'_>,
+    gmted2010: Option<&Gmted2010>,
 ) -> Result<Vec<f64>, BoundaryError> {
     if f1 - f0 <= 1.0e-15 {
         return Ok(Vec::new());
@@ -1439,29 +1490,92 @@ fn scalar_field_extremum_cuts(
     else {
         return Ok(Vec::new());
     };
-    let corners_t0 = fields0.terrain;
-    let corners_t1 = fields1.terrain;
     let corners_m0 = fields0.model_top;
     let corners_m1 = fields1.model_top;
 
     let dh = proposed.height_asl_m - start.height_asl_m;
     let mut cuts = Vec::new();
     // clearance c = h - T  ⇒ c' = dh - T'
-    let clearance_roots = isolate_residual_roots_interval(
-        f0,
-        f1,
-        a,
-        b,
-        omega,
-        grid,
-        i0,
-        j0,
-        corners_t0,
-        corners_t1,
-        start.height_asl_m,
-        dh,
-        ResidualKind::Clearance,
-    );
+    let clearance_roots = if let Some(dataset) = gmted2010 {
+        let terrain_grid = dataset
+            .mean_interpolation_geometry()
+            .map_err(|_| BoundaryError::MissingContext)?;
+        let (terrain_i, _, terrain_j, _) = cell_fraction(mid_lon, mid_lat, &terrain_grid)?;
+        for fraction in [f0, f1] {
+            let (longitude_degrees, latitude_degrees) =
+                path_lonlat(start_position, proposed_position, fraction)?;
+            local_cell_fraction(
+                longitude_degrees,
+                terrain_grid.longitude_origin_degrees,
+                terrain_grid.longitude_spacing_degrees,
+                terrain_i,
+                Some(terrain_grid.longitude_spacing_degrees * terrain_grid.nx as f64),
+            )?;
+            local_cell_fraction(
+                latitude_degrees,
+                terrain_grid.latitude_origin_degrees,
+                terrain_grid.latitude_spacing_degrees,
+                terrain_j,
+                None,
+            )?;
+        }
+        let terrain_sample = dataset
+            .sample_for_meteorology_cell(grid, mid_lon, mid_lat)
+            .map_err(|_| BoundaryError::MissingContext)?;
+        let corrected0 = corrected_terrain_corners(
+            dataset,
+            &terrain_grid,
+            terrain_i,
+            terrain_j,
+            grid,
+            i0,
+            j0,
+            fields0.terrain,
+            terrain_sample.meteorology_cell_mean_elevation_m,
+        )?;
+        let corrected1 = corrected_terrain_corners(
+            dataset,
+            &terrain_grid,
+            terrain_i,
+            terrain_j,
+            grid,
+            i0,
+            j0,
+            fields1.terrain,
+            terrain_sample.meteorology_cell_mean_elevation_m,
+        )?;
+        isolate_residual_roots_interval(
+            f0,
+            f1,
+            a,
+            b,
+            omega,
+            &terrain_grid,
+            terrain_i,
+            terrain_j,
+            corrected0,
+            corrected1,
+            start.height_asl_m,
+            dh,
+            ResidualKind::Clearance,
+        )
+    } else {
+        isolate_residual_roots_interval(
+            f0,
+            f1,
+            a,
+            b,
+            omega,
+            grid,
+            i0,
+            j0,
+            fields0.terrain,
+            fields1.terrain,
+            start.height_asl_m,
+            dh,
+            ResidualKind::Clearance,
+        )
+    };
     cuts.extend(clearance_roots?);
     if let (Some(m0), Some(m1)) = (corners_m0, corners_m1) {
         // top gap g = M - h ⇒ g' = M' - dh
@@ -1486,6 +1600,91 @@ fn scalar_field_extremum_cuts(
     cuts.sort_by(|x, y| x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal));
     cuts.dedup_by(|x, y| (*x - *y).abs() <= 1.0e-14);
     Ok(cuts)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn corrected_terrain_corners(
+    dataset: &Gmted2010,
+    terrain_grid: &DomainGeometry,
+    terrain_i: i64,
+    terrain_j: i64,
+    meteorology_grid: &DomainGeometry,
+    meteorology_i: i64,
+    meteorology_j: i64,
+    meteorology_corners: [f64; 4],
+    meteorology_cell_mean_elevation_m: f64,
+) -> Result<[f64; 4], BoundaryError> {
+    let mut corrected = [0.0; 4];
+    for (corner, (di, dj)) in [(0_i64, 0_i64), (1, 0), (0, 1), (1, 1)]
+        .into_iter()
+        .enumerate()
+    {
+        let longitude_degrees = terrain_grid.longitude_origin_degrees
+            + terrain_grid.longitude_spacing_degrees * (terrain_i + di) as f64;
+        let latitude_degrees = terrain_grid.latitude_origin_degrees
+            + terrain_grid.latitude_spacing_degrees * (terrain_j + dj) as f64;
+        let meteorology_x = unrestricted_cell_fraction(
+            longitude_degrees,
+            meteorology_grid.longitude_origin_degrees,
+            meteorology_grid.longitude_spacing_degrees,
+            meteorology_i,
+            meteorology_grid
+                .periodic_longitude
+                .then_some(meteorology_grid.longitude_spacing_degrees * meteorology_grid.nx as f64),
+        )?;
+        let meteorology_y = unrestricted_cell_fraction(
+            latitude_degrees,
+            meteorology_grid.latitude_origin_degrees,
+            meteorology_grid.latitude_spacing_degrees,
+            meteorology_j,
+            None,
+        )?;
+        let meteorology_surface =
+            bilinear_value(meteorology_corners, meteorology_x, meteorology_y)?;
+        let dem = dataset
+            .mean_elevation_m(longitude_degrees, latitude_degrees)
+            .map_err(|_| BoundaryError::MissingContext)?;
+        let value = meteorology_surface + dem - meteorology_cell_mean_elevation_m;
+        corrected[corner] = value
+            .is_finite()
+            .then_some(value)
+            .ok_or(BoundaryError::InvalidParticleState)?;
+    }
+    Ok(corrected)
+}
+
+fn unrestricted_cell_fraction(
+    value: f64,
+    origin: f64,
+    spacing: f64,
+    index: i64,
+    periodic_span: Option<f64>,
+) -> Result<f64, BoundaryError> {
+    if !value.is_finite() || !origin.is_finite() || !spacing.is_finite() || spacing == 0.0 {
+        return Err(BoundaryError::InvalidParticleState);
+    }
+    let mut adjusted = value;
+    if let Some(span) = periodic_span {
+        if !span.is_finite() || span <= 0.0 {
+            return Err(BoundaryError::MissingContext);
+        }
+        let center = origin + spacing * (index as f64 + 0.5);
+        adjusted += ((center - adjusted) / span).round() * span;
+    }
+    let fraction = (adjusted - origin) / spacing - index as f64;
+    fraction
+        .is_finite()
+        .then_some(fraction)
+        .ok_or(BoundaryError::InvalidParticleState)
+}
+
+fn bilinear_value(corners: [f64; 4], x: f64, y: f64) -> Result<f64, BoundaryError> {
+    let [base, alpha, beta, gamma] = bilinear_coefficients(corners);
+    let value = gamma.mul_add(x * y, alpha.mul_add(x, beta.mul_add(y, base)));
+    value
+        .is_finite()
+        .then_some(value)
+        .ok_or(BoundaryError::InvalidParticleState)
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -2805,7 +3004,7 @@ mod tests {
             elapsed_age_ns: 0,
             dry_air_mass_kg: 1.0,
             mass_kg: Default::default(),
-            sensitivity_weight: None,
+            adjoint_weight: Default::default(),
             status: ParticleStatus::Alive,
             termination: None,
         }

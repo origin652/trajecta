@@ -3,9 +3,13 @@
 //! Converts sampled release vertical coordinates with exact-birth-time
 //! meteorology queries. Failures are event-wide hard errors.
 
+use std::sync::Arc;
+
 use trajecta_case::model::population::ReleaseVerticalSpec;
 use trajecta_case::model::time::Timestamp;
+use trajecta_met::auxiliary::gmted2010::Gmted2010;
 use trajecta_met::field::{CanonicalField, FieldKey};
+use trajecta_met::grid::DomainGeometry;
 use trajecta_met::profile::graph::ExecutionPlan;
 use trajecta_met::query::engine::BatchWorkspace;
 use trajecta_met::query::metrics::{QueryOrigin, QueryOriginScope};
@@ -19,8 +23,38 @@ use crate::population::{PopulationContext, PopulationError, ReleaseVerticalResol
 use crate::release::ReleaseEvent;
 
 /// Resolves release vertical coordinates with official meteorology queries.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct MetReleaseVerticalResolver;
+#[derive(Clone, Debug, Default)]
+pub struct MetReleaseVerticalResolver {
+    gmted2010: Option<Arc<Gmted2010>>,
+}
+
+impl MetReleaseVerticalResolver {
+    /// Creates a resolver with the optional locked sub-grid terrain dataset.
+    #[must_use]
+    pub const fn new(gmted2010: Option<Arc<Gmted2010>>) -> Self {
+        Self { gmted2010 }
+    }
+
+    fn corrected_terrain_asl_m(
+        &self,
+        raw_terrain_asl_m: f64,
+        geometry: &DomainGeometry,
+        longitude_degrees: f64,
+        latitude_degrees: f64,
+    ) -> Result<f64, PopulationError> {
+        let Some(dataset) = &self.gmted2010 else {
+            return Ok(raw_terrain_asl_m);
+        };
+        let sample = dataset
+            .sample_for_meteorology_cell(geometry, longitude_degrees, latitude_degrees)
+            .map_err(|_| PopulationError::MissingMeteorology)?;
+        let corrected = raw_terrain_asl_m + sample.terrain_anomaly_m();
+        corrected
+            .is_finite()
+            .then_some(corrected)
+            .ok_or(PopulationError::InvalidConfiguration)
+    }
+}
 
 impl ReleaseVerticalResolver for MetReleaseVerticalResolver {
     fn resolve_asl(
@@ -45,16 +79,25 @@ impl ReleaseVerticalResolver for MetReleaseVerticalResolver {
         match &event.vertical {
             ReleaseVerticalSpec::AboveSeaLevel { .. } => {
                 for index in 0..sampled_vertical.len() {
-                    let (lon, lat) = horizontal[index];
-                    let status = transport_status(
+                    let (longitude, latitude) = horizontal[index];
+                    let (status, terrain, geometry) = transport_terrain(
                         context,
                         birth_times[index],
-                        lon,
-                        lat,
+                        longitude,
+                        latitude,
                         sampled_vertical[index],
                         VerticalQuery::AboveSeaLevel,
                     )?;
                     ensure_ok(status)?;
+                    let terrain = self.corrected_terrain_asl_m(
+                        terrain.ok_or(PopulationError::InvalidConfiguration)?,
+                        &geometry,
+                        longitude,
+                        latitude,
+                    )?;
+                    if sampled_vertical[index] <= terrain {
+                        return Err(PopulationError::InvalidConfiguration);
+                    }
                 }
                 Ok(sampled_vertical.to_vec())
             }
@@ -65,7 +108,7 @@ impl ReleaseVerticalResolver for MetReleaseVerticalResolver {
                         return Err(PopulationError::InvalidConfiguration);
                     }
                     let (lon, lat) = horizontal[index];
-                    let (status, terrain) = transport_terrain(
+                    let (status, terrain, geometry) = transport_terrain(
                         context,
                         birth_times[index],
                         lon,
@@ -74,12 +117,17 @@ impl ReleaseVerticalResolver for MetReleaseVerticalResolver {
                         VerticalQuery::AboveGround,
                     )?;
                     ensure_ok(status)?;
-                    let terrain = terrain.ok_or(PopulationError::InvalidConfiguration)?;
+                    let terrain = self.corrected_terrain_asl_m(
+                        terrain.ok_or(PopulationError::InvalidConfiguration)?,
+                        &geometry,
+                        lon,
+                        lat,
+                    )?;
                     let asl = terrain + sampled_vertical[index];
                     if !asl.is_finite() {
                         return Err(PopulationError::InvalidConfiguration);
                     }
-                    let status = transport_status(
+                    let (status, _, _) = transport_terrain(
                         context,
                         birth_times[index],
                         lon,
@@ -111,24 +159,31 @@ impl ReleaseVerticalResolver for MetReleaseVerticalResolver {
                     if !height.is_finite() {
                         return Err(PopulationError::InvalidConfiguration);
                     }
+                    if let Some(dataset) = &self.gmted2010 {
+                        let (status, terrain, geometry) = transport_terrain(
+                            context,
+                            birth_times[index],
+                            lon,
+                            lat,
+                            height,
+                            VerticalQuery::AboveSeaLevel,
+                        )?;
+                        ensure_ok(status)?;
+                        let sample = dataset
+                            .sample_for_meteorology_cell(&geometry, lon, lat)
+                            .map_err(|_| PopulationError::MissingMeteorology)?;
+                        let corrected = terrain.ok_or(PopulationError::InvalidConfiguration)?
+                            + sample.terrain_anomaly_m();
+                        if !corrected.is_finite() || height <= corrected {
+                            return Err(PopulationError::InvalidConfiguration);
+                        }
+                    }
                     out.push(height);
                 }
                 Ok(out)
             }
         }
     }
-}
-
-fn transport_status(
-    context: &mut PopulationContext<'_>,
-    time: Timestamp,
-    lon: f64,
-    lat: f64,
-    vertical: f64,
-    coordinate: VerticalQuery,
-) -> Result<SampleStatus, PopulationError> {
-    let (status, _) = transport_terrain(context, time, lon, lat, vertical, coordinate)?;
-    Ok(status)
 }
 
 fn transport_terrain(
@@ -138,7 +193,7 @@ fn transport_terrain(
     lat: f64,
     vertical: f64,
     coordinate: VerticalQuery,
-) -> Result<(SampleStatus, Option<f64>), PopulationError> {
+) -> Result<(SampleStatus, Option<f64>, DomainGeometry), PopulationError> {
     let _query_origin = QueryOriginScope::enter(QueryOrigin::PopulationVertical);
     let domain = context
         .domain
@@ -148,6 +203,7 @@ fn transport_terrain(
         .meteorology
         .prepare_for_domain(time, domain)
         .map_err(|_| PopulationError::MissingMeteorology)?;
+    let geometry = window.frames.before.metadata().grid.clone();
     let plan = context
         .meteorology
         .compile_transport_plan(TransportPlanRequest::default(), &ExecutionPlan::default())
@@ -175,7 +231,7 @@ fn transport_terrain(
         .first()
         .ok_or(PopulationError::InvalidConfiguration)?;
     let terrain = output.row(0).and_then(|row| row.terrain_height_asl_m());
-    Ok((status, terrain))
+    Ok((status, terrain, geometry))
 }
 
 fn geometric_height_at_pressure(

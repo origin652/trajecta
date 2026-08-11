@@ -44,6 +44,8 @@ pub struct SyntheticStack {
     pub transport_plan: TransportPlan,
     /// Execution context.
     pub execution: Box<dyn ExecutionContext>,
+    /// Optional prepared terrain dataset for M6-A2 production-pipeline tests.
+    pub gmted2010: Option<Arc<trajecta_met::auxiliary::gmted2010::Gmted2010>>,
 }
 
 /// Constant wind specification for synthetic frames.
@@ -227,6 +229,7 @@ fn constant_wind_multidomain_stack_with_vertical(
         engine,
         transport_plan,
         execution: Box::new(RayonExecutionContext { worker_threads: 1 }),
+        gmted2010: None,
     })
 }
 
@@ -255,6 +258,8 @@ fn transport_field_registry() -> Result<FieldRegistry, RunError> {
         CanonicalField::NorthwardSurfaceStress,
         CanonicalField::SensibleHeatFlux,
         CanonicalField::LatentHeatFlux,
+        CanonicalField::FrictionVelocity,
+        CanonicalField::MoninObukhovLength,
         CanonicalField::PotentialVorticity,
     ] {
         let semantics = canonical.semantics();
@@ -543,6 +548,28 @@ fn constant_frame(
         time,
         "W m-2",
         Dimension::ENERGY_FLUX,
+    )?;
+    insert_field(
+        &mut fields,
+        &mut provenance,
+        &id,
+        CanonicalField::FrictionVelocity,
+        vec![0.3; ny * nx],
+        horizontal,
+        time,
+        "m/s",
+        Dimension::VELOCITY,
+    )?;
+    insert_field(
+        &mut fields,
+        &mut provenance,
+        &id,
+        CanonicalField::MoninObukhovLength,
+        vec![-100.0; ny * nx],
+        horizontal,
+        time,
+        "m",
+        Dimension::LENGTH,
     )?;
     insert_field(
         &mut fields,

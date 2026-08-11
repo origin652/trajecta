@@ -1,4 +1,4 @@
-//! # Contract: particle_state_sqlite/v1 typed sink
+//! # Contract: trajecta.particle-state-sqlite/v2 typed sink
 //!
 //! Implements the public SQLite schema with WAL, NORMAL sync, foreign keys,
 //! atomic events, bounded lifecycle transactions, and live-read inspection.
@@ -10,6 +10,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::{CachedStatement, Connection, params};
 use sha2::{Digest, Sha256};
+use trajecta_case::model::physics::PhysicsModuleId;
+use trajecta_case::model::substance::SubstanceId;
+use trajecta_case::model::time::Direction;
 use trajecta_case::model::time::Timestamp;
 use trajecta_met::field::FieldQuality;
 use trajecta_met::performance::{PerformanceScope, PerformanceStage};
@@ -27,19 +30,42 @@ use crate::particle::{ParticleBatch, ParticleOrigin, ParticleStatus, Termination
 use crate::science::SQLITE_SCHEMA_VERSION;
 
 /// Embedded public schema used to initialize every particle-state database.
-pub const SQLITE_SCHEMA_SQL: &str = include_str!("../../../../testdata/M4_SQLITE_SCHEMA.v1.sql");
+pub const SQLITE_SCHEMA_SQL: &str = include_str!("../../../../testdata/M6_SQLITE_SCHEMA.v2.sql");
 
 const MAX_LIFECYCLE_EVENTS_PER_TRANSACTION: usize = 512;
 const SQLITE_PAGE_SIZE_BYTES: i64 = 32 * 1024;
+const SQLITE_TABLES: [&str; 15] = [
+    "run",
+    "particle",
+    "particle_mass",
+    "particle_adjoint",
+    "particle_aerosol_property",
+    "output_event",
+    "particle_state",
+    "termination",
+    "process_summary",
+    "process_event",
+    "water_vapor_event",
+    "deposition_event",
+    "chemistry_event",
+    "emission_event",
+    "convection_event",
+];
 
 const CANONICAL_PARTICLE_SQL: &str = "SELECT particle_id, population_id, origin_kind,
             origin_event_id, origin_domain_id, origin_boundary_face_id,
-            birth_seconds, birth_nanosecond, dry_air_mass_kg, sensitivity_weight
+            birth_seconds, birth_nanosecond, dry_air_mass_kg
      FROM particle
      WHERE run_id = ?1
      ORDER BY particle_id";
-const CANONICAL_PARTICLE_MASS_SQL: &str = "SELECT particle_id, substance_id, mass_kg
+const CANONICAL_PARTICLE_MASS_SQL: &str = "SELECT particle_id, substance_id,
+            initial_mass_kg, mass_kg
      FROM particle_mass
+     WHERE run_id = ?1
+     ORDER BY particle_id, substance_id";
+const CANONICAL_PARTICLE_ADJOINT_SQL: &str = "SELECT particle_id, substance_id,
+            initial_adjoint_weight, adjoint_weight, source_sensitivity
+     FROM particle_adjoint
      WHERE run_id = ?1
      ORDER BY particle_id, substance_id";
 const CANONICAL_OUTPUT_EVENT_SQL: &str =
@@ -57,6 +83,13 @@ const CANONICAL_PARTICLE_STATE_SQL: &str = "SELECT particle_id, sample_sequence,
             longitude_degrees, latitude_degrees, height_asl_m,
             particle_status, termination_reason,
             eastward_wind_m_s, northward_wind_m_s, geometric_vertical_velocity_m_s,
+            boundary_layer_random_eastward_m_s,
+            boundary_layer_random_northward_m_s,
+            boundary_layer_random_vertical_m_s,
+            mesoscale_random_eastward_m_s,
+            mesoscale_random_northward_m_s,
+            mesoscale_random_vertical_m_s,
+            gravitational_settling_m_s,
             air_pressure_pa, air_temperature_k,
             wind_validity, wind_quality,
             pressure_validity, pressure_quality,
@@ -65,6 +98,44 @@ const CANONICAL_PARTICLE_STATE_SQL: &str = "SELECT particle_id, sample_sequence,
      WHERE run_id = ?1
      ORDER BY +physical_seconds, physical_nanosecond, particle_id, sample_sequence";
 const CANONICAL_TERMINATION_SQL: &str = "SELECT particle_id, reason, classification,
+            physical_seconds, physical_nanosecond, intersection_fraction
+     FROM termination
+     WHERE run_id = ?1
+     ORDER BY particle_id";
+
+// Scientific columns shared by the M5 v1 and M6 v2 sinks. This deliberately
+// excludes run identity, wall-clock lifecycle fields, and every v2-only
+// process column so an old pure-advection artifact can be compared with a new
+// pure-advection run without weakening either schema's canonical digest.
+const COMMON_ADVECTION_PARTICLE_SQL: &str = "SELECT particle_id, population_id, origin_kind,
+            origin_event_id, origin_domain_id, origin_boundary_face_id,
+            birth_seconds, birth_nanosecond, dry_air_mass_kg
+     FROM particle
+     WHERE run_id = ?1
+     ORDER BY particle_id";
+const COMMON_ADVECTION_PARTICLE_MASS_SQL: &str = "SELECT particle_id, substance_id, mass_kg
+     FROM particle_mass
+     WHERE run_id = ?1
+     ORDER BY particle_id, substance_id";
+const COMMON_ADVECTION_OUTPUT_EVENT_SQL: &str = "SELECT event_sequence, physical_seconds,
+            physical_nanosecond, event_kind
+     FROM output_event
+     WHERE run_id = ?1
+     ORDER BY event_sequence";
+const COMMON_ADVECTION_PARTICLE_STATE_SQL: &str = "SELECT particle_id, sample_sequence,
+            event_sequence, physical_seconds, physical_nanosecond,
+            integration_offset_ns, elapsed_age_ns,
+            longitude_degrees, latitude_degrees, height_asl_m,
+            particle_status, termination_reason,
+            eastward_wind_m_s, northward_wind_m_s, geometric_vertical_velocity_m_s,
+            air_pressure_pa, air_temperature_k,
+            wind_validity, wind_quality,
+            pressure_validity, pressure_quality,
+            temperature_validity, temperature_quality
+     FROM particle_state
+     WHERE run_id = ?1
+     ORDER BY +physical_seconds, physical_nanosecond, particle_id, sample_sequence";
+const COMMON_ADVECTION_TERMINATION_SQL: &str = "SELECT particle_id, reason, classification,
             physical_seconds, physical_nanosecond, intersection_fraction
      FROM termination
      WHERE run_id = ?1
@@ -113,6 +184,9 @@ pub struct ParticleStateSqliteSink {
     bundle_merge_fan_in: Option<usize>,
     /// When true, scan particle indices in reverse (order stress; same particle_ids).
     reverse_particle_scan: bool,
+    direction: Option<Direction>,
+    substances: Vec<SubstanceId>,
+    continuous_process_modules: Vec<PhysicsModuleId>,
 }
 
 impl ParticleStateSqliteSink {
@@ -122,8 +196,28 @@ impl ParticleStateSqliteSink {
         Self {
             run_start: Some(run_start),
             run_end: Some(run_end),
+            direction: Some(if run_start <= run_end {
+                Direction::Forward
+            } else {
+                Direction::Backward
+            }),
             ..Self::default()
         }
+    }
+
+    /// Supplies the resolved direction, substances, and continuous modules
+    /// needed by the public process-summary tables.
+    #[must_use]
+    pub fn with_process_contract(
+        mut self,
+        direction: Direction,
+        substances: Vec<SubstanceId>,
+        modules: Vec<PhysicsModuleId>,
+    ) -> Self {
+        self.direction = Some(direction);
+        self.substances = substances;
+        self.continuous_process_modules = modules;
+        self
     }
 
     /// Test/production knobs: same external-sort implementation, different limits/order.
@@ -172,14 +266,7 @@ impl ParticleStateSqliteSink {
             )));
         }
         let mut row_counts = BTreeMap::new();
-        for table in [
-            "run",
-            "particle",
-            "particle_mass",
-            "output_event",
-            "particle_state",
-            "termination",
-        ] {
+        for table in SQLITE_TABLES {
             let count: i64 = connection
                 .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
                     row.get(0)
@@ -205,6 +292,61 @@ impl ParticleStateSqliteSink {
             row_counts,
             canonical_sql_sha256: canonical_sql,
         })
+    }
+
+    /// Hashes the scientific row projection shared by M5 SQLite v1 and M6
+    /// SQLite v2 pure-advection runs.
+    ///
+    /// The database must contain exactly one run. A v2 database is accepted
+    /// only when every process table is empty and every process-velocity
+    /// column is NULL. The regular schema-specific canonical digest remains
+    /// authoritative for artifact identity; this projection exists solely as
+    /// the M6 pure-advection continuity gate.
+    pub fn common_advection_projection_sha256(path: &Path) -> Result<String, OutputError> {
+        let connection = Self::open_readonly(path)?;
+        let integrity: String = connection
+            .query_row("PRAGMA integrity_check", [], |row| row.get(0))
+            .map_err(io_err)?;
+        if integrity != "ok" {
+            return Err(OutputError::Io(format!("integrity_check={integrity}")));
+        }
+
+        let user_version: i64 = connection
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .map_err(io_err)?;
+        if !matches!(user_version, 1 | 2) {
+            return Err(OutputError::Io(format!(
+                "common advection projection requires user_version 1 or 2, found {user_version}"
+            )));
+        }
+
+        let run_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM run", [], |row| row.get(0))
+            .map_err(io_err)?;
+        if run_count != 1 {
+            return Err(OutputError::Io(format!(
+                "common advection projection requires one run row, found {run_count}"
+            )));
+        }
+        let run_id: String = connection
+            .query_row("SELECT run_id FROM run", [], |row| row.get(0))
+            .map_err(io_err)?;
+
+        if user_version == 2 {
+            validate_v2_pure_advection(&connection, &run_id)?;
+        }
+
+        let mut hasher = Sha256::new();
+        for (table, query) in [
+            ("particle", COMMON_ADVECTION_PARTICLE_SQL),
+            ("particle_mass", COMMON_ADVECTION_PARTICLE_MASS_SQL),
+            ("output_event", COMMON_ADVECTION_OUTPUT_EVENT_SQL),
+            ("particle_state", COMMON_ADVECTION_PARTICLE_STATE_SQL),
+            ("termination", COMMON_ADVECTION_TERMINATION_SQL),
+        ] {
+            hash_canonical_query(&mut hasher, &connection, table, query, &run_id)?;
+        }
+        Ok(hex::encode(hasher.finalize()))
     }
 
     fn begin_transaction(&mut self) -> Result<(), OutputError> {
@@ -234,6 +376,56 @@ impl ParticleStateSqliteSink {
         self.pending_lifecycle_events = 0;
         Ok(())
     }
+}
+
+fn validate_v2_pure_advection(connection: &Connection, run_id: &str) -> Result<(), OutputError> {
+    for table in [
+        "particle_adjoint",
+        "particle_aerosol_property",
+        "process_summary",
+        "process_event",
+        "water_vapor_event",
+        "deposition_event",
+        "chemistry_event",
+        "emission_event",
+        "convection_event",
+    ] {
+        let count: i64 = connection
+            .query_row(
+                &format!("SELECT COUNT(*) FROM {table} WHERE run_id = ?1"),
+                [run_id],
+                |row| row.get(0),
+            )
+            .map_err(io_err)?;
+        if count != 0 {
+            return Err(OutputError::Io(format!(
+                "common advection projection found {count} rows in v2 table {table}"
+            )));
+        }
+    }
+
+    let process_state_count: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM particle_state
+             WHERE run_id = ?1 AND (
+                 boundary_layer_random_eastward_m_s IS NOT NULL
+                 OR boundary_layer_random_northward_m_s IS NOT NULL
+                 OR boundary_layer_random_vertical_m_s IS NOT NULL
+                 OR mesoscale_random_eastward_m_s IS NOT NULL
+                 OR mesoscale_random_northward_m_s IS NOT NULL
+                 OR mesoscale_random_vertical_m_s IS NOT NULL
+                 OR gravitational_settling_m_s IS NOT NULL
+             )",
+            [run_id],
+            |row| row.get(0),
+        )
+        .map_err(io_err)?;
+    if process_state_count != 0 {
+        return Err(OutputError::Io(format!(
+            "common advection projection found {process_state_count} v2 process-state rows"
+        )));
+    }
+    Ok(())
 }
 
 /// One finished SQLite artifact inspection.
@@ -271,16 +463,27 @@ impl ParticleStateSink for ParticleStateSqliteSink {
             .map_err(io_err)?;
         validate_pragmas(&connection)?;
         let started = manifest.started_at;
+        let direction = self.direction.ok_or(OutputError::InvalidInput)?;
         connection
             .execute(
                 "INSERT INTO run (
-                    run_id, manifest_schema, case_name, status,
+                    run_id, job_series_id, attempt, parent_run_id,
+                    resumed_from_checkpoint_id,
+                    adopted_output_event_sequence_exclusive,
+                    adopted_process_event_sequence_exclusive,
+                    manifest_schema, case_name, direction, status,
                     started_seconds, started_nanosecond, finished_seconds, finished_nanosecond
-                ) VALUES (?1, ?2, ?3, 'running', ?4, ?5, NULL, NULL)",
+                ) VALUES (
+                    ?1, ?2, ?3, NULL, NULL, NULL, NULL,
+                    ?4, ?5, ?6, 'running', ?7, ?8, NULL, NULL
+                )",
                 params![
                     manifest.run_id.0,
+                    manifest.job_series_id.0,
+                    manifest.attempt,
                     manifest.schema_version,
                     manifest.case_name,
+                    direction_name(direction),
                     started.seconds_since_unix_epoch(),
                     started.nanosecond(),
                 ],
@@ -431,6 +634,13 @@ impl ParticleStateSink for ParticleStateSqliteSink {
                 insert_particle(&mut statements, &run_id, particles, index)?;
                 self.particles_inserted.insert(particle_id);
             }
+            write_substance_state(
+                &mut statements,
+                &run_id,
+                self.direction.ok_or(OutputError::InvalidInput)?,
+                particles,
+                index,
+            )?;
             let sample_key = (
                 particle_id,
                 time.seconds_since_unix_epoch(),
@@ -462,6 +672,24 @@ impl ParticleStateSink for ParticleStateSqliteSink {
                                 particles.latitude_degrees[index],
                                 particles.height_asl_m[index],
                                 reason.code(),
+                                particles
+                                    .motion
+                                    .boundary_layer_eastward_m_s
+                                    .get(index)
+                                    .copied(),
+                                particles
+                                    .motion
+                                    .boundary_layer_northward_m_s
+                                    .get(index)
+                                    .copied(),
+                                particles
+                                    .motion
+                                    .boundary_layer_vertical_m_s
+                                    .get(index)
+                                    .copied(),
+                                particles.motion.mesoscale_eastward_m_s.get(index).copied(),
+                                particles.motion.mesoscale_northward_m_s.get(index).copied(),
+                                particles.motion.mesoscale_vertical_m_s.get(index).copied(),
                             ])
                             .map_err(io_err)?;
                         if updated != 1 {
@@ -541,6 +769,25 @@ impl ParticleStateSink for ParticleStateSqliteSink {
                     eastward,
                     northward,
                     vertical,
+                    particles
+                        .motion
+                        .boundary_layer_eastward_m_s
+                        .get(index)
+                        .copied(),
+                    particles
+                        .motion
+                        .boundary_layer_northward_m_s
+                        .get(index)
+                        .copied(),
+                    particles
+                        .motion
+                        .boundary_layer_vertical_m_s
+                        .get(index)
+                        .copied(),
+                    particles.motion.mesoscale_eastward_m_s.get(index).copied(),
+                    particles.motion.mesoscale_northward_m_s.get(index).copied(),
+                    particles.motion.mesoscale_vertical_m_s.get(index).copied(),
+                    Option::<f64>::None,
                     pressure,
                     temperature,
                     wind_validity,
@@ -591,8 +838,19 @@ impl ParticleStateSink for ParticleStateSqliteSink {
 
     fn finish(&mut self) -> Result<(), OutputError> {
         self.commit_transaction()?;
+        let direction = self.direction.ok_or(OutputError::InvalidInput)?;
+        let substances = self.substances.clone();
+        let continuous_modules = self.continuous_process_modules.clone();
+        let run_id = self.run_id.clone();
         let connection = self.connection.as_mut().ok_or(OutputError::InvalidInput)?;
         let sqlite_audit = PerformanceScope::enter(PerformanceStage::OutputFinishSqliteAudit);
+        write_continuous_process_summaries(
+            connection,
+            &run_id,
+            direction,
+            &substances,
+            &continuous_modules,
+        )?;
         let now = system_timestamp()?;
         connection
             .execute(
@@ -633,14 +891,7 @@ impl ParticleStateSink for ParticleStateSqliteSink {
             return Err(OutputError::Io(format!("integrity_check={integrity}")));
         }
         let mut row_counts = BTreeMap::new();
-        for table in [
-            "run",
-            "particle",
-            "particle_mass",
-            "output_event",
-            "particle_state",
-            "termination",
-        ] {
+        for table in SQLITE_TABLES {
             let count: i64 = connection
                 .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
                     row.get(0)
@@ -770,6 +1021,7 @@ struct EventStatements<'connection> {
     output_event_kind: CachedStatement<'connection>,
     particle: CachedStatement<'connection>,
     particle_mass: CachedStatement<'connection>,
+    particle_adjoint: CachedStatement<'connection>,
     particle_state: CachedStatement<'connection>,
     particle_state_terminal: CachedStatement<'connection>,
     termination: CachedStatement<'connection>,
@@ -797,14 +1049,27 @@ impl<'connection> EventStatements<'connection> {
                     "INSERT INTO particle (
                         run_id, particle_id, population_id, origin_kind, origin_event_id,
                         origin_domain_id, origin_boundary_face_id, birth_seconds, birth_nanosecond,
-                        dry_air_mass_kg, sensitivity_weight
-                    ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
+                        dry_air_mass_kg
+                    ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
                 )
                 .map_err(io_err)?,
             particle_mass: connection
                 .prepare_cached(
-                    "INSERT INTO particle_mass (run_id, particle_id, substance_id, mass_kg)
-                     VALUES (?1,?2,?3,?4)",
+                    "INSERT INTO particle_mass (
+                        run_id, particle_id, substance_id, initial_mass_kg, mass_kg
+                     ) VALUES (?1,?2,?3,?4,?4)
+                     ON CONFLICT (run_id, particle_id, substance_id)
+                     DO UPDATE SET mass_kg = excluded.mass_kg",
+                )
+                .map_err(io_err)?,
+            particle_adjoint: connection
+                .prepare_cached(
+                    "INSERT INTO particle_adjoint (
+                        run_id, particle_id, substance_id,
+                        initial_adjoint_weight, adjoint_weight, source_sensitivity
+                     ) VALUES (?1,?2,?3,?4,?4,0.0)
+                     ON CONFLICT (run_id, particle_id, substance_id)
+                     DO UPDATE SET adjoint_weight = excluded.adjoint_weight",
                 )
                 .map_err(io_err)?,
             particle_state: connection
@@ -814,12 +1079,19 @@ impl<'connection> EventStatements<'connection> {
                         physical_seconds, physical_nanosecond, integration_offset_ns,
                         elapsed_age_ns, longitude_degrees, latitude_degrees, height_asl_m,
                         particle_status, termination_reason, eastward_wind_m_s,
-                        northward_wind_m_s, geometric_vertical_velocity_m_s, air_pressure_pa,
+                        northward_wind_m_s, geometric_vertical_velocity_m_s,
+                        boundary_layer_random_eastward_m_s,
+                        boundary_layer_random_northward_m_s,
+                        boundary_layer_random_vertical_m_s,
+                        mesoscale_random_eastward_m_s,
+                        mesoscale_random_northward_m_s,
+                        mesoscale_random_vertical_m_s,
+                        gravitational_settling_m_s, air_pressure_pa,
                         air_temperature_k, wind_validity, wind_quality, pressure_validity,
                         pressure_quality, temperature_validity, temperature_quality, provenance_id
                     ) VALUES (
                         ?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,
-                        ?19,?20,?21,?22,?23,?24,?25
+                        ?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32
                     )",
                 )
                 .map_err(io_err)?,
@@ -835,7 +1107,13 @@ impl<'connection> EventStatements<'connection> {
                          latitude_degrees = ?10,
                          height_asl_m = ?11,
                          particle_status = 'terminated',
-                         termination_reason = ?12
+                         termination_reason = ?12,
+                         boundary_layer_random_eastward_m_s = ?13,
+                         boundary_layer_random_northward_m_s = ?14,
+                         boundary_layer_random_vertical_m_s = ?15,
+                         mesoscale_random_eastward_m_s = ?16,
+                         mesoscale_random_northward_m_s = ?17,
+                         mesoscale_random_vertical_m_s = ?18
                      WHERE run_id = ?1 AND particle_id = ?2 AND sample_sequence = ?3",
                 )
                 .map_err(io_err)?,
@@ -891,19 +1169,53 @@ fn insert_particle(
             particles.birth_time[index].seconds_since_unix_epoch(),
             particles.birth_time[index].nanosecond(),
             particles.dry_air_mass_kg[index],
-            particles.sensitivity_weight[index],
         ])
         .map_err(io_err)?;
-    for (substance, masses) in &particles.mass.mass_kg {
-        statements
-            .particle_mass
-            .execute(params![
-                run_id,
-                particle_id,
-                substance.0.as_str(),
-                masses[index]
-            ])
-            .map_err(io_err)?;
+    Ok(())
+}
+
+fn write_substance_state(
+    statements: &mut EventStatements<'_>,
+    run_id: &str,
+    direction: Direction,
+    particles: &ParticleBatch,
+    index: usize,
+) -> Result<(), OutputError> {
+    let particle_id = i64::try_from(particles.id[index].0)
+        .map_err(|_| OutputError::Encoding("particle_id".into()))?;
+    match direction {
+        Direction::Forward => {
+            if !particles.adjoint.adjoint_weight.is_empty() {
+                return Err(OutputError::InvalidInput);
+            }
+            for (substance, masses) in &particles.mass.mass_kg {
+                statements
+                    .particle_mass
+                    .execute(params![
+                        run_id,
+                        particle_id,
+                        substance.0.as_str(),
+                        masses[index]
+                    ])
+                    .map_err(io_err)?;
+            }
+        }
+        Direction::Backward => {
+            if !particles.mass.mass_kg.is_empty() {
+                return Err(OutputError::InvalidInput);
+            }
+            for (substance, weights) in &particles.adjoint.adjoint_weight {
+                statements
+                    .particle_adjoint
+                    .execute(params![
+                        run_id,
+                        particle_id,
+                        substance.0.as_str(),
+                        weights[index]
+                    ])
+                    .map_err(io_err)?;
+            }
+        }
     }
     Ok(())
 }
@@ -935,6 +1247,90 @@ fn insert_termination(
         ])
         .map_err(io_err)?;
     Ok(())
+}
+
+fn write_continuous_process_summaries(
+    connection: &Connection,
+    run_id: &str,
+    direction: Direction,
+    substances: &[SubstanceId],
+    modules: &[PhysicsModuleId],
+) -> Result<(), OutputError> {
+    for module in modules {
+        for substance in substances {
+            match direction {
+                Direction::Forward => {
+                    let (initial, final_mass): (f64, f64) = connection
+                        .query_row(
+                            "SELECT COALESCE(SUM(initial_mass_kg), 0.0),
+                                    COALESCE(SUM(mass_kg), 0.0)
+                             FROM particle_mass
+                             WHERE run_id = ?1 AND substance_id = ?2",
+                            params![run_id, substance.0],
+                            |row| Ok((row.get(0)?, row.get(1)?)),
+                        )
+                        .map_err(io_err)?;
+                    connection
+                        .execute(
+                            "INSERT INTO process_summary (
+                                run_id, module_id, substance_id, direction, event_count,
+                                initial_mass_kg, positive_mass_delta_kg,
+                                negative_mass_delta_kg, final_mass_kg, closure_residual
+                             ) VALUES (?1,?2,?3,'forward',0,?4,0.0,0.0,?5,?6)",
+                            params![
+                                run_id,
+                                module.as_str(),
+                                substance.0,
+                                initial,
+                                final_mass,
+                                final_mass - initial,
+                            ],
+                        )
+                        .map_err(io_err)?;
+                }
+                Direction::Backward => {
+                    let (initial, final_weight, source_sensitivity): (f64, f64, f64) = connection
+                        .query_row(
+                            "SELECT COALESCE(SUM(initial_adjoint_weight), 0.0),
+                                        COALESCE(SUM(adjoint_weight), 0.0),
+                                        COALESCE(SUM(source_sensitivity), 0.0)
+                                 FROM particle_adjoint
+                                 WHERE run_id = ?1 AND substance_id = ?2",
+                            params![run_id, substance.0],
+                            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                        )
+                        .map_err(io_err)?;
+                    connection
+                        .execute(
+                            "INSERT INTO process_summary (
+                                run_id, module_id, substance_id, direction, event_count,
+                                initial_adjoint_weight, survival_multiplier_product,
+                                source_sensitivity, convection_importance_product,
+                                final_adjoint_weight, closure_residual
+                             ) VALUES (?1,?2,?3,'backward',0,?4,1.0,?5,1.0,?6,?7)",
+                            params![
+                                run_id,
+                                module.as_str(),
+                                substance.0,
+                                initial,
+                                source_sensitivity,
+                                final_weight,
+                                final_weight - initial - source_sensitivity,
+                            ],
+                        )
+                        .map_err(io_err)?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+const fn direction_name(direction: Direction) -> &'static str {
+    match direction {
+        Direction::Forward => "forward",
+        Direction::Backward => "backward",
+    }
 }
 
 #[allow(clippy::type_complexity)]
@@ -1218,168 +1614,118 @@ fn validate_pragmas(connection: &Connection) -> Result<(), OutputError> {
 
 fn canonical_sql_digest(connection: &Connection, run_id: &str) -> Result<String, OutputError> {
     let mut hasher = Sha256::new();
-    // particle origin / birth / masses
-    {
-        let mut stmt = connection.prepare(CANONICAL_PARTICLE_SQL).map_err(io_err)?;
-        hasher.update(b"TABLE particle\n");
-        let rows = stmt
-            .query_map([run_id], |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, Option<String>>(3)?,
-                    row.get::<_, Option<String>>(4)?,
-                    row.get::<_, Option<i64>>(5)?,
-                    row.get::<_, i64>(6)?,
-                    row.get::<_, i64>(7)?,
-                    row.get::<_, f64>(8)?,
-                    row.get::<_, Option<f64>>(9)?,
-                ))
-            })
-            .map_err(io_err)?;
-        for row in rows {
-            let (pid, pop, kind, ev, dom, face, bs, bn, dry, sens) = row.map_err(io_err)?;
-            hasher.update(
-                format!(
-                    "{pid}|{pop}|{kind}|{ev:?}|{dom:?}|{face:?}|{bs}|{bn}|{dry:.17}|{sens:?}\n"
-                )
-                .as_bytes(),
-            );
-        }
-    }
-    {
-        let mut stmt = connection
-            .prepare(CANONICAL_PARTICLE_MASS_SQL)
-            .map_err(io_err)?;
-        hasher.update(b"TABLE particle_mass\n");
-        let rows = stmt
-            .query_map([run_id], |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, f64>(2)?,
-                ))
-            })
-            .map_err(io_err)?;
-        for row in rows {
-            let (pid, sub, mass) = row.map_err(io_err)?;
-            hasher.update(format!("{pid}|{sub}|{mass:.17}\n").as_bytes());
-        }
-    }
-    {
-        let mut stmt = connection
-            .prepare(CANONICAL_OUTPUT_EVENT_SQL)
-            .map_err(io_err)?;
-        hasher.update(b"TABLE output_event\n");
-        let rows = stmt
-            .query_map([run_id], |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, i64>(1)?,
-                    row.get::<_, i64>(2)?,
-                    row.get::<_, String>(3)?,
-                ))
-            })
-            .map_err(io_err)?;
-        for row in rows {
-            let (seq, s, n, kind) = row.map_err(io_err)?;
-            hasher.update(format!("{seq}|{s}|{n}|{kind}\n").as_bytes());
-        }
-    }
-    {
-        let mut stmt = connection
-            .prepare(CANONICAL_PARTICLE_STATE_SQL)
-            .map_err(io_err)?;
-        hasher.update(b"TABLE particle_state\n");
-        let rows = stmt
-            .query_map([run_id], |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, i64>(1)?,
-                    row.get::<_, i64>(2)?,
-                    row.get::<_, i64>(3)?,
-                    row.get::<_, i64>(4)?,
-                    row.get::<_, i64>(5)?,
-                    row.get::<_, i64>(6)?,
-                    row.get::<_, f64>(7)?,
-                    row.get::<_, f64>(8)?,
-                    row.get::<_, f64>(9)?,
-                    row.get::<_, String>(10)?,
-                    row.get::<_, Option<String>>(11)?,
-                    row.get::<_, Option<f64>>(12)?,
-                    row.get::<_, Option<f64>>(13)?,
-                    row.get::<_, Option<f64>>(14)?,
-                    row.get::<_, Option<f64>>(15)?,
-                    row.get::<_, Option<f64>>(16)?,
-                    row.get::<_, String>(17)?,
-                    row.get::<_, Option<String>>(18)?,
-                    row.get::<_, String>(19)?,
-                    row.get::<_, Option<String>>(20)?,
-                    row.get::<_, String>(21)?,
-                    row.get::<_, Option<String>>(22)?,
-                ))
-            })
-            .map_err(io_err)?;
-        for row in rows {
-            let (
-                pid,
-                sample,
-                event,
-                sec,
-                nano,
-                offset,
-                age,
-                lon,
-                lat,
-                height,
-                status,
-                term,
-                u,
-                v,
-                w,
-                p,
-                temp,
-                wind_v,
-                wind_q,
-                pressure_v,
-                pressure_q,
-                temp_v,
-                temp_q,
-            ) = row.map_err(io_err)?;
-            // provenance_id intentionally excluded: five-field identity lives in
-            // provenance-bundle.json and terminal manifest provenance block.
-            hasher.update(
-                format!(
-                    "{pid}|{sample}|{event}|{sec}|{nano}|{offset}|{age}|{lon:.17}|{lat:.17}|{height:.17}|{status}|{term:?}|{u:?}|{v:?}|{w:?}|{p:?}|{temp:?}|{wind_v}|{wind_q:?}|{pressure_v}|{pressure_q:?}|{temp_v}|{temp_q:?}\n"
-                )
-                .as_bytes(),
-            );
-        }
-    }
-    {
-        let mut stmt = connection
-            .prepare(CANONICAL_TERMINATION_SQL)
-            .map_err(io_err)?;
-        hasher.update(b"TABLE termination\n");
-        let rows = stmt
-            .query_map([run_id], |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, i64>(3)?,
-                    row.get::<_, i64>(4)?,
-                    row.get::<_, Option<f64>>(5)?,
-                ))
-            })
-            .map_err(io_err)?;
-        for row in rows {
-            let (pid, reason, class, s, n, frac) = row.map_err(io_err)?;
-            hasher.update(format!("{pid}|{reason}|{class}|{s}|{n}|{frac:?}\n").as_bytes());
-        }
+    let queries = [
+        ("particle", CANONICAL_PARTICLE_SQL),
+        ("particle_mass", CANONICAL_PARTICLE_MASS_SQL),
+        ("particle_adjoint", CANONICAL_PARTICLE_ADJOINT_SQL),
+        (
+            "particle_aerosol_property",
+            "SELECT particle_id, substance_id, diameter_m,
+                    material_density_kg_m3, shape
+             FROM particle_aerosol_property WHERE run_id = ?1
+             ORDER BY particle_id, substance_id",
+        ),
+        ("output_event", CANONICAL_OUTPUT_EVENT_SQL),
+        ("particle_state", CANONICAL_PARTICLE_STATE_SQL),
+        ("termination", CANONICAL_TERMINATION_SQL),
+        (
+            "process_summary",
+            "SELECT module_id, substance_id, direction, event_count,
+                    initial_mass_kg, positive_mass_delta_kg, negative_mass_delta_kg,
+                    final_mass_kg, initial_adjoint_weight,
+                    survival_multiplier_product, source_sensitivity,
+                    convection_importance_product, final_adjoint_weight,
+                    closure_residual
+             FROM process_summary WHERE run_id = ?1
+             ORDER BY module_id, substance_id",
+        ),
+        (
+            "process_event",
+            "SELECT event_sequence, particle_id, macro_step, module_id,
+                    substance_id, physical_seconds, physical_nanosecond,
+                    direction, detail_kind, mass_delta_kg, survival_multiplier,
+                    source_sensitivity, importance_weight
+             FROM process_event WHERE run_id = ?1 ORDER BY event_sequence",
+        ),
+        (
+            "water_vapor_event",
+            "SELECT event_sequence, evaporation_mass_kg, precipitation_mass_kg,
+                    unresolved_tendency_mass_kg, evaporation_source_sensitivity,
+                    precipitation_survival_multiplier,
+                    unresolved_tendency_sensitivity
+             FROM water_vapor_event WHERE run_id = ?1 ORDER BY event_sequence",
+        ),
+        (
+            "deposition_event",
+            "SELECT event_sequence, pathway, deposition_velocity_m_s,
+                    scavenging_coefficient_s_1, removed_mass_kg, survival_multiplier
+             FROM deposition_event WHERE run_id = ?1 ORDER BY event_sequence",
+        ),
+        (
+            "chemistry_event",
+            "SELECT event_sequence, pathway, loss_rate_s_1,
+                    survival_multiplier, removed_mass_kg
+             FROM chemistry_event WHERE run_id = ?1 ORDER BY event_sequence",
+        ),
+        (
+            "emission_event",
+            "SELECT event_sequence, source_id, calendar_factor, scheduled_mass_kg,
+                    source_sensitivity, injection_height_asl_m, plume_top_height_asl_m
+             FROM emission_event WHERE run_id = ?1 ORDER BY event_sequence",
+        ),
+        (
+            "convection_event",
+            "SELECT event_sequence, source_layer, destination_layer,
+                    transfer_probability, importance_weight, column_residual
+             FROM convection_event WHERE run_id = ?1 ORDER BY event_sequence",
+        ),
+    ];
+    for (table, query) in queries {
+        hash_canonical_query(&mut hasher, connection, table, query, run_id)?;
     }
     Ok(hex::encode(hasher.finalize()))
+}
+
+fn hash_canonical_query(
+    hasher: &mut Sha256,
+    connection: &Connection,
+    table: &str,
+    query: &str,
+    run_id: &str,
+) -> Result<(), OutputError> {
+    hasher.update(b"table\0");
+    hasher.update((table.len() as u64).to_be_bytes());
+    hasher.update(table.as_bytes());
+    let mut statement = connection.prepare(query).map_err(io_err)?;
+    let column_count = statement.column_count();
+    let mut rows = statement.query([run_id]).map_err(io_err)?;
+    while let Some(row) = rows.next().map_err(io_err)? {
+        hasher.update(b"row\0");
+        for index in 0..column_count {
+            match row.get_ref(index).map_err(io_err)? {
+                rusqlite::types::ValueRef::Null => hasher.update(b"n"),
+                rusqlite::types::ValueRef::Integer(value) => {
+                    hasher.update(b"i");
+                    hasher.update(value.to_be_bytes());
+                }
+                rusqlite::types::ValueRef::Real(value) => {
+                    hasher.update(b"r");
+                    hasher.update(value.to_bits().to_be_bytes());
+                }
+                rusqlite::types::ValueRef::Text(value) => {
+                    hasher.update(b"t");
+                    hasher.update((value.len() as u64).to_be_bytes());
+                    hasher.update(value);
+                }
+                rusqlite::types::ValueRef::Blob(value) => {
+                    hasher.update(b"b");
+                    hasher.update((value.len() as u64).to_be_bytes());
+                    hasher.update(value);
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn system_timestamp() -> Result<Timestamp, OutputError> {
@@ -1491,10 +1837,11 @@ mod tests {
             integration_offset_ns: vec![0; 2],
             elapsed_age_ns: vec![0; 2],
             dry_air_mass_kg: vec![0.0; 2],
-            sensitivity_weight: vec![None; 2],
             status: vec![ParticleStatus::Alive; 2],
             termination: vec![None; 2],
             mass: SubstanceMassStore::default(),
+            adjoint: Default::default(),
+            motion: Default::default(),
         }
     }
 
@@ -1557,10 +1904,12 @@ mod tests {
             connection
                 .execute(
                     "INSERT INTO run (
-                        run_id, manifest_schema, case_name, status,
+                        run_id, job_series_id, attempt, manifest_schema,
+                        case_name, direction, status,
                         started_seconds, started_nanosecond,
                         finished_seconds, finished_nanosecond
-                     ) VALUES (?1, 'test/v1', 'test', 'complete', 0, 0, 1, 0)",
+                     ) VALUES (?1, ?1, 1, 'test/v1', 'test', 'forward',
+                               'complete', 0, 0, 1, 0)",
                     [run_id],
                 )
                 .unwrap();
@@ -1586,6 +1935,178 @@ mod tests {
         let after = canonical_sql_digest(&connection, "run-a").unwrap();
         assert_eq!(before, after);
         assert_ne!(after, canonical_sql_digest(&connection, "run-b").unwrap());
+    }
+
+    #[test]
+    fn particle_state_writes_all_three_mesoscale_components() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("particles.sqlite");
+        let mut sink = ParticleStateSqliteSink::with_time_bounds(
+            Timestamp::UNIX_EPOCH,
+            Timestamp::new(1, 0).unwrap(),
+        );
+        sink.begin(&path, &running_manifest()).unwrap();
+        let mut particles = two_particles();
+        particles.initialize_mesoscale_state().unwrap();
+        particles
+            .set_mesoscale_velocity(0, [1.25, -2.5, 0.75])
+            .unwrap();
+        particles
+            .set_mesoscale_velocity(1, [-4.0, 5.5, -6.25])
+            .unwrap();
+        sink.write_event(Timestamp::UNIX_EPOCH, &particles, None)
+            .unwrap();
+
+        let rows = sink
+            .connection
+            .as_ref()
+            .unwrap()
+            .prepare(
+                "SELECT mesoscale_random_eastward_m_s,
+                        mesoscale_random_northward_m_s,
+                        mesoscale_random_vertical_m_s
+                 FROM particle_state ORDER BY particle_id",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, f64>(0)?,
+                    row.get::<_, f64>(1)?,
+                    row.get::<_, f64>(2)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(rows, vec![(1.25, -2.5, 0.75), (-4.0, 5.5, -6.25)]);
+    }
+
+    #[test]
+    fn common_advection_projection_matches_v1_and_v2_rows() {
+        let directory = tempfile::tempdir().unwrap();
+        let v1_path = directory.path().join("v1.sqlite");
+        let v2_path = directory.path().join("v2.sqlite");
+
+        let v1 = Connection::open(&v1_path).unwrap();
+        v1.execute_batch(
+            "PRAGMA user_version=1;
+             CREATE TABLE run(run_id TEXT PRIMARY KEY);
+             CREATE TABLE particle(
+                 run_id TEXT, particle_id INTEGER, population_id TEXT,
+                 origin_kind TEXT, origin_event_id TEXT, origin_domain_id TEXT,
+                 origin_boundary_face_id INTEGER, birth_seconds INTEGER,
+                 birth_nanosecond INTEGER, dry_air_mass_kg REAL,
+                 sensitivity_weight REAL
+             );
+             CREATE TABLE particle_mass(
+                 run_id TEXT, particle_id INTEGER, substance_id TEXT, mass_kg REAL
+             );
+             CREATE TABLE output_event(
+                 run_id TEXT, event_sequence INTEGER, physical_seconds INTEGER,
+                 physical_nanosecond INTEGER, event_kind TEXT
+             );
+             CREATE TABLE particle_state(
+                 run_id TEXT, particle_id INTEGER, sample_sequence INTEGER,
+                 event_sequence INTEGER, physical_seconds INTEGER,
+                 physical_nanosecond INTEGER, integration_offset_ns INTEGER,
+                 elapsed_age_ns INTEGER, longitude_degrees REAL,
+                 latitude_degrees REAL, height_asl_m REAL, particle_status TEXT,
+                 termination_reason TEXT, eastward_wind_m_s REAL,
+                 northward_wind_m_s REAL, geometric_vertical_velocity_m_s REAL,
+                 air_pressure_pa REAL, air_temperature_k REAL,
+                 wind_validity TEXT, wind_quality TEXT,
+                 pressure_validity TEXT, pressure_quality TEXT,
+                 temperature_validity TEXT, temperature_quality TEXT
+             );
+             CREATE TABLE termination(
+                 run_id TEXT, particle_id INTEGER, reason TEXT,
+                 classification TEXT, physical_seconds INTEGER,
+                 physical_nanosecond INTEGER, intersection_fraction REAL
+             );
+             INSERT INTO run VALUES ('old-run');
+             INSERT INTO particle VALUES (
+                 'old-run',7,'release','release','event',NULL,NULL,10,0,0.0,NULL
+             );
+             INSERT INTO particle_mass VALUES ('old-run',7,'tracer',1.25);
+             INSERT INTO output_event VALUES ('old-run',0,10,0,'start');
+             INSERT INTO particle_state VALUES (
+                 'old-run',7,0,0,10,0,0,0,1.0,2.0,1000.0,'alive',NULL,
+                 3.0,4.0,0.5,90000.0,280.0,
+                 'valid','native','valid','native','valid','native'
+             );",
+        )
+        .unwrap();
+        drop(v1);
+
+        let v2 = Connection::open(&v2_path).unwrap();
+        v2.execute_batch(SQLITE_SCHEMA_SQL).unwrap();
+        v2.execute(
+            "INSERT INTO run (
+                run_id,job_series_id,attempt,manifest_schema,case_name,direction,status,
+                started_seconds,started_nanosecond,finished_seconds,finished_nanosecond
+             ) VALUES ('new-run','series',1,'test/v1','test','forward','complete',0,0,1,0)",
+            [],
+        )
+        .unwrap();
+        v2.execute(
+            "INSERT INTO particle (
+                run_id,particle_id,population_id,origin_kind,origin_event_id,
+                birth_seconds,birth_nanosecond,dry_air_mass_kg
+             ) VALUES ('new-run',7,'release','release','event',10,0,0.0)",
+            [],
+        )
+        .unwrap();
+        v2.execute(
+            "INSERT INTO particle_mass VALUES ('new-run',7,'tracer',1.25,1.25)",
+            [],
+        )
+        .unwrap();
+        v2.execute(
+            "INSERT INTO output_event VALUES ('new-run',0,10,0,'start')",
+            [],
+        )
+        .unwrap();
+        v2.execute(
+            "INSERT INTO particle_state (
+                 run_id,particle_id,sample_sequence,event_sequence,
+                 physical_seconds,physical_nanosecond,integration_offset_ns,elapsed_age_ns,
+                 longitude_degrees,latitude_degrees,height_asl_m,
+                 particle_status,termination_reason,
+                 eastward_wind_m_s,northward_wind_m_s,geometric_vertical_velocity_m_s,
+                 air_pressure_pa,air_temperature_k,
+                 wind_validity,wind_quality,pressure_validity,pressure_quality,
+                 temperature_validity,temperature_quality
+             ) VALUES (
+                 'new-run',7,0,0,10,0,0,0,1.0,2.0,1000.0,'alive',NULL,
+                 3.0,4.0,0.5,90000.0,280.0,
+                 'valid','native','valid','native','valid','native'
+             )",
+            [],
+        )
+        .unwrap();
+        drop(v2);
+
+        let v1_hash =
+            ParticleStateSqliteSink::common_advection_projection_sha256(&v1_path).unwrap();
+        let v2_hash =
+            ParticleStateSqliteSink::common_advection_projection_sha256(&v2_path).unwrap();
+        assert_eq!(v1_hash, v2_hash);
+
+        let v2 = Connection::open(&v2_path).unwrap();
+        v2.execute(
+            "UPDATE particle_state
+             SET boundary_layer_random_vertical_m_s=0.0
+             WHERE run_id='new-run'",
+            [],
+        )
+        .unwrap();
+        drop(v2);
+        let error =
+            ParticleStateSqliteSink::common_advection_projection_sha256(&v2_path).unwrap_err();
+        assert!(matches!(
+            error,
+            OutputError::Io(message) if message.contains("v2 process-state rows")
+        ));
     }
 
     #[test]

@@ -30,7 +30,7 @@ pub use crate::model::metadata::Metadata;
 use crate::model::meteorology::{DatasetRef, MeteorologySpec};
 use crate::model::numerics::NumericsSpec;
 use crate::model::output::OutputProductSpec;
-use crate::model::physics::PhysicsModuleSpec;
+use crate::model::physics::{PhysicsSelectionSpec, ResolvedPhysicsSpec};
 use crate::model::population::ParticlePopulationSpec;
 use crate::model::substance::SubstanceSpec;
 use crate::model::time::TimeSpec;
@@ -122,7 +122,7 @@ pub struct CaseDocument {
     pub numerics: Option<ComponentRef<NumericsSpec>>,
     /// Optional physics modules.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub physics: Option<ComponentRef<Vec<PhysicsModuleSpec>>>,
+    pub physics: Option<ComponentRef<PhysicsSelectionSpec>>,
     /// Optional output products.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub outputs: Option<ComponentRef<Vec<OutputProductSpec>>>,
@@ -208,9 +208,9 @@ pub struct ResolvedCase {
     /// Optional normalized numerical controls.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub numerics: Option<NumericsSpec>,
-    /// Normalized physics modules.
-    #[serde(default)]
-    pub physics: Vec<PhysicsModuleSpec>,
+    /// Fully expanded physics selection; absence means pure advection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub physics: Option<ResolvedPhysicsSpec>,
     /// Normalized output products.
     #[serde(default)]
     pub outputs: Vec<OutputProductSpec>,

@@ -678,6 +678,7 @@ impl UnitRegistry {
             ("m", Dimension::Length, 1.0, 0.0),
             ("km", Dimension::Length, 1000.0, 0.0),
             ("cm", Dimension::Length, 0.01, 0.0),
+            ("um", Dimension::Length, 1.0e-6, 0.0),
             ("Pa", Dimension::Pressure, 1.0, 0.0),
             ("hPa", Dimension::Pressure, 100.0, 0.0),
             ("mbar", Dimension::Pressure, 100.0, 0.0),

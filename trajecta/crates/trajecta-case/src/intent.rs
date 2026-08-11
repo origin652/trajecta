@@ -143,7 +143,7 @@ mod tests {
             particle_population: None,
             substances: Vec::new(),
             numerics: None,
-            physics: Vec::new(),
+            physics: None,
             outputs: Vec::new(),
             sources: Vec::new(),
         }
