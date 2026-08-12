@@ -11,11 +11,47 @@ pub mod particle_state;
 pub mod provenance_bundle;
 pub mod sqlite;
 
+use trajecta_case::model::physics::PhysicsModuleId;
+use trajecta_case::model::substance::SubstanceId;
+use trajecta_case::model::time::Direction;
 use trajecta_case::model::time::Timestamp;
 use trajecta_met::query::output::QueryOutput;
 
 use crate::manifest::RunManifest;
-use crate::particle::ParticleBatch;
+use crate::particle::{ParticleBatch, ParticleId};
+
+/// One macro-step-merged deep-convection event.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ConvectionProcessEvent {
+    /// Stable particle identity.
+    pub particle_id: ParticleId,
+    /// Zero-based numerical macro-step index.
+    pub macro_step: u64,
+    /// Affected substance.
+    pub substance_id: SubstanceId,
+    /// Physical time attached to the completed macro step.
+    pub time: Timestamp,
+    /// Forward mass or backward adjoint execution.
+    pub direction: Direction,
+    /// Physical forward-kernel source layer, ordered from model top to surface.
+    pub source_layer: usize,
+    /// Physical forward-kernel destination layer.
+    pub destination_layer: usize,
+    /// Product of selected physical transition probabilities within the macro step.
+    pub transfer_probability: f64,
+    /// Product of transpose-proposal importance weights; one for forward events.
+    pub importance_weight: f64,
+    /// Largest absolute column-closure residual encountered by the event.
+    pub column_residual: f64,
+}
+
+impl ConvectionProcessEvent {
+    /// Stable module identity stored by the public process tables.
+    #[must_use]
+    pub const fn module_id(&self) -> PhysicsModuleId {
+        PhysicsModuleId::DeepConvectionColumn
+    }
+}
 
 /// Representation encoder used by an output product.
 pub trait OutputEncoder: Send {
@@ -44,6 +80,14 @@ pub trait OutputProduct: Send {
         particles: &ParticleBatch,
         meteorology: Option<&QueryOutput>,
     ) -> Result<(), OutputError>;
+
+    /// Writes macro-step-merged deep-convection events.
+    fn write_convection_events(
+        &mut self,
+        _events: &[ConvectionProcessEvent],
+    ) -> Result<(), OutputError> {
+        Ok(())
+    }
 
     /// Finalizes product summaries and output targets.
     fn finish(&mut self) -> Result<(), OutputError>;
@@ -154,6 +198,12 @@ pub trait ParticleStateSink: Send {
         time: Timestamp,
         particles: &ParticleBatch,
         meteorology: Option<&QueryOutput>,
+    ) -> Result<(), OutputError>;
+
+    /// Atomically writes already-merged deep-convection events.
+    fn write_convection_events(
+        &mut self,
+        events: &[ConvectionProcessEvent],
     ) -> Result<(), OutputError>;
 
     /// Finalizes indexes, integrity checks, and target metadata.

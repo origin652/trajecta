@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://origin652.github.io/trajecta/schema/M6_ARM_TWP_ICE_COLUMN.schema.json",
+  "title": "Trajecta M6 ARM TWP-ICE convection validation asset",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "asset_id",
+    "period",
+    "location",
+    "observation_source",
+    "independent_reference",
+    "derivation",
+    "validation_normalization",
+    "columns"
+  ],
+  "properties": {
+    "schema_version": { "const": "trajecta.m6.twp-ice-convection/v1" },
+    "asset_id": { "const": "arm-twp-ice-convective-column/v1" },
+    "period": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "start_utc", "end_utc", "interval_seconds"],
+      "properties": {
+        "name": { "const": "event C" },
+        "start_utc": { "$ref": "#/$defs/utc" },
+        "end_utc": { "$ref": "#/$defs/utc" },
+        "interval_seconds": { "const": 10800 }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["longitude_degrees_east", "latitude_degrees_north"],
+      "properties": {
+        "longitude_degrees_east": { "type": "number", "minimum": -180, "maximum": 180 },
+        "latitude_degrees_north": { "type": "number", "minimum": -90, "maximum": 90 }
+      }
+    },
+    "observation_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "campaign",
+        "campaign_url",
+        "ccpp_scm_release",
+        "archive_url",
+        "archive_member",
+        "archive_size_bytes",
+        "archive_sha256",
+        "netcdf_size_bytes",
+        "netcdf_sha256"
+      ],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "campaign": { "type": "string", "minLength": 1 },
+        "campaign_url": { "$ref": "#/$defs/https" },
+        "ccpp_scm_release": { "const": "v7.0.0" },
+        "archive_url": { "$ref": "#/$defs/https" },
+        "archive_member": { "type": "string", "minLength": 1 },
+        "archive_size_bytes": { "type": "integer", "minimum": 1 },
+        "archive_sha256": { "$ref": "#/$defs/sha256" },
+        "netcdf_size_bytes": { "type": "integer", "minimum": 1 },
+        "netcdf_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "independent_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "commit",
+        "license",
+        "license_sha256",
+        "convect43c_sha256",
+        "summary_input_size_bytes",
+        "summary_input_sha256",
+        "role",
+        "roundoff_policy"
+      ],
+      "properties": {
+        "repository": { "$ref": "#/$defs/https" },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "license": { "const": "MIT" },
+        "license_sha256": { "$ref": "#/$defs/sha256" },
+        "convect43c_sha256": { "$ref": "#/$defs/sha256" },
+        "summary_input_size_bytes": { "type": "integer", "minimum": 1 },
+        "summary_input_sha256": { "$ref": "#/$defs/sha256" },
+        "role": { "type": "string", "minLength": 1 },
+        "roundoff_policy": { "type": "string", "minLength": 1 }
+      }
+    },
+    "derivation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stored_order",
+        "specific_humidity_formula",
+        "height_formula",
+        "layer_mass_formula",
+        "below_surface_policy",
+        "missing_value_policy"
+      ],
+      "properties": {
+        "stored_order": { "const": "model_top_to_surface" },
+        "specific_humidity_formula": { "type": "string", "minLength": 1 },
+        "height_formula": { "type": "string", "minLength": 1 },
+        "layer_mass_formula": { "type": "string", "minLength": 1 },
+        "below_surface_policy": { "type": "string", "minLength": 1 },
+        "missing_value_policy": { "type": "string", "minLength": 1 }
+      }
+    },
+    "validation_normalization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mass_flux_scale_kg_m2_s", "minimum_profile_observations"],
+      "properties": {
+        "mass_flux_scale_kg_m2_s": { "type": "number", "exclusiveMinimum": 0 },
+        "minimum_profile_observations": { "type": "integer", "minimum": 20 }
+      }
+    },
+    "columns": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": { "$ref": "#/$defs/column" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "https": { "type": "string", "pattern": "^https://" },
+    "utc": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "finiteNumberArray": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "type": "number" }
+    },
+    "column": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time_utc",
+        "observed_precipitation_mm_h",
+        "thermodynamic_column",
+        "independent_reference"
+      ],
+      "properties": {
+        "time_utc": { "$ref": "#/$defs/utc" },
+        "observed_precipitation_mm_h": { "type": "number", "minimum": 0 },
+        "thermodynamic_column": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "surface_pressure_pa",
+            "terrain_height_asl_m",
+            "pressure_pa",
+            "height_asl_m",
+            "temperature_k",
+            "specific_humidity_kg_kg",
+            "pressure_layer_mass_kg_m2",
+            "valid"
+          ],
+          "properties": {
+            "surface_pressure_pa": { "type": "number", "exclusiveMinimum": 0 },
+            "terrain_height_asl_m": { "type": "number" },
+            "pressure_pa": { "$ref": "#/$defs/finiteNumberArray" },
+            "height_asl_m": { "$ref": "#/$defs/finiteNumberArray" },
+            "temperature_k": { "$ref": "#/$defs/finiteNumberArray" },
+            "specific_humidity_kg_kg": { "$ref": "#/$defs/finiteNumberArray" },
+            "pressure_layer_mass_kg_m2": { "$ref": "#/$defs/finiteNumberArray" },
+            "valid": {
+              "type": "array",
+              "minItems": 2,
+              "items": { "const": true }
+            }
+          }
+        },
+        "independent_reference": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "flag",
+            "cloud_base_mass_flux_kg_m2_s",
+            "upward_interface_mass_flux_kg_m2_s",
+            "downward_interface_mass_flux_kg_m2_s",
+            "maximum_generator_column_residual_s-1",
+            "minimum_generator_off_diagonal_s-1"
+          ],
+          "properties": {
+            "flag": { "type": "integer", "minimum": 0, "maximum": 4 },
+            "cloud_base_mass_flux_kg_m2_s": { "type": "number", "minimum": 0 },
+            "upward_interface_mass_flux_kg_m2_s": { "$ref": "#/$defs/finiteNumberArray" },
+            "downward_interface_mass_flux_kg_m2_s": { "$ref": "#/$defs/finiteNumberArray" },
+            "maximum_generator_column_residual_s-1": { "type": "number", "minimum": 0 },
+            "minimum_generator_off_diagonal_s-1": { "type": "number" }
+          }
+        }
+      }
+    }
+  }
+}

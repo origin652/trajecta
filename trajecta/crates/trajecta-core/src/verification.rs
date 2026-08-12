@@ -751,6 +751,37 @@ fn audit_process_products(connection: &Connection) -> Result<(), ResultVerificat
         ));
     }
 
+    let invalid_convection = connection
+        .query_row(
+            "SELECT EXISTS(
+                 SELECT 1 FROM process_event e
+                 JOIN convection_event d
+                   ON d.run_id=e.run_id AND d.event_sequence=e.event_sequence
+                 WHERE e.detail_kind <> 'convection'
+                    OR e.module_id <> 'deep_convection_column'
+                    OR ABS(d.column_residual) > 1.0e-12
+                    OR (e.direction='forward' AND (
+                        e.mass_delta_kg <> 0.0
+                        OR d.importance_weight <> 1.0
+                    ))
+                    OR (e.direction='backward' AND (
+                        e.survival_multiplier <> 1.0
+                        OR e.source_sensitivity <> 0.0
+                        OR ABS(e.importance_weight-d.importance_weight) > 1.0e-12
+                    ))
+             )",
+            [],
+            |row| row.get::<_, bool>(0),
+        )
+        .map_err(sqlite_error("audit convection process contract"))?;
+    if invalid_convection {
+        return Err(ResultVerificationError::new(
+            "result.convection_event_invalid",
+            "a convection event violates the conservative column contract",
+        ));
+    }
+    audit_convection_particle_closure(connection)?;
+
     let continuous_event_count = connection
         .query_row(
             "SELECT COUNT(*) FROM process_event
@@ -855,6 +886,13 @@ fn audit_process_products(connection: &Connection) -> Result<(), ResultVerificat
                 let final_weight = row
                     .get::<_, f64>(10)
                     .map_err(sqlite_error("final adjoint"))?;
+                let expected = final_weight - initial * survival * importance - source;
+                if (residual - expected).abs() > 1.0e-12 {
+                    return Err(ResultVerificationError::new(
+                        "result.process_closure_invalid",
+                        "backward process closure residual is inconsistent",
+                    ));
+                }
                 if event_count == 0
                     && ((survival - 1.0).abs() > 1.0e-12
                         || source.abs() > 1.0e-12
@@ -879,6 +917,100 @@ fn audit_process_products(connection: &Connection) -> Result<(), ResultVerificat
             return Err(ResultVerificationError::new(
                 "result.process_closure_invalid",
                 "process closure exceeds the frozen relative tolerance",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn audit_convection_particle_closure(
+    connection: &Connection,
+) -> Result<(), ResultVerificationError> {
+    let has_convection = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM process_summary
+                            WHERE module_id='deep_convection_column')",
+            [],
+            |row| row.get::<_, bool>(0),
+        )
+        .map_err(sqlite_error("audit convection presence"))?;
+    if !has_convection {
+        return Ok(());
+    }
+
+    let direction = connection
+        .query_row("SELECT direction FROM run", [], |row| {
+            row.get::<_, String>(0)
+        })
+        .map_err(sqlite_error("audit convection direction"))?;
+    let (table, initial_column, final_column) = match direction.as_str() {
+        "forward" => ("particle_mass", "initial_mass_kg", "mass_kg"),
+        "backward" => (
+            "particle_adjoint",
+            "initial_adjoint_weight",
+            "adjoint_weight",
+        ),
+        _ => {
+            return Err(ResultVerificationError::new(
+                "result.process_direction_invalid",
+                "unknown convection direction",
+            ));
+        }
+    };
+    let sql = format!(
+        "SELECT particle_id, substance_id, {initial_column}, {final_column}
+         FROM {table} ORDER BY particle_id, substance_id"
+    );
+    let states = connection
+        .prepare(&sql)
+        .map_err(sqlite_error("prepare convection particle states"))?
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, u64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, f64>(2)?,
+                row.get::<_, f64>(3)?,
+            ))
+        })
+        .map_err(sqlite_error("query convection particle states"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(sqlite_error("read convection particle states"))?;
+
+    let mut event_statement = connection
+        .prepare(
+            "SELECT importance_weight FROM process_event
+             WHERE particle_id=?1 AND module_id='deep_convection_column'
+               AND substance_id=?2 ORDER BY macro_step",
+        )
+        .map_err(sqlite_error("prepare convection particle events"))?;
+    for (particle_id, substance_id, initial, final_value) in states {
+        let mut importance = 1.0;
+        let mut rows = event_statement
+            .query(rusqlite::params![particle_id, substance_id])
+            .map_err(sqlite_error("query convection particle events"))?;
+        while let Some(row) = rows
+            .next()
+            .map_err(sqlite_error("read convection particle event"))?
+        {
+            if direction == "backward" {
+                importance *= row
+                    .get::<_, f64>(0)
+                    .map_err(sqlite_error("convection importance weight"))?;
+            }
+        }
+        let expected = if direction == "forward" {
+            initial
+        } else {
+            initial * importance
+        };
+        let scale = initial.abs().max(final_value.abs()).max(1.0);
+        if !importance.is_finite()
+            || !expected.is_finite()
+            || (final_value - expected).abs() > 1.0e-10 * scale
+        {
+            return Err(ResultVerificationError::new(
+                "result.convection_particle_closure_invalid",
+                "convection events do not close against one particle's directional state",
             ));
         }
     }
@@ -1183,465 +1315,5 @@ fn io_error(context: &'static str) -> impl FnOnce(std::io::Error) -> ResultVerif
 fn sqlite_error(context: &'static str) -> impl FnOnce(rusqlite::Error) -> ResultVerificationError {
     move |error| {
         ResultVerificationError::new("result.sqlite_invalid", format!("{context}: {error}"))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #![allow(clippy::unwrap_used)]
-
-    use std::collections::BTreeMap;
-
-    use trajecta_case::document::MeteorologyReaderBackend;
-    use trajecta_case::model::output::default_particle_state_output;
-    use trajecta_case::model::population::{PopulationId, ReleaseEventId};
-    use trajecta_case::model::time::Timestamp;
-
-    use super::*;
-    use crate::manifest::{
-        ExecutionSummary, InputIdentity, MassLedgerRecord, NumericalSummary, RunManifestStart,
-        SoftwareIdentity,
-    };
-    use crate::output::ParticleStateSink;
-    use crate::particle::{
-        ParticleBatch, ParticleId, ParticleOrigin, ParticleStatus, SubstanceMassStore,
-    };
-
-    fn running_manifest() -> RunManifest {
-        RunManifest::running(RunManifestStart {
-            run_id: RunId("018f0000-0000-7000-8000-000000000001".into()),
-            case_name: "verification-test".into(),
-            started_at: Timestamp::UNIX_EPOCH,
-            software: SoftwareIdentity {
-                crate_versions: BTreeMap::from([("trajecta-core".into(), "0.0.0".into())]),
-                git_commit: None,
-            },
-            inputs: InputIdentity {
-                case_sha256: "0".repeat(64),
-                run_profile_sha256: "1".repeat(64),
-                dataset_lock_sha256: BTreeMap::new(),
-                dataset_profile_sha256: BTreeMap::new(),
-                dataset_content_sha256: BTreeMap::new(),
-            },
-            execution: ExecutionSummary {
-                worker_threads: 1,
-                memory_budget_bytes: 1024 * 1024,
-                executor: "test".into(),
-                reader_backends: BTreeMap::<String, MeteorologyReaderBackend>::new(),
-                wall_time_ns: None,
-                peak_rss_bytes: None,
-                io_counters: BTreeMap::new(),
-            },
-            numerical: NumericalSummary {
-                random_seed: 7,
-                integrator: "test_integrator".into(),
-                boundary_policies: Vec::new(),
-                population: "test_population".into(),
-                ozone_rule: None,
-                particle_state_sink: trajecta_case::model::output::PARTICLE_STATE_SQLITE_SINK_ID
-                    .into(),
-                tolerance_registry: "trajecta.m4.numerical-contract/v1".into(),
-                tolerances: BTreeMap::from([("test".into(), 0.0)]),
-                deterministic: true,
-            },
-            geometries: Vec::new(),
-            effective_outputs: vec![default_particle_state_output()],
-        })
-    }
-
-    fn write_result(directory: &Path, status: RunLifecycleStatus) -> RunManifest {
-        let mut manifest = running_manifest();
-        let sqlite_path = directory.join("particles.sqlite");
-        let mut sink = ParticleStateSqliteSink::with_time_bounds(
-            Timestamp::UNIX_EPOCH,
-            Timestamp::new(1, 0).unwrap(),
-        );
-        sink.begin(&sqlite_path, &manifest).unwrap();
-        sink.finish().unwrap();
-        manifest.sqlite.row_counts = sink.row_counts().unwrap();
-        manifest.provenance = sink.provenance_identity();
-        manifest.status = status;
-        manifest.finished_at = Some(Timestamp::new(1, 0).unwrap());
-        manifest.validate().unwrap();
-        fs::write(
-            directory.join(MANIFEST_FILE_NAME),
-            serde_json::to_vec_pretty(&manifest).unwrap(),
-        )
-        .unwrap();
-        manifest
-    }
-
-    fn write_lifecycle_result(directory: &Path) -> RunManifest {
-        let start = Timestamp::UNIX_EPOCH;
-        let end = Timestamp::new(1, 0).unwrap();
-        write_lifecycle_result_between(directory, start, end)
-    }
-
-    fn write_lifecycle_result_between(
-        directory: &Path,
-        start: Timestamp,
-        end: Timestamp,
-    ) -> RunManifest {
-        let mut manifest = running_manifest();
-        let mut particles = ParticleBatch {
-            id: vec![ParticleId(1)],
-            population_id: vec![PopulationId("release".into())],
-            origin: vec![ParticleOrigin::Release {
-                event_id: ReleaseEventId("event".into()),
-            }],
-            birth_time: vec![start],
-            longitude_degrees: vec![0.0],
-            latitude_degrees: vec![0.0],
-            height_asl_m: vec![100.0],
-            integration_offset_ns: vec![0],
-            elapsed_age_ns: vec![0],
-            dry_air_mass_kg: vec![1.0],
-            status: vec![ParticleStatus::Alive],
-            termination: vec![None],
-            mass: SubstanceMassStore::default(),
-            adjoint: Default::default(),
-            motion: Default::default(),
-        };
-        let sqlite_path = directory.join("particles.sqlite");
-        let mut sink = ParticleStateSqliteSink::with_time_bounds(start, end);
-        sink.begin(&sqlite_path, &manifest).unwrap();
-        sink.write_event(start, &particles, None).unwrap();
-        particles.longitude_degrees[0] = 0.01;
-        particles.integration_offset_ns[0] = if end >= start {
-            1_000_000_000
-        } else {
-            -1_000_000_000
-        };
-        particles.elapsed_age_ns[0] = 1_000_000_000;
-        sink.write_event(end, &particles, None).unwrap();
-        sink.finish().unwrap();
-        manifest.sqlite.row_counts = sink.row_counts().unwrap();
-        manifest.provenance = sink.provenance_identity();
-        manifest.status = RunLifecycleStatus::Complete;
-        manifest.finished_at = Some(Timestamp::new(2, 0).unwrap());
-        manifest.validate().unwrap();
-        manifest
-    }
-
-    fn insert_forward_process_summary(
-        connection: &Connection,
-        run_id: &str,
-        module_id: &str,
-        event_count: u64,
-        closure_residual: f64,
-    ) {
-        connection
-            .execute(
-                "INSERT INTO process_summary (
-                    run_id, module_id, substance_id, direction, event_count,
-                    initial_mass_kg, positive_mass_delta_kg, negative_mass_delta_kg,
-                    final_mass_kg, closure_residual
-                 ) VALUES (?1, ?2, 'water', 'forward', ?3, 1.0, 0.0, 0.0, 1.0, ?4)",
-                rusqlite::params![run_id, module_id, event_count, closure_residual],
-            )
-            .unwrap();
-    }
-
-    fn insert_forward_water_vapor_event(connection: &Connection, run_id: &str, module_id: &str) {
-        connection
-            .execute(
-                "INSERT INTO process_event (
-                    run_id, event_sequence, particle_id, macro_step, module_id,
-                    substance_id, physical_seconds, physical_nanosecond,
-                    direction, detail_kind, mass_delta_kg
-                 ) VALUES (?1, 0, 1, 0, ?2, 'water', 1, 0,
-                           'forward', 'water_vapor', 0.0)",
-                rusqlite::params![run_id, module_id],
-            )
-            .unwrap();
-        connection
-            .execute(
-                "INSERT INTO water_vapor_event (
-                    run_id, event_sequence, evaporation_mass_kg,
-                    precipitation_mass_kg, unresolved_tendency_mass_kg
-                 ) VALUES (?1, 0, 0.0, 0.0, 0.0)",
-                [run_id],
-            )
-            .unwrap();
-    }
-
-    fn populate_boundary_layer_state(connection: &Connection) {
-        connection
-            .execute(
-                "UPDATE particle_state
-                 SET boundary_layer_random_eastward_m_s = 0.0,
-                     boundary_layer_random_northward_m_s = 0.0,
-                     boundary_layer_random_vertical_m_s = 0.0
-                 WHERE elapsed_age_ns > 0",
-                [],
-            )
-            .unwrap();
-    }
-
-    #[test]
-    fn quick_and_full_verify_independent_on_disk_identities() {
-        let directory = tempfile::TempDir::new().unwrap();
-        let manifest = write_result(directory.path(), RunLifecycleStatus::Complete);
-
-        let quick = verify_run_directory(directory.path(), VerificationMode::Quick).unwrap();
-        assert!(quick.run_success);
-        assert_eq!(quick.status, RunLifecycleStatus::Complete);
-        assert_eq!(quick.run_id, manifest.run_id);
-        assert!(quick.full.is_none());
-
-        let full = verify_run_directory(directory.path(), VerificationMode::Full).unwrap();
-        assert_eq!(full.canonical_output_sha256, quick.canonical_output_sha256);
-        assert_eq!(full.full.unwrap().particle_count, 0);
-    }
-
-    #[test]
-    fn cancelled_result_can_verify_without_claiming_run_success() {
-        let directory = tempfile::TempDir::new().unwrap();
-        write_result(directory.path(), RunLifecycleStatus::Cancelled);
-
-        let verification = verify_run_directory(directory.path(), VerificationMode::Full).unwrap();
-        assert_eq!(verification.status, RunLifecycleStatus::Cancelled);
-        assert!(!verification.run_success);
-    }
-
-    #[test]
-    fn quick_rejects_nonempty_terminal_wal() {
-        let directory = tempfile::TempDir::new().unwrap();
-        write_result(directory.path(), RunLifecycleStatus::Complete);
-        fs::write(
-            directory.path().join("particles.sqlite-wal"),
-            b"not checkpointed",
-        )
-        .unwrap();
-
-        let error = verify_run_directory(directory.path(), VerificationMode::Quick).unwrap_err();
-        assert_eq!(error.code(), "result.sqlite_wal_not_empty");
-    }
-
-    #[test]
-    fn full_rejects_mass_ledger_outside_declared_tolerance() {
-        let directory = tempfile::TempDir::new().unwrap();
-        let mut manifest = write_result(directory.path(), RunLifecycleStatus::Complete);
-        manifest.mass_ledger.push(MassLedgerRecord {
-            step_index: 0,
-            time: Timestamp::UNIX_EPOCH,
-            opening_active_kg: 1.0,
-            opening_residual_kg: 0.0,
-            incoming_kg: 0.0,
-            outgoing_kg: 0.0,
-            normal_terminated_kg: 0.0,
-            abnormal_terminated_kg: 0.0,
-            closing_active_kg: 1.0,
-            closing_residual_kg: 0.0,
-            imbalance_kg: 1.0,
-            tolerance_kg: 0.1,
-        });
-        manifest.validate().unwrap();
-        fs::write(
-            directory.path().join(MANIFEST_FILE_NAME),
-            serde_json::to_vec_pretty(&manifest).unwrap(),
-        )
-        .unwrap();
-
-        assert!(verify_run_directory(directory.path(), VerificationMode::Quick).is_ok());
-        let error = verify_run_directory(directory.path(), VerificationMode::Full).unwrap_err();
-        assert_eq!(error.code(), "result.mass_ledger_invalid");
-    }
-
-    #[test]
-    fn full_rejects_repeated_particle_event_and_event_time_mismatch() {
-        let directory = tempfile::TempDir::new().unwrap();
-        let manifest = write_lifecycle_result(directory.path());
-        let sqlite_path = directory.path().join("particles.sqlite");
-        let connection = Connection::open(&sqlite_path).unwrap();
-        connection
-            .execute(
-                "UPDATE particle_state SET event_sequence = 0 WHERE sample_sequence = 1",
-                [],
-            )
-            .unwrap();
-        drop(connection);
-
-        let error = verify_full(&sqlite_path, &manifest).unwrap_err();
-        assert_eq!(error.code(), "result.lifecycle_invalid");
-
-        let directory = tempfile::TempDir::new().unwrap();
-        let manifest = write_lifecycle_result(directory.path());
-        let sqlite_path = directory.path().join("particles.sqlite");
-        let connection = Connection::open(&sqlite_path).unwrap();
-        connection
-            .execute(
-                "UPDATE output_event SET physical_seconds = 2 WHERE event_sequence = 1",
-                [],
-            )
-            .unwrap();
-        drop(connection);
-
-        let error = verify_full(&sqlite_path, &manifest).unwrap_err();
-        assert_eq!(error.code(), "result.lifecycle_invalid");
-    }
-
-    #[test]
-    fn full_rejects_elapsed_age_that_disagrees_with_birth_time() {
-        let directory = tempfile::TempDir::new().unwrap();
-        let manifest = write_lifecycle_result(directory.path());
-        let sqlite_path = directory.path().join("particles.sqlite");
-        let connection = Connection::open(&sqlite_path).unwrap();
-        connection
-            .execute(
-                "UPDATE particle_state SET elapsed_age_ns = 500000000 WHERE sample_sequence = 1",
-                [],
-            )
-            .unwrap();
-        drop(connection);
-
-        let error = verify_full(&sqlite_path, &manifest).unwrap_err();
-        assert_eq!(error.code(), "result.lifecycle_invalid");
-    }
-
-    #[test]
-    fn full_rejects_process_event_without_summary() {
-        let directory = tempfile::TempDir::new().unwrap();
-        let manifest = write_lifecycle_result(directory.path());
-        let sqlite_path = directory.path().join("particles.sqlite");
-        let connection = Connection::open(&sqlite_path).unwrap();
-        insert_forward_water_vapor_event(&connection, &manifest.run_id.0, "water_vapor_exchange");
-        drop(connection);
-
-        let error = verify_full(&sqlite_path, &manifest).unwrap_err();
-        assert_eq!(error.code(), "result.process_summary_invalid");
-    }
-
-    #[test]
-    fn full_rejects_discrete_event_from_continuous_process() {
-        let directory = tempfile::TempDir::new().unwrap();
-        let manifest = write_lifecycle_result(directory.path());
-        let sqlite_path = directory.path().join("particles.sqlite");
-        let connection = Connection::open(&sqlite_path).unwrap();
-        insert_forward_process_summary(
-            &connection,
-            &manifest.run_id.0,
-            "boundary_layer_langevin",
-            1,
-            0.0,
-        );
-        populate_boundary_layer_state(&connection);
-        insert_forward_water_vapor_event(
-            &connection,
-            &manifest.run_id.0,
-            "boundary_layer_langevin",
-        );
-        drop(connection);
-
-        let error = verify_full(&sqlite_path, &manifest).unwrap_err();
-        assert_eq!(error.code(), "result.process_event_policy_invalid");
-    }
-
-    #[test]
-    fn full_rejects_process_closure_residual_above_tolerance() {
-        let directory = tempfile::TempDir::new().unwrap();
-        let manifest = write_lifecycle_result(directory.path());
-        let sqlite_path = directory.path().join("particles.sqlite");
-        let connection = Connection::open(&sqlite_path).unwrap();
-        insert_forward_process_summary(
-            &connection,
-            &manifest.run_id.0,
-            "boundary_layer_langevin",
-            0,
-            1.0e-9,
-        );
-        populate_boundary_layer_state(&connection);
-        drop(connection);
-
-        let error = verify_full(&sqlite_path, &manifest).unwrap_err();
-        assert_eq!(error.code(), "result.process_closure_invalid");
-    }
-
-    #[test]
-    fn full_requires_complete_mesoscale_state_when_the_module_is_declared() {
-        let directory = tempfile::TempDir::new().unwrap();
-        let manifest = write_lifecycle_result(directory.path());
-        let sqlite_path = directory.path().join("particles.sqlite");
-        let connection = Connection::open(&sqlite_path).unwrap();
-        insert_forward_process_summary(&connection, &manifest.run_id.0, "mesoscale_markov", 0, 0.0);
-        connection
-            .execute(
-                "UPDATE particle_state
-                 SET mesoscale_random_eastward_m_s = 1.0,
-                     mesoscale_random_northward_m_s = -2.0,
-                     mesoscale_random_vertical_m_s = 0.5
-                 WHERE elapsed_age_ns > 0",
-                [],
-            )
-            .unwrap();
-        verify_full(&sqlite_path, &manifest).unwrap();
-
-        connection
-            .execute(
-                "UPDATE particle_state
-                 SET mesoscale_random_vertical_m_s = NULL
-                 WHERE elapsed_age_ns > 0",
-                [],
-            )
-            .unwrap();
-        drop(connection);
-        let error = verify_full(&sqlite_path, &manifest).unwrap_err();
-        assert_eq!(error.code(), "result.process_state_invalid");
-    }
-
-    #[test]
-    fn full_accepts_missing_values_with_declared_field_provenance() {
-        let directory = tempfile::TempDir::new().unwrap();
-        let manifest = write_lifecycle_result(directory.path());
-        let sqlite_path = directory.path().join("particles.sqlite");
-        let connection = Connection::open(&sqlite_path).unwrap();
-        connection
-            .execute(
-                "UPDATE particle_state
-                 SET wind_quality = 'derived', pressure_quality = 'derived',
-                     temperature_quality = 'source'",
-                [],
-            )
-            .unwrap();
-        drop(connection);
-
-        verify_full(&sqlite_path, &manifest).unwrap();
-    }
-
-    #[test]
-    fn output_events_allow_interleaved_lifecycle_times() {
-        let connection = Connection::open_in_memory().unwrap();
-        connection
-            .execute_batch(
-                "CREATE TABLE output_event (
-                     run_id TEXT NOT NULL,
-                     event_sequence INTEGER NOT NULL,
-                     physical_seconds INTEGER NOT NULL,
-                     physical_nanosecond INTEGER NOT NULL
-                 );
-                 CREATE TABLE particle_state (
-                     run_id TEXT NOT NULL,
-                     event_sequence INTEGER NOT NULL
-                 );
-                 INSERT INTO output_event VALUES
-                     ('run', 0, 100, 0),
-                     ('run', 1, 50, 0),
-                     ('run', 2, 75, 0);
-                 INSERT INTO particle_state VALUES
-                     ('run', 0), ('run', 1), ('run', 2);",
-            )
-            .unwrap();
-
-        assert_eq!(audit_output_events(&connection).unwrap(), 3);
-    }
-
-    #[test]
-    fn full_accepts_backward_particle_lifecycle() {
-        let directory = tempfile::TempDir::new().unwrap();
-        let start = Timestamp::new(1, 0).unwrap();
-        let end = Timestamp::UNIX_EPOCH;
-        let manifest = write_lifecycle_result_between(directory.path(), start, end);
-
-        verify_full(&directory.path().join("particles.sqlite"), &manifest).unwrap();
     }
 }

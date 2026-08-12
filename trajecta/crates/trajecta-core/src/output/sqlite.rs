@@ -25,7 +25,7 @@ use crate::output::provenance_bundle::{
     FiveFieldRecordRefs, ProvenanceBundleBuilder, file_sha256, five_field_slot,
     quarantine_bundle_file,
 };
-use crate::output::{OutputError, ParticleStateSink};
+use crate::output::{ConvectionProcessEvent, OutputError, ParticleStateSink};
 use crate::particle::{ParticleBatch, ParticleOrigin, ParticleStatus, TerminationClass};
 use crate::science::SQLITE_SCHEMA_VERSION;
 
@@ -163,6 +163,7 @@ pub struct ParticleStateSqliteSink {
     pending_lifecycle_events: usize,
     run_id: String,
     event_sequence: i64,
+    process_event_sequence: i64,
     sample_sequence_by_particle: HashMap<i64, i64>,
     seen_events: HashMap<(i64, u32), WrittenEvent>,
     written_samples: HashMap<(i64, i64, u32), WrittenSample>,
@@ -186,7 +187,7 @@ pub struct ParticleStateSqliteSink {
     reverse_particle_scan: bool,
     direction: Option<Direction>,
     substances: Vec<SubstanceId>,
-    continuous_process_modules: Vec<PhysicsModuleId>,
+    process_modules: Vec<PhysicsModuleId>,
 }
 
 impl ParticleStateSqliteSink {
@@ -205,7 +206,7 @@ impl ParticleStateSqliteSink {
         }
     }
 
-    /// Supplies the resolved direction, substances, and continuous modules
+    /// Supplies the resolved direction, substances, and implemented modules
     /// needed by the public process-summary tables.
     #[must_use]
     pub fn with_process_contract(
@@ -216,7 +217,7 @@ impl ParticleStateSqliteSink {
     ) -> Self {
         self.direction = Some(direction);
         self.substances = substances;
-        self.continuous_process_modules = modules;
+        self.process_modules = modules;
         self
     }
 
@@ -495,6 +496,7 @@ impl ParticleStateSink for ParticleStateSqliteSink {
         self.pending_lifecycle_events = 0;
         self.run_id = manifest.run_id.0.clone();
         self.event_sequence = 0;
+        self.process_event_sequence = 0;
         self.sample_sequence_by_particle.clear();
         self.seen_events.clear();
         self.written_samples.clear();
@@ -836,20 +838,102 @@ impl ParticleStateSink for ParticleStateSqliteSink {
         Ok(())
     }
 
+    fn write_convection_events(
+        &mut self,
+        events: &[ConvectionProcessEvent],
+    ) -> Result<(), OutputError> {
+        if events.is_empty() {
+            return Ok(());
+        }
+        validate_convection_events(events, self.direction.ok_or(OutputError::InvalidInput)?)?;
+        self.commit_transaction()?;
+        self.begin_transaction()?;
+        let connection = self.connection.as_mut().ok_or(OutputError::InvalidInput)?;
+        let mut process = connection
+            .prepare_cached(
+                "INSERT INTO process_event (
+                    run_id, event_sequence, particle_id, macro_step,
+                    module_id, substance_id, physical_seconds, physical_nanosecond,
+                    direction, detail_kind, mass_delta_kg, survival_multiplier,
+                    source_sensitivity, importance_weight
+                 ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,'convection',?10,?11,?12,?13)",
+            )
+            .map_err(io_err)?;
+        let mut detail = connection
+            .prepare_cached(
+                "INSERT INTO convection_event (
+                    run_id, event_sequence, source_layer, destination_layer,
+                    transfer_probability, importance_weight, column_residual
+                 ) VALUES (?1,?2,?3,?4,?5,?6,?7)",
+            )
+            .map_err(io_err)?;
+        for event in events {
+            let particle_id = i64::try_from(event.particle_id.0)
+                .map_err(|_| OutputError::Encoding("particle_id outside i64".into()))?;
+            if !self.particles_inserted.contains(&particle_id) {
+                return Err(OutputError::InvalidInput);
+            }
+            let sequence = self.process_event_sequence;
+            let (mass_delta, survival, source_sensitivity, importance) = match event.direction {
+                Direction::Forward => (Some(0.0), None, None, None),
+                Direction::Backward => (None, Some(1.0), Some(0.0), Some(event.importance_weight)),
+            };
+            process
+                .execute(params![
+                    self.run_id,
+                    sequence,
+                    particle_id,
+                    i64::try_from(event.macro_step)
+                        .map_err(|_| OutputError::Encoding("macro_step outside i64".into()))?,
+                    event.module_id().as_str(),
+                    event.substance_id.0,
+                    event.time.seconds_since_unix_epoch(),
+                    event.time.nanosecond(),
+                    direction_name(event.direction),
+                    mass_delta,
+                    survival,
+                    source_sensitivity,
+                    importance,
+                ])
+                .map_err(io_err)?;
+            detail
+                .execute(params![
+                    self.run_id,
+                    sequence,
+                    i64::try_from(event.source_layer)
+                        .map_err(|_| OutputError::Encoding("source layer outside i64".into()))?,
+                    i64::try_from(event.destination_layer).map_err(|_| {
+                        OutputError::Encoding("destination layer outside i64".into())
+                    })?,
+                    event.transfer_probability,
+                    event.importance_weight,
+                    event.column_residual,
+                ])
+                .map_err(io_err)?;
+            self.process_event_sequence = self
+                .process_event_sequence
+                .checked_add(1)
+                .ok_or_else(|| OutputError::Io("process event sequence overflow".into()))?;
+        }
+        drop(detail);
+        drop(process);
+        self.commit_transaction()
+    }
+
     fn finish(&mut self) -> Result<(), OutputError> {
         self.commit_transaction()?;
         let direction = self.direction.ok_or(OutputError::InvalidInput)?;
         let substances = self.substances.clone();
-        let continuous_modules = self.continuous_process_modules.clone();
+        let process_modules = self.process_modules.clone();
         let run_id = self.run_id.clone();
         let connection = self.connection.as_mut().ok_or(OutputError::InvalidInput)?;
         let sqlite_audit = PerformanceScope::enter(PerformanceStage::OutputFinishSqliteAudit);
-        write_continuous_process_summaries(
+        write_process_summaries(
             connection,
             &run_id,
             direction,
             &substances,
-            &continuous_modules,
+            &process_modules,
         )?;
         let now = system_timestamp()?;
         connection
@@ -1249,7 +1333,34 @@ fn insert_termination(
     Ok(())
 }
 
-fn write_continuous_process_summaries(
+fn validate_convection_events(
+    events: &[ConvectionProcessEvent],
+    direction: Direction,
+) -> Result<(), OutputError> {
+    let mut keys = std::collections::BTreeSet::new();
+    for event in events {
+        if event.direction != direction
+            || event.substance_id.0.trim().is_empty()
+            || !event.transfer_probability.is_finite()
+            || !(0.0..=1.0).contains(&event.transfer_probability)
+            || !event.importance_weight.is_finite()
+            || event.importance_weight < 0.0
+            || (direction == Direction::Forward && event.importance_weight != 1.0)
+            || !event.column_residual.is_finite()
+            || event.column_residual.abs() > 1.0e-12
+            || !keys.insert((
+                event.particle_id,
+                event.substance_id.clone(),
+                event.macro_step,
+            ))
+        {
+            return Err(OutputError::InvalidInput);
+        }
+    }
+    Ok(())
+}
+
+fn write_process_summaries(
     connection: &Connection,
     run_id: &str,
     direction: Direction,
@@ -1258,9 +1369,17 @@ fn write_continuous_process_summaries(
 ) -> Result<(), OutputError> {
     for module in modules {
         for substance in substances {
+            let event_count: u64 = connection
+                .query_row(
+                    "SELECT COUNT(*) FROM process_event
+                     WHERE run_id=?1 AND module_id=?2 AND substance_id=?3",
+                    params![run_id, module.as_str(), substance.0],
+                    |row| row.get(0),
+                )
+                .map_err(io_err)?;
             match direction {
                 Direction::Forward => {
-                    let (initial, final_mass): (f64, f64) = connection
+                    let (initial, stored_final): (f64, f64) = connection
                         .query_row(
                             "SELECT COALESCE(SUM(initial_mass_kg), 0.0),
                                     COALESCE(SUM(mass_kg), 0.0)
@@ -1270,36 +1389,76 @@ fn write_continuous_process_summaries(
                             |row| Ok((row.get(0)?, row.get(1)?)),
                         )
                         .map_err(io_err)?;
+                    let (positive, negative): (f64, f64) = connection
+                        .query_row(
+                            "SELECT
+                                COALESCE(SUM(CASE WHEN mass_delta_kg >= 0
+                                    THEN mass_delta_kg ELSE 0 END), 0.0),
+                                COALESCE(SUM(CASE WHEN mass_delta_kg < 0
+                                    THEN mass_delta_kg ELSE 0 END), 0.0)
+                             FROM process_event
+                             WHERE run_id=?1 AND module_id=?2 AND substance_id=?3",
+                            params![run_id, module.as_str(), substance.0],
+                            |row| Ok((row.get(0)?, row.get(1)?)),
+                        )
+                        .map_err(io_err)?;
+                    let final_mass = if *module == PhysicsModuleId::DeepConvectionColumn {
+                        stored_final
+                    } else {
+                        initial + positive + negative
+                    };
+                    let residual = final_mass - initial - positive - negative;
                     connection
                         .execute(
                             "INSERT INTO process_summary (
                                 run_id, module_id, substance_id, direction, event_count,
                                 initial_mass_kg, positive_mass_delta_kg,
                                 negative_mass_delta_kg, final_mass_kg, closure_residual
-                             ) VALUES (?1,?2,?3,'forward',0,?4,0.0,0.0,?5,?6)",
+                             ) VALUES (?1,?2,?3,'forward',?4,?5,?6,?7,?8,?9)",
                             params![
                                 run_id,
                                 module.as_str(),
                                 substance.0,
+                                event_count,
                                 initial,
+                                positive,
+                                negative,
                                 final_mass,
-                                final_mass - initial,
+                                residual,
                             ],
                         )
                         .map_err(io_err)?;
                 }
                 Direction::Backward => {
-                    let (initial, final_weight, source_sensitivity): (f64, f64, f64) = connection
+                    let (initial, stored_final): (f64, f64) = connection
                         .query_row(
                             "SELECT COALESCE(SUM(initial_adjoint_weight), 0.0),
-                                        COALESCE(SUM(adjoint_weight), 0.0),
-                                        COALESCE(SUM(source_sensitivity), 0.0)
+                                    COALESCE(SUM(adjoint_weight), 0.0)
                                  FROM particle_adjoint
                                  WHERE run_id = ?1 AND substance_id = ?2",
                             params![run_id, substance.0],
-                            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                            |row| Ok((row.get(0)?, row.get(1)?)),
                         )
                         .map_err(io_err)?;
+                    let final_weight = if *module == PhysicsModuleId::DeepConvectionColumn {
+                        stored_final
+                    } else {
+                        initial
+                    };
+                    let importance = if initial == 0.0 {
+                        if final_weight == 0.0 {
+                            1.0
+                        } else {
+                            return Err(OutputError::InvalidInput);
+                        }
+                    } else {
+                        final_weight / initial
+                    };
+                    if !importance.is_finite() || importance < 0.0 {
+                        return Err(OutputError::InvalidInput);
+                    }
+                    let source_sensitivity = 0.0;
+                    let residual = final_weight - initial * importance - source_sensitivity;
                     connection
                         .execute(
                             "INSERT INTO process_summary (
@@ -1307,15 +1466,17 @@ fn write_continuous_process_summaries(
                                 initial_adjoint_weight, survival_multiplier_product,
                                 source_sensitivity, convection_importance_product,
                                 final_adjoint_weight, closure_residual
-                             ) VALUES (?1,?2,?3,'backward',0,?4,1.0,?5,1.0,?6,?7)",
+                             ) VALUES (?1,?2,?3,'backward',?4,?5,1.0,?6,?7,?8,?9)",
                             params![
                                 run_id,
                                 module.as_str(),
                                 substance.0,
+                                event_count,
                                 initial,
                                 source_sensitivity,
+                                importance,
                                 final_weight,
-                                final_weight - initial - source_sensitivity,
+                                residual,
                             ],
                         )
                         .map_err(io_err)?;
@@ -1979,6 +2140,75 @@ mod tests {
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
         assert_eq!(rows, vec![(1.25, -2.5, 0.75), (-4.0, 5.5, -6.25)]);
+    }
+
+    #[test]
+    fn convection_event_and_forward_summary_close_atomically() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("particles.sqlite");
+        let tracer = SubstanceId("tracer".into());
+        let mut sink = ParticleStateSqliteSink::with_time_bounds(
+            Timestamp::UNIX_EPOCH,
+            Timestamp::new(1, 0).unwrap(),
+        )
+        .with_process_contract(
+            Direction::Forward,
+            vec![tracer.clone()],
+            vec![PhysicsModuleId::DeepConvectionColumn],
+        );
+        sink.begin(&path, &running_manifest()).unwrap();
+        let mut particles = two_particles();
+        particles
+            .mass
+            .mass_kg
+            .insert(tracer.clone(), vec![1.0, 2.0]);
+        sink.write_event(Timestamp::UNIX_EPOCH, &particles, None)
+            .unwrap();
+        sink.write_convection_events(&[ConvectionProcessEvent {
+            particle_id: ParticleId(1),
+            macro_step: 0,
+            substance_id: tracer,
+            time: Timestamp::new(1, 0).unwrap(),
+            direction: Direction::Forward,
+            source_layer: 3,
+            destination_layer: 1,
+            transfer_probability: 0.25,
+            importance_weight: 1.0,
+            column_residual: 2.0e-16,
+        }])
+        .unwrap();
+        sink.write_event(Timestamp::new(1, 0).unwrap(), &particles, None)
+            .unwrap();
+        sink.finish().unwrap();
+
+        let connection = ParticleStateSqliteSink::open_readonly(&path).unwrap();
+        let event: (String, f64, f64, i64, i64) = connection
+            .query_row(
+                "SELECT e.module_id, e.mass_delta_kg, d.transfer_probability,
+                        d.source_layer, d.destination_layer
+                 FROM process_event e JOIN convection_event d USING (run_id,event_sequence)",
+                [],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
+            )
+            .unwrap();
+        assert_eq!(event, ("deep_convection_column".into(), 0.0, 0.25, 3, 1));
+        let summary: (u64, f64, f64) = connection
+            .query_row(
+                "SELECT event_count, final_mass_kg, closure_residual
+                 FROM process_summary WHERE module_id='deep_convection_column'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(summary, (1, 3.0, 0.0));
     }
 
     #[test]

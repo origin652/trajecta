@@ -42,6 +42,7 @@ use crate::query::cache::{
     CacheError, CacheKey, CacheMetrics, CachedTransportQuery, ColumnCache, ExactTransportCacheKey,
     ExactTransportWindowKey, LastTransportQueryCache, MemoryBudget, PinGuard, TileCache,
 };
+use crate::query::convection::ConvectionColumnOutput;
 use crate::query::layout::{BatchLayout, ChunkMemoryModel, LayoutError, PointPlacement};
 use crate::query::mesoscale::{MesoscaleStatisticsOutput, WeightedVelocity, weighted_variance};
 use crate::query::metrics::{
@@ -521,6 +522,36 @@ impl PreparedWindow {
             layout,
             initial_status,
             horizontal_support,
+            stencils,
+        })
+    }
+
+    /// Pins complete local thermodynamic columns for M6 deep convection.
+    pub fn prepare_convection_batch(
+        &self,
+        batch: QueryBatch,
+        _workspace: &mut BatchWorkspace,
+    ) -> Result<PreparedConvectionBatch, EngineError> {
+        let point_count = batch.validate().map_err(EngineError::QueryPlan)?;
+        let (placements, initial_status) = locate_points(self, &batch)?;
+        let capabilities = crate::field::CapabilitySet::new().with(Capability::Transport);
+        let stencils = prepare_stencils(self, &batch, &placements, capabilities, false)?;
+        let layout = BatchLayout::build(
+            point_count,
+            placements,
+            self.execution_budget_bytes,
+            ChunkMemoryModel {
+                fixed_bytes: stencils.resident_bytes,
+                bytes_per_point: 4_096,
+                preferred_chunk_points: 8_192,
+            },
+        )
+        .map_err(EngineError::Layout)?;
+        Ok(PreparedConvectionBatch {
+            window: self.clone(),
+            batch,
+            layout,
+            initial_status,
             stencils,
         })
     }
@@ -7389,6 +7420,49 @@ fn sample_stability_point(
     interpolate_layer_value(target_height_asl_m, &layer_midpoints, &frequency_squared)
 }
 
+fn sample_convection_point(
+    window: &PreparedWindow,
+    stencils: &PreparedStencils,
+    batch: &QueryBatch,
+    cell: crate::grid::CellId,
+    original_index: usize,
+) -> Result<ColumnGeometry, EngineError> {
+    let longitude_degrees = batch.points.longitude_degrees[original_index];
+    let latitude_degrees = batch.points.latitude_degrees[original_index];
+    let column =
+        target_column(window, stencils, cell, longitude_degrees, latitude_degrees)?.geometry;
+    let first = column
+        .available_top_index()
+        .map_err(EngineError::Vertical)?;
+    let last = column.lowest_valid_index().map_err(EngineError::Vertical)?;
+    if last <= first
+        || column.validity().valid[first..=last]
+            .iter()
+            .any(|valid| !valid)
+    {
+        return Err(EngineError::Vertical(VerticalError::InvalidVerticalColumn));
+    }
+    let specific_humidity = column
+        .specific_humidity()
+        .iter()
+        .copied()
+        .map(project_specific_humidity_nonnegative)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| EngineError::NumericalFailure)?;
+    ColumnGeometry::new(
+        column.pressure_pa().clone(),
+        column.height_asl_m().clone(),
+        column.temperature_k().clone(),
+        Arc::from(specific_humidity),
+        column.level_horizontal_weights().clone(),
+        column.validity().clone(),
+        column.terrain_asl_m(),
+        column.surface_pressure_pa(),
+        column.physical_model_top_asl_m(),
+    )
+    .map_err(EngineError::Vertical)
+}
+
 fn validate_execution_state(
     context: &dyn ExecutionContext,
     layout: &BatchLayout,
@@ -7514,6 +7588,30 @@ fn sample_stability_chunk(
     Ok(pool.install(|| (start..end).into_par_iter().map(sample).collect()))
 }
 
+fn sample_convection_chunk(
+    prepared: &PreparedConvectionBatch,
+    start: usize,
+    end: usize,
+    worker_count: usize,
+) -> Result<Vec<Result<ColumnGeometry, EngineError>>, EngineError> {
+    let sample = |internal_index: usize| {
+        let original_index = prepared.layout.permutation.forward[internal_index];
+        sample_convection_point(
+            &prepared.window,
+            &prepared.stencils,
+            &prepared.batch,
+            prepared.layout.cell_ids[internal_index],
+            original_index,
+        )
+    };
+    let point_count = end.saturating_sub(start);
+    if worker_count == 1 || point_count < PARALLEL_TRANSPORT_MIN_POINTS {
+        return Ok((start..end).map(sample).collect());
+    }
+    let pool = execution_pool(worker_count)?;
+    Ok(pool.install(|| (start..end).into_par_iter().map(sample).collect()))
+}
+
 /// Fully pinned local space-time wind support for M6 mesoscale motion.
 #[derive(Clone, Debug)]
 pub struct PreparedMesoscaleBatch {
@@ -7566,6 +7664,56 @@ impl PreparedMesoscaleBatch {
             native_interval_seconds,
         )
         .map_err(|_| EngineError::InvalidPreparedState)
+    }
+}
+
+/// Fully pinned complete thermodynamic columns for M6 deep convection.
+#[derive(Clone, Debug)]
+pub struct PreparedConvectionBatch {
+    /// Immutable pinned time window.
+    pub window: PreparedWindow,
+    /// Original query batch.
+    pub batch: QueryBatch,
+    /// Backend-neutral deterministic layout.
+    pub layout: BatchLayout,
+    /// Preparation-time local statuses; executable points remain `Ok`.
+    pub initial_status: Vec<SampleStatus>,
+    stencils: PreparedStencils,
+}
+
+impl PreparedConvectionBatch {
+    /// Builds complete local columns without source I/O.
+    pub fn execute(
+        &self,
+        context: &dyn ExecutionContext,
+        _workspace: &mut BatchWorkspace,
+    ) -> Result<ConvectionColumnOutput, EngineError> {
+        validate_execution_state(context, &self.layout, self.initial_status.len())?;
+        let mut status = self.initial_status.clone();
+        let mut columns = vec![None; status.len()];
+        for boundaries in self.layout.chunks.boundaries.windows(2) {
+            let sampled = sample_convection_chunk(
+                self,
+                boundaries[0],
+                boundaries[1],
+                context.worker_count(),
+            )?;
+            for (internal_index, point) in (boundaries[0]..boundaries[1]).zip(sampled) {
+                let original_index = self.layout.permutation.forward[internal_index];
+                match point {
+                    Ok(column) => columns[original_index] = Some(column),
+                    Err(error) => {
+                        if let Some(local_status) = local_status_for_error(&error) {
+                            status[original_index] = local_status;
+                        } else {
+                            return Err(error);
+                        }
+                    }
+                }
+            }
+        }
+        ConvectionColumnOutput::new(columns, StatusColumn::new(status))
+            .map_err(|_| EngineError::InvalidPreparedState)
     }
 }
 
@@ -8900,6 +9048,99 @@ mod tests {
                     .is_some_and(f64::is_finite)
             );
         }
+    }
+
+    #[test]
+    fn convection_columns_preserve_caller_order_and_execute_without_cache_mutation() {
+        let (window, cache) = attached_exact_window();
+        let point_count = PARALLEL_TRANSPORT_MIN_POINTS * 2;
+        let mut longitude_degrees = (0..point_count)
+            .map(|index| 0.05 + (index % 89) as f64 * 0.01)
+            .collect::<Vec<_>>();
+        let mut latitude_degrees = (0..point_count)
+            .map(|index| 0.05 + (index % 83) as f64 * 0.01)
+            .collect::<Vec<_>>();
+        longitude_degrees[point_count - 1] = 0.0;
+        latitude_degrees[point_count - 1] = 90.0;
+        let batch = QueryBatch {
+            vertical_coordinate: VerticalQuery::AboveSeaLevel,
+            points: QueryPointArrays {
+                longitude_degrees,
+                latitude_degrees,
+                vertical: vec![1_000.0; point_count],
+            },
+        };
+        let mut workspace = BatchWorkspace::default();
+        let prepared = window
+            .prepare_convection_batch(batch, &mut workspace)
+            .unwrap();
+        let metrics = cache.lock().unwrap().metrics();
+        let serial = prepared
+            .execute(&RayonExecutionContext { worker_threads: 1 }, &mut workspace)
+            .unwrap();
+        assert_eq!(cache.lock().unwrap().metrics(), metrics);
+        let parallel = prepared
+            .execute(&RayonExecutionContext { worker_threads: 4 }, &mut workspace)
+            .unwrap();
+        assert_eq!(parallel, serial);
+        assert_eq!(cache.lock().unwrap().metrics(), metrics);
+        assert_eq!(
+            serial.status().get(point_count - 1),
+            Some(SampleStatus::PolarSingularity)
+        );
+        assert!(serial.column(point_count - 1).is_none());
+        for index in 0..(point_count - 1) {
+            let column = serial.column(index).unwrap();
+            let first = column.available_top_index().unwrap();
+            let last = column.lowest_valid_index().unwrap();
+            assert!(last > first);
+            assert!(
+                column.validity().valid[first..=last]
+                    .iter()
+                    .all(|valid| *valid)
+            );
+            assert!(
+                column.specific_humidity()[first..=last]
+                    .iter()
+                    .all(|value| value.is_finite() && *value >= 0.0)
+            );
+        }
+    }
+
+    #[test]
+    fn convection_column_reports_a_missing_thermodynamic_layer_as_typed_status() {
+        let mut window = PreparedWindow::at_frame(
+            Some(analytic_pressure_frame_with_missing_temperature_level(0)),
+            analytic_pressure_frame_with_missing_temperature_level(3_600),
+            Some(analytic_pressure_frame_with_missing_temperature_level(
+                7_200,
+            )),
+            8 * 1024 * 1024,
+        )
+        .unwrap();
+        let cache = Arc::new(Mutex::new(ColumnCache::new(8 * 1024 * 1024)));
+        window.attach_column_cache(&cache);
+        let mut workspace = BatchWorkspace::default();
+        let output = window
+            .prepare_convection_batch(
+                QueryBatch {
+                    vertical_coordinate: VerticalQuery::AboveSeaLevel,
+                    points: QueryPointArrays {
+                        longitude_degrees: vec![0.5],
+                        latitude_degrees: vec![0.5],
+                        vertical: vec![1_000.0],
+                    },
+                },
+                &mut workspace,
+            )
+            .unwrap()
+            .execute(&RayonExecutionContext { worker_threads: 2 }, &mut workspace)
+            .unwrap();
+        assert_eq!(
+            output.status().values(),
+            &[SampleStatus::InvalidVerticalColumn]
+        );
+        assert!(output.column(0).is_none());
     }
 
     #[test]

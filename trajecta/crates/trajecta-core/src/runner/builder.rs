@@ -681,7 +681,7 @@ fn build_outputs(
         .iter()
         .map(|substance| substance.id().clone())
         .collect::<Vec<_>>();
-    let continuous_process_modules = case
+    let process_modules = case
         .physics
         .as_ref()
         .into_iter()
@@ -692,6 +692,7 @@ fn build_outputs(
                 PhysicsModuleId::SubgridOrography
                     | PhysicsModuleId::BoundaryLayerLangevin
                     | PhysicsModuleId::MesoscaleMarkov
+                    | PhysicsModuleId::DeepConvectionColumn
             )
         })
         .map(|module| module.model)
@@ -701,7 +702,7 @@ fn build_outputs(
             .with_process_contract(
                 time.direction,
                 substance_ids.clone(),
-                continuous_process_modules.clone(),
+                process_modules.clone(),
             )
             .with_bundle_sort_knobs(
                 knobs.bundle_chunk_lines,

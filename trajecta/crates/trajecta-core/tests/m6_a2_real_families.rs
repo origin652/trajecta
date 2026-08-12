@@ -111,8 +111,13 @@ fn workspace_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn formal_required() -> bool {
+fn a2_formal_required() -> bool {
     std::env::var("TRAJECTA_REQUIRE_M6_A2_FORMAL")
+        .is_ok_and(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
+}
+
+fn a3_formal_required() -> bool {
+    std::env::var("TRAJECTA_M6_FORMAL")
         .is_ok_and(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
 }
 
@@ -128,14 +133,15 @@ fn kilograms(value: f64) -> Quantity<Mass> {
     Quantity::from_si(value, Unit::new("kg", Dimension::Mass, 1.0, 0.0).unwrap()).unwrap()
 }
 
-fn physics() -> ResolvedPhysicsSpec {
+fn physics(include_deep_convection: bool) -> ResolvedPhysicsSpec {
+    let mut remove = vec![PhysicsModuleId::WaterVaporExchange];
+    if !include_deep_convection {
+        remove.push(PhysicsModuleId::DeepConvectionColumn);
+    }
     resolve_physics(
         &PhysicsSelectionSpec {
             preset: PhysicsPreset::WaterVaporTracking,
-            remove: vec![
-                PhysicsModuleId::DeepConvectionColumn,
-                PhysicsModuleId::WaterVaporExchange,
-            ],
+            remove,
             overrides: Vec::new(),
             modules: Vec::new(),
         },
@@ -159,7 +165,12 @@ fn build_gmted_lock(prepared: &Path, root: &Path) -> PathBuf {
     path
 }
 
-fn case(family: Family, direction: Direction) -> ResolvedCase {
+fn case(
+    family: Family,
+    direction: Direction,
+    particle_count: u64,
+    include_deep_convection: bool,
+) -> ResolvedCase {
     let start_seconds = match direction {
         Direction::Forward => family.forward_start,
         Direction::Backward => family.backward_start,
@@ -196,7 +207,7 @@ fn case(family: Family, direction: Direction) -> ResolvedCase {
                 id: ReleaseEventId("event".into()),
                 start,
                 end: start,
-                particle_count: PARTICLES,
+                particle_count,
                 mass: BTreeMap::from([(SubstanceId("water".into()), kilograms(1.0))]),
                 geometry: GeoJsonSource::Inline {
                     geometry: GeoJsonGeometry::Point(family.release),
@@ -233,7 +244,7 @@ fn case(family: Family, direction: Direction) -> ResolvedCase {
             },
             random_seed: Some(6_202),
         }),
-        physics: Some(physics()),
+        physics: Some(physics(include_deep_convection)),
         outputs: vec![default_particle_state_output()],
         sources: Vec::new(),
     }
@@ -285,10 +296,32 @@ fn run_cell(
     family: Family,
     direction: Direction,
     workers: usize,
+    particle_count: u64,
+    include_deep_convection: bool,
     data: &CellData<'_>,
 ) -> [String; 3] {
-    let resolved_case = case(family, direction);
-    let cell = format!("{}-{direction:?}-w{workers}", family.id).to_lowercase();
+    run_cell_artifact(
+        family,
+        direction,
+        workers,
+        particle_count,
+        include_deep_convection,
+        data,
+    )
+    .0
+}
+
+fn run_cell_artifact(
+    family: Family,
+    direction: Direction,
+    workers: usize,
+    particle_count: u64,
+    include_deep_convection: bool,
+    data: &CellData<'_>,
+) -> ([String; 3], PathBuf) {
+    let resolved_case = case(family, direction, particle_count, include_deep_convection);
+    let stage = if include_deep_convection { "a3" } else { "a2" };
+    let cell = format!("{}-{stage}-{direction:?}-w{workers}", family.id).to_lowercase();
     let case_path = data.root.join(format!("{cell}.case.json"));
     fs::write(
         &case_path,
@@ -298,7 +331,7 @@ fn run_cell(
     let output_root = data.root.join(format!("{cell}.runs"));
     let profile = ResolvedRunProfile {
         metadata: Metadata {
-            name: cell,
+            name: cell.clone(),
             ..Metadata::default()
         },
         case_path,
@@ -353,14 +386,21 @@ fn run_cell(
         .unwrap()
         .map(Result::unwrap)
         .collect();
-    assert_eq!(
-        modules,
-        [
+    let expected_modules = if include_deep_convection {
+        vec![
+            "boundary_layer_langevin",
+            "deep_convection_column",
+            "mesoscale_markov",
+            "subgrid_orography",
+        ]
+    } else {
+        vec![
             "boundary_layer_langevin",
             "mesoscale_markov",
-            "subgrid_orography"
+            "subgrid_orography",
         ]
-    );
+    };
+    assert_eq!(modules, expected_modules);
     assert!(
         connection
             .query_row(
@@ -377,11 +417,67 @@ fn run_cell(
             .unwrap()
             > 0
     );
-    [
-        provenance.content_sha256.clone(),
-        provenance.sqlite_sql_sha256.clone(),
-        provenance.canonical_output_sha256.clone(),
-    ]
+    (
+        [
+            provenance.content_sha256.clone(),
+            provenance.sqlite_sql_sha256.clone(),
+            provenance.canonical_output_sha256.clone(),
+        ],
+        sqlite.parent().unwrap().to_path_buf(),
+    )
+}
+
+#[test]
+fn a3_production_result_artifact_is_available_to_cli_process_queries() {
+    if !a3_formal_required() {
+        eprintln!("skip: set TRAJECTA_M6_FORMAL=1 to build A3 process-query artifacts");
+        return;
+    }
+
+    let workspace = workspace_root();
+    let family = FAMILIES[2];
+    let fixture = workspace.join(family.fixture);
+    let gmted_prepared = workspace.join("target/m6-a2-gmted/prepared");
+    assert!(
+        fixture.is_dir() && gmted_prepared.is_dir(),
+        "missing A3 process-query fixtures: {fixture:?} {gmted_prepared:?}"
+    );
+
+    let work = tempdir().unwrap();
+    let lock = build_lock(family, &fixture, work.path());
+    let gmted_lock = build_gmted_lock(&gmted_prepared, work.path());
+    let data = CellData {
+        fixture: &fixture,
+        lock: &lock,
+        gmted_prepared: &gmted_prepared,
+        gmted_lock: &gmted_lock,
+        root: work.path(),
+    };
+    let (_, forward) = run_cell_artifact(family, Direction::Forward, 2, 64, true, &data);
+    let (_, backward) = run_cell_artifact(family, Direction::Backward, 2, 64, true, &data);
+    let destination = workspace.join("target/m6-a3-process-query-artifacts");
+    fs::create_dir_all(&destination).unwrap();
+    for (name, source) in [("forward", forward), ("backward", backward)] {
+        let target = destination.join(name);
+        if target.exists() {
+            fs::remove_dir_all(&target).unwrap();
+        }
+        copy_directory(&source, &target);
+    }
+}
+
+fn copy_directory(source: &Path, destination: &Path) {
+    fs::create_dir_all(destination).unwrap();
+    for entry in fs::read_dir(source).unwrap() {
+        let entry = entry.unwrap();
+        let source = entry.path();
+        let target = destination.join(entry.file_name());
+        if source.is_dir() {
+            copy_directory(&source, &target);
+        } else {
+            fs::copy(source, target).unwrap();
+        }
+    }
 }
 
 fn find_file(root: &Path, name: &str) -> Option<PathBuf> {
@@ -399,6 +495,11 @@ fn find_file(root: &Path, name: &str) -> Option<PathBuf> {
 
 #[test]
 fn all_real_families_are_directional_and_worker_deterministic() {
+    if !a2_formal_required() {
+        eprintln!("skip: set TRAJECTA_REQUIRE_M6_A2_FORMAL=1 to run the A2 real-family matrix");
+        return;
+    }
+
     let workspace = workspace_root();
     let gmted_prepared = workspace.join("target/m6-a2-gmted/prepared");
     let mut missing = FAMILIES
@@ -409,11 +510,7 @@ fn all_real_families_are_directional_and_worker_deterministic() {
     if !gmted_prepared.is_dir() {
         missing.push(gmted_prepared.clone());
     }
-    if !missing.is_empty() {
-        assert!(!formal_required(), "missing formal fixtures: {missing:?}");
-        eprintln!("skip: M6-A2 real-family fixtures are unavailable: {missing:?}");
-        return;
-    }
+    assert!(missing.is_empty(), "missing formal fixtures: {missing:?}");
 
     let work = tempdir().unwrap();
     let gmted_lock = build_gmted_lock(&gmted_prepared, work.path());
@@ -428,8 +525,47 @@ fn all_real_families_are_directional_and_worker_deterministic() {
             root: work.path(),
         };
         for direction in [Direction::Forward, Direction::Backward] {
-            let serial = run_cell(family, direction, 1, &data);
-            let parallel = run_cell(family, direction, 4, &data);
+            let serial = run_cell(family, direction, 1, PARTICLES, false, &data);
+            let parallel = run_cell(family, direction, 4, PARTICLES, false, &data);
+            assert_eq!(serial, parallel, "{} {direction:?}", family.id);
+        }
+    }
+}
+
+#[test]
+fn deep_convection_runs_on_all_real_families_in_both_directions() {
+    if !a3_formal_required() {
+        eprintln!("skip: set TRAJECTA_M6_FORMAL=1 to run the A3 real-family matrix");
+        return;
+    }
+
+    let workspace = workspace_root();
+    let gmted_prepared = workspace.join("target/m6-a2-gmted/prepared");
+    let mut missing = FAMILIES
+        .iter()
+        .map(|family| workspace.join(family.fixture))
+        .filter(|path| !path.is_dir())
+        .collect::<Vec<_>>();
+    if !gmted_prepared.is_dir() {
+        missing.push(gmted_prepared.clone());
+    }
+    assert!(missing.is_empty(), "missing formal fixtures: {missing:?}");
+
+    let work = tempdir().unwrap();
+    let gmted_lock = build_gmted_lock(&gmted_prepared, work.path());
+    for family in FAMILIES {
+        let fixture = workspace.join(family.fixture);
+        let lock = build_lock(family, &fixture, work.path());
+        let data = CellData {
+            fixture: &fixture,
+            lock: &lock,
+            gmted_prepared: &gmted_prepared,
+            gmted_lock: &gmted_lock,
+            root: work.path(),
+        };
+        for direction in [Direction::Forward, Direction::Backward] {
+            let serial = run_cell(family, direction, 1, 8, true, &data);
+            let parallel = run_cell(family, direction, 4, 8, true, &data);
             assert_eq!(serial, parallel, "{} {direction:?}", family.id);
         }
     }

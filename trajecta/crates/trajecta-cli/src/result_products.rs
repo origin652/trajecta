@@ -654,11 +654,8 @@ fn load_process_groups(
             groups.push(process_summary_group(row, direction, module, substance)?);
             continue;
         }
-        let particles = if selection.particle_ids.is_empty() {
-            vec![None]
-        } else {
-            selection.particle_ids.iter().copied().map(Some).collect()
-        };
+        let particles =
+            filtered_process_particles(connection, run_id, selection, &module, &substance)?;
         for particle in particles {
             groups.push(recomputed_process_group(
                 connection, run_id, direction, selection, &module, &substance, particle,
@@ -666,6 +663,37 @@ fn load_process_groups(
         }
     }
     Ok(groups)
+}
+
+fn filtered_process_particles(
+    connection: &Connection,
+    run_id: &str,
+    selection: &ProcessSelection,
+    module: &str,
+    substance: &str,
+) -> Result<Vec<Option<u64>>, ProductError> {
+    if !selection.particle_ids.is_empty() {
+        return Ok(selection.particle_ids.iter().copied().map(Some).collect());
+    }
+    if selection.start.is_none() && selection.end.is_none() {
+        return Ok(vec![None]);
+    }
+    let (mut sql, mut parameters) = process_event_where(run_id, selection);
+    sql.push_str(" AND e.module_id=? AND e.substance_id=?");
+    parameters.push(rusqlite::types::Value::Text(module.to_owned()));
+    parameters.push(rusqlite::types::Value::Text(substance.to_owned()));
+    let query =
+        format!("SELECT DISTINCT e.particle_id FROM process_event e {sql} ORDER BY e.particle_id");
+    let particles = connection
+        .prepare(&query)
+        .map_err(sql_error)?
+        .query_map(rusqlite::params_from_iter(parameters.iter()), |row| {
+            row.get::<_, u64>(0).map(Some)
+        })
+        .map_err(sql_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(sql_error)?;
+    Ok(particles)
 }
 
 fn process_summary_group(
@@ -737,9 +765,10 @@ fn recomputed_process_group(
     let aggregate = aggregate_process_events(
         connection, run_id, selection, module, substance, particle, direction,
     )?;
-    let (initial, final_value, stored_source) =
+    let (initial, _stored_final, stored_source) =
         directional_state_totals(connection, run_id, direction, substance, particle)?;
     let closure = if direction == "forward" {
+        let final_value = initial + aggregate.positive + aggregate.negative;
         json!({
             "kind": "forward_mass",
             "initial_mass_kg": initial,
@@ -749,17 +778,18 @@ fn recomputed_process_group(
             "residual_kg": final_value - initial - aggregate.positive - aggregate.negative,
         })
     } else {
+        let source = aggregate.source + stored_source;
+        let final_value = initial * aggregate.survival * aggregate.importance + source;
         json!({
             "kind": "backward_adjoint",
             "initial_adjoint_weight": initial,
             "survival_product": aggregate.survival,
-            "source_sensitivity": aggregate.source + stored_source,
+            "source_sensitivity": source,
             "convection_importance_product": aggregate.importance,
             "final_adjoint_weight": final_value,
             "residual": final_value
                 - initial * aggregate.survival * aggregate.importance
-                - aggregate.source
-                - stored_source,
+                - source,
         })
     };
     Ok(json!({
@@ -794,7 +824,8 @@ fn aggregate_process_events(
     }
     let query = format!(
         "SELECT e.mass_delta_kg, e.survival_multiplier,
-                e.source_sensitivity, e.importance_weight FROM process_event e {sql}"
+                e.source_sensitivity, e.importance_weight FROM process_event e {sql}
+         ORDER BY e.macro_step, e.event_sequence"
     );
     let mut statement = connection.prepare(&query).map_err(sql_error)?;
     let mut rows = statement
@@ -817,9 +848,13 @@ fn aggregate_process_events(
                 aggregate.negative += delta;
             }
         } else {
-            aggregate.survival *= required_sql_value::<f64>(row, 1, "survival_multiplier")?;
-            aggregate.source += required_sql_value::<f64>(row, 2, "source_sensitivity")?;
-            aggregate.importance *= required_sql_value::<f64>(row, 3, "importance_weight")?;
+            let survival = required_sql_value::<f64>(row, 1, "survival_multiplier")?;
+            let source = required_sql_value::<f64>(row, 2, "source_sensitivity")?;
+            let importance = required_sql_value::<f64>(row, 3, "importance_weight")?;
+            let multiplier = survival * importance;
+            aggregate.source = aggregate.source * multiplier + source;
+            aggregate.survival *= survival;
+            aggregate.importance *= importance;
         }
         aggregate.count = aggregate.count.checked_add(1).ok_or_else(|| {
             ProductError::new("result.row_count_overflow", "process event count overflow")
@@ -2245,6 +2280,38 @@ mod tests {
         .unwrap();
         assert_eq!(groups[0]["closure"]["kind"], "backward_adjoint");
         assert_eq!(groups[0]["closure"]["source_sensitivity"], 0.1);
+
+        for (sequence, seconds, survival, source, importance) in [
+            (1_i64, 10_i64, 0.5_f64, 2.0_f64, 3.0_f64),
+            (0, 20, 0.8, 1.0, 1.5),
+        ] {
+            connection
+                .execute(
+                    "INSERT INTO process_event (
+                        run_id,event_sequence,particle_id,macro_step,module_id,substance_id,
+                        physical_seconds,physical_nanosecond,direction,detail_kind,
+                        survival_multiplier,source_sensitivity,importance_weight
+                     ) VALUES (?1,?2,7,?2,'first_order_decay','gas',?3,0,
+                               'backward','chemistry',?4,?5,?6)",
+                    rusqlite::params![backward, sequence, seconds, survival, source, importance],
+                )
+                .unwrap();
+        }
+        let filtered = ProcessSelection {
+            particle_ids: vec![7],
+            module_ids: vec!["first_order_decay".into()],
+            substance_ids: vec!["gas".into()],
+            start: None,
+            end: None,
+            events: true,
+            max_records: None,
+        };
+        let groups = load_process_groups(&connection, backward, "backward", &filtered).unwrap();
+        let closure = &groups[0]["closure"];
+        assert!((closure["survival_product"].as_f64().unwrap() - 0.4).abs() < 1.0e-15);
+        assert!((closure["convection_importance_product"].as_f64().unwrap() - 4.5).abs() < 1.0e-15);
+        assert!((closure["source_sensitivity"].as_f64().unwrap() - 3.6).abs() < 1.0e-15);
+        assert!(closure["residual"].as_f64().unwrap().abs() < 1.0e-15);
     }
 
     #[test]

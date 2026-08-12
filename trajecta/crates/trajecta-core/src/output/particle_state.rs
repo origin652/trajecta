@@ -8,7 +8,7 @@ use trajecta_case::model::time::Timestamp;
 use trajecta_met::query::output::QueryOutput;
 
 use crate::manifest::RunManifest;
-use crate::output::{OutputError, OutputProduct, ParticleStateSink};
+use crate::output::{ConvectionProcessEvent, OutputError, OutputProduct, ParticleStateSink};
 use crate::particle::ParticleBatch;
 
 /// Production particle-state product.
@@ -51,6 +51,16 @@ impl OutputProduct for ParticleStateProduct {
             return Err(OutputError::InvalidInput);
         }
         self.sink.write_event(time, particles, meteorology)
+    }
+
+    fn write_convection_events(
+        &mut self,
+        events: &[ConvectionProcessEvent],
+    ) -> Result<(), OutputError> {
+        if !self.begun {
+            return Err(OutputError::InvalidInput);
+        }
+        self.sink.write_convection_events(events)
     }
 
     fn finish(&mut self) -> Result<(), OutputError> {

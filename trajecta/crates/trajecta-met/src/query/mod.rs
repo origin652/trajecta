@@ -5,6 +5,7 @@
 //! mutate deterministic LRU state; execution uses only pinned immutable data.
 
 pub mod cache;
+pub mod convection;
 pub mod engine;
 pub mod interpolate;
 pub mod layout;

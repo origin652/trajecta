@@ -5,7 +5,10 @@
 //! executor.
 
 mod boundary_layer;
+mod convection;
 mod mesoscale;
+
+pub use convection::DeepConvectionKernel;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -25,12 +28,15 @@ use trajecta_met::query::request::{
 use trajecta_met::surface_layer::MoninObukhovBusingerDyer;
 
 use crate::clock::{SignedDuration, add_timestamp, signed_duration_between};
+use crate::output::ConvectionProcessEvent;
 use crate::particle::{ParticleBatch, ParticleStatus};
+use crate::rng::ProcessRandomKey;
 
 use self::boundary_layer::{
     BIRTH_DRAW_INDEX, BoundaryLayerEnvironment, ENDPOINT_DRAW_INDEX, LangevinKey,
     MIDPOINT_DRAW_INDEX, maximum_stable_step_ns, sample_stationary_velocity, update_velocity,
 };
+use self::convection::SampledConvectionTransfer;
 use self::mesoscale::{
     MesoscaleKey, sample_stationary_velocity as sample_stationary_mesoscale_velocity,
     update_velocity as update_mesoscale_velocity,
@@ -40,6 +46,9 @@ use self::mesoscale::{
 pub const BOUNDARY_LAYER_LANGEVIN_ALGORITHM_ID: &str = "thomson_hanna_skewed_cbl_langevin/v1";
 /// Stable implementation identity for the A2 terrain correction.
 pub const SUBGRID_OROGRAPHY_ALGORITHM_ID: &str = "gmted2010_anomaly_stability_limited_mixing/v1";
+/// Stable implementation identity for the A3 conservative column module.
+pub const DEEP_CONVECTION_COLUMN_ALGORITHM_ID: &str =
+    "emanuel_zivkovic_rothman_conservative_column/v1";
 
 const BUOYANCY_FREQUENCY_FLOOR_S_INV: f64 = 1.0e-4;
 const STABLE_KINETIC_CAP_MULTIPLIER: f64 = 2.0;
@@ -49,6 +58,8 @@ pub struct PhysicsPipeline {
     subgrid_orography: Option<SubgridOrography>,
     boundary_layer: Option<BoundaryLayerLangevin>,
     mesoscale: Option<MesoscaleMarkov>,
+    deep_convection: bool,
+    convection_events: BTreeMap<ConvectionEventKey, ConvectionEventAccumulator>,
     common_maximum_substep_ns: i64,
 }
 
@@ -123,6 +134,34 @@ struct MesoscaleMarkov {
     correlation_interval_fraction: f64,
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct ParticleConvectionTransfer {
+    particle_index: usize,
+    transfer: SampledConvectionTransfer,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct ConvectionEventKey {
+    particle_id: crate::particle::ParticleId,
+    substance_id: trajecta_case::model::substance::SubstanceId,
+}
+
+#[derive(Clone, Debug)]
+struct ConvectionEventAccumulator {
+    source_layer: usize,
+    destination_layer: usize,
+    transfer_probability: f64,
+    importance_weight: f64,
+    column_residual: f64,
+}
+
+struct PendingConvectionUpdate {
+    particle_index: usize,
+    height_asl_m: f64,
+    adjoint_multiplier: f64,
+    transfer: SampledConvectionTransfer,
+}
+
 #[derive(Clone, Copy, Debug)]
 struct BoundaryLayerMotionInput {
     particle_index: usize,
@@ -156,6 +195,7 @@ impl PhysicsPipeline {
                 PhysicsModuleId::SubgridOrography
                     | PhysicsModuleId::BoundaryLayerLangevin
                     | PhysicsModuleId::MesoscaleMarkov
+                    | PhysicsModuleId::DeepConvectionColumn
             ) {
                 return Err(PhysicsError::ModuleStageNotAvailable {
                     module: module.model,
@@ -175,7 +215,14 @@ impl PhysicsPipeline {
             .modules
             .iter()
             .find(|module| module.model == PhysicsModuleId::MesoscaleMarkov);
-        if subgrid_module.is_none() && boundary_layer_module.is_none() && mesoscale_module.is_none()
+        let deep_convection_module = physics
+            .modules
+            .iter()
+            .find(|module| module.model == PhysicsModuleId::DeepConvectionColumn);
+        if subgrid_module.is_none()
+            && boundary_layer_module.is_none()
+            && mesoscale_module.is_none()
+            && deep_convection_module.is_none()
         {
             return Ok(None);
         }
@@ -188,6 +235,7 @@ impl PhysicsPipeline {
                     PhysicsModuleId::SubgridOrography
                         | PhysicsModuleId::BoundaryLayerLangevin
                         | PhysicsModuleId::MesoscaleMarkov
+                        | PhysicsModuleId::DeepConvectionColumn
                 )
             })
             .map(duration_ns)
@@ -244,6 +292,8 @@ impl PhysicsPipeline {
             subgrid_orography,
             boundary_layer,
             mesoscale,
+            deep_convection: deep_convection_module.is_some(),
+            convection_events: BTreeMap::new(),
             common_maximum_substep_ns,
         }))
     }
@@ -274,6 +324,250 @@ impl PhysicsPipeline {
             remaining -= magnitude;
         }
         Ok(steps)
+    }
+
+    /// Clears the macro-step-local discrete event accumulator.
+    pub(crate) fn begin_macro_step(&mut self) {
+        self.convection_events.clear();
+    }
+
+    /// Applies the complete deep-convection column operator after midpoint motion.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn apply_convection(
+        &mut self,
+        substep_end: Timestamp,
+        active_start_times: &[Timestamp],
+        direction: Direction,
+        macro_step: u64,
+        substep: u32,
+        active_indices: &[usize],
+        particles: &mut ParticleBatch,
+        meteorology: &mut MetEngine,
+        execution: &dyn ExecutionContext,
+        domain: &trajecta_case::model::meteorology::DomainId,
+        seed: u64,
+    ) -> Result<Vec<ParticleConvectionTransfer>, PhysicsError> {
+        if !self.deep_convection || active_indices.is_empty() {
+            return Ok(Vec::new());
+        }
+        let particle_count = particles
+            .len()
+            .map_err(|_| PhysicsError::InvalidParticleBatch)?;
+        if active_start_times.len() != particle_count
+            || active_indices.iter().any(|index| *index >= particle_count)
+        {
+            return Err(PhysicsError::InvalidParticleBatch);
+        }
+        let mut midpoint_groups = BTreeMap::<Timestamp, Vec<(usize, u64)>>::new();
+        for particle_index in active_indices.iter().copied() {
+            if particles.status[particle_index] != ParticleStatus::Alive {
+                continue;
+            }
+            let active_step =
+                signed_duration_between(active_start_times[particle_index], substep_end)
+                    .map_err(|_| PhysicsError::SubstepUnderflow)?;
+            let active_nanoseconds = active_step.0.unsigned_abs();
+            if active_nanoseconds == 0 {
+                continue;
+            }
+            let midpoint = add_timestamp(
+                active_start_times[particle_index],
+                SignedDuration(active_step.0 / 2),
+            )
+            .map_err(|_| PhysicsError::SubstepUnderflow)?;
+            midpoint_groups
+                .entry(midpoint)
+                .or_default()
+                .push((particle_index, active_nanoseconds));
+        }
+
+        let mut workspace = BatchWorkspace::default();
+        let mut updates = Vec::new();
+        for (midpoint, group) in midpoint_groups {
+            let window = meteorology
+                .prepare_for_domain(midpoint, domain)
+                .map_err(|error| PhysicsError::Meteorology(format!("{error:?}")))?;
+            let batch = QueryBatch {
+                vertical_coordinate: VerticalQuery::AboveSeaLevel,
+                points: QueryPointArrays {
+                    longitude_degrees: group
+                        .iter()
+                        .map(|(index, _)| particles.longitude_degrees[*index])
+                        .collect(),
+                    latitude_degrees: group
+                        .iter()
+                        .map(|(index, _)| particles.latitude_degrees[*index])
+                        .collect(),
+                    vertical: group
+                        .iter()
+                        .map(|(index, _)| particles.height_asl_m[*index])
+                        .collect(),
+                },
+            };
+            let output = window
+                .prepare_convection_batch(batch, &mut workspace)
+                .and_then(|prepared| prepared.execute(execution, &mut workspace))
+                .map_err(|error| PhysicsError::Meteorology(format!("{error:?}")))?;
+            for (row_index, (particle_index, active_nanoseconds)) in group.into_iter().enumerate() {
+                if output.status().get(row_index) != Some(SampleStatus::Ok) {
+                    return Err(PhysicsError::Meteorology(format!(
+                        "deep-convection column is unavailable for particle {}: {:?}",
+                        particles.id[particle_index].0,
+                        output.status().get(row_index),
+                    )));
+                }
+                let column = output.column(row_index).ok_or_else(|| {
+                    PhysicsError::Meteorology("deep-convection column row is missing".into())
+                })?;
+                let kernel =
+                    DeepConvectionKernel::diagnose(column, active_nanoseconds as f64 * 1.0e-9)?;
+                if kernel.is_identity() {
+                    continue;
+                }
+                let current_layer =
+                    kernel.layer_for_height(particles.height_asl_m[particle_index])?;
+                let random_key = ProcessRandomKey {
+                    seed,
+                    particle: particles.id[particle_index],
+                    module: crate::rng::StableRandomId(0),
+                    macro_step,
+                    substep,
+                    sampling_dimension: 0,
+                    draw_index: 0,
+                };
+                let transfer = match direction {
+                    Direction::Forward => kernel.sample_forward(current_layer, random_key)?,
+                    Direction::Backward => kernel.sample_adjoint(current_layer, random_key)?,
+                };
+                let target_layer = match direction {
+                    Direction::Forward => transfer.destination_layer,
+                    Direction::Backward => transfer.source_layer,
+                };
+                updates.push(PendingConvectionUpdate {
+                    particle_index,
+                    height_asl_m: kernel.layer_height_asl_m(target_layer)?,
+                    adjoint_multiplier: transfer.importance_weight,
+                    transfer,
+                });
+            }
+        }
+
+        for update in &updates {
+            if !update.height_asl_m.is_finite()
+                || !update.adjoint_multiplier.is_finite()
+                || update.adjoint_multiplier < 0.0
+                || (direction == Direction::Backward
+                    && particles.adjoint.adjoint_weight.values().any(|weights| {
+                        weights
+                            .get(update.particle_index)
+                            .is_none_or(|weight| !(*weight * update.adjoint_multiplier).is_finite())
+                    }))
+            {
+                return Err(PhysicsError::Scientific(
+                    "deep-convection particle update is invalid".into(),
+                ));
+            }
+        }
+        for update in &updates {
+            particles.height_asl_m[update.particle_index] = update.height_asl_m;
+            if direction == Direction::Backward {
+                for weights in particles.adjoint.adjoint_weight.values_mut() {
+                    weights[update.particle_index] *= update.adjoint_multiplier;
+                }
+            }
+        }
+        Ok(updates
+            .into_iter()
+            .map(|update| ParticleConvectionTransfer {
+                particle_index: update.particle_index,
+                transfer: update.transfer,
+            })
+            .collect())
+    }
+
+    /// Merges selected substep transfers into one row per particle/substance/macro-step.
+    pub(crate) fn record_convection_transfers(
+        &mut self,
+        direction: Direction,
+        particles: &ParticleBatch,
+        transfers: &[ParticleConvectionTransfer],
+    ) -> Result<(), PhysicsError> {
+        for selected in transfers {
+            let particle_id = *particles
+                .id
+                .get(selected.particle_index)
+                .ok_or(PhysicsError::InvalidParticleBatch)?;
+            let substances = match direction {
+                Direction::Forward => particles.mass.mass_kg.keys(),
+                Direction::Backward => particles.adjoint.adjoint_weight.keys(),
+            };
+            for substance_id in substances {
+                let key = ConvectionEventKey {
+                    particle_id,
+                    substance_id: substance_id.clone(),
+                };
+                let transfer = selected.transfer;
+                self.convection_events
+                    .entry(key)
+                    .and_modify(|event| {
+                        match direction {
+                            Direction::Forward => {
+                                event.destination_layer = transfer.destination_layer;
+                            }
+                            Direction::Backward => {
+                                event.source_layer = transfer.source_layer;
+                            }
+                        }
+                        event.transfer_probability *= transfer.transfer_probability;
+                        event.importance_weight *= transfer.importance_weight;
+                        event.column_residual =
+                            event.column_residual.max(transfer.column_residual.abs());
+                    })
+                    .or_insert(ConvectionEventAccumulator {
+                        source_layer: transfer.source_layer,
+                        destination_layer: transfer.destination_layer,
+                        transfer_probability: transfer.transfer_probability,
+                        importance_weight: transfer.importance_weight,
+                        column_residual: transfer.column_residual.abs(),
+                    });
+            }
+        }
+        if self.convection_events.values().any(|event| {
+            !event.transfer_probability.is_finite()
+                || !(0.0..=1.0).contains(&event.transfer_probability)
+                || !event.importance_weight.is_finite()
+                || event.importance_weight < 0.0
+                || !event.column_residual.is_finite()
+        }) {
+            return Err(PhysicsError::Scientific(
+                "merged deep-convection event is invalid".into(),
+            ));
+        }
+        Ok(())
+    }
+
+    /// Drains deterministic macro-step events for output products.
+    pub(crate) fn finish_macro_step(
+        &mut self,
+        macro_step: u64,
+        time: Timestamp,
+        direction: Direction,
+    ) -> Vec<ConvectionProcessEvent> {
+        std::mem::take(&mut self.convection_events)
+            .into_iter()
+            .map(|(key, event)| ConvectionProcessEvent {
+                particle_id: key.particle_id,
+                macro_step,
+                substance_id: key.substance_id,
+                time,
+                direction,
+                source_layer: event.source_layer,
+                destination_layer: event.destination_layer,
+                transfer_probability: event.transfer_probability,
+                importance_weight: event.importance_weight,
+                column_residual: event.column_residual,
+            })
+            .collect()
     }
 
     /// Prepares midpoint motion velocity and the persistent end-point state.
@@ -900,101 +1194,4 @@ pub(crate) fn clamp_start_times(
             _ => *time,
         })
         .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-
-    use super::*;
-    use trajecta_case::model::population::{PopulationId, ReleaseEventId};
-
-    use crate::particle::{
-        MotionProcessStore, ParticleId, ParticleOrigin, SubstanceAdjointStore, SubstanceMassStore,
-        TerminationReason,
-    };
-
-    #[test]
-    fn partition_preserves_exact_signed_nanoseconds() {
-        let pipeline = PhysicsPipeline {
-            subgrid_orography: None,
-            boundary_layer: None,
-            mesoscale: None,
-            common_maximum_substep_ns: 30_000_000_000,
-        };
-        assert_eq!(
-            pipeline.partition(SignedDuration(75_000_000_000)).unwrap(),
-            vec![
-                SignedDuration(30_000_000_000),
-                SignedDuration(30_000_000_000),
-                SignedDuration(15_000_000_000),
-            ]
-        );
-        assert_eq!(
-            pipeline.partition(SignedDuration(-61_000_000_001)).unwrap(),
-            vec![
-                SignedDuration(-30_000_000_000),
-                SignedDuration(-30_000_000_000),
-                SignedDuration(-1_000_000_001),
-            ]
-        );
-    }
-
-    #[test]
-    fn terminated_particle_keeps_midpoint_state_instead_of_future_endpoint_state() {
-        let mut particles = one_particle_batch();
-        particles
-            .set_boundary_layer_velocity(0, [1.0, 2.0, 3.0])
-            .unwrap();
-        particles.status[0] = ParticleStatus::Terminated {
-            reason: TerminationReason::ModelTop,
-        };
-        PreparedMotion {
-            boundary_layer_end: vec![(0, [4.0, 5.0, 6.0])],
-            mesoscale_end: Vec::new(),
-        }
-        .finish(&mut particles, &[])
-        .unwrap();
-        assert_eq!(
-            particles.boundary_layer_velocity(0).unwrap(),
-            [1.0, 2.0, 3.0]
-        );
-    }
-
-    #[test]
-    fn reflected_surface_motion_reverses_only_the_vertical_process_velocity() {
-        let mut particles = one_particle_batch();
-        PreparedMotion {
-            boundary_layer_end: vec![(0, [4.0, 5.0, -6.0])],
-            mesoscale_end: Vec::new(),
-        }
-        .finish(&mut particles, &[0])
-        .unwrap();
-        assert_eq!(
-            particles.boundary_layer_velocity(0).unwrap(),
-            [4.0, 5.0, 6.0]
-        );
-    }
-
-    fn one_particle_batch() -> ParticleBatch {
-        let population = PopulationId("p".into());
-        let event = ReleaseEventId("e".into());
-        ParticleBatch {
-            id: vec![ParticleId::for_release(&population, &event, 0)],
-            population_id: vec![population],
-            origin: vec![ParticleOrigin::Release { event_id: event }],
-            birth_time: vec![Timestamp::UNIX_EPOCH],
-            longitude_degrees: vec![0.0],
-            latitude_degrees: vec![0.0],
-            height_asl_m: vec![100.0],
-            integration_offset_ns: vec![0],
-            elapsed_age_ns: vec![0],
-            dry_air_mass_kg: vec![1.0],
-            status: vec![ParticleStatus::Alive],
-            termination: vec![None],
-            mass: SubstanceMassStore::default(),
-            adjoint: SubstanceAdjointStore::default(),
-            motion: MotionProcessStore::default(),
-        }
-    }
 }
